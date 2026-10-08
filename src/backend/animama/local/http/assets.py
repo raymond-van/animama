@@ -61,7 +61,8 @@ _NO_FALLBACK_PREFIXES = _PRIVATE_PREFIXES + (
     "/assets",
     "/content",
     "/background",
-    "/effects",
+    # Only the static effect asset tree; /effects/new is an application page.
+    "/effects/vfx",
 )
 
 

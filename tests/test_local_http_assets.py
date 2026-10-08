@@ -264,7 +264,7 @@ async def test_explicit_mime_binary_bytes_and_head(web_root: Path, name: str, co
         "/assets/missing",
         "/content/missing",
         "/background/missing",
-        "/effects/missing",
+        "/effects/vfx/missing",
         "/missing.js",
         "/missing.js/",
         "/missing.",
@@ -303,6 +303,14 @@ async def test_directories_and_directory_links_are_not_documents(web_root: Path,
     async with _client(LocalAssets(web_root)) as client:
         for path in ("/directory", "/linked-dir/private.txt"):
             assert (await client.get(path, headers={"accept": "text/html"})).status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/effects/new", "/library", "/avatar-effects/new"])
+async def test_app_pages_beside_static_asset_trees_fall_back_to_the_shell(web_root: Path, path: str) -> None:
+    async with _client(LocalAssets(web_root)) as client:
+        response = await client.get(path, headers={"accept": "text/html", "sec-fetch-mode": "navigate"})
+        assert response.status_code == 200
+        assert _HTML in response.content
 
 
 async def test_only_navigation_can_fall_back_and_file_links_are_not_documents(web_root: Path, tmp_path: Path) -> None:
