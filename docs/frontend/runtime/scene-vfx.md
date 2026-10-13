@@ -201,9 +201,12 @@ templates, one per Scene family (Shoujo Bloom, Radiance, Festive Pop,
 Anticipation, Shock, Rage, Queasy and Gloom), take their family's Included
 emotion background's solid, pattern, gradient, rays or lines and flash, read
 at build time; they start without that effect's images. The focus templates
-are the bundled `dark` and `light-streak` presets. The picker offers the same
-templates; `/scene-effects/new?template=<id>` starts a new, unsaved draft from
-one, named after it.
+are the bundled `dark` and `light-streak` presets. The picker offers the 24
+Included emotion backgrounds by family and the two Included focus presets,
+with rendered thumbnails; `/scene-effects/new?template=<stem>` starts a new,
+unsaved draft named after the chosen item. For now the draft takes the
+starting template of the background's family (or the focus preset), without
+the Included item's images.
 
 The portable `animama/scene-effect-editor/1` JSON contains logical image names
 and exact Sound sources only. It never contains Blob URLs, download URLs, or

@@ -117,8 +117,8 @@
     },
     {
       "id": "effect-template-thumbnails",
-      "name": "Avatar FX template thumbnails (Animama renders of Annie)",
-      "license": "LicenseRef-pixiv-VRoidPreset for the Annie model; Animama's own owner- and agent-authored Avatar Effect artwork",
+      "name": "Effect template thumbnails (Animama renders of Annie)",
+      "license": "LicenseRef-pixiv-VRoidPreset for the Annie model; Animama's own owner- and agent-authored Avatar, Particle and Scene Effect artwork",
       "source": "src/frontend/web/src/assets/effect-templates/ (README records provenance); bundled into the web build as hashed assets",
       "notice_files": ["effect-template-thumbnails-attribution.txt"],
       "review": "pending"

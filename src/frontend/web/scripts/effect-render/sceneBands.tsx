@@ -176,8 +176,17 @@ export class SceneBands {
     return removed;
   }
 
-  /** Pause each Scene's animations at its own elapsed time at `time`. */
-  seekAnimations(time: number): void {
+  /**
+   * Pause each Scene's animations at its own elapsed time at `time`. With
+   * `freeze`, each paused animation's values are committed to its element's
+   * style and the animation is cancelled: a capture of static layers is the
+   * same on every run, while Chrome may rasterize an animated item slightly
+   * differently from run to run. Frozen layers do not animate again.
+   */
+  seekAnimations(
+    time: number,
+    { freeze = false }: { freeze?: boolean } = {},
+  ): void {
     for (const { entry, startedAt } of this.scenes.values()) {
       const root = this.host.querySelector(
         `[data-scene-vfx-id="${CSS.escape(entry.id)}"]`,
@@ -186,6 +195,10 @@ export class SceneBands {
       for (const animation of root?.getAnimations({ subtree: true }) ?? []) {
         animation.pause();
         animation.currentTime = elapsedMs;
+        if (freeze) {
+          animation.commitStyles();
+          animation.cancel();
+        }
       }
     }
   }

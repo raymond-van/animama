@@ -1,13 +1,16 @@
 /**
- * Starting points offered by the Effects template picker.
+ * Starting points offered by the Effects template picker. Every template is
+ * an Included effect, named by its folder stem (the `?template=` value and
+ * thumbnail name) and grouped for the picker:
  *
- * - **Avatar FX** templates are curated Included Avatar Effects, named by
- *   content ID and grouped by what they change. Their Annie thumbnails live in
- *   `assets/effect-templates/<id>.webp`; `pnpm -s effects:thumbnails`
- *   regenerates them from this list.
- * - **Scene FX** templates are the Scene creator's existing starting templates
- *   (`lib/scene-vfx/editor/defaults.ts`), referenced by ID.
- * - **Particle FX** offers only Start from scratch until it has templates.
+ * - **Particle FX:** the Included Particle Effects, by mechanic.
+ * - **Avatar FX:** curated Included Avatar Effects, by what they change.
+ * - **Scene FX:** the Included emotion backgrounds, by Scene family, and the
+ *   two focus-line presets.
+ *
+ * Each template has an Annie thumbnail in `assets/effect-templates/` (Avatar
+ * FX at the top level, the other kinds in `particle/` and `scene/`);
+ * `pnpm -s effects:thumbnails` regenerates them from these lists.
  *
  * Choosing a template opens the kind's `/new` route with `?template=<id>`, which
  * seeds a new, unsaved Local draft; Included content is never modified.
@@ -15,8 +18,6 @@
  * This module has no runtime imports, so the thumbnail script can import it
  * directly with Node's TypeScript type stripping.
  */
-import type { SceneEffectTemplateId } from "@/lib/scene-vfx/editor/types";
-
 export type EffectTemplateKind = "particle" | "avatar" | "scene";
 
 /** Picker order of the effect kinds. */
@@ -376,19 +377,250 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   }),
 ];
 
-/** The Scene creator's starting templates, in its own order. */
-export const SCENE_EFFECT_TEMPLATE_IDS: readonly SceneEffectTemplateId[] = [
-  "shoujo-bloom",
-  "radiance",
-  "festive-pop",
-  "anticipation",
-  "shock",
-  "rage",
-  "queasy",
-  "gloom",
-  "dark",
-  "light-streak",
+export type ParticleEffectTemplateGroup =
+  | "bursts"
+  | "streams"
+  | "orbits"
+  | "fireworks"
+  | "weather";
+
+/** Particle template groups, by mechanic, in picker order. */
+export const PARTICLE_EFFECT_TEMPLATE_GROUPS: ReadonlyArray<{
+  id: ParticleEffectTemplateGroup;
+  label: string;
+}> = [
+  { id: "bursts", label: "Bursts" },
+  { id: "streams", label: "Streams and auras" },
+  { id: "orbits", label: "Orbits and drifts" },
+  { id: "fireworks", label: "Fireworks" },
+  { id: "weather", label: "Weather" },
 ];
+
+/**
+ * How a Particle or Scene template's thumbnail is captured: on Annie, from the
+ * front, with randomness seeded, as `effects:render` review sheets are.
+ * `time` is seconds after the effect starts (default 1): early for a burst,
+ * later for a stream that builds up. `framing` is the chat's Portrait framing
+ * from the head to the waist (default), or `head` for an effect around or
+ * above the head: closer, with room above it.
+ */
+export type StageThumbnailOptions = {
+  time?: number;
+  framing?: "head";
+};
+
+export type ParticleEffectTemplate = {
+  /** The Included folder stem; also the `?template=` value and thumbnail name. */
+  id: string;
+  /** The Included Particle Effect this template copies. */
+  contentId: `builtin:particle-effect:${string}`;
+  /** The Included effect's name, shown before its content is loaded. */
+  name: string;
+  group: ParticleEffectTemplateGroup;
+  thumbnail?: StageThumbnailOptions;
+};
+
+function particle(
+  id: string,
+  name: string,
+  group: ParticleEffectTemplateGroup,
+  thumbnail?: StageThumbnailOptions,
+): ParticleEffectTemplate {
+  return {
+    id,
+    contentId: `builtin:particle-effect:${id}`,
+    name,
+    group,
+    ...(thumbnail ? { thumbnail } : {}),
+  };
+}
+
+export const PARTICLE_EFFECT_TEMPLATES: readonly ParticleEffectTemplate[] = [
+  particle("heart-burst", "Heart Burst", "bursts", { time: 1.25 }),
+  particle("star-burst", "Star Burst", "bursts", {
+    framing: "head",
+    time: 0.4,
+  }),
+  particle("hearts-v1", "Heart Stream", "streams", {
+    framing: "head",
+    time: 3.5,
+  }),
+  particle("fume-puffs", "Fume Puffs", "streams", { framing: "head" }),
+  particle("halo-rays", "Halo Rays", "streams", { framing: "head", time: 2 }),
+  particle("rage-aura", "Rage Aura", "streams", { time: 1.5 }),
+  particle("stink-miasma", "Stink Miasma", "streams", { time: 2 }),
+  particle("question-orbit", "Question Orbit", "orbits", {
+    framing: "head",
+    time: 1.5,
+  }),
+  particle("gloom-wisps", "Gloom Wisps", "orbits", { time: 2 }),
+  particle("sparkle-hearts", "Sparkle Hearts", "orbits", { framing: "head" }),
+  particle("twinkle-shimmer", "Twinkle Shimmer", "orbits", {
+    framing: "head",
+    time: 1.5,
+  }),
+  particle("fireworks-show", "Fireworks Show", "fireworks", { time: 1.3 }),
+  particle("heart-fireworks", "Heart Fireworks", "fireworks", {
+    framing: "head",
+    time: 1.5,
+  }),
+  particle("golden-willow", "Golden Willow", "fireworks", {
+    framing: "head",
+    time: 1.5,
+  }),
+  particle("rain-cloud", "Rain Cloud", "weather", {
+    framing: "head",
+    time: 1.5,
+  }),
+  particle("confetti", "Confetti", "weather", {
+    framing: "head",
+    time: 1.5,
+  }),
+];
+
+/** The eight Scene families, then the focus-line presets. */
+export type SceneEffectTemplateGroup =
+  | "affection"
+  | "esteem"
+  | "delight"
+  | "drive"
+  | "alarm"
+  | "rejection"
+  | "revulsion"
+  | "gloom"
+  | "focus-lines";
+
+/** Scene template groups in picker order. */
+export const SCENE_EFFECT_TEMPLATE_GROUPS: ReadonlyArray<{
+  id: SceneEffectTemplateGroup;
+  label: string;
+}> = [
+  { id: "affection", label: "Affection" },
+  { id: "esteem", label: "Esteem" },
+  { id: "delight", label: "Delight" },
+  { id: "drive", label: "Drive" },
+  { id: "alarm", label: "Alarm" },
+  { id: "rejection", label: "Rejection" },
+  { id: "revulsion", label: "Revulsion" },
+  { id: "gloom", label: "Gloom" },
+  { id: "focus-lines", label: "Focus lines" },
+];
+
+export type SceneEffectTemplate = {
+  /** The Included folder stem; also the `?template=` value and thumbnail name. */
+  id: string;
+  /** The Included Scene Effect this template copies. */
+  contentId:
+    | `builtin:scene-effect:background:${string}`
+    | `builtin:scene-effect:focus:${string}`;
+  /** The Included effect's name, shown before its content is loaded. */
+  name: string;
+  group: SceneEffectTemplateGroup;
+  thumbnail?: StageThumbnailOptions;
+};
+
+/** An Included emotion background (`scene-vfx-emotion-<emotion>`). */
+function background(
+  emotion: string,
+  name: string,
+  group: Exclude<SceneEffectTemplateGroup, "focus-lines">,
+  thumbnail?: StageThumbnailOptions,
+): SceneEffectTemplate {
+  const id = `scene-vfx-emotion-${emotion}`;
+  return {
+    id,
+    contentId: `builtin:scene-effect:background:${id}`,
+    name,
+    group,
+    ...(thumbnail ? { thumbnail } : {}),
+  };
+}
+
+/** An Included focus-line preset. */
+function focusLines(
+  id: string,
+  name: string,
+  thumbnail?: StageThumbnailOptions,
+): SceneEffectTemplate {
+  return {
+    id,
+    contentId: `builtin:scene-effect:focus:${id}`,
+    name,
+    group: "focus-lines",
+    ...(thumbnail ? { thumbnail } : {}),
+  };
+}
+
+export const SCENE_EFFECT_TEMPLATES: readonly SceneEffectTemplate[] = [
+  background("admiration", "Emotion Admiration", "affection"),
+  background("caring", "Emotion Caring", "affection"),
+  background("love", "Emotion Love", "affection"),
+  background("embarrassment", "Emotion Embarrassment", "affection"),
+  background("respect", "Emotion Respect", "esteem"),
+  background("confidence", "Emotion Confidence", "esteem"),
+  background("gratitude", "Emotion Gratitude", "esteem"),
+  background("amusement", "Emotion Amusement", "delight"),
+  background("excitement", "Emotion Excitement", "delight"),
+  background("joy", "Emotion Joy", "delight"),
+  background("desire", "Emotion Desire", "drive"),
+  background("curiosity", "Emotion Curiosity", "drive"),
+  background("optimism", "Emotion Optimism", "drive"),
+  background("fear", "Emotion Fear", "alarm"),
+  background("nervousness", "Emotion Nervousness", "alarm"),
+  background("confusion", "Emotion Confusion", "alarm"),
+  background("anger", "Emotion Anger", "rejection"),
+  background("annoyance", "Emotion Annoyance", "rejection"),
+  background("disapproval", "Emotion Disapproval", "rejection"),
+  background("disgust", "Emotion Disgust", "revulsion"),
+  background("remorse", "Emotion Remorse", "revulsion"),
+  // Its gloom lines sway up out of view after the first second.
+  background("disappointment", "Emotion Disappointment", "gloom", {
+    time: 0.5,
+  }),
+  background("grief", "Emotion Grief", "gloom"),
+  background("sadness", "Emotion Sadness", "gloom"),
+  focusLines("dark", "Focus Lines Dark"),
+  focusLines("light-streak", "Focus Lines Light Streak"),
+];
+
+/** A template of any kind, as the picker shows it. */
+export type EffectTemplate =
+  | AvatarEffectTemplate
+  | ParticleEffectTemplate
+  | SceneEffectTemplate;
+
+/** A kind's templates, in picker order within each group. */
+export function effectTemplates(
+  kind: EffectTemplateKind,
+): readonly EffectTemplate[] {
+  return {
+    particle: PARTICLE_EFFECT_TEMPLATES,
+    avatar: AVATAR_EFFECT_TEMPLATES,
+    scene: SCENE_EFFECT_TEMPLATES,
+  }[kind];
+}
+
+/**
+ * A kind's templates by group, in picker order. Every group of the kind is
+ * listed (the catalogue test keeps none empty).
+ */
+export function effectTemplateGroups(kind: EffectTemplateKind): Array<{
+  id: string;
+  label: string;
+  templates: EffectTemplate[];
+}> {
+  const groups: ReadonlyArray<{ id: string; label: string }> = {
+    particle: PARTICLE_EFFECT_TEMPLATE_GROUPS,
+    avatar: AVATAR_EFFECT_TEMPLATE_GROUPS,
+    scene: SCENE_EFFECT_TEMPLATE_GROUPS,
+  }[kind];
+  const templates = effectTemplates(kind);
+  return groups.map(({ id, label }) => ({
+    id,
+    label,
+    templates: templates.filter((template) => template.group === id),
+  }));
+}
 
 export function avatarEffectTemplate(
   id: string | undefined,
@@ -396,27 +628,48 @@ export function avatarEffectTemplate(
   return AVATAR_EFFECT_TEMPLATES.find((template) => template.id === id) ?? null;
 }
 
-export function isSceneEffectTemplateId(
-  id: unknown,
-): id is SceneEffectTemplateId {
-  return SCENE_EFFECT_TEMPLATE_IDS.some((template) => template === id);
+/** The Particle template with this ID, or null. */
+export function findParticleEffectTemplate(
+  id: string | undefined,
+): ParticleEffectTemplate | null {
+  return (
+    PARTICLE_EFFECT_TEMPLATES.find((template) => template.id === id) ?? null
+  );
+}
+
+/** The Scene template with this ID, or null. */
+export function findSceneEffectTemplate(
+  id: string | undefined,
+): SceneEffectTemplate | null {
+  return SCENE_EFFECT_TEMPLATES.find((template) => template.id === id) ?? null;
+}
+
+/** `?template=` when it names a template `find` knows; otherwise nothing. */
+function parseTemplateSearch(
+  search: Record<string, unknown>,
+  find: (id: string) => unknown,
+): { template?: string } {
+  const template = search.template;
+  return typeof template === "string" && find(template) ? { template } : {};
 }
 
 /** Parse `?template=` for the Avatar Effect creator; unknown IDs are dropped. */
 export function parseAvatarEffectTemplateSearch(
   search: Record<string, unknown>,
 ): { template?: string } {
-  const template = search.template;
-  return typeof template === "string" && avatarEffectTemplate(template)
-    ? { template }
-    : {};
+  return parseTemplateSearch(search, avatarEffectTemplate);
+}
+
+/** Parse `?template=` for the Particle Effect creator; unknown IDs are dropped. */
+export function parseParticleEffectTemplateSearch(
+  search: Record<string, unknown>,
+): { template?: string } {
+  return parseTemplateSearch(search, findParticleEffectTemplate);
 }
 
 /** Parse `?template=` for the Scene Effect creator; unknown IDs are dropped. */
 export function parseSceneEffectTemplateSearch(
   search: Record<string, unknown>,
-): { template?: SceneEffectTemplateId } {
-  return isSceneEffectTemplateId(search.template)
-    ? { template: search.template }
-    : {};
+): { template?: string } {
+  return parseTemplateSearch(search, findSceneEffectTemplate);
 }

@@ -88,16 +88,6 @@ function isFocusTemplate(
   return templateId === "dark" || templateId === "light-streak";
 }
 
-/** The display label of a starting template, for example "Dark Focus". */
-export function sceneEffectTemplateLabel(
-  templateId: SceneEffectTemplateId,
-): string {
-  return (
-    SCENE_EFFECT_TEMPLATE_OPTIONS.find((option) => option.id === templateId)
-      ?.label ?? templateId
-  );
-}
-
 /** Clone a template into a private, independently editable draft. */
 export function sceneEffectTemplate(
   templateId: SceneEffectTemplateId,

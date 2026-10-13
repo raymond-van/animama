@@ -72,6 +72,17 @@ type StageRequest = {
   clip: unknown;
   /** The effects the clip's events play, or null when it plays none. */
   clipMedia: PageClipMedia | null;
+  /**
+   * Camera distance of the front and 3/4 views relative to the chat Portrait
+   * framing (default 1), so a thumbnail can show an effect that spreads past
+   * it or come closer to one around the head. The face view keeps its own.
+   */
+  framingScale?: number;
+  /**
+   * How far the front and 3/4 views aim below the Portrait target, as a
+   * share of the view height (default 0; negative aims higher).
+   */
+  framingDrop?: number;
 };
 
 type ThumbnailRequest = {
@@ -440,6 +451,41 @@ function placeCamera(
   camera.updateProjectionMatrix();
 }
 
+/**
+ * `framing` with the camera `scale` times as far from its target, then
+ * camera and target moved down by `drop` of the view height there.
+ */
+function adjustedFraming(
+  framing: Framing,
+  scale: number,
+  drop: number,
+): Framing {
+  const offset = framing.position.clone().sub(framing.target);
+  offset.multiplyScalar(scale);
+  const viewHeight =
+    2 * offset.length() * Math.tan(THREE.MathUtils.degToRad(framing.fov / 2));
+  const shift = new THREE.Vector3(0, -drop * viewHeight, 0);
+  const target = framing.target.clone().add(shift);
+  return { ...framing, target, position: target.clone().add(offset) };
+}
+
+/**
+ * Load and decode the Scenes' images before they are shown, so the first
+ * frame draws each one complete however quickly it loaded.
+ */
+async function decodeSceneImages(scenes: PreviewSceneEffect[]): Promise<void> {
+  await Promise.all(
+    scenes
+      .flatMap((scene) => Object.values(scene.imageUrls))
+      .map((url) => {
+        const image = new Image();
+        image.src = url;
+        // A broken image is reported by the layer, not here.
+        return image.decode().catch(() => undefined);
+      }),
+  );
+}
+
 /** The one open stage: its renderer, session and Avatar framing. */
 let open: {
   stage: ReviewStage;
@@ -496,7 +542,12 @@ async function openReviewStage(
     );
     stage.attachCanvas(renderer.domElement, session.avatar);
     scene.add(session.avatar.scene!);
-    const framing = chatPortraitFraming(session.avatar);
+    const framing = adjustedFraming(
+      chatPortraitFraming(session.avatar),
+      request.framingScale ?? 1,
+      request.framingDrop ?? 0,
+    );
+    await decodeSceneImages(request.scenes);
     await session.apply(request);
     open = { stage, renderer, scene, camera, session, framing };
     return {
@@ -511,10 +562,15 @@ async function openReviewStage(
   }
 }
 
-/** Draw the open stage at `time` seconds after applying, from `view`. */
+/**
+ * Draw the open stage at `time` seconds after applying, from `view`. With
+ * `freeze`, Scene layers become static at that moment (for a single capture,
+ * such as a thumbnail): later frames of the stage would show them unmoved.
+ */
 async function showReviewFrame(
   time: number,
   view: ViewName,
+  freeze = false,
 ): Promise<AvatarDiagnostics> {
   if (!open) throw new Error("No review stage is open.");
   const { session, renderer, scene, camera, framing } = open;
@@ -522,7 +578,7 @@ async function showReviewFrame(
   placeCamera(camera, view, session.avatar, framing);
   renderer.render(scene, camera);
   // After the camera moves, so layers aimed at the Avatar follow this view.
-  await open.stage.seek(session.time);
+  await open.stage.seek(session.time, { freeze });
   return session.diagnostics("frame");
 }
 

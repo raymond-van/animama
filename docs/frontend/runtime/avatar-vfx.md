@@ -374,10 +374,14 @@ keyframes are not supported for Avatar Effects.
 The sidebar Create menu's **Effects** item, the Create page's effect cards and
 `/effects/new` open the Effects template picker. Step 1 chooses Particle FX,
 Avatar FX or Scene FX; step 2 offers **Start from scratch** and that kind's
-templates, with Back. Avatar FX templates are the Included Avatar Effects,
-grouped as Eyes, Cheeks, Whole face, Around the head, Mouth and Body in
-`lib/effects/effectTemplates.ts`, with thumbnails captured on the Included
-Avatar Annie. Choosing one opens `/avatar-effects/new?template=<id>`, which
+templates, with Back. The templates are listed in
+`lib/effects/effectTemplates.ts`, each with a thumbnail rendered on the
+Included Avatar Annie: the 16 Included Particle Effects by mechanic (Bursts,
+Streams and auras, Orbits and drifts, Fireworks, Weather), the Included Avatar
+Effects grouped as Eyes, Cheeks, Whole face, Around the head, Mouth and Body,
+and the 24 Included Scene backgrounds by family plus the two focus-line
+presets. Choosing an Avatar FX template opens
+`/avatar-effects/new?template=<id>`, which
 copies the Included effect into a new, unsaved Local draft with an unused name;
 Save creates a separate Local item and never changes the Included one.
 `/avatar-effects/new` and `/avatar-effects/:avatarEffectId/edit` remain the
@@ -637,12 +641,18 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
   (default 8 of 255) and writes a diff image. The same source and revision diff
   to 0 pixels.
 
-`pnpm -s effects:thumbnails [template-id...]` regenerates the picker's Avatar FX
-thumbnails (320 px WebP, 1 s after applying, or at the template's
-`thumbnail.time`; a `thumbnail.framing: "wide"` template is framed wider to
+`pnpm -s effects:thumbnails [--kind avatar|particle|scene] [template-id...]`
+regenerates the picker's thumbnails (320 px WebP, 1 s after applying, or at
+the template's `thumbnail.time`) into `src/assets/effect-templates/` (Avatar
+FX at the top level, Particle and Scene FX in `particle/` and `scene/`) and
+removes files for templates that no longer exist, only in the folders of the
+kinds it rendered. Particle and Scene FX are captured through the review stage
+(seeded particles, Scene layers composited), each in a freshly loaded page
+with CPU rasterization so reruns are byte-identical; a
+`thumbnail.framing: "head"` template is framed closer with room above the
+head. For Avatar FX, a `thumbnail.framing: "wide"` template is framed wider to
 show chest or side art, and `"body"` is framed from the head to the upper
-thighs, centred on the torso, for art at the belly, hips or a lowered hand) into `src/assets/effect-templates/`
-and removes files for templates that no longer exist. For art attached to a
+thighs, centred on the torso, for art at the belly, hips or a lowered hand. For art attached to a
 hand, which hangs out of frame in the rest pose, set `thumbnail.clip` to an
 Included Gesture's folder stem with wide framing: Annie is posed by that
 Gesture sampled at the thumbnail time, with the effect applied at 0, as

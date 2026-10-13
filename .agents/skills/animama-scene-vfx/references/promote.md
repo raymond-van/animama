@@ -59,13 +59,24 @@ Included IDs. Show the owner the dry-run list before writing.
 
 1. `git add` the new files: backend Included-content tests read tracked files
    only.
-2. Update pinned expectations deliberately (Scene counts, presets and
+2. Templates: every Included Scene Effect needs an Effects picker template
+   (`effectTemplates.test.ts` checks): add it to `SCENE_EFFECT_TEMPLATES`
+   in `src/frontend/web/src/lib/effects/effectTemplates.ts` under its
+   promoted name, in its family's group (Focus lines for focus lines), run
+   `pnpm -s effects:thumbnails --kind scene <stem>`, and add a source-review
+   record for the thumbnail in the existing thumbnail form. Give a Scene
+   whose layers peak early or late a `thumbnail: { time }` (after any entry
+   flash). Check every image. Regenerate thumbnails of replaced templates;
+   remove a deleted effect's template, thumbnail and the
+   thumbnail's source-review record (`effects promote` drops records only
+   for effect files).
+3. Update pinned expectations deliberately (Scene counts, presets and
    mappings in frontend tests).
-3. Run `uv run pytest -q tests/test_included_content_integrity.py
+4. Run `uv run pytest -q tests/test_included_content_integrity.py
    tests/test_included_content_catalog.py tests/test_starter_content_closure.py
    scripts/public-release/test_prepare_source.py`, then from `src/frontend`
    `pnpm check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build`.
-4. Do not change the starter loadout or equip anything unless asked.
+5. Do not change the starter loadout or equip anything unless asked.
 
 A Local Reaction or Gesture that still names a deleted Included Scene keeps
 playing without it and asks for repair in its creator; it is not migrated.

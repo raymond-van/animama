@@ -46,12 +46,30 @@ describe("Effect creator entry points", () => {
     expect(hub).toContain("EFFECT_TEMPLATE_KINDS.map");
     expect(hub).not.toContain("/avatar-effects/new");
 
-    // The picker reaches every creator route, with templates where they exist.
-    expect(picker).toContain('to="/avatar-effects/new"');
-    expect(picker).toContain('to="/scene-effects/new"');
+    // The picker reaches each kind's creator route from the registry, with
+    // `?template=` for a template (links are checked in the picker's tests).
+    expect(picker).toContain("EFFECT_TEMPLATE_KIND_INFO[kind].route");
     expect(picker).toContain("search={{ template: template.id }}");
-    expect(picker).toContain("search={{ template: id }}");
     expect(picker).toContain("Start from scratch");
+    // Every kind shows rendered thumbnails; the Scene CSS swatch is gone.
+    expect(picker).toContain("loadEffectTemplateThumbnail(kind, templateId)");
+    expect(picker).not.toContain("SceneTemplatePreview");
+    expect(picker).not.toContain("no Particle FX templates");
+  });
+
+  it("validates ?template= on the Particle and Scene creator routes, keyed by template", async () => {
+    const [particle, scene] = await Promise.all(
+      ["particle-effects.new.tsx", "scene-effects.new.tsx"].map((file) =>
+        readFile(new URL(`../../routes/_app/${file}`, import.meta.url), "utf8"),
+      ),
+    );
+
+    expect(particle).toContain(
+      "validateSearch: parseParticleEffectTemplateSearch",
+    );
+    expect(particle).toContain('key={`new:${template ?? ""}`}');
+    expect(scene).toContain("validateSearch: parseSceneEffectTemplateSearch");
+    expect(scene).toContain('key={`new:${template ?? ""}`}');
   });
 
   it("renders the creator hub with the picker open at /effects/new", async () => {

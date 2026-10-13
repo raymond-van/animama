@@ -3,15 +3,15 @@
   "content_type": "particle_effect",
   "content_id": "builtin:particle-effect:hearts-v1",
   "version": 1,
-  "name": "hearts-v1",
-  "description": "hearts",
+  "name": "Heart Stream",
+  "description": "Little pink hearts float up around the head in a gentle, steady stream.",
   "runtime_defaults": {
     "schema_version": 1,
     "runtime_id": "hearts-v1",
     "slots": {
       "particle_vfx": {
-        "label": "hearts-v1",
-        "description": "hearts",
+        "label": "Heart Stream",
+        "description": "Little pink hearts float up around the head in a gentle, steady stream.",
         "anchor": "head",
         "duration_seconds": 15,
         "max_duration_seconds": 30,

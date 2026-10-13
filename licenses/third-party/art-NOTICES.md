@@ -67,13 +67,16 @@ Its embedded VRM 0 metadata declares [CC BY 4.0](art-CC-BY-4.0.txt) with commerc
 use allowed and violent or sexual use disallowed; its portrait follows the same
 terms. Do not edit its embedded permission flags.
 
-The Avatar FX template thumbnails in
-`src/frontend/web/src/assets/effect-templates/` are also direct Animama renderer
-captures of Annie, each wearing an Included Avatar Effect with Animama's own
-owner- or agent-authored art and no other artwork, in some cases posed by an
-Included Gesture. Like Annie's portrait, they follow Annie's model terms and retain
-pixiv VRoid Project credit. Their provenance and regeneration command are in
-that folder's README.
+The effect template thumbnails in
+`src/frontend/web/src/assets/effect-templates/` (Avatar, Particle and Scene FX)
+are also direct Animama renderer captures of Annie, each with one Included
+effect and no other artwork: an Avatar Effect with Animama's own owner- or
+agent-authored art, in some cases posed by an Included Gesture, an
+owner-authored Particle Effect (Heart Stream's heart texture is from the
+project's generated particle texture set) or an owner-authored Scene Effect.
+Like Annie's portrait, they follow Annie's model terms and retain pixiv VRoid
+Project credit. Their provenance and regeneration command are in that folder's
+README.
 
 Geometry, textures, non-metadata JSON and portrait bytes of both models are
 unchanged; current hashes and metadata are recorded in

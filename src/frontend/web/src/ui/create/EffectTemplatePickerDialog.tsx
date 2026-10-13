@@ -6,33 +6,18 @@ import {
   ArrowRight,
   ImageOff,
   Plus,
-  ScanLine,
   type LucideIcon,
 } from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
-  AVATAR_EFFECT_TEMPLATE_GROUPS,
-  AVATAR_EFFECT_TEMPLATES,
   EFFECT_TEMPLATE_KINDS,
   EFFECT_TEMPLATE_KIND_INFO,
-  SCENE_EFFECT_TEMPLATE_IDS,
+  effectTemplateGroups,
   type EffectCreatorRoute,
   type EffectTemplateKind,
 } from "@/lib/effects/effectTemplates";
-import { loadAvatarEffectTemplateThumbnail } from "@/lib/effects/effectTemplateThumbnails";
-import {
-  sceneEffectTemplate,
-  sceneEffectTemplateLabel,
-} from "@/lib/scene-vfx/editor/defaults";
-import type { SceneEffectTemplateId } from "@/lib/scene-vfx/editor/types";
-import { gradientCss } from "@/lib/scene-vfx/layerGeometry";
+import { loadEffectTemplateThumbnail } from "@/lib/effects/effectTemplateThumbnails";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
@@ -218,6 +203,10 @@ function KindCard({
 const TEMPLATE_GRID_CLASS_NAME =
   "grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-5";
 
+/**
+ * Step 2: Start from scratch, then the kind's templates under their group
+ * headings, each with its rendered Annie thumbnail.
+ */
 function TemplateStep({
   kind,
   onChoose,
@@ -225,69 +214,44 @@ function TemplateStep({
   kind: EffectTemplateKind;
   onChoose?: () => void;
 }) {
-  const scratch = <StartFromScratchCard kind={kind} onChoose={onChoose} />;
-  if (kind === "avatar")
-    return (
-      <div className="space-y-6">
-        <div className={TEMPLATE_GRID_CLASS_NAME}>{scratch}</div>
-        {AVATAR_EFFECT_TEMPLATE_GROUPS.map((group) => {
-          const templates = AVATAR_EFFECT_TEMPLATES.filter(
-            (template) => template.group === group.id,
-          );
-          if (templates.length === 0) return null;
-          return (
-            <section
-              key={group.id}
-              aria-labelledby={`effect-template-group-${group.id}`}
-              className="space-y-3"
-            >
-              <h3
-                id={`effect-template-group-${group.id}`}
-                className="text-muted-foreground text-sm font-semibold"
-              >
-                {group.label}
-              </h3>
-              <div className={TEMPLATE_GRID_CLASS_NAME}>
-                {templates.map((template) => (
-                  <TemplateCard
-                    key={template.id}
-                    label={template.name}
-                    to="/avatar-effects/new"
-                    search={{ template: template.id }}
-                    onChoose={onChoose}
-                    preview={
-                      <AvatarTemplateThumbnail templateId={template.id} />
-                    }
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
-    );
-  if (kind === "scene")
-    return (
-      <div className={TEMPLATE_GRID_CLASS_NAME}>
-        {scratch}
-        {SCENE_EFFECT_TEMPLATE_IDS.map((id) => (
-          <TemplateCard
-            key={id}
-            label={sceneEffectTemplateLabel(id)}
-            to="/scene-effects/new"
-            search={{ template: id }}
-            onChoose={onChoose}
-            preview={<SceneTemplatePreview templateId={id} />}
-          />
-        ))}
-      </div>
-    );
+  const { route } = EFFECT_TEMPLATE_KIND_INFO[kind];
   return (
-    <div className="space-y-4">
-      <div className={TEMPLATE_GRID_CLASS_NAME}>{scratch}</div>
-      <p className="text-muted-foreground text-sm">
-        There are no Particle FX templates yet. Start from scratch to build one.
-      </p>
+    <div className="space-y-6">
+      <div className={TEMPLATE_GRID_CLASS_NAME}>
+        <StartFromScratchCard kind={kind} onChoose={onChoose} />
+      </div>
+      {effectTemplateGroups(kind).map((group) => {
+        if (group.templates.length === 0) return null;
+        const headingId = `effect-template-group-${kind}-${group.id}`;
+        return (
+          <section
+            key={group.id}
+            aria-labelledby={headingId}
+            className="space-y-3"
+          >
+            <h3
+              id={headingId}
+              className="text-muted-foreground text-sm font-semibold"
+            >
+              {group.label}
+            </h3>
+            <div className={TEMPLATE_GRID_CLASS_NAME}>
+              {group.templates.map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  label={template.name}
+                  to={route}
+                  search={{ template: template.id }}
+                  onChoose={onChoose}
+                  preview={
+                    <TemplateThumbnail kind={kind} templateId={template.id} />
+                  }
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -319,7 +283,10 @@ function TemplateCard({
       onClick={onChoose}
     >
       {preview}
-      <span className="mt-2.5 line-clamp-2 px-0.5 text-sm font-semibold">
+      <span
+        className="mt-2.5 line-clamp-2 px-0.5 text-sm font-semibold break-words"
+        title={label}
+      >
         {label}
       </span>
     </Link>
@@ -349,11 +316,9 @@ function StartFromScratchCard({
 
 function PreviewFrame({
   className,
-  style,
   children,
 }: {
   className?: string;
-  style?: CSSProperties;
   children?: ReactNode;
 }) {
   return (
@@ -362,7 +327,6 @@ function PreviewFrame({
         "bg-muted/60 relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl",
         className,
       )}
-      style={style}
     >
       {children}
     </span>
@@ -375,14 +339,23 @@ type ThumbnailState =
   | { status: "error" }
   | { status: "empty" };
 
-/** An Annie thumbnail, with loading, missing (empty) and failed states. */
-function AvatarTemplateThumbnail({ templateId }: { templateId: string }) {
+/**
+ * A template's Annie thumbnail, with loading, missing (empty) and failed
+ * states.
+ */
+function TemplateThumbnail({
+  kind,
+  templateId,
+}: {
+  kind: EffectTemplateKind;
+  templateId: string;
+}) {
   const [state, setState] = useState<ThumbnailState>({
     status: "loading",
     url: null,
   });
   useEffect(() => {
-    const pending = loadAvatarEffectTemplateThumbnail(templateId);
+    const pending = loadEffectTemplateThumbnail(kind, templateId);
     if (!pending) {
       setState({ status: "empty" });
       return;
@@ -399,7 +372,7 @@ function AvatarTemplateThumbnail({ templateId }: { templateId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [templateId]);
+  }, [kind, templateId]);
 
   const url = "url" in state ? state.url : null;
   return (
@@ -448,46 +421,5 @@ function PreviewMessage({
       <Icon className="size-5" aria-hidden="true" />
       {text}
     </span>
-  );
-}
-
-/** A CSS swatch of a Scene template's colours; Scene templates have no renders. */
-function SceneTemplatePreview({
-  templateId,
-}: {
-  templateId: SceneEffectTemplateId;
-}) {
-  const template = sceneEffectTemplate(templateId);
-  if (template.kind === "focus_lines")
-    return (
-      <PreviewFrame
-        className="bg-muted"
-        style={{
-          backgroundImage: `repeating-conic-gradient(from 0deg at 50% 50%, ${template.focus.color} 0deg 1.5deg, transparent 1.5deg 9deg)`,
-        }}
-      >
-        <span className="bg-background/90 flex size-12 items-center justify-center rounded-full shadow-sm">
-          <ScanLine className="text-foreground size-5" aria-hidden="true" />
-        </span>
-      </PreviewFrame>
-    );
-  const { solid, pattern, gradient } = template.background;
-  // The template's gradient over its solid colour, with its pattern as dots.
-  const layers = [
-    pattern.enabled
-      ? `radial-gradient(${pattern.color} 22%, transparent 24%)`
-      : null,
-    gradient.enabled ? gradientCss(gradient) : null,
-  ].filter((layer): layer is string => layer !== null);
-  return (
-    <PreviewFrame
-      style={{
-        backgroundColor: solid.enabled ? solid.color : undefined,
-        backgroundImage: layers.join(", ") || undefined,
-        backgroundSize: pattern.enabled
-          ? ["22px 22px", ...layers.slice(1).map(() => "auto")].join(", ")
-          : undefined,
-      }}
-    />
   );
 }

@@ -24,7 +24,10 @@ import { toast } from "sonner";
 import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { previewSoundForCopy } from "@/lib/content/previewSound";
-import { isSceneEffectTemplateId } from "@/lib/effects/effectTemplates";
+import {
+  findSceneEffectTemplate,
+  type SceneEffectTemplateGroup,
+} from "@/lib/effects/effectTemplates";
 import type {
   PyContentPreview,
   PyExactContentSource,
@@ -41,7 +44,6 @@ import {
   parseSceneEffectEditorExport,
   SCENE_EFFECT_TEMPLATE_OPTIONS,
   sceneEffectEditorReducer,
-  sceneEffectTemplateLabel,
   sceneEffectImageMetadata,
   defaultSceneScatter,
   sceneEffectRecoveryStore,
@@ -159,15 +161,16 @@ const scatterIndex = (layer: BackgroundLayer): number | null =>
 
 /**
  * Product Scene Effect creator backed by ordinary editable catalog files.
- * `itemId` edits a saved item; `templateId` starts a new draft from one of the
- * starting templates (`/scene-effects/new?template=<id>`).
+ * `itemId` edits a saved item; `templateId` starts a new draft from a picker
+ * template (`/scene-effects/new?template=<id>`, an Included Scene Effect's
+ * folder stem).
  */
 export function SceneEffectCreatorPage({
   itemId,
   templateId,
 }: {
   itemId?: string;
-  templateId?: SceneEffectTemplateId;
+  templateId?: string;
 }) {
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
@@ -203,7 +206,9 @@ export function SceneEffectCreatorPage({
   );
   /** The template this draft started from, shown in Setup; null for Custom. */
   const [startingTemplate, setStartingTemplate] =
-    useState<SceneEffectTemplateId | null>(templateId ?? null);
+    useState<SceneEffectTemplateId | null>(() =>
+      templateId ? interimStartingTemplate(templateId) : null,
+    );
   const [selectedLayer, setSelectedLayer] =
     useState<BackgroundLayer>("marquee");
   const [selectedModel, setSelectedModel] =
@@ -379,9 +384,7 @@ export function SceneEffectCreatorPage({
     <CreatorTemplateDraftDialog
       start={templateStart}
       contentLabel="Scene Effect"
-      templateName={
-        templateId ? sceneEffectTemplateLabel(templateId) : "a template"
-      }
+      templateName={findSceneEffectTemplate(templateId)?.name ?? "a template"}
     />
   );
 
@@ -2217,25 +2220,64 @@ function object(value: unknown): Record<string, unknown> | null {
 }
 
 /**
- * A new, unsaved Local draft from one of the code-shipped starting templates,
- * named after the template with a name no catalog item uses.
+ * Interim (Plan 3 P1, until the creator loads the Included item with its
+ * art): the code-drawn starting template a picker template opens with. A
+ * background opens its family's template, a focus preset the bundled preset
+ * of the same ID.
+ */
+const INTERIM_FAMILY_TEMPLATES: Record<
+  Exclude<SceneEffectTemplateGroup, "focus-lines">,
+  SceneEffectTemplateId
+> = {
+  affection: "shoujo-bloom",
+  esteem: "radiance",
+  delight: "festive-pop",
+  drive: "anticipation",
+  alarm: "shock",
+  rejection: "rage",
+  revulsion: "queasy",
+  gloom: "gloom",
+};
+
+/** Interim: the starting template for a picker template ID, or null. */
+function interimStartingTemplate(
+  templateId: string,
+): SceneEffectTemplateId | null {
+  const template = findSceneEffectTemplate(templateId);
+  if (!template) return null;
+  const id =
+    template.group === "focus-lines"
+      ? template.id
+      : INTERIM_FAMILY_TEMPLATES[template.group];
+  return (
+    SCENE_EFFECT_TEMPLATE_OPTIONS.find((option) => option.id === id)?.id ?? null
+  );
+}
+
+/**
+ * A new, unsaved Local draft from a picker template, named after it with a
+ * name no catalog item uses. For now its layers come from the interim
+ * starting template (see `interimStartingTemplate`), without the Included
+ * effect's images.
  */
 async function loadSceneEffectTemplate(
   apiClient: Client,
   templateId: string,
   signal: AbortSignal,
 ): Promise<SceneEffectHistorySnapshot> {
-  if (!isSceneEffectTemplateId(templateId))
+  const template = findSceneEffectTemplate(templateId);
+  const startingTemplate = interimStartingTemplate(templateId);
+  if (!template || !startingTemplate)
     throw new Error("This Scene Effect template is unavailable.");
   const items = await listCatalogItems(apiClient, "scene_effect", signal);
   return {
     document: {
       ...applySceneEffectTemplate(
         createDefaultSceneEffectDocument(),
-        templateId,
+        startingTemplate,
       ),
       name: createUniqueContentName(
-        sceneEffectTemplateLabel(templateId),
+        template.name,
         items.map((item) => item.name),
       ),
     },

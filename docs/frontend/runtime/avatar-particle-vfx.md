@@ -126,8 +126,10 @@ The protected `/particle-effects/new` and
 `/particle-effects/:particleEffectId/edit` routes provide the
 Animama-owned authoring surface. New Particle Effects start from the Effects
 template picker (the sidebar Create menu's **Effects** item, the Create page's
-Particle FX card or `/effects/new`), which offers Start from scratch until
-Particle templates exist. The editor creates a direct Particle Effect
+Particle FX card or `/effects/new`), which offers Start from scratch and the
+16 Included Particle Effects as templates. A template opens
+`/particle-effects/new?template=<stem>`; the creator does not load the
+template's settings yet and opens blank. The editor creates a direct Particle Effect
 document, selects its bounded resources, previews it in its isolated Canvas,
 and saves one editable Local entry.
 

@@ -49,6 +49,39 @@ async function openKindFromRoute(page: Page, label: string): Promise<Locator> {
   return picker;
 }
 
+/**
+ * Expect the picker's step to show `groups` as headings and `count` template
+ * thumbnails, each loaded at full size.
+ */
+async function expectTemplateThumbnails(
+  picker: Locator,
+  groups: readonly string[],
+  count: number,
+): Promise<void> {
+  for (const group of groups)
+    await expect(
+      picker.getByRole("heading", { name: group, exact: true }),
+    ).toBeVisible();
+  const images = picker.locator("img");
+  await expect(images).toHaveCount(count);
+  // Thumbnails load lazily, so bring each card into view before checking.
+  for (let index = 0; index < count; index += 1)
+    await images.nth(index).scrollIntoViewIfNeeded();
+  await expect
+    .poll(
+      () =>
+        images.evaluateAll((elements) =>
+          elements.every(
+            (element) =>
+              (element as HTMLImageElement).complete &&
+              (element as HTMLImageElement).naturalWidth >= 256,
+          ),
+        ),
+      { message: "every template thumbnail loads", timeout: 20_000 },
+    )
+    .toBe(true);
+}
+
 /** Leave a dirty creator through its blocker, discarding the draft. */
 async function discardToLibrary(page: Page): Promise<void> {
   await page.getByRole("link", { name: "Library", exact: true }).click();
@@ -160,37 +193,65 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
   const catalogBefore = await creatorContent.snapshotLocalCatalog();
   const guard = new ReadOnlyJourneyGuard(page);
   try {
+    await test.step("Particle FX templates show loaded thumbnails by mechanic", async () => {
+      const picker = await openKindFromRoute(page, "Particle FX");
+      await expectTemplateThumbnails(
+        picker,
+        [
+          "Bursts",
+          "Streams and auras",
+          "Orbits and drifts",
+          "Fireworks",
+          "Weather",
+        ],
+        16,
+      );
+      await expect(
+        picker.getByRole("link", { name: "Heart Burst", exact: true }),
+      ).toHaveAttribute(
+        "href",
+        /\/particle-effects\/new\?template=heart-burst$/,
+      );
+      await animamaEvidence.attachBuffer(
+        "particle-templates.png",
+        await picker.screenshot(),
+        "image/png",
+      );
+      await closePicker(page);
+    });
+
+    await test.step("Scene FX templates show loaded thumbnails by family", async () => {
+      const picker = await openKindFromRoute(page, "Scene FX");
+      await expectTemplateThumbnails(
+        picker,
+        [
+          "Affection",
+          "Esteem",
+          "Delight",
+          "Drive",
+          "Alarm",
+          "Rejection",
+          "Revulsion",
+          "Gloom",
+          "Focus lines",
+        ],
+        26,
+      );
+      await animamaEvidence.attachBuffer(
+        "scene-templates.png",
+        await picker.screenshot(),
+        "image/png",
+      );
+      await closePicker(page);
+    });
+
     await test.step("Avatar FX templates show loaded Annie thumbnails", async () => {
       const picker = await openKindFromRoute(page, "Avatar FX");
-      for (const group of [
-        "Eyes",
-        "Cheeks",
-        "Whole face",
-        "Around the head",
-        "Mouth",
-        "Body",
-      ])
-        await expect(
-          picker.getByRole("heading", { name: group, exact: true }),
-        ).toBeVisible();
-      const images = picker.locator("img");
-      await expect(images).toHaveCount(75);
-      // Thumbnails load lazily, so bring each card into view before checking.
-      for (let index = 0; index < (await images.count()); index += 1)
-        await images.nth(index).scrollIntoViewIfNeeded();
-      await expect
-        .poll(
-          () =>
-            images.evaluateAll((elements) =>
-              elements.every(
-                (element) =>
-                  (element as HTMLImageElement).complete &&
-                  (element as HTMLImageElement).naturalWidth >= 256,
-              ),
-            ),
-          { message: "every template thumbnail loads", timeout: 20_000 },
-        )
-        .toBe(true);
+      await expectTemplateThumbnails(
+        picker,
+        ["Eyes", "Cheeks", "Whole face", "Around the head", "Mouth", "Body"],
+        75,
+      );
       await animamaEvidence.attachBuffer(
         "avatar-templates.png",
         await picker.screenshot(),
@@ -254,7 +315,7 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
     await test.step("A Scene template opens a seeded, unsaved draft", async () => {
       const picker = await openKindFromRoute(page, "Scene FX");
       await picker
-        .getByRole("link", { name: "Dark Focus", exact: true })
+        .getByRole("link", { name: "Focus Lines Dark", exact: true })
         .click();
       await expect(page).toHaveURL(/\/scene-effects\/new\?template=dark$/);
       await expect(
@@ -262,7 +323,7 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
       ).toBeVisible({ timeout: 30_000 });
       await expect(
         page.getByRole("textbox", { name: "Scene FX name", exact: true }),
-      ).toHaveValue(/^Dark Focus(?: \d+)?$/);
+      ).toHaveValue(/^Focus Lines Dark(?: \d+)?$/);
       await expect(
         page.getByRole("tab", { name: "Focus Lines", exact: true }),
       ).toHaveAttribute("aria-selected", "true");
@@ -279,12 +340,6 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
     ] as const) {
       await test.step(`${label} Start from scratch opens the blank creator`, async () => {
         const picker = await openKindFromRoute(page, label);
-        if (label === "Particle FX")
-          await expect(
-            picker.getByText("There are no Particle FX templates yet.", {
-              exact: false,
-            }),
-          ).toBeVisible();
         await picker
           .getByRole("link", { name: "Start from scratch", exact: true })
           .click();

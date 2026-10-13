@@ -201,7 +201,8 @@ Line numbers drift as work proceeds.
 - [x] Preparation (2026-10-13): `main` (`7a25aa34`) merged into the branch;
       decisions and Plan 3 links published to #297 and read back
       (2026-10-13T19:44:59Z); spec snapshot refreshed.
-- [ ] P1 — Template catalogue and rendered thumbnails (R17). #488
+- [x] P1 — Template catalogue and rendered thumbnails (R17). #488 — review
+      passed at round 2 (2026-10-13); gate G1 (thumbnail sheet) pending.
 - [ ] P2 — Starting from a template (R17). #489
 - [ ] P3 — Simple mode and the Particle broad controls (R15). #490
 - [ ] P4 — Particle colour theme (R15). #491
@@ -368,7 +369,7 @@ one open a draft with art.
      deterministic.
 3. **Generate** the 42 thumbnails (16 Particle, 26 Scene) and inspect each.
    Use per-template `thumbnail` options where a default frame misses the
-   effect: an early time for bursts, after the flash for Shock, a wide view
+   effect: an early time for bursts, after any entry flash, a wide view
    for full-body auras.
 4. **Picker** (`EffectTemplatePickerDialog.tsx`): Particle and Scene steps
    show "Start from scratch" plus grouped `TemplateCard`s with the rendered
@@ -402,11 +403,121 @@ Completion:
 
 #### P1 record
 
-Not started.
+Starting source and issue: `4a63a419` (after merging `main` `7a25aa34`),
+#488. Task stack: `p3creators`, development, `http://animama-p3creators.localhost:8700`
+(port 8300 was taken by another task's stack).
+
+- **Catalogue:** `PARTICLE_EFFECT_TEMPLATES` (16, five mechanic groups) and
+  `SCENE_EFFECT_TEMPLATES` (24 backgrounds in eight families, plus a Focus
+  lines group with `dark` and `light-streak`) in `effectTemplates.ts`, with
+  `effectTemplates(kind)`, `effectTemplateGroups(kind)` and search parsers for
+  both kinds; `SCENE_EFFECT_TEMPLATE_IDS` is gone. Tests pin both lists to the
+  Included descriptors (content ID, name, type, focus kind) and each kind's
+  thumbnail folder to its templates.
+- **Thumbnails:** `pnpm -s effects:thumbnails [--kind avatar|particle|scene]
+  [template-id...]`; Particle and Scene thumbnails are captured on the review
+  stage at 768 px on Annie (front view, chat Portrait framing; `framing:
+  "head"` aims higher and closer) and downscaled to 320 px WebP. For
+  byte-stable output the stage group reloads the page before each job (state
+  from earlier stages: the VRMA cache and three.quarks' noise seeds), runs in a
+  CPU-raster Chromium launch, freezes paused animations and decodes Scene
+  images before showing. The Avatar job launch is unchanged, and its 75 files
+  are byte-identical. Stale-file removal is per kind folder. The
+  `flatMap(avatarFailures)` defect is fixed test-first. Per-template options
+  are in the catalogue: for example Star Burst `head, 0.4`, Heart Stream
+  `head, 3.5`, Emotion Disappointment `0.5`.
+- **Picker:** every kind shows Start from scratch plus grouped cards with the
+  rendered thumbnails (`TemplateThumbnail({ kind, templateId })`); the CSS
+  swatch preview is gone. The Particle route parses `?template=` (the page
+  opens blank until P2). An interim, commented shim in
+  `SceneEffectCreatorPage.tsx` maps a background stem to its family's code
+  template until P2 loads the Included item.
+- **Licences:** 42 owner-form source-review records (Annie capture of the named
+  Included effect; Heart Stream's names its generated texture set); the
+  thumbnail README, `art-NOTICES.md`, the desktop `license-sources.json` entry
+  and attribution notice cover all effect template thumbnails.
+- **Heart Stream:** `hearts-v1`'s name, description and slot label and
+  description; ID, runtime ID, version, files and behaviour unchanged.
+- **Docs:** `avatar-vfx.md`, `avatar-particle-vfx.md`, `scene-vfx.md`, the
+  Particle skill's `creator.md`, and both skills' `promote.md` (review F1).
+
+Checks (implementer, then reviewer and coordinator after the revisions):
+
+- `pnpm web:test` (from `src/frontend`): exit 0, 486 files, 4351 passed and
+  1 skipped, with the script and browser suites passing, including
+  `effect-thumbnails.browser.test.mjs` 7/7 (Heart Burst and Emotion Love
+  rendered twice, visible and byte-identical).
+- `pnpm check`, `pnpm web:lint`, `pnpm prettier:check` and `pnpm e2e:check`:
+  exit 0.
+- `uv run pytest -q tests/test_included_content_integrity.py
+  tests/test_included_content_catalog.py scripts/public-release/test_prepare_source.py
+  tests/test_starter_content_closure.py`: 48 passed.
+- The reviewer reran the sheet and check browser tests (52/52) and confirmed
+  Avatar thumbnails are reproduced byte for byte.
+- After the revisions: `pnpm check`, `pnpm web:lint` and `pnpm prettier:check`
+  exit 0; vitest `src/lib/effects src/ui/create src/lib/scene-vfx` 26 files,
+  258 passed.
+- Browser, task stack: the picker at 1440 × 900 (Particle FX groups with
+  thumbnails) and at 900 px (Scene FX families);
+  `pnpm e2e:test -- accountless-effect-template-picker` 3 passed.
+- G1 material: `.animama-drafts/plan3/p1-thumbnails-contact-sheet.png`
+  (ignored). The thumbnails the implementer judged weakest are Heart Stream
+  (sparse by nature), Fireworks Show (first shell mostly faded), and Emotion
+  Optimism and Disappointment (pale by design).
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, working tree on `4a63a419`), blocked:
+
+- **P1-R1-F1 (Required):** the Particle and Scene skills' `promote.md` did
+  not say that a promoted effect needs a picker template, a thumbnail and its
+  source-review record, which the new tests require; deletes would leave all
+  three behind.
+- **P1-R1-F2 (Required, evidence):** no browser view of the picker at either
+  width; the edited journey had not run.
+- **P1-R1-F3 (Optional):** `sceneEffectTemplateLabel` became dead code.
+- Nits: the first stage thumbnail loads the page twice; a JSDoc line is over
+  120 characters; the interim shim has no unit test (acceptable, P2 removes
+  it).
+
+The reviewer verified the catalogue pins, per-kind stale removal, the CLI's
+argument handling, the containment of the determinism measures to thumbnails,
+the defect fix, picker reuse and accessibility, and the licence records (42
+added, none changed).
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** a step 2 in both `promote.md` "Afterwards" sections
+  mirrors the Avatar skill: the template list and group, `effects:thumbnails
+  --kind`, the record, thumbnail options, and regenerating on replace or
+  removing on delete.
+- **F2 accepted:** browser views at both widths and the journey run (see the
+  record). At 900 px "Emotion Embarrassment" was clipped mid-word; the card
+  label now uses `break-words` and truncates with an ellipsis.
+- **F3 accepted:** removed.
+- **Nits:** the JSDoc line is reflowed. The double load is kept: it costs one
+  page load per run.
+
+#### Code Review #2 Findings
+
+Round 2 (repair round 1, targeted recheck): **pass**. F1–F3 resolved and no
+regressions; the reviewer measured the picker labels with Playwright at 1440,
+900 and 640 px. Non-blocking: **P1-R2-F1** "Emotion Embarrassment" and
+"Emotion Disappointment" are clamped below desktop width and sighted users
+never see the whole name; **P1-R2-F2** the JSDoc line was still long;
+**P1-R2-F3** the new `promote.md` lines ran past the surrounding wrap;
+**P1-R2-F4** a promoted Scene with a new stem (for example a new focus
+preset) would show a card that the interim shim cannot open, which P2's
+loader resolves.
+
+#### Code Review #2 Revisions
+
+- **F1 accepted:** the card label carries `title={label}`.
+- **F2, F3 accepted:** reflowed.
+- **F4 deferred to P2:** P2 loads any catalogue template from its Included
+  item and removes the shim.
+- Rechecked: `pnpm prettier:check` and ESLint on the changed files pass; vitest
+  `src/ui/create` 130 passed. Repair rounds used: 1 of 2.
 
 ### P2 — Starting from a template (R17). #489
 

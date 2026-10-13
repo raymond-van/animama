@@ -60,6 +60,10 @@ export const avatarFileUrl = (fsUrl, id) =>
   fsUrl(path.join(avatarDir, `${id}.vrm`));
 /** Annie, the Library thumbnail Avatar. */
 const THUMBNAIL_AVATAR = "AvatarSample_A_1_New";
+/** Source kinds whose thumbnails are review-stage captures. */
+const STAGE_THUMBNAIL_KINDS = new Set(["particle", "scene"]);
+/** WebP quality of stage thumbnails, as the portrait capture encodes them. */
+const THUMBNAIL_WEBP_QUALITY = 90;
 
 export const DEFAULT_TIMES = [0.1, 0.5, 1, 2];
 export const DEFAULT_TILE = { width: 256, height: 320 };
@@ -115,12 +119,33 @@ const SWIFTSHADER_LAUNCH = {
   headless: true,
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 };
+/**
+ * Particle and Scene thumbnails also rasterize and composite the page on the
+ * CPU, finishing every compositor stage before a frame is drawn: with GPU
+ * raster, Scene items that move or scale came out a few pixels different
+ * between runs. WebGL still renders with SwiftShader. Avatar thumbnails keep
+ * `SWIFTSHADER_LAUNCH`, since their face textures are drawn on canvases that
+ * these flags would render differently.
+ */
+const STAGE_THUMBNAIL_LAUNCH = {
+  ...SWIFTSHADER_LAUNCH,
+  args: [
+    ...SWIFTSHADER_LAUNCH.args,
+    "--disable-gpu-rasterization",
+    "--disable-gpu-compositing",
+    "--run-all-compositor-stages-before-draw",
+    "--disable-threaded-animation",
+    "--disable-checker-imaging",
+  ],
+};
 
 /**
- * Start a page, run `callback({ page, fsUrl, imageUrl, server })`, and always
- * shut down. Vite serves only the web root, the Included Avatars, the
- * Included effects, an optional local content root and `extraRoots` (the
- * folders of the sources being reviewed); any other effect image is inlined.
+ * Start a page, run `callback({ page, fsUrl, imageUrl, server, reload })`, and
+ * always shut down. `reload()` loads the page afresh and waits until it is
+ * ready, discarding module state earlier renders left behind. Vite serves
+ * only the web root, the Included Avatars, the Included effects, an optional
+ * local content root and `extraRoots` (the folders of the sources being
+ * reviewed); any other effect image is inlined.
  * `pageDir` names the page under `scripts/` (default the review renderer); it
  * must set `window.effectRendererReady`. `launch` holds the Playwright
  * Chromium launch options plus an optional page `viewport` and
@@ -177,13 +202,16 @@ export async function withRendererPage(
       }),
     );
     pageError.catch(() => undefined);
-    await page.goto(`${origin}/scripts/${pageDir}/index.html`);
-    await Promise.race([
-      page.waitForFunction(() => window.effectRendererReady === true, null, {
-        timeout: 120_000,
-      }),
-      pageError,
-    ]);
+    const load = async () => {
+      await page.goto(`${origin}/scripts/${pageDir}/index.html`);
+      await Promise.race([
+        page.waitForFunction(() => window.effectRendererReady === true, null, {
+          timeout: 120_000,
+        }),
+        pageError,
+      ]);
+    };
+    await load();
     const fsUrl = (file) => `${origin}/@fs${file}`;
     const imageUrl = async (file) => {
       if (allow.slice(1).some((root) => isInside(file, root)))
@@ -193,7 +221,13 @@ export async function withRendererPage(
         "application/octet-stream";
       return `data:${type};base64,${(await readFile(file)).toString("base64")}`;
     };
-    const result = await callback({ page, fsUrl, imageUrl, server });
+    const result = await callback({
+      page,
+      fsUrl,
+      imageUrl,
+      server,
+      reload: load,
+    });
     if (errors.length) throw new Error(errors.join("\n"));
     return result;
   } finally {
@@ -304,9 +338,13 @@ export async function sourceRoots(sources, media = null) {
  * Open a stage for each Included Avatar with `request` applied and capture
  * one tile per time and view from the page. Returns the parse error, or per
  * Avatar its diagnostics after applying (warnings from every frame included)
- * and its PNG tiles as `frames[time][view]`.
+ * and its PNG tiles as `frames[time][view]`. With `freeze`, Scene layers are
+ * made static at each frame (see `showReviewFrame`), so pass one time.
  */
-export async function captureStage(page, { request, avatars, times, views }) {
+export async function captureStage(
+  page,
+  { request, avatars, times, views, freeze = false },
+) {
   await page.setViewportSize({
     width: Math.max(1280, request.tile.width),
     height: Math.max(720, request.tile.height),
@@ -329,9 +367,9 @@ export async function captureStage(page, { request, avatars, times, views }) {
         const row = [];
         for (const view of views) {
           const frame = await page.evaluate(
-            ([frameTime, frameView]) =>
-              window.showReviewFrame(frameTime, frameView),
-            [time, view],
+            ([frameTime, frameView, freezeFrame]) =>
+              window.showReviewFrame(frameTime, frameView, freezeFrame),
+            [time, view, freeze],
           );
           frame.warnings.forEach((warning) => warnings.add(warning));
           frame.activeEffectIds.forEach((id) => active.add(id));
@@ -493,10 +531,11 @@ export async function renderEffectSheets({
 }
 
 /**
- * Render and write one thumbnail on an open renderer page. The file is written
- * even when the render reports failures, so it can be inspected.
+ * Render and write one Avatar Effect thumbnail on an open renderer page with
+ * the portrait capture (WebGL only). The file is written even when the render
+ * reports failures, so it can be inspected. Exported for tests.
  */
-async function writeThumbnailOnPage(
+export async function writeThumbnailOnPage(
   { page, fsUrl, imageUrl },
   {
     effect,
@@ -531,7 +570,67 @@ async function writeThumbnailOnPage(
     stem: effect.stem,
     outFile,
     avatars: rendered.avatars,
-    failures: rendered.avatars.flatMap(avatarFailures),
+    // Not `flatMap(avatarFailures)`: its index argument would be `expected`.
+    failures: rendered.avatars.flatMap((avatar) => avatarFailures(avatar)),
+  };
+}
+
+/**
+ * Render and write one Particle or Scene Effect thumbnail through the review
+ * stage, as review sheets render them: Annie with the effect started at 0 and
+ * randomness seeded, Scene layers composited behind and in front of her over
+ * the tile backdrop. The stage is captured at `captureSize` square from
+ * `view`, with the camera `framingScale` times the chat Portrait distance and
+ * aimed `framingDrop` of the view height lower, and downscaled to a `size`
+ * WebP. The file is written even when the render
+ * reports failures, so it can be inspected.
+ */
+async function writeStageThumbnailOnPage(
+  { page, fsUrl, imageUrl },
+  {
+    effect,
+    outFile,
+    time,
+    size,
+    captureSize,
+    view,
+    framingScale = 1,
+    framingDrop = 0,
+  },
+) {
+  const captured = await captureStage(page, {
+    request: {
+      ...(await pageSources([effect], { fsUrl, imageUrl })),
+      tile: { width: captureSize, height: captureSize },
+      framingScale,
+      framingDrop,
+      expression: null,
+      clip: null,
+      clipMedia: null,
+    },
+    avatars: [
+      { id: THUMBNAIL_AVATAR, url: avatarFileUrl(fsUrl, THUMBNAIL_AVATAR) },
+    ],
+    times: [time],
+    views: [view],
+    freeze: true,
+  });
+  if (captured.parseError)
+    throw new Error(`definition: ${captured.parseError}`);
+  const [{ frames, ...avatar }] = captured.avatars;
+  await mkdir(path.dirname(outFile), { recursive: true });
+  await writeFile(
+    outFile,
+    await sharp(frames[0][0])
+      .resize(size, size)
+      .webp({ quality: THUMBNAIL_WEBP_QUALITY })
+      .toBuffer(),
+  );
+  return {
+    stem: effect.stem,
+    outFile,
+    avatars: [avatar],
+    failures: avatarFailures(avatar),
   };
 }
 
@@ -560,58 +659,93 @@ export async function renderEffectThumbnail({
 }
 
 /**
- * Render several thumbnails on one renderer page (one Vite server and browser
- * for the whole batch). `jobs` are
+ * Render several thumbnails. `jobs` are
  * `{ effect, outFile, framingScale?, framingDrop?, time?, clip? }`: `time`
- * overrides the batch's, and `clip` (parsed Gesture clip JSON) poses the
- * Avatar, sampled at the same time after applying as `--with-clip`. Every job is attempted;
- * `EffectRenderFailure` is thrown afterwards if any failed.
+ * overrides the batch's.
+ *
+ * - An Avatar Effect (from `resolveEffectSource`) uses the portrait capture,
+ *   all on one renderer page, and `clip` (parsed Gesture clip JSON) poses the
+ *   Avatar, sampled at the same time after applying as `--with-clip`.
+ * - A Particle or Scene Effect (from `resolveAnyEffectSource`) uses the review
+ *   stage in a session of its own (`STAGE_THUMBNAIL_LAUNCH`), reloading the
+ *   page for each: earlier stages leave state behind (the Avatar's shared
+ *   VRMA cache, three.quarks' shared noise generators) that changes how
+ *   particles render. It is captured at `captureSize` (default twice `size`)
+ *   from the front with the chat Portrait framing adjusted by `framingScale`
+ *   and `framingDrop`, with Scene layers frozen, and downscaled; it takes no
+ *   `clip`.
+ *
+ * Every job is attempted and reported to `onResult` as it finishes; results
+ * come back in job order, and `EffectRenderFailure` is thrown afterwards if
+ * any failed.
  */
 export async function renderEffectThumbnails({
   jobs,
   time = 1,
   size = 512,
+  captureSize = size * 2,
   onResult,
 }) {
-  const results = await withRendererPage({}, async (context) => {
-    const results = [];
-    for (const {
-      effect,
-      outFile,
-      framingScale,
-      framingDrop,
-      time: jobTime,
-      clip,
-    } of jobs) {
-      let result;
-      try {
-        result = await writeThumbnailOnPage(context, {
-          effect,
-          outFile,
-          time: jobTime ?? time,
-          size,
-          expression: null,
-          clip: clip ?? null,
-          framingScale,
-          framingDrop,
-        });
-      } catch (error) {
-        result = {
-          stem: effect.stem,
-          outFile,
-          failures: [
-            truncate(error instanceof Error ? error.message : String(error)),
-          ],
-        };
-      }
-      onResult?.(result);
-      results.push(result);
-    }
-    return results;
-  });
-  if (results.some((result) => result.failures.length))
-    throw new EffectRenderFailure(results);
-  return results;
+  const isStage = (job) => STAGE_THUMBNAIL_KINDS.has(job.effect.kind);
+  const results = new Map();
+  for (const stage of [false, true]) {
+    const group = jobs.filter((job) => isStage(job) === stage);
+    if (group.length === 0) continue;
+    await withRendererPage(
+      {
+        extraRoots: await sourceRoots(group.map(({ effect }) => effect)),
+        launch: stage ? STAGE_THUMBNAIL_LAUNCH : SWIFTSHADER_LAUNCH,
+      },
+      async (context) => {
+        for (const job of group) {
+          const { effect, outFile, framingScale, framingDrop, clip } = job;
+          const jobTime = job.time ?? time;
+          let result;
+          try {
+            if (stage) {
+              await context.reload();
+              result = await writeStageThumbnailOnPage(context, {
+                effect,
+                outFile,
+                time: jobTime,
+                size,
+                captureSize,
+                view: "front",
+                framingScale,
+                framingDrop,
+              });
+            } else
+              result = await writeThumbnailOnPage(context, {
+                effect,
+                outFile,
+                time: jobTime,
+                size,
+                expression: null,
+                clip: clip ?? null,
+                framingScale,
+                framingDrop,
+              });
+          } catch (error) {
+            result = {
+              stem: effect.stem,
+              outFile,
+              failures: [
+                truncate(
+                  error instanceof Error ? error.message : String(error),
+                ),
+              ],
+            };
+          }
+          onResult?.(result);
+          results.set(job, result);
+        }
+      },
+    );
+  }
+  const ordered = jobs.map((job) => results.get(job));
+  if (ordered.some((result) => result.failures.length))
+    throw new EffectRenderFailure(ordered);
+  return ordered;
 }
 
 /**

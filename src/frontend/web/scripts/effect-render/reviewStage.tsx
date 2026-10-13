@@ -58,15 +58,20 @@ export class ReviewStage {
    * drop effects whose duration has ended, re-render (so layers that follow
    * the Avatar, such as focus lines aimed at the face, re-resolve against the
    * current camera), then pause each effect's animations at its own elapsed
-   * time.
+   * time. With `freeze`, the paused animations are written into the layers'
+   * styles and removed, so nothing is animated when the stage is captured;
+   * the layers then stay as they are, so freeze only for a final capture.
    */
-  async seek(time: number): Promise<void> {
+  async seek(
+    time: number,
+    { freeze = false }: { freeze?: boolean } = {},
+  ): Promise<void> {
     this.bands.expire(time);
     this.bands.render();
     // Let layer effects that sample the Avatar commit their state.
     await new Promise((resolve) => setTimeout(resolve, 0));
     flushSync(() => undefined);
-    this.bands.seekAnimations(time);
+    this.bands.seekAnimations(time, { freeze });
   }
 
   dispose(): void {

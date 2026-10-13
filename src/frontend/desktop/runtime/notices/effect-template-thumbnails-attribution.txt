@@ -1,9 +1,9 @@
-Avatar FX template thumbnails
+Effect template thumbnails
 
-The Effects template picker's Avatar FX thumbnails are Animama renderer
-captures of Annie (AvatarSample_A_1), a pixiv VRoid Project preset, wearing
-Animama's own Included Avatar Effect artwork. They are bundled with the web
-application.
+The Effects template picker's thumbnails are Animama renderer captures of
+Annie (AvatarSample_A_1), a pixiv VRoid Project preset, with Animama's own
+Included Avatar, Particle or Scene Effect artwork. They are bundled with the
+web application.
 
 Model credit: pixiv VRoid Project.
 Terms: VRoidPreset A-Z conditions,

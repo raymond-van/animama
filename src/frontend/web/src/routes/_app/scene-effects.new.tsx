@@ -7,7 +7,8 @@ import { SceneEffectCreatorPage } from "@/ui/scene-effect-creator/SceneEffectCre
 
 /**
  * `/scene-effects/new[?template=<id>]`: a new Scene Effect, blank or seeded
- * from one of the creator's starting templates. The page is keyed by template.
+ * from a picker template (an Included Scene Effect's folder stem). The page is
+ * keyed by template.
  */
 export const Route = createFileRoute("/_app/scene-effects/new")({
   validateSearch: parseSceneEffectTemplateSearch,
