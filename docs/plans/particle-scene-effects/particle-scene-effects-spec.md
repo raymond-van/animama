@@ -11,8 +11,8 @@ fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
 published 2026-10-09 and updated with the before-Plan-2 decisions, the
-Plan 2 R9 additions and the owner's Plan 2 review (read back at
-2026-10-12T17:54:16Z). This file is a snapshot of that issue text; refresh it
+Plan 2 R9 additions, the owner's Plan 2 review and the Plan 3 R16 trim (read
+back at 2026-10-13T18:01:41Z). This file is a snapshot of that issue text; refresh it
 from the issue before resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
@@ -408,7 +408,9 @@ or Scene Effect.)
 #### R16 — Scene inspector, Simple first
 
 - A Scene Effect opens in Simple mode, with broad controls for its art
-  (choosing stickers), colours and motion (speed, direction, density).
+  (choosing stickers), colours and motion speed. (Direction and density were
+  dropped from Simple on 2026-10-13 to keep it small; they stay under
+  Advanced.)
 - Advanced shows today's full layer controls, including the R2 capabilities.
   The same mode, undo and recovery rules as R15 apply.
 

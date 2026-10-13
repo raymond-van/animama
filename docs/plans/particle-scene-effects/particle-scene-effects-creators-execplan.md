@@ -2,9 +2,10 @@
 
 Source agreement: [#297](https://github.com/raymond-van/animama/issues/297)
 (snapshot: [particle-scene-effects-spec.md](particle-scene-effects-spec.md),
-matching the issue's requirement text at 2026-10-12T18:25:06Z), requirements
-R15–R17 and the Constraints, with the owner's Plan 3 design decisions of
-2026-10-12 (Decision Log). Preparation publishes those decisions to #297.
+matching the issue's requirement text at 2026-10-13T18:01:41Z, after the R16
+trim), requirements R15–R17 and the Constraints, with the owner's Plan 3
+design decisions of 2026-10-12 and 2026-10-13 (Decision Log). Preparation
+publishes the remaining decisions to #297.
 Authorized scope: planning only. The owner asked for this plan and its phase
 issues, then a stop for review (2026-10-12). No phase is authorized yet.
 Starting revision: `95a2db39` (`main` after Plan 2, #463).
@@ -29,8 +30,9 @@ gives them the launch library as starting points:
   relationships between its emitters. **Advanced** is today's full set of
   controls.
 - **R16:** the Scene creator opens in Simple mode with Art (stickers),
-  Colours and Motion (Speed, Direction, Density). Advanced keeps today's layer
-  controls, including Plan 1's R2 layers.
+  Colours and Speed. Advanced keeps today's layer controls, including Plan
+  1's R2 layers, and is where direction and density are changed (owner trim,
+  2026-10-13).
 - **R15 and R16:** values set in one mode show in the other. Undo, redo,
   recovery and Save cover both.
 - **R17:** the Effects template picker offers the 16 Included Particle
@@ -101,18 +103,11 @@ Mint, Sky, Violet and White. The swatch list is an agent proposal.
 - **Speed:** a multiplier on every motion rate: scatter drift and spin, tile
   and marquee speed, ray turn and throb, line sway, and focus-line flicker
   timing.
-- **Direction (decision S-DIR):** the select shows the main moving layer's
-  direction. The main layer is the moving directional layer with the most
-  items, frontmost on a tie. Choosing a direction turns that layer to it and
-  turns every other moving directional layer by the same step, so the layers
-  keep their relationship. Still layers stay still, and rays keep their spin.
-  The control is hidden when nothing moves.
-- **Density:** a multiplier on scatter, ray, line and focus-line counts. It
-  divides marquee gaps and pattern spacing. Counts are clamped to the shared
-  limits, including the 96-item scatter total. Placement stays with Plan 2's
-  even-spacing runtime.
-- Controls that do not apply to the effect are hidden, for example Art and
-  Direction for focus lines.
+- **Direction and density** are not in Simple (decision S-TRIM). They stay
+  in Advanced: each layer's direction, scatter counts, ray and line counts,
+  marquee gaps and pattern spacing.
+- Controls that do not apply to the effect are hidden, for example Art for
+  focus lines and Speed when nothing moves.
 
 **Both creators.**
 
@@ -137,8 +132,7 @@ Mint, Sky, Violet and White. The swatch list is an agent proposal.
   Original restores the reference, and rounded burst counts do not drift. An
   Advanced edit makes the current effect the new reference and resets those
   controls to 100 % and Original. Edits in Simple that write values directly
-  (Scene art, colours and direction) apply to the effect and its reference
-  together.
+  (Scene art and colours) apply to the effect and its reference together.
 
 ### Templates (owner decisions, 2026-10-12)
 
@@ -243,6 +237,13 @@ Line numbers drift as work proceeds.
 
 ## Decision Log
 
+- 2026-10-13, owner (**S-TRIM**): trim P5. Scene Simple keeps Art, Colours
+  and Speed; Direction and Density stay in Advanced only. This supersedes
+  S-DIR. Rationale (agent recommendation): the Scene creator's Advanced
+  controls are already plain-language; templates with art (P2) carry most of
+  the benefit for new users; Direction's same-step rotation was the costliest
+  control for the least gain. Published to #297 as an inline R16 note and
+  read back (2026-10-13T18:01:41Z); spec snapshot refreshed.
 - 2026-10-12, owner (Plan 3 kickoff): start Plan 3 on
   `feat/particle-scene-creators` off `main`. Write this plan, create the phase
   issues under #297, then stop for review. Keep the creator shell, layout and
@@ -261,7 +262,8 @@ Line numbers drift as work proceeds.
   - **LAYOUT:** both panels switch with a Simple | Advanced switch in the
     toolbar. Advanced is today's panels.
   - **S-COLOUR:** edit each distinct Scene colour.
-  - **S-DIR:** rotate every moving layer together.
+  - **S-DIR:** rotate every moving layer together (superseded by S-TRIM on
+    2026-10-13).
   - **REOPEN:** a reopened effect starts from the effect as saved, with the
     controls back at 100 % and Original.
   - **P-GROUP:** Particle templates are grouped by mechanic.
@@ -274,8 +276,8 @@ Line numbers drift as work proceeds.
     "hearts-v1 1". Its content ID, files and behaviour are unchanged. If this
     is declined, the template shows "hearts-v1".
   - **Swatches and ranges.** Theme swatches: Original, Rose, Gold, Mint, Sky,
-    Violet, White. Slider ranges: Amount and Density 25–400 %; Size, Spread
-    and Speed 25–300 %, all within the limits.
+    Violet, White. Slider ranges: Amount 25–400 %; Size, Spread and Speed
+    25–300 %, all within the limits.
   - **Focus templates** load the Included `dark` and `light-streak` items like
     the backgrounds. The bundled copies stay for their other users.
   - **Thumbnail files:** `assets/effect-templates/particle/<stem>.webp` and
@@ -589,30 +591,29 @@ Not started.
 
 ### P5 — Scene Simple mode (R16). #492
 
-Outcome: the Scene creator opens in Simple with Art, Colours, Speed,
-Direction and Density working as decided, for backgrounds and focus lines.
-Advanced is today's view. Undo, redo, recovery and Save cover both.
+Outcome: the Scene creator opens in Simple with Art, Colours and Speed
+working as decided, for backgrounds and focus lines. Advanced is today's
+view and keeps direction and density. Undo, redo, recovery and Save cover
+both.
 
 1. **Simple controls** (pure, test-first, `lib/scene-vfx/editor/simpleControls.ts`):
    - the reference and factors in the editor document's session state, which
      history and recovery carry (recovery `/2`, reading `/1`) and which Save
      excludes;
-   - Speed and Density by unit as defined above, clamped to
-     `SCENE_EFFECT_LIMITS`;
-   - the main-layer rule and same-step rotation for Direction;
+   - Speed by unit as defined above, clamped to `SCENE_EFFECT_LIMITS`;
    - the distinct-colour model and one-to-many colour writes;
    - rebase on Advanced edits.
    - Tests over the 24 Included backgrounds and both focus presets: limits
-     hold at every slider end; Direction keeps the relative turn between
-     layers and leaves still layers still; 100 % restores the reference.
+     hold at both slider ends; directions and counts are unchanged; 100 %
+     restores the reference; a colour edit reaches every field that used
+     the colour.
 2. **Simple panels:**
    - left: the template name or effect name, its kind and its duration
      (held or timed);
    - right: **Art** (each sticker layer's stickers with Replace, Add and
      Remove through `SceneItemsEditor` and `StickerPicker`; the tile through
      `ImageInput`), **Colours** (one `ColorField` per distinct colour,
-     labelled by use), **Motion** (Speed and Density `Slider`s, Direction
-     `Select`);
+     labelled by use), **Speed** (a `Slider`);
    - drag grouping and preview throttling as in P3.
 3. **Tooling and journeys:** `effect-save.mjs` switches the Scene creator to
    Advanced for its tile and layer steps. The Scene-layers, VFX-layout,
