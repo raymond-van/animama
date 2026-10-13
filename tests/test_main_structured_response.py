@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 from pydantic import ValidationError
 
@@ -19,7 +21,7 @@ from animama.app.main_structured_response import (
 )
 from animama.app.voice_emotional_tone import ELEVENLABS_EMOTIONAL_TONE_VALUES
 from animama.product_http.chat.options import merge_chat_request_options
-from animama.product_http.chat.tts import elevenlabs_finalized_tts_chunking
+from animama.product_http.chat.tts import FinalizedTtsStreamBootstrap
 
 TEST_RUNTIME_GESTURE_IDS = ("wave", "thoughtful_pose")
 
@@ -71,7 +73,7 @@ def test_merge_chat_request_options_preserves_request_tts_options() -> None:
                 "provider": "elevenlabs",
                 "transport": "auto",
                 "language_code": "en",
-                "model_id": "eleven_v3",
+                "model_id": "eleven_v4_turbo",
                 "finalized_chunking": "paragraph",
                 "ignored": "value",
             },
@@ -86,7 +88,7 @@ def test_merge_chat_request_options_preserves_request_tts_options() -> None:
         "provider": "elevenlabs",
         "transport": "auto",
         "language_code": "en",
-        "model_id": "eleven_v3",
+        "model_id": "eleven_v4_turbo",
         "finalized_chunking": "paragraph",
     }
 
@@ -96,8 +98,8 @@ def test_merge_chat_request_options_defaults_finalized_tts_chunking_at_use_site(
         request_opts={
             "tts": {
                 "enabled": True,
-                "provider": "elevenlabs",
-                "model_id": "eleven_v3",
+                "provider": "gemini",
+                "model_id": "gemini-3.8-flash-tts",
             },
         },
         user_prefs=None,
@@ -106,10 +108,17 @@ def test_merge_chat_request_options_defaults_finalized_tts_chunking_at_use_site(
 
     assert merged["tts"] == {
         "enabled": True,
-        "provider": "elevenlabs",
-        "model_id": "eleven_v3",
+        "provider": "gemini",
+        "model_id": "gemini-3.8-flash-tts",
     }
-    assert elevenlabs_finalized_tts_chunking(merged) == "sentence"
+    bootstrap = FinalizedTtsStreamBootstrap.start_if_requested(
+        chat_options=merged,
+        sessions=cast(Any, None),
+        anima_id="anima-1",
+        run_id="run-1",
+        gemini_speech=cast(Any, object()),
+    )
+    assert bootstrap.finalized_chunking == "sentence"
 
 
 def test_merge_chat_request_options_does_not_infer_tts_from_main_structured_response() -> None:

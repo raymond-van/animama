@@ -115,11 +115,6 @@ export function LibraryProductRow({
                   </span>
                 ) : null}
               </span>
-              {row.description ? (
-                <span className="text-muted-foreground mt-0.5 block text-sm">
-                  {row.description}
-                </span>
-              ) : null}
               {row.metadata.length ? (
                 <span className="text-muted-foreground mt-1 block text-xs">
                   {row.metadata.join(" · ")}

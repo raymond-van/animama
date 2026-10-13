@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import unittest
 
-from validation_policy import BASE, PROFILES, choose_plan, classify, evaluate
+from validation_policy import BASE, PROFILES, SUITES, choose_plan, classify, evaluate, select_suites
 
 
 def event(action="synchronize", draft=False, labels=()):
@@ -105,8 +105,10 @@ class ClassificationTests(unittest.TestCase):
         ]
         for path in paths:
             self.assertEqual(classify([modified(path)]), "full", path)
-            for name, value in (("pull_request", event()), ("push", main_event())):
-                self.assertEqual(choose_plan(name, value, [modified(path)], local_reviewed=True)["mode"], "full", path)
+            # Full PR runs may still skip suites whose inputs did not change.
+            mode = choose_plan("pull_request", event(), [modified(path)], local_reviewed=True)["mode"]
+            self.assertIn(mode, {"full", "selective"}, path)
+            self.assertEqual(choose_plan("push", main_event(), [modified(path)], local_reviewed=True)["mode"], "full")
 
     def test_nonmodifications_rename_sides_and_mixed_areas(self):
         for status in ("A", "D", "R", "R100", "C", "C100", "T", "U", "M ", None, []):
@@ -169,7 +171,8 @@ class SelectionTests(unittest.TestCase):
             for name, value in (("pull_request", event()), ("push", main_event())):
                 for reviewed in (False, True, 1, "true", None):
                     plan = choose_plan(name, value, [modified(path)], local_reviewed=reviewed)
-                    self.assertEqual(plan["mode"], mode if reviewed is True else "full")
+                    unreviewed = "selective" if name == "pull_request" and path.startswith("tests/") else "full"
+                    self.assertEqual(plan["mode"], mode if reviewed is True else unreviewed)
                     if reviewed is True:
                         for omitted in ("backend-tests", "browser-smoke", "package-build"):
                             self.assertNotIn(omitted, plan["required"])
@@ -217,7 +220,7 @@ class SelectionTests(unittest.TestCase):
             choose_plan("pull_request", event("edited"), [modified("tests/test_chat.py")], local_reviewed=False)[
                 "mode"
             ],
-            "full",
+            "selective",
         )
 
     def test_manual_reusable_release_unknown_and_periodic_callers(self):
@@ -277,10 +280,10 @@ class AggregateTests(unittest.TestCase):
             choose_plan("schedule", {}, None, periodic_unchanged=True),
         ]
 
-    def test_schema_two_success_and_intentionally_omitted_steps(self):
+    def test_schema_three_success_and_intentionally_omitted_steps(self):
         for plan in self.plans():
-            self.assertEqual(plan["schema_version"], 2)
-            self.assertEqual(set(plan), {"schema_version", "mode", "reason", "required"})
+            self.assertEqual(plan["schema_version"], 3)
+            self.assertEqual(set(plan), {"schema_version", "mode", "reason", "required", "skipped"})
             self.assertTrue(evaluate(plan, results(plan))["success"])
             steps = results(plan) | {"unselected-check": {"outcome": "skipped", "conclusion": "skipped"}}
             self.assertTrue(evaluate(plan, steps)["success"])
@@ -317,8 +320,8 @@ class AggregateTests(unittest.TestCase):
                 self.assertFalse(evaluate(plan, steps)["success"])
             for key, value in (
                 ("schema_version", True),
-                ("schema_version", 1),
-                ("schema_version", "2"),
+                ("schema_version", 2),
+                ("schema_version", "3"),
                 ("mode", []),
                 ("mode", "unknown"),
                 ("reason", ""),
@@ -347,6 +350,178 @@ class AggregateTests(unittest.TestCase):
         self.assertFalse(evaluate(plan, results(plan))["success"])
         all_success = {name: {"outcome": "success", "conclusion": "success"} for name in BASE | PROFILES["full"]}
         self.assertFalse(evaluate(plan, all_success)["success"])
+
+
+ALL_SUITES = sorted(SUITES)
+
+
+def skipped(plan):
+    return sorted(row["suite"] for row in plan["skipped"])
+
+
+class SuiteSelectionTests(unittest.TestCase):
+    """Full PR runs skip expensive suites only when none of their inputs changed."""
+
+    def test_paths_select_only_the_suites_they_can_affect(self):
+        for path, suites in {
+            # Not packaged and not exercised by a selectable browser group.
+            "tests/test_chat.py": set(),
+            "tests/conftest.py": set(),
+            "docs/guide.md": set(),
+            "SDLC.md": set(),
+            "src/frontend/desktop/src/main.cts": set(),
+            "src/frontend/desktop/tests/runtime-ipc.test.ts": set(),
+            "src/frontend/desktop/electron-builder.yml": set(),
+            "src/frontend/e2e/journeys/library.spec.ts": set(),
+            "docker-compose.yml": set(),
+            "reset.sh": set(),
+            "scripts/public-release/check.py": set(),
+            "src/frontend/web/scripts/setup-downloads.browser.test.mjs": set(),
+            "src/frontend/web/scripts/effects.test.mjs": set(),
+            "src/frontend/web/tests/fixtures/setup-downloads/main.tsx": set(),
+            # Tooling previews and their renderer stages.
+            "src/frontend/web/scripts/effect-check.mjs": {"browser-tooling"},
+            "src/frontend/web/scripts/animation-preview/review.mjs": {"browser-tooling"},
+            "src/frontend/web/scripts/effect-render.browser.test.mjs": {"browser-tooling"},
+            "src/frontend/web/scripts/effect-render/stage.ts": set(ALL_SUITES),
+            # Hosted-screen fixtures and tests.
+            "src/frontend/web/scripts/hosted-workflows.browser.test.mjs": {"browser-hosted"},
+            "src/frontend/web/tests/fixtures/hosted-composition/main.tsx": {"browser-hosted"},
+            "src/frontend/web/tests/fixtures/retained-screens/main.tsx": {"browser-hosted"},
+            # Shared browser setup, also copied into the whole-application consumer.
+            "src/frontend/web/scripts/fixtures/hosted-workflows-http.mjs": set(ALL_SUITES),
+            # Every packaging input selects every suite, so its PR run is promotion-complete.
+            "src/backend/animama/app/services/chat.py": set(ALL_SUITES),
+            "alembic/versions/0001_baseline.sql": set(ALL_SUITES),
+            "README.md": set(ALL_SUITES),
+            "licenses/pocket-tts.txt": set(ALL_SUITES),
+            "src/frontend/desktop/runtime/notices/onnxruntime.txt": set(ALL_SUITES),
+            "src/frontend/desktop/scripts/runtime/licenses.mjs": set(ALL_SUITES),
+            "scripts/package-sets/build.py": set(ALL_SUITES),
+            "scripts/repository-boundary/consumers/hosted-app/verify.mjs": set(ALL_SUITES),
+            # Read by the shared Vite configuration as well as the hosted build.
+            "src/frontend/desktop/package.json": set(ALL_SUITES),
+            "models/browser-speech/manifest.json": set(ALL_SUITES),
+            "scripts/models/parakeet.py": set(ALL_SUITES),
+            "src/frontend/desktop/assets/icon.png": set(ALL_SUITES),
+            # The web app, its packages and Included content reach every suite.
+            "src/frontend/web/src/ui/components/button.tsx": set(ALL_SUITES),
+            "src/frontend/packages/product-ui/src/index.ts": set(ALL_SUITES),
+            "src/frontend/scripts/hosted-build-resources.mjs": set(ALL_SUITES),
+            "content/included/vfx/sparkle/effect.json": set(ALL_SUITES),
+            "docs/safety/crisis-protocol.md": set(ALL_SUITES),
+            "contracts/versions.json": set(ALL_SUITES),
+            "src/frontend/web/scripts/generate-routes.mjs": set(ALL_SUITES),
+        }.items():
+            self.assertEqual(select_suites([modified(path)]), suites, path)
+
+    def test_selection_fails_closed(self):
+        for path in (
+            ".github/workflows/validate-public.yml",
+            "scripts/ci/validation_policy.py",
+            "uv.lock",
+            "pyproject.toml",
+            "src/frontend/pnpm-lock.yaml",
+            "src/frontend/package.json",
+            "src/frontend/web/package.json",
+            "src/frontend/web/vite.config.ts",
+            "src/frontend/web/vite-plugins/app-version.ts",
+            "src/frontend/patches/vite.patch",
+            "scripts/content/import.py",
+            "unknown/file.txt",
+            "Makefile.local",
+        ):
+            self.assertEqual(select_suites([modified(path)]), set(ALL_SUITES), path)
+        for changes in (None, [], [{}], [None], [modified("docs/a.md") | {"extra": True}], [modified("../a")]):
+            self.assertEqual(select_suites(changes), set(ALL_SUITES))
+        # Special files (links, executables, LFS) and changed dependencies select everything.
+        self.assertEqual(select_suites([modified("docs/a.md")], excluded_paths=["docs/a.md"]), set(ALL_SUITES))
+        for excluded in (None, "docs/a.md", [[]], ["../a"]):
+            self.assertEqual(select_suites([modified("docs/a.md")], excluded_paths=excluded), set(ALL_SUITES))
+        # Both sides of a rename count.
+        rename = {"status": "R100", "old_path": "src/frontend/web/scripts/effect-x.mjs", "path": "tests/test_x.py"}
+        self.assertEqual(select_suites([rename]), {"browser-tooling"})
+        self.assertEqual(
+            select_suites([modified("tests/test_chat.py"), modified("src/frontend/web/scripts/effect-check.mjs")]),
+            {"browser-tooling"},
+        )
+
+    def test_full_pr_runs_record_selective_skips(self):
+        plan = choose_plan("pull_request", event(), [modified("tests/test_chat.py"), modified("tests/conftest.py")])
+        self.assertEqual(plan["mode"], "selective")
+        self.assertEqual(skipped(plan), ALL_SUITES)
+        self.assertTrue(all(row["reason"] for row in plan["skipped"]))
+        for step in SUITES["promotion"]:
+            self.assertNotIn(step, plan["required"])
+        for step in ("backend-tests", "web-tests", "browser-tests", "browser-smoke", "web-build", "compose-check"):
+            self.assertIn(step, plan["required"])
+        self.assertTrue(evaluate(plan, results(plan))["success"])
+
+        tooling = choose_plan("pull_request", event(), [modified("src/frontend/web/scripts/effect-check.mjs")])
+        self.assertEqual((tooling["mode"], skipped(tooling)), ("selective", ["browser-hosted", "promotion"]))
+        hosted = choose_plan(
+            "pull_request", event(), [modified("src/frontend/web/tests/fixtures/retained-screens/a.tsx")]
+        )
+        self.assertEqual((hosted["mode"], skipped(hosted)), ("selective", ["browser-tooling", "promotion"]))
+        # A packaging change runs everything, so the PR run can serve promotion.
+        backend = choose_plan("pull_request", event(), [modified("src/backend/animama/app/services/chat.py")])
+        self.assertEqual((backend["mode"], backend["skipped"]), ("full", []))
+
+    def test_promotion_candidates_and_everything_inputs_keep_full(self):
+        full = sorted(BASE | PROFILES["full"])
+        cheap = [modified("tests/test_chat.py")]
+        for name, value, kwargs in (
+            ("pull_request", event(labels=["ci:full"]), {}),
+            ("push", main_event(), {}),
+            ("workflow_dispatch", {}, {}),
+            ("schedule", {}, {}),
+            ("pull_request", event(), {"reusable": True}),
+            ("pull_request", event(), {"diff_error": "missing"}),
+        ):
+            plan = choose_plan(name, value, cheap, **kwargs)
+            self.assertEqual((plan["mode"], plan["required"], plan["skipped"]), ("full", full, []), name)
+        for path in ("src/frontend/web/src/main.local.tsx", "scripts/ci/validation.py", "unknown/file"):
+            plan = choose_plan("pull_request", event(), [modified(path)])
+            self.assertEqual((plan["mode"], plan["required"], plan["skipped"]), ("full", full, []), path)
+        # Reduced profiles and drafts are unchanged.
+        self.assertEqual(choose_plan("pull_request", event(), [modified("docs/a.md")])["mode"], "docs")
+        self.assertEqual(choose_plan("pull_request", event(draft=True), cheap)["mode"], "deferred")
+        self.assertEqual(choose_plan("pull_request", event(), cheap, local_reviewed=True)["mode"], "backend")
+
+    def test_changed_imports_reduce_nothing_but_special_files_select_everything(self):
+        changes = [modified("tests/test_chat.py")]
+        excluded = ["tests/test_chat.py"]
+        plan = choose_plan("pull_request", event(), changes, excluded_paths=excluded, special_paths=[])
+        self.assertEqual(plan["mode"], "selective")
+        plan = choose_plan("pull_request", event(), changes, excluded_paths=excluded, special_paths=excluded)
+        self.assertEqual(plan["mode"], "full")
+        self.assertEqual(choose_plan("pull_request", event(), changes, excluded_paths=excluded)["mode"], "full")
+
+    def test_gate_rejects_plans_that_do_not_match_their_skips(self):
+        plan = choose_plan("pull_request", event(), [modified("tests/test_chat.py")])
+        for key, value in (
+            ("skipped", []),
+            ("skipped", None),
+            ("skipped", plan["skipped"][:1]),
+            ("skipped", plan["skipped"] + plan["skipped"][:1]),
+            ("skipped", list(reversed(plan["skipped"]))),
+            ("skipped", [{"suite": "unknown", "reason": "x"}] + plan["skipped"]),
+            ("skipped", [row | {"reason": ""} for row in plan["skipped"]]),
+            ("skipped", [row | {"extra": 1} for row in plan["skipped"]]),
+            ("mode", "full"),
+        ):
+            changed = copy.deepcopy(plan)
+            changed[key] = value
+            self.assertFalse(evaluate(changed, results(plan))["success"], (key, value))
+        full = choose_plan("workflow_dispatch", {}, None)
+        self.assertFalse(evaluate(full | {"skipped": plan["skipped"]}, results(full))["success"])
+        # Steps of a skipped suite must not run; a required step must not skip.
+        steps = results(plan) | {"package-build": {"outcome": "success", "conclusion": "success"}}
+        self.assertFalse(evaluate(plan, steps)["success"])
+        steps = results(plan) | {"package-build": {"outcome": "skipped", "conclusion": "skipped"}}
+        self.assertTrue(evaluate(plan, steps)["success"])
+        steps = results(plan) | {"browser-tests": {"outcome": "skipped", "conclusion": "skipped"}}
+        self.assertFalse(evaluate(plan, steps)["success"])
 
 
 if __name__ == "__main__":

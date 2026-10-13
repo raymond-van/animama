@@ -32,7 +32,6 @@ describe("unfinished installation setup draft", () => {
     const saved = draft({
       step: "voice",
       displayName: "  Ada  ",
-      adultConfirmed: true,
       modelLocation: "local",
       chatModelId: "OpenAIHTTPAgent:qwen3",
       ttsProvider: "elevenlabs",
@@ -40,13 +39,31 @@ describe("unfinished installation setup draft", () => {
     expect(writeSetupDraft("owner-a", saved, store)).toBe(true);
     expect(readSetupDraft("owner-a", store)).toEqual(saved);
     expect(readSetupDraft("owner-b", store)).toEqual(emptySetupDraft());
-    writeSetupDraft("owner-a", { ...saved, adultConfirmed: false }, store);
-    // A later step needs the Welcome answers.
-    expect(readSetupDraft("owner-a", store)).toMatchObject({
-      step: "welcome",
-      adultConfirmed: false,
-      chatModelId: "OpenAIHTTPAgent:qwen3",
+  });
+
+  it("restores the final modal without treating its handoff as age confirmation", () => {
+    const store = storage();
+    writeSetupDraft(
+      "pending-owner",
+      draft({
+        step: "voice",
+        displayName: "Ada",
+        awaitingAgeConfirmation: true,
+      }),
+      store,
+    );
+    expect(readSetupDraft("pending-owner", store)).toMatchObject({
+      step: "voice",
+      awaitingAgeConfirmation: true,
     });
+    writeSetupDraft(
+      "pending-owner",
+      draft({ displayName: "   ", awaitingAgeConfirmation: true }),
+      store,
+    );
+    expect(readSetupDraft("pending-owner", store).awaitingAgeConfirmation).toBe(
+      false,
+    );
   });
 
   it("stores only bounded nonsecret fields, never credentials or readiness", () => {
@@ -54,14 +71,15 @@ describe("unfinished installation setup draft", () => {
     writeSetupDraft(
       "owner-a",
       {
-        ...draft({ displayName: "x".repeat(100), adultConfirmed: true }),
+        ...draft({ displayName: "x".repeat(100) }),
+        adultConfirmed: true,
         apiKey: "fixture-secret",
         firstRunComplete: true,
       } as SetupDraft,
       store,
     );
     expect([...store.entries.values()].map((text) => JSON.parse(text))).toEqual(
-      [draft({ displayName: "x".repeat(80), adultConfirmed: true })],
+      [draft({ displayName: "x".repeat(80) })],
     );
   });
 
@@ -72,7 +90,7 @@ describe("unfinished installation setup draft", () => {
     for (const text of [
       "broken",
       "null",
-      JSON.stringify({ displayName: "Ada", adultConfirmed: "yes" }),
+      JSON.stringify({ displayName: 7 }),
       "x".repeat(5000),
     ]) {
       store.setItem(key, text);
@@ -91,18 +109,14 @@ describe("unfinished installation setup draft", () => {
       }),
     );
     expect(readSetupDraft("owner-a", store)).toEqual(
-      draft({ displayName: "Ada", adultConfirmed: true }),
+      draft({ displayName: "Ada" }),
     );
   });
 
   it("clears only the completed owner's draft and tolerates unavailable storage", () => {
     const store = storage();
     for (const owner of ["a", "b"])
-      writeSetupDraft(
-        owner,
-        draft({ displayName: owner, adultConfirmed: true }),
-        store,
-      );
+      writeSetupDraft(owner, draft({ displayName: owner }), store);
     clearSetupDraft("a", store);
     expect(readSetupDraft("a", store).displayName).toBe("");
     expect(readSetupDraft("b", store).displayName).toBe("b");
@@ -117,14 +131,10 @@ describe("unfinished installation setup draft", () => {
         throw new Error("blocked");
       },
     };
-    expect(readSetupDraft("a", blocked).adultConfirmed).toBe(false);
-    expect(
-      writeSetupDraft(
-        "a",
-        draft({ displayName: "Ada", adultConfirmed: true }),
-        blocked,
-      ),
-    ).toBe(false);
+    expect(readSetupDraft("a", blocked)).toEqual(emptySetupDraft());
+    expect(writeSetupDraft("a", draft({ displayName: "Ada" }), blocked)).toBe(
+      false,
+    );
     expect(() => clearSetupDraft("a", blocked)).not.toThrow();
   });
 });

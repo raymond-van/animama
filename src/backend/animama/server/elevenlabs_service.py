@@ -7,8 +7,7 @@ import math
 import random
 import re
 import time
-import uuid
-from collections.abc import AsyncIterator, Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
@@ -17,25 +16,21 @@ from typing import Any, cast
 import httpx
 from elevenlabs.client import ElevenLabs
 from elevenlabs.core import ApiError
-from elevenlabs.types.voice_settings import VoiceSettings
 from fastapi import HTTPException, status
 from starlette.concurrency import run_in_threadpool
 
-from animama.app.model_clients.credential_store import ELEVENLABS_CREDENTIAL_ENV, CredentialSnapshot
-from animama.app.voice_emotional_tone import (
-    bounded_finalized_tts_previous_text,
-    elevenlabs_v3_text_with_emotional_prefix,
+from animama.app.contracts.elevenlabs import (
+    DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID,
+    replace_retired_elevenlabs_tts_model_id,
 )
+from animama.app.model_clients.credential_store import ELEVENLABS_CREDENTIAL_ENV, CredentialSnapshot
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
 from animama.product_http.ports import VoiceResolver
 from animama.server.config import Settings, settings
-from animama.server.finalized_speech import finalized_tts_text, pop_pcm_audio_frame
 from animama.server.runtime_credentials import runtime_credentials
 from animama.server.schemas.elevenlabs import (
-    SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS,
     SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS,
-    ElevenLabsFinalizedTtsModelId,
     ElevenLabsRealtimeTtsModelId,
     PyElevenLabsAnimaVoiceProfileInput,
     PyElevenLabsAudioResponse,
@@ -47,10 +42,12 @@ from animama.server.schemas.elevenlabs import (
 
 DEFAULT_TTS_MEDIA_TYPE = "audio/mpeg"
 ELEVENLABS_REALTIME_TTS_OUTPUT_FORMAT = "pcm_24000"
-ELEVENLABS_REALTIME_TTS_SYNC_ALIGNMENT = False
+# Ask for character timing with the audio; it costs nothing extra.
+ELEVENLABS_REALTIME_TTS_SYNC_ALIGNMENT = True
 ELEVENLABS_REALTIME_TTS_WEBSOCKET_BASE_URL = "wss://api.elevenlabs.io"
-ELEVENLABS_FINALIZED_TTS_OUTPUT_FORMAT = "pcm_24000"
-ELEVENLABS_FINALIZED_TTS_APPLY_TEXT_NORMALIZATION = "off"
+# The Text to Dialogue socket accepts only this token type; ``tts_websocket``
+# tokens are refused with ``invalid_token_type``.
+ELEVENLABS_DIALOGUE_WEBSOCKET_TOKEN_TYPE = "ttd_websocket"
 ELEVENLABS_VOICE_ACCESS_POSITIVE_TTL_SECONDS = 30 * 60
 ELEVENLABS_VOICE_ACCESS_NEGATIVE_TTL_SECONDS = 60
 ELEVENLABS_APP_LABEL = "anima"
@@ -61,20 +58,8 @@ RETRY_AFTER_RE = re.compile(r"retry after\s+(?P<seconds>\d+(?:\.\d+)?)\s*seconds
 
 _log = get_logger("server.elevenlabs")
 _SDK_OMIT = cast(Any, ...)
-_STREAM_END = object()
 # The SDK default when it builds its own HTTP client.
 _ELEVENLABS_TIMEOUT_SECONDS = 240.0
-
-
-@dataclass(frozen=True, slots=True)
-class ElevenLabsFinalizedTtsStream:
-    run_id: str
-    voice_id: str
-    text: str
-    previous_text: str | None
-    model_id: ElevenLabsFinalizedTtsModelId
-    output_format: str
-    language_code: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,21 +138,6 @@ def _raise_cached_voice_access_failure(
     )
 
 
-def _finalized_tts_previous_text_for_model(
-    *,
-    model_id: ElevenLabsFinalizedTtsModelId,
-    previous_text: str | None,
-) -> str | None:
-    """Return provider context text only for models whose API accepts it."""
-
-    # The SDK exposes previous_text broadly, but the live Eleven v3 API rejects
-    # it with: "Providing previous_text or next_text is not yet supported with
-    # the 'eleven_v3' model." Keep segmented v3 reliable by omitting it.
-    if model_id == "eleven_v3":
-        return None
-    return bounded_finalized_tts_previous_text(previous_text)
-
-
 def _require_api_key() -> str:
     """Return the ElevenLabs key pinned for this request."""
 
@@ -183,45 +153,21 @@ def _require_api_key() -> str:
 def resolve_realtime_tts_model_id(
     model_id: ElevenLabsRealtimeTtsModelId | str | None,
 ) -> ElevenLabsRealtimeTtsModelId:
-    """Resolve and validate the ElevenLabs realtime TTS model id."""
+    """Resolve the ElevenLabs realtime TTS model id.
 
-    explicit = isinstance(model_id, str) and bool(model_id.strip())
-    candidate = (
-        model_id.strip()
-        if explicit and isinstance(model_id, str)
-        else settings.elevenlabs_realtime_tts_default_model_id.strip()
-    )
+    No id speaks with v4 Turbo; a retired realtime id speaks with its replacement.
+    """
+
+    candidate = replace_retired_elevenlabs_tts_model_id(model_id.strip() if isinstance(model_id, str) else model_id)
+    if not candidate:
+        return DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID
     if candidate in SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS:
         return cast(ElevenLabsRealtimeTtsModelId, candidate)
 
     supported = ", ".join(SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS)
-    if explicit:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unsupported ElevenLabs realtime TTS model_id: {candidate}. Supported values: {supported}",
-        )
     raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=(
-            "Configured ANIMAMA_ELEVENLABS_REALTIME_TTS_DEFAULT_MODEL_ID is not supported: "
-            f"{candidate}. Supported values: {supported}"
-        ),
-    )
-
-
-def resolve_finalized_tts_model_id(
-    model_id: ElevenLabsFinalizedTtsModelId | str | None,
-) -> ElevenLabsFinalizedTtsModelId:
-    """Resolve and validate the ElevenLabs finalized-text TTS model id."""
-
-    candidate = model_id.strip() if isinstance(model_id, str) and model_id.strip() else "eleven_v3"
-    if candidate in SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS:
-        return cast(ElevenLabsFinalizedTtsModelId, candidate)
-
-    supported = ", ".join(SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS)
-    raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        detail=f"Unsupported ElevenLabs finalized TTS model_id: {candidate}. Supported values: {supported}",
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=f"Unsupported ElevenLabs realtime TTS model_id: {candidate}. Supported values: {supported}",
     )
 
 
@@ -275,8 +221,22 @@ def _find_string_field(value: Any, field_name: str) -> str | None:
     return None
 
 
-def _decode_api_error_detail(exc: ApiError) -> str:
+def _api_error_body(exc: ApiError) -> Any:
+    """The error body as plain data; some SDK errors carry a typed model (e.g. a 422).
+
+    The SDK builds that model without validation, so the provider's actual body may
+    not match its declared fields; dump it as found, without serializer warnings.
+    """
+
     body = getattr(exc, "body", None)
+    model_dump = getattr(body, "model_dump", None)
+    if callable(model_dump):
+        return model_dump(by_alias=True, warnings=False)
+    return body
+
+
+def _decode_api_error_detail(exc: ApiError) -> str:
+    body = _api_error_body(exc)
     if isinstance(body, dict):
         detail = body.get("detail") or body.get("message") or body.get("error")
         if isinstance(detail, dict):
@@ -291,7 +251,7 @@ def _decode_api_error_detail(exc: ApiError) -> str:
 
 
 def _extract_api_error_code(exc: ApiError) -> str | None:
-    body = getattr(exc, "body", None)
+    body = _api_error_body(exc)
     code = _find_string_field(body, "code")
     if code:
         return code
@@ -483,64 +443,6 @@ def _collect_audio_bytes(chunks: Iterable[bytes]) -> bytes:
     return bytes(payload)
 
 
-def _next_stream_chunk(iterator: Iterator[Any]) -> Any:
-    try:
-        return next(iterator)
-    except StopIteration:
-        return _STREAM_END
-
-
-def _streaming_audio_chunk_payload(chunk: Any) -> dict[str, Any] | None:
-    if isinstance(chunk, bytes | bytearray):
-        return {"audio_base64": base64.b64encode(bytes(chunk)).decode("ascii")}
-
-    if isinstance(chunk, dict):
-        payload = chunk
-    elif hasattr(chunk, "model_dump"):
-        payload = chunk.model_dump(mode="json", by_alias=True)
-    else:
-        payload = {
-            "audio_base64": getattr(chunk, "audio_base64", None) or getattr(chunk, "audio_base_64", None),
-        }
-
-    audio_base64 = payload.get("audio_base64") or payload.get("audio_base_64")
-    if not isinstance(audio_base64, str):
-        return None
-
-    return {"audio_base64": audio_base64}
-
-
-def _audio_payload_bytes(payload: dict[str, Any]) -> bytes | None:
-    audio_base64 = payload.get("audio_base64")
-    if not isinstance(audio_base64, str) or not audio_base64:
-        return None
-    try:
-        return base64.b64decode(audio_base64)
-    except Exception:
-        return None
-
-
-def _streaming_audio_chunk_bytes(chunk: Any) -> bytes | None:
-    if isinstance(chunk, bytes | bytearray):
-        return bytes(chunk)
-    payload = _streaming_audio_chunk_payload(chunk)
-    return _audio_payload_bytes(payload) if payload is not None else None
-
-
-def _audio_chunk_event_payload(
-    *,
-    prepared: ElevenLabsFinalizedTtsStream,
-    audio_bytes: bytes,
-) -> dict[str, Any]:
-    return {
-        "type": "audio",
-        "run_id": prepared.run_id,
-        "model_id": prepared.model_id,
-        "output_format": prepared.output_format,
-        "audio_base64": base64.b64encode(audio_bytes).decode("ascii"),
-    }
-
-
 def _encode_audio_response(
     *,
     audio_bytes: bytes,
@@ -577,13 +479,16 @@ def _resolve_media_type(output_format: str | None, default: str = DEFAULT_TTS_ME
     return default
 
 
-def _build_voice_settings(request: PyElevenLabsTextToSpeechRequest) -> VoiceSettings | None:
+def _dialogue_settings(request: PyElevenLabsTextToSpeechRequest) -> dict[str, float] | None:
+    """Eleven v4's dialogue settings: Stability and Similarity only."""
+
     if request.voice_settings is None:
         return None
-    payload = request.voice_settings.model_dump(exclude_none=True)
-    if not payload:
-        return None
-    return VoiceSettings(**payload)
+    settings_payload = {
+        "stability": request.voice_settings.stability,
+        "similarity": request.voice_settings.similarity_boost,
+    }
+    return {name: value for name, value in settings_payload.items() if value is not None} or None
 
 
 async def clone_voice(
@@ -649,16 +554,16 @@ async def synthesize_text(
 ) -> PyElevenLabsAudioResponse:
     client = get_elevenlabs_client()
     await get_owned_voice(user_id=user_id, voice_id=request.voice_id)
-    voice_settings = _build_voice_settings(request)
+    dialogue_settings = _dialogue_settings(request)
 
     def _convert() -> bytes:
+        # Eleven v4 speaks through Text to Dialogue; one input is one voice.
         return _collect_audio_bytes(
-            client.text_to_speech.convert(
-                request.voice_id,
-                text=request.text,
+            client.text_to_dialogue.convert(
+                inputs=[{"text": request.text, "voice_id": request.voice_id}],
                 model_id=request.model_id,
-                output_format=request.output_format,
-                voice_settings=voice_settings,
+                output_format=cast(Any, request.output_format),
+                settings=cast(Any, dialogue_settings),
             )
         )
 
@@ -754,14 +659,16 @@ def normalize_voice_profile(
     return profile.model_dump(mode="json")
 
 
-async def mint_tts_websocket_single_use_token() -> str:
+async def mint_dialogue_websocket_single_use_token() -> str:
+    """Mint a single-use token that admits one browser connection to the Text to Dialogue socket."""
+
     client = get_elevenlabs_client()
     try:
         response = await _call_elevenlabs(
             client.tokens.single_use.create,
             fallback_detail="Failed to mint ElevenLabs single-use token",
-            operation_name="create_tts_websocket_token",
-            token_type="tts_websocket",
+            operation_name="create_dialogue_websocket_token",
+            token_type=ELEVENLABS_DIALOGUE_WEBSOCKET_TOKEN_TYPE,
         )
     except ApiError as exc:
         _raise_from_api_error(exc, fallback_detail="Failed to mint ElevenLabs single-use token")
@@ -859,145 +766,8 @@ async def resolve_realtime_tts_session(
         sync_alignment=ELEVENLABS_REALTIME_TTS_SYNC_ALIGNMENT,
         language_code=language_code.strip() if isinstance(language_code, str) and language_code.strip() else None,
         websocket_base_url=ELEVENLABS_REALTIME_TTS_WEBSOCKET_BASE_URL,
-        token=await mint_tts_websocket_single_use_token(),
+        token=await mint_dialogue_websocket_single_use_token(),
     )
-
-
-async def prepare_finalized_tts_stream_from_text(
-    *,
-    voice: VoiceResolver | None = None,
-    anima_id: str,
-    run_id: str | None,
-    text: str,
-    model_id: ElevenLabsFinalizedTtsModelId | str | None,
-    language_code: str | None,
-    text_basis: str,
-    emotional_tone: str | None = None,
-    emotional_state: dict[str, Any] | None = None,
-    previous_text: str | None = None,
-    apply_emotional_prefix: bool = True,
-    voice_id: str | None = None,
-) -> ElevenLabsFinalizedTtsStream:
-    _require_api_key()
-    selected_model_id = resolve_finalized_tts_model_id(model_id)
-    if voice_id is not None:
-        selected_voice_id = voice_id.strip()
-        if not selected_voice_id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Configured ElevenLabs voice id is blank",
-            )
-    else:
-        if voice is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="ElevenLabs finalized TTS setup requires a voice resolver or resolved voice_id",
-            )
-        selected_voice_id = (await voice()).voice_id
-        await ensure_elevenlabs_voice_accessible(voice_id=selected_voice_id)
-    tts_text = finalized_tts_text(text, text_basis=text_basis)
-    provider_text = tts_text
-    if selected_model_id == "eleven_v3" and apply_emotional_prefix:
-        prefix_result = elevenlabs_v3_text_with_emotional_prefix(
-            text=tts_text,
-            emotional_tone=emotional_tone,
-            emotional_state=emotional_state,
-        )
-        provider_text = prefix_result.text
-        _log.info(
-            "ElevenLabs v3 provider text prepared",
-            run_id=run_id,
-            anima_id=anima_id,
-            canonical_emotion=prefix_result.canonical_emotion,
-            tone_key=prefix_result.tone_key,
-            intensity_level=prefix_result.intensity_level,
-            prefix=prefix_result.prefix,
-            prefix_applied=prefix_result.applied,
-            provider_text_len=len(provider_text),
-        )
-    return ElevenLabsFinalizedTtsStream(
-        run_id=run_id or f"tts-{uuid.uuid4().hex}",
-        voice_id=selected_voice_id,
-        text=provider_text,
-        previous_text=_finalized_tts_previous_text_for_model(
-            model_id=selected_model_id,
-            previous_text=previous_text,
-        ),
-        model_id=selected_model_id,
-        output_format=ELEVENLABS_FINALIZED_TTS_OUTPUT_FORMAT,
-        language_code=(language_code.strip() if isinstance(language_code, str) and language_code.strip() else None),
-    )
-
-
-async def stream_finalized_tts_chunks(
-    prepared: ElevenLabsFinalizedTtsStream,
-) -> AsyncIterator[dict[str, Any]]:
-    client = get_elevenlabs_client()
-
-    async with get_elevenlabs_semaphore():
-        try:
-            iterator = await run_in_threadpool(
-                client.text_to_speech.stream,
-                prepared.voice_id,
-                text=prepared.text,
-                model_id=prepared.model_id,
-                output_format=prepared.output_format,
-                language_code=_sdk_optional(prepared.language_code),
-                previous_text=_sdk_optional(
-                    _finalized_tts_previous_text_for_model(
-                        model_id=prepared.model_id,
-                        previous_text=prepared.previous_text,
-                    )
-                ),
-                apply_text_normalization=ELEVENLABS_FINALIZED_TTS_APPLY_TEXT_NORMALIZATION,
-            )
-            audio_buffer = bytearray()
-            while True:
-                chunk = await run_in_threadpool(_next_stream_chunk, iterator)
-                if chunk is _STREAM_END:
-                    break
-                audio_bytes = _streaming_audio_chunk_bytes(chunk)
-                if not audio_bytes:
-                    continue
-                audio_buffer.extend(audio_bytes)
-                audio_frame = pop_pcm_audio_frame(audio_buffer)
-                if audio_frame is None:
-                    continue
-                yield _audio_chunk_event_payload(
-                    prepared=prepared,
-                    audio_bytes=audio_frame,
-                )
-            audio_frame = pop_pcm_audio_frame(audio_buffer, force=True)
-            if audio_frame is not None:
-                yield _audio_chunk_event_payload(
-                    prepared=prepared,
-                    audio_bytes=audio_frame,
-                )
-            yield {
-                "type": "done",
-                "run_id": prepared.run_id,
-                "model_id": prepared.model_id,
-                "output_format": prepared.output_format,
-            }
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            _log.warning(
-                "ElevenLabs finalized TTS stream failed",
-                run_id=prepared.run_id,
-                voice_id=prepared.voice_id,
-                model_id=prepared.model_id,
-                exc=exc,
-            )
-            message = _decode_api_error_detail(exc) if isinstance(exc, ApiError) else str(exc)
-            yield {
-                "type": "error",
-                "run_id": prepared.run_id,
-                "model_id": prepared.model_id,
-                "output_format": prepared.output_format,
-                "error": message or "ElevenLabs finalized TTS stream failed.",
-                "code": "elevenlabs_stream_failed",
-            }
 
 
 class LocalSpeech:
@@ -1050,38 +820,3 @@ class LocalSpeech:
         model_id: str | None,
     ) -> PyElevenLabsRealtimeTtsSessionResponse:
         return await resolve_realtime_tts_session(voice=voice, language_code=language_code, model_id=model_id)
-
-    async def prepare_finalized(
-        self,
-        principal: RequestPrincipal,
-        *,
-        voice: VoiceResolver | None,
-        voice_id: str | None,
-        anima_id: str,
-        run_id: str,
-        text: str,
-        model_id: str | None,
-        language_code: str | None,
-        text_basis: str,
-        emotional_tone: str | None,
-        emotional_state: dict[str, int] | None,
-        previous_text: str | None,
-        apply_emotional_prefix: bool,
-    ) -> ElevenLabsFinalizedTtsStream:
-        return await prepare_finalized_tts_stream_from_text(
-            voice=voice,
-            voice_id=voice_id,
-            anima_id=anima_id,
-            run_id=run_id,
-            text=text,
-            model_id=model_id,
-            language_code=language_code,
-            text_basis=text_basis,
-            emotional_tone=emotional_tone,
-            emotional_state=emotional_state,
-            previous_text=previous_text,
-            apply_emotional_prefix=apply_emotional_prefix,
-        )
-
-    def stream_finalized(self, prepared: Any) -> AsyncIterator[dict[str, Any]]:
-        return stream_finalized_tts_chunks(prepared)

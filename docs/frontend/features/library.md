@@ -12,6 +12,7 @@ Library URLs are sparse and section-specific. The default state is simply
 The canonical parameters are:
 
 - `section=avatars|actions|fx|chat-uploads`; omitted means All
+- under All, optional `type=avatars|gestures|reactions|poses|idle-styles|particle|avatar-effects|scene|sound`
 - under Actions, optional `action=gestures|reactions|poses|idle-styles`,
   `gestureMotion=anima_clip|vrma`, `gestureUpdatesOnly=true`,
   `gestureStatus=equipped|unequipped`, and
@@ -22,9 +23,13 @@ The canonical parameters are:
 - under Chat Uploads, optional `uploadQuery` and
   `uploadStatus=pending_upload|uploaded|processing|ready|ready_keyword_only|failed`
 
-For example, Scene FX is `/library?section=fx&fx=scene`. Changing sections
-discards filters owned by the previous section. The route expands sparse URL
+For example, Scene FX is `/library?section=fx&fx=scene`, while
+`/library?type=scene` filters the All section to Scene FX. All keeps its own
+secondary type row beneath the main sections; choosing a type leaves the main
+All tab selected. Choosing All in that row restores the combined inventory.
+Changing sections discards section-specific filters. The route expands sparse URL
 state into complete internal defaults before rendering Library components.
+Gesture filters also apply under All when All types or Gestures is selected.
 Gesture-only filters are cleared for Poses; its available sorts are name and
 relevance. The typed Pose response has no update timestamp, so Recently updated
 is unavailable for that subtype.

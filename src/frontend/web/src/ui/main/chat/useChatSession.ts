@@ -22,7 +22,6 @@ import {
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
   DEFAULT_GEMINI_TTS_MODEL_ID,
-  isElevenLabsFinalizedTtsModelId,
   toElevenLabsTtsModelId,
   toGeminiTtsModelId,
 } from "@/lib/settings/preferences";
@@ -94,6 +93,9 @@ export function useChatSession(args: UseChatSessionArgs) {
   );
   const queueAvatarTtsChunksForRun = useAvatarLipSyncBridgeStore(
     (state) => state.queueTtsChunksForRun,
+  );
+  const appendProviderSpeechTiming = useAvatarLipSyncBridgeStore(
+    (state) => state.appendProviderSpeechTiming,
   );
   const clearAvatarVisemeBridgeRun = useAvatarLipSyncBridgeStore(
     (state) => state.clearRun,
@@ -300,9 +302,9 @@ export function useChatSession(args: UseChatSessionArgs) {
     completeRun: completeTtsRun,
     acceptElevenLabsSession,
     markElevenLabsSessionFailed,
-    acceptElevenLabsFinalizedAudio,
-    completeElevenLabsFinalizedAudio,
-    markElevenLabsFinalizedAudioFailed,
+    acceptFinalizedAudio,
+    completeFinalizedAudio,
+    markFinalizedAudioFailed,
     fallBackToPocketTts,
     cancelAll: cancelTts,
     isAudioActive: isTtsAudioActive,
@@ -312,6 +314,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     onPlaybackEndedSignal: handleTtsPlaybackEndedSignal,
     onAudioEnded: handleTtsAudioEnded,
     onChunksQueued: handleTtsChunksQueued,
+    onSpeechTiming: appendProviderSpeechTiming,
     getPocketVoiceSelectionContext,
     geminiTtsOffered,
     getSpeechVoiceSelectionContext: (runId) => {
@@ -352,9 +355,9 @@ export function useChatSession(args: UseChatSessionArgs) {
     completeTtsRun,
     acceptElevenLabsSession,
     markElevenLabsSessionFailed,
-    acceptElevenLabsFinalizedAudio,
-    completeElevenLabsFinalizedAudio,
-    markElevenLabsFinalizedAudioFailed,
+    acceptFinalizedAudio,
+    completeFinalizedAudio,
+    markFinalizedAudioFailed,
     fallBackToPocketTts,
     cancelTts,
     isTtsAudioActive,
@@ -363,18 +366,13 @@ export function useChatSession(args: UseChatSessionArgs) {
     enabled: ttsEnabled,
     provider: ttsProvider,
     elevenLabsModelId,
-    finalizedServerAudio:
-      ttsProvider === "gemini" ||
-      (ttsProvider === "elevenlabs" &&
-        isElevenLabsFinalizedTtsModelId(elevenLabsModelId)),
+    // Only Gemini pushes finalized audio; ElevenLabs speaks in realtime.
+    finalizedServerAudio: ttsProvider === "gemini",
     dispatchOptions:
       ttsEnabled && ttsProvider === "elevenlabs"
         ? {
             tts: buildElevenLabsChatTtsDispatchOptions({
               modelId: elevenLabsModelId ?? DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-              finalizedChunkingPreference:
-                effectivePreferences.speech
-                  ?.tts_elevenlabs_v3_finalized_chunking,
             }),
           }
         : ttsEnabled && ttsProvider === "gemini"

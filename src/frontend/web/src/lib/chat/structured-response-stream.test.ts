@@ -175,6 +175,18 @@ describe("structured response stream", () => {
     ).toEqual({ text: " Second visible sentence." });
   });
 
+  it("speaks a segment without tts fields, such as Japanese, as written", () => {
+    expect(
+      selectStructuredSpeechTtsPayload({
+        visibleText: "おはようございます。",
+        ttsText: undefined,
+        ttsTextBasis: undefined,
+        isDelta: true,
+        structuredTtsAppended: false,
+      }),
+    ).toEqual({ text: "おはようございます。" });
+  });
+
   it("does not select TTS text for an empty final marker", () => {
     expect(
       selectStructuredSpeechTtsPayload({

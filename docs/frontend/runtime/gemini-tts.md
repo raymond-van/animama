@@ -35,7 +35,7 @@ The main runtime files are:
 - `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
 - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
 - `src/frontend/web/src/hooks/use-tts-playback.ts`
-- `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`
+- `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
 - `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
 
 For each TTS-enabled turn, `useChatSession.ts` sends `dispatch_options.tts`
@@ -44,12 +44,20 @@ finalized_chunking: "sentence"}`. The backend speaks each prepared sentence as
 one Gemini request and pushes its audio as `tts.audio` frames (`pcm_24000`,
 `provider: "gemini"`), then one `tts.done`.
 
-`ChatSpeechPolicy.finalizedServerAudio` is true for Gemini as for Eleven v3, so
-the shared session routes `tts.audio`, `tts.done` and `tts.error` to playback.
-`useTtsPlayback` prepares the shared finalized runtime when the run starts
-instead of streaming text, then decodes and schedules the frames as described
-in [ElevenLabs TTS](elevenlabs-tts.md#eleven-v3-finalized-streaming). Its audio
-signals report the run's own provider.
+`ChatSpeechPolicy.finalizedServerAudio` is true only for Gemini, the one
+provider whose audio the server pushes, so the shared session routes
+`tts.audio`, `tts.done` and `tts.error` to playback. `useTtsPlayback` prepares
+the finalized runtime (`use-finalized-tts-runtime.ts`) when the run starts
+instead of streaming text, prewarming the local `AudioContext` and gain node
+before the first frame. Its audio signals report the run's own provider.
+
+Each `pcm_24000` frame is decoded into `Int16Array` samples, converted to
+normalized `Float32Array` audio, wrapped in a 24 kHz `AudioBuffer` and
+scheduled with `AudioBufferSourceNode` through a normal `GainNode`. This path
+bypasses the PCM worklet used by realtime streaming and lets the browser's Web
+Audio engine resample to the output device rate. The backend coalesces
+upstream PCM into frames of at least 0.2 s, so the browser schedules fewer,
+larger buffers.
 
 ## Speaking Style
 

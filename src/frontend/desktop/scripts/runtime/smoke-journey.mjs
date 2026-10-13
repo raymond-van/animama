@@ -231,7 +231,7 @@ export async function runSmokeJourney({ report, provider, platform }) {
       "update_publisher_verified",
       typeof update?.state === "string" && update.state !== "unavailable",
     );
-    // Setup is three steps: Welcome (required name and 18+) → AI → Voice.
+    // Setup is three steps: Welcome (required name) → AI → Voice, then age confirmation.
     step = "setup-welcome";
     const continueButton = page.getByRole("button", {
       name: "Continue",
@@ -243,8 +243,7 @@ export async function runSmokeJourney({ report, provider, platform }) {
     await page
       .getByLabel("Display name", { exact: true })
       .fill("Desktop smoke");
-    evidence("adult_confirmation_required", await continueButton.isDisabled());
-    await page.getByLabel("I am 18 or older", { exact: true }).check();
+    evidence("name_allows_setup", await continueButton.isEnabled());
     await continueButton.click();
     step = "setup-ai-provider";
     await page
@@ -301,6 +300,18 @@ export async function runSmokeJourney({ report, provider, platform }) {
       (url) => url.pathname !== "/" && url.pathname !== "/setup",
       { timeout: 60_000 },
     );
+    step = "setup-age-confirmation";
+    await page.getByRole("dialog", { name: "Before you start" }).waitFor();
+    evidence(
+      "adult_confirmation_required",
+      (await request(page, "/v1/runtime-context")).first_run_complete === false,
+    );
+    await page
+      .getByRole("button", { name: "I am 18 or older", exact: true })
+      .click();
+    await page
+      .getByRole("dialog", { name: "Before you start" })
+      .waitFor({ state: "hidden" });
     const context = await request(page, "/v1/runtime-context");
     evidence(
       "required_private_name",

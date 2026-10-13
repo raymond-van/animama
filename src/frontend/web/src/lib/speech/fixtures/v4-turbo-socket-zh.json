@@ -1,0 +1,103 @@
+{
+  "source": "ElevenLabs Text to Dialogue socket, eleven_v4_turbo, pcm_24000, sync_alignment=true. Each message keeps its audio sample count and alignment; the audio is omitted. Captured 2026-10-13 as the app sends: sentence chunks, a flush after the first.",
+  "text": "你好！ 今天天气真好。 我们去散步吧？ ",
+  "messages": [
+    {
+      "samples": 759,
+      "alignment": null
+    },
+    {
+      "samples": 2277,
+      "alignment": {
+        "chars": ["你"],
+        "char_start_times_ms": [0],
+        "char_durations_ms": [160]
+      }
+    },
+    {
+      "samples": 3795,
+      "alignment": null
+    },
+    {
+      "samples": 1518,
+      "alignment": null
+    },
+    {
+      "samples": 6072,
+      "alignment": {
+        "chars": ["好", "！", " "],
+        "char_start_times_ms": [0, 400, 440],
+        "char_durations_ms": [400, 40, 40]
+      }
+    },
+    {
+      "samples": 6072,
+      "alignment": null
+    },
+    {
+      "samples": 627,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "samples": 759,
+      "alignment": null
+    },
+    {
+      "samples": 2277,
+      "alignment": null
+    },
+    {
+      "samples": 3795,
+      "alignment": {
+        "chars": ["今", "天", "天"],
+        "char_start_times_ms": [0, 160, 240],
+        "char_durations_ms": [160, 80, 80]
+      }
+    },
+    {
+      "samples": 1518,
+      "alignment": null
+    },
+    {
+      "samples": 6072,
+      "alignment": null
+    },
+    {
+      "samples": 15180,
+      "alignment": {
+        "chars": ["气", "真", "好"],
+        "char_start_times_ms": [0, 400, 640],
+        "char_durations_ms": [400, 240, 160]
+      }
+    },
+    {
+      "samples": 17457,
+      "alignment": {
+        "chars": ["。", " ", "我", "们", "去"],
+        "char_start_times_ms": [0, 120, 240, 320, 400],
+        "char_durations_ms": [120, 120, 80, 80, 160]
+      }
+    },
+    {
+      "samples": 8349,
+      "alignment": {
+        "chars": ["散", "步", "吧", "？", " "],
+        "char_start_times_ms": [0, 200, 400, 480, 640],
+        "char_durations_ms": [200, 200, 80, 160, 80]
+      }
+    },
+    {
+      "samples": 273,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "is_final": true
+    }
+  ]
+}

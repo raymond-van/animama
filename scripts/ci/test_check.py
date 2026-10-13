@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 import validation
-from validation_policy import BASE, PROFILES, UNTIMED
+from validation_policy import BASE, PROFILES, SUITES, UNTIMED
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -167,7 +167,9 @@ class WorkflowContractTests(unittest.TestCase):
             self.assertIsNotNone(identity)
             ids.append(identity[1])
         self.assertEqual(len(ids), len(set(ids)))
-        for mode, required in PROFILES.items():
+        cases = [(mode, mode in {"full", "selective"}, BASE | required) for mode, required in PROFILES.items()]
+        cases.append(("selective", False, BASE | PROFILES["selective"] - SUITES["promotion"]))
+        for mode, promotion, required in cases:
             selected = set()
             for block in blocks:
                 identifier = re.search(r"^        id: (\S+)$", block, re.M)[1]
@@ -176,19 +178,28 @@ class WorkflowContractTests(unittest.TestCase):
                 condition = re.search(r"^        if: (.+)$", block, re.M)
                 if condition is None:
                     selected.add(identifier)
-                elif condition[1].startswith("contains(fromJSON("):
-                    modes = re.search(r"fromJSON\('(.+)'\)", condition[1])
+                    continue
+                expression, _, gate = condition[1].partition(" && ")
+                if gate:
+                    self.assertEqual(gate, "steps.select.outputs.promotion == 'true'", identifier)
+                    self.assertIn(identifier, SUITES["promotion"])
+                if expression.startswith("contains(fromJSON("):
+                    modes = re.search(r"fromJSON\('(.+)'\)", expression)
                     self.assertIsNotNone(modes)
-                    if mode in json.loads(modes[1]):
-                        selected.add(identifier)
+                    chosen = mode in json.loads(modes[1])
                 else:
-                    expected = re.fullmatch(r"steps.select.outputs.mode == '(\w+)'", condition[1])
-                    self.assertIsNotNone(expected, condition[1])
-                    if mode == expected[1]:
-                        selected.add(identifier)
+                    expected = re.fullmatch(r"steps.select.outputs.mode == '(\w+)'", expression)
+                    self.assertIsNotNone(expected, expression)
+                    chosen = mode == expected[1]
+                if chosen and (not gate or promotion):
+                    selected.add(identifier)
                 if identifier not in UNTIMED:
                     self.assertIn(f'check.py" {identifier} --', block)
-            self.assertEqual(selected, BASE | required, mode)
+            self.assertEqual(selected, required, (mode, promotion))
+        # Every promotion-suite step carries the promotion condition.
+        for identifier in SUITES["promotion"] - UNTIMED | {"baseline-checkout", "package-artifacts"}:
+            block = next(block for block in blocks if f"id: {identifier}\n" in block)
+            self.assertIn("steps.select.outputs.promotion == 'true'", block, identifier)
         self.assertIn("        if: always()\n", next(block for block in blocks if "id: gate\n" in block))
 
 

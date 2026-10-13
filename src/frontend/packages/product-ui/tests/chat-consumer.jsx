@@ -20,7 +20,7 @@ let stopOnToken = false;
 let run = 0;
 let api;
 let speechEnabled = false;
-let speechModel = "eleven_flash_v2_5";
+let speechModel = "eleven_v4_turbo";
 let speechProvider = "elevenlabs";
 let pocketFallback = true;
 const speechSessions = [];
@@ -142,8 +142,7 @@ function SessionConsumer() {
           provider: speechProvider,
           elevenLabsModelId:
             speechProvider === "elevenlabs" ? speechModel : null,
-          finalizedServerAudio:
-            speechProvider === "gemini" || speechModel === "eleven_v3",
+          finalizedServerAudio: speechProvider === "gemini",
         }
       : undefined,
     effects: {
@@ -152,12 +151,11 @@ function SessionConsumer() {
         speechSessions.push({ runId, value }),
       markElevenLabsSessionFailed: (runId, error) =>
         speechFailures.push({ runId, error }),
-      markElevenLabsFinalizedAudioFailed: (runId, error) =>
+      markFinalizedAudioFailed: (runId, error) =>
         speechFailures.push({ runId, error }),
-      acceptElevenLabsFinalizedAudio: (runId, payload) =>
+      acceptFinalizedAudio: (runId, payload) =>
         finalizedAudio.push({ runId, provider: payload.provider }),
-      completeElevenLabsFinalizedAudio: (runId) =>
-        finalizedCompletions.push(runId),
+      completeFinalizedAudio: (runId) => finalizedCompletions.push(runId),
       // The playback adapter speaks a declined run with Pocket TTS if it can.
       fallBackToPocketTts: (runId) => {
         speechFallbacks.push(runId);
@@ -239,7 +237,7 @@ function mount(owner = "owner-fixture", session = false, sessionKey = owner) {
 window.fixture = {
   mount,
   enableSpeech: ({
-    model = "eleven_flash_v2_5",
+    model = "eleven_v4_turbo",
     provider = "elevenlabs",
     fallback = true,
   } = {}) => {

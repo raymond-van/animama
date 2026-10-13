@@ -1318,6 +1318,9 @@ aligned during sidebar resizing.
 - Passes the R3F scene as the spring-bone helper host so helper visuals can render outside `vrm.scene`.
 - On cleanup, cancels first-frame/warm-up callbacks, unsubscribes availability,
   and disposes the avatar instance. Late decoding cannot animate the old rig.
+  Unloading detaches the model, disposes its GPU resources and closes its
+  decoded texture images, and disposal also drops caller sinks. Nothing may keep
+  using the model's textures or materials after its Avatar unloads.
 
 ### Per-frame update
 

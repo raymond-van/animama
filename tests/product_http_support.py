@@ -5,8 +5,8 @@
 read sessions, and ``TwoOwnerComposition`` serves two owners from one database with
 separate roots.
 ``install_local_ports`` gives local-app tests the local ports on their own session.
-Chat turns on the doubles use the ports' ``model_clients``, ``FakeSpeech`` and a
-``RecordingChatGuard`` that keeps every lease it grants.
+Chat turns on the doubles use the ports' ``model_clients``, ``FakeSpeech``, any
+``FakeGeminiSpeech`` and a ``RecordingChatGuard`` that keeps every lease it grants.
 Nothing here is installed outside tests.
 """
 
@@ -33,6 +33,7 @@ from animama.app.contracts.elevenlabs import (
     PyElevenLabsTextToSpeechRequest,
     PyElevenLabsVoice,
 )
+from animama.app.contracts.gemini import DEFAULT_GEMINI_TTS_MODEL_ID
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.model_clients import ModelClientRegistry
 from animama.app.ports.text_embedder import TextEmbedder
@@ -129,14 +130,12 @@ async def save_display_name(session: AsyncSession, principal: RequestPrincipal, 
 class FakeSpeech:
     """Records each speech operation with its owner and arguments; never calls a provider.
 
-    With ``refusal`` set, the chat-turn operations decline with it; with
-    ``stream_refusal`` set, a finalized segment declines while it streams.
+    With ``refusal`` set, a reply's realtime session declines with it.
     """
 
     audio_upload_max_bytes: int = 1024
     calls: list[tuple[str, str, object]] = field(default_factory=list)
     refusal: ProductRefusal | None = None
-    stream_refusal: ProductRefusal | None = None
 
     async def clone_voice(
         self,
@@ -177,38 +176,45 @@ class FakeSpeech:
         self.calls.append(("realtime_session", principal.id, resolved.voice_id))
         return PyElevenLabsRealtimeTtsSessionResponse(
             voice_id=resolved.voice_id,
-            model_id=model_id or "eleven_flash_v2_5",
+            model_id=model_id or "eleven_v4_turbo",
             output_format="pcm_24000",
-            sync_alignment=False,
+            sync_alignment=True,
             language_code=language_code,
             token="fake-speech-token",
             websocket_base_url="wss://speech.invalid",
         )
 
+
+@dataclass
+class FakeGeminiSpeech:
+    """A composition's Gemini speech port (``ChatTurnServices.gemini_speech``); never calls Gemini.
+
+    Records each prepared segment's owner and the voice the turn resolved. With
+    ``refusal`` set, preparing a segment declines with it; with ``stream_refusal``
+    set, a prepared segment declines while it streams.
+    """
+
+    calls: list[tuple[str, str, object]] = field(default_factory=list)
+    refusal: ProductRefusal | None = None
+    stream_refusal: ProductRefusal | None = None
+
     async def prepare_finalized(
         self,
         principal: RequestPrincipal,
         *,
-        voice: VoiceResolver | None,
-        voice_id: str | None,
+        voice_id: str,
         anima_id: str,
         run_id: str,
         text: str,
         model_id: str | None,
-        language_code: str | None,
         text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
-        previous_text: str | None,
-        apply_emotional_prefix: bool,
     ) -> FakeFinalizedSpeech:
         if self.refusal is not None:
             raise self.refusal
-        if voice_id is None:
-            assert voice is not None, "the first segment resolves the Anima's voice"
-            voice_id = (await voice()).voice_id
-        self.calls.append(("prepare_finalized", principal.id, text))
-        return FakeFinalizedSpeech(voice_id=voice_id, model_id=model_id or "eleven_v3")
+        self.calls.append(("prepare_finalized", principal.id, voice_id))
+        return FakeFinalizedSpeech(voice_id=voice_id, model_id=model_id or DEFAULT_GEMINI_TTS_MODEL_ID)
 
     async def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
         if self.stream_refusal is not None:
@@ -274,7 +280,7 @@ class RecordingChatGuard:
 
 @dataclass
 class FakeChatTurnServices:
-    """A turn's collaborators on the doubles: their model clients and speech; no search, embeddings or Gemini."""
+    """A turn's collaborators on the doubles: model clients, speech and any Gemini speech; no search or embeddings."""
 
     model_clients: ModelClientRegistry | None
     speech: FakeSpeech
@@ -299,6 +305,8 @@ class DoubleCollaborators:
     model_catalog_policy: ModelCatalogPolicy
     model_role_defaults: ModelRoleDefaults
     speech: FakeSpeech
+    # The composition's Gemini voice, or ``None`` where it offers none.
+    gemini_speech: FakeGeminiSpeech | None
     chat_policy: ChatTurnPolicy
     chat_guard: RecordingChatGuard
     model_clients: ModelClientRegistry | None
@@ -370,7 +378,9 @@ class DoubleCollaborators:
         return await self.chat_guard.admit(principal, admission)
 
     def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> FakeChatTurnServices:
-        return FakeChatTurnServices(model_clients=self.model_clients, speech=self.speech)
+        return FakeChatTurnServices(
+            model_clients=self.model_clients, speech=self.speech, gemini_speech=self.gemini_speech
+        )
 
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
         # The model-free runtime drafts an approval for any message naming a markdown path.
@@ -408,6 +418,7 @@ class DeferredCommitPorts(DoubleCollaborators):
     model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
     model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
     speech: FakeSpeech = field(default_factory=FakeSpeech)
+    gemini_speech: FakeGeminiSpeech | None = None
     chat_policy: ChatTurnPolicy = field(default_factory=lambda: TEST_CHAT_POLICY)
     chat_guard: RecordingChatGuard = field(default_factory=RecordingChatGuard)
     model_clients: ModelClientRegistry | None = None
@@ -479,6 +490,7 @@ class SessionPorts(DoubleCollaborators):
     model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
     model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
     speech: FakeSpeech = field(default_factory=FakeSpeech)
+    gemini_speech: FakeGeminiSpeech | None = None
     chat_policy: ChatTurnPolicy = field(default_factory=lambda: TEST_CHAT_POLICY)
     chat_guard: RecordingChatGuard = field(default_factory=RecordingChatGuard)
     model_clients: ModelClientRegistry | None = None

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   PyAnimaDispatchOptions,
   PyModelProviderCatalogItem,
+  WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
 
 import { ChatInputModelSelector } from "./chat-input";
@@ -36,6 +37,7 @@ const fixture = vi.hoisted(() => {
     overrides: store<Partial<PyAnimaDispatchOptions>>({}),
     catalog: [] as PyModelProviderCatalogItem[],
     saveModel: vi.fn(),
+    webSearch: undefined as WebSearchCapability | undefined,
   };
 });
 
@@ -55,7 +57,7 @@ vi.mock("@/query/hooks/useModelProviders", () => ({
   useModelProviders: () => ({ data: fixture.catalog, isSuccess: true }),
 }));
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
-  useRuntimeCapabilities: () => ({ data: undefined }),
+  useRuntimeCapabilities: () => ({ data: { web_search: fixture.webSearch } }),
 }));
 vi.mock("@/query/mutations/useUpdateAnimaChatProfile", () => ({
   useUpdateAnimaChatProfile: () => ({
@@ -89,41 +91,6 @@ vi.mock("@/ui/settings/SettingsProvider", async () => {
           ),
       };
     },
-  };
-});
-// Render the picker and every row's settings popover inline, so the test
-// drives the real checkboxes and radios without dialog or popover timing.
-vi.mock("@/ui/components/model-selector", () => {
-  const Pass = ({ children }: { children?: ReactNode }) => <>{children}</>;
-  return {
-    ModelSelector: Pass,
-    ModelSelectorTrigger: Pass,
-    ModelSelectorContent: ({ children }: { children?: ReactNode }) => (
-      <div>{children}</div>
-    ),
-    ModelSelectorInput: () => null,
-    ModelSelectorList: Pass,
-    ModelSelectorEmpty: () => null,
-    ModelSelectorGroup: Pass,
-    ModelSelectorItem: ({
-      children,
-      value,
-    }: {
-      children?: ReactNode;
-      value?: string;
-    }) => <div data-row={value}>{children}</div>,
-    ModelSelectorLogo: () => null,
-    ModelSelectorName: Pass,
-  };
-});
-vi.mock("@/ui/components/popover", () => {
-  const Pass = ({ children }: { children?: ReactNode }) => <>{children}</>;
-  return {
-    Popover: Pass,
-    PopoverTrigger: Pass,
-    PopoverContent: ({ children }: { children?: ReactNode }) => (
-      <div>{children}</div>
-    ),
   };
 });
 vi.mock("@/ui/components/tooltip", () => {
@@ -160,12 +127,14 @@ const catalogRow = (
 const luna = catalogRow(LUNA, {
   model_provider: "OpenAIResponsesHTTPAgent",
   connection_name: "OpenAI",
+  logo_provider: "openai",
   api_standard: "responses",
   default_reasoning_effort: null,
 });
 const haiku = catalogRow(HAIKU, {
   model_provider: "AnthropicMessagesHTTPAgent",
   connection_name: "Anthropic",
+  logo_provider: "anthropic",
   api_standard: "anthropic_messages",
   default_reasoning_effort: "medium",
 });
@@ -173,35 +142,71 @@ const haiku = catalogRow(HAIKU, {
 let root: Root | null = null;
 let container: HTMLElement | null = null;
 
-async function renderPicker(activeModelId: string) {
+async function renderPicker(
+  activeModelId: string,
+  props: Partial<React.ComponentProps<typeof ChatInputModelSelector>> = {},
+  openPicker = true,
+) {
   fixture.activeModelId.set(activeModelId);
   container = document.createElement("div");
   document.body.append(container);
   await act(async () => {
     root = createRoot(container!);
-    root.render(<ChatInputModelSelector animaId="anima-1" />);
+    root.render(<ChatInputModelSelector animaId="anima-1" {...props} />);
   });
+  if (openPicker) await click(trigger());
 }
 
-/** The settings controls of one picker row, found by its model name. */
+function trigger() {
+  return document.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Model and reasoning:"]',
+  )!;
+}
+
+function button(label: string) {
+  return document.querySelector<HTMLButtonElement>(
+    `button[aria-label="${label}"]`,
+  )!;
+}
+
+function popover() {
+  return document.querySelector<HTMLElement>('[data-slot="popover-content"]')!;
+}
+
 function row(model: string) {
-  const element = [...document.querySelectorAll<HTMLElement>("[data-row]")]
-    .filter((candidate) => candidate.dataset.row?.split(" ").includes(model))
-    .at(0);
+  const element = [
+    ...document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'),
+  ].find((candidate) => candidate.textContent?.includes(model));
   if (!element) throw new Error(`No ${model} row`);
-  return {
-    webSearch: element.querySelector<HTMLButtonElement>(
-      'button[role="checkbox"]',
-    )!,
-    effort: (value: string) =>
-      element.querySelector<HTMLButtonElement>(
-        `button[role="radio"][value="${value}"]`,
-      )!,
-    checkedEffort: () =>
-      element
-        .querySelector('button[role="radio"][aria-checked="true"]')
-        ?.getAttribute("value"),
-  };
+  return element;
+}
+
+async function chooseModel(model: string) {
+  await click(button("Select model"));
+  await click(row(model));
+}
+
+async function toggleSearch() {
+  await click(button("Chat features"));
+  await click(webSearch());
+  await click(button("Back to model and reasoning"));
+}
+
+function slider() {
+  return document.querySelector<HTMLElement>('[role="slider"]')!;
+}
+
+function webSearch() {
+  return document.querySelector<HTMLButtonElement>('button[role="checkbox"]')!;
+}
+
+async function pressEffortKey(key: string) {
+  await act(async () => {
+    slider().focus();
+    slider().dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true }),
+    );
+  });
 }
 
 async function click(element: HTMLElement) {
@@ -215,6 +220,7 @@ beforeEach(() => {
   fixture.catalog = [luna, haiku];
   fixture.overrides.set({});
   fixture.saveModel.mockReset();
+  fixture.webSearch = undefined;
 });
 
 afterEach(() => {
@@ -225,65 +231,172 @@ afterEach(() => {
 });
 
 describe("chat model picker settings", () => {
-  it("starts each model at its own default effort", async () => {
+  it("keeps the composer logo-only and removes fast and reset controls", async () => {
+    await renderPicker(LUNA, {}, false);
+
+    expect(trigger().textContent).toBe("");
+    expect(
+      trigger().querySelector('[aria-label="openai provider"]'),
+    ).not.toBeNull();
+    expect(button("Chat features")).toBeNull();
+    expect(popover()).toBeNull();
+    await click(trigger());
+    expect(popover().contains(button("Chat features"))).toBe(true);
+    expect(button("Reset reasoning to model default")).toBeNull();
+    expect(document.querySelector(".lucide-zap")).toBeNull();
+  });
+
+  it("starts at the selected model's default and exposes readable slider values", async () => {
     await renderPicker(LUNA);
 
     expect(fixture.overrides.get()).toEqual({
       native_tools: ["web_search"],
       reasoning_effort: "none",
     });
-    expect(row("gpt-6-luna").checkedEffort()).toBe("none");
-    // An inactive row's popover shows that row's default, not the active one's.
-    expect(row("claude-haiku-5-5").checkedEffort()).toBe("medium");
+    expect(slider().getAttribute("aria-label")).toBe("Reasoning effort");
+    expect(slider().getAttribute("aria-valuetext")).toBe("None");
+    expect(slider().getAttribute("aria-valuemax")).toBe("5");
   });
 
-  it("switching from an inactive row's tools keeps that row's default effort", async () => {
+  it("transforms the same popover into models and back without changing settings", async () => {
     await renderPicker(LUNA);
+    await pressEffortKey("End");
+    const panel = popover();
+    await click(button("Select model"));
 
-    await click(row("claude-haiku-5-5").webSearch);
+    expect(popover()).toBe(panel);
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+    expect(document.activeElement).toBe(
+      document.querySelector('[placeholder="Search models..."]'),
+    );
+    expect(row("claude-haiku-5-5")).not.toBeNull();
+    await click(button("Back to model and reasoning"));
+
+    expect(popover()).toBe(panel);
+    expect(slider().getAttribute("aria-valuetext")).toBe("Max");
+    expect(document.activeElement).toBe(button("Select model"));
+    expect(fixture.saveModel).not.toHaveBeenCalled();
+  });
+
+  it("selecting a different model uses its own default effort and features", async () => {
+    await renderPicker(LUNA);
+    await pressEffortKey("End");
+    await toggleSearch();
+    await chooseModel("claude-haiku-5-5");
 
     expect(fixture.saveModel).toHaveBeenCalledWith(HAIKU);
     expect(fixture.overrides.get()).toEqual({
-      native_tools: [],
+      native_tools: ["web_search"],
       reasoning_effort: "medium",
     });
+    expect(slider().getAttribute("aria-valuetext")).toBe("Medium");
+    expect(
+      trigger().querySelector('[aria-label="anthropic provider"]'),
+    ).not.toBeNull();
   });
 
-  it("does not carry the Anthropic effort to an OpenAI row", async () => {
+  it("does not carry the Anthropic effort to an OpenAI model", async () => {
     await renderPicker(HAIKU);
-    expect(fixture.overrides.get().reasoning_effort).toBe("medium");
-
-    await click(row("gpt-6-luna").webSearch);
+    await chooseModel("gpt-6-luna");
 
     expect(fixture.saveModel).toHaveBeenCalledWith(LUNA);
-    expect(fixture.overrides.get()).toEqual({
-      native_tools: [],
-      reasoning_effort: "none",
-    });
+    expect(fixture.overrides.get().reasoning_effort).toBe("none");
   });
 
-  it("applies an effort chosen in an inactive row's popover", async () => {
-    await renderPicker(LUNA);
-
-    await click(row("claude-haiku-5-5").effort("low"));
-
-    expect(fixture.saveModel).toHaveBeenCalledWith(HAIKU);
-    expect(fixture.overrides.get()).toEqual({
-      native_tools: ["web_search"],
-      reasoning_effort: "low",
-    });
-  });
-
-  it("keeps the active model's chosen effort when its tools change", async () => {
+  it("keeps feature and reasoning choices when navigating between views", async () => {
     await renderPicker(HAIKU);
+    await pressEffortKey("ArrowRight");
+    const panel = popover();
+    await toggleSearch();
 
-    await click(row("claude-haiku-5-5").effort("high"));
-    await click(row("claude-haiku-5-5").webSearch);
-
+    expect(popover()).toBe(panel);
     expect(fixture.saveModel).not.toHaveBeenCalled();
     expect(fixture.overrides.get()).toEqual({
       native_tools: [],
       reasoning_effort: "high",
     });
+    await pressEffortKey("ArrowRight");
+    expect(slider().getAttribute("aria-valuetext")).toBe("Extra high");
+    await click(button("Chat features"));
+    expect(webSearch().getAttribute("aria-checked")).toBe("false");
+    expect(fixture.overrides.get().native_tools).toEqual([]);
+    await click(button("Back to model and reasoning"));
+    await chooseModel("claude-haiku-5-5");
+    expect(fixture.overrides.get()).toEqual({
+      native_tools: [],
+      reasoning_effort: "xhigh",
+    });
+    expect(fixture.saveModel).not.toHaveBeenCalled();
+  });
+
+  it("keeps the current model, overrides and chooser when saving a new model fails", async () => {
+    const onModelChange = vi.fn();
+    await renderPicker(LUNA, { onModelChange });
+    await pressEffortKey("End");
+    fixture.saveModel.mockImplementationOnce(() => {
+      throw new Error("Profile update failed");
+    });
+    await chooseModel("claude-haiku-5-5");
+
+    expect(fixture.activeModelId.get()).toBe(LUNA);
+    expect(fixture.overrides.get()).toEqual({
+      native_tools: ["web_search"],
+      reasoning_effort: "max",
+    });
+    expect(popover().getAttribute("aria-label")).toBe("Select model");
+    expect(onModelChange).not.toHaveBeenCalled();
+  });
+
+  it("retains confirmation for an incompatible chat without changing overrides", async () => {
+    const onIncompatibleModelSelect = vi.fn();
+    await renderPicker(LUNA, {
+      activeChat: { id: "chat-1", api_standard: "responses" },
+      onIncompatibleModelSelect,
+    });
+    await chooseModel("claude-haiku-5-5");
+
+    expect(onIncompatibleModelSelect).toHaveBeenCalledWith(haiku);
+    expect(fixture.saveModel).not.toHaveBeenCalled();
+    expect(fixture.overrides.get().reasoning_effort).toBe("none");
+    expect(popover().getAttribute("aria-label")).toBe("Select model");
+  });
+
+  it("explains unavailable web search and omits a slider for fixed models", async () => {
+    fixture.catalog = [
+      {
+        ...luna,
+        requestable_native_tool_support: [],
+        supported_reasoning_efforts: [],
+        supports_reasoning: false,
+      },
+    ];
+    fixture.webSearch = { configuration: true, configured: false };
+    await renderPicker(LUNA);
+
+    expect(slider()).toBeNull();
+    expect(button("Select model")).not.toBeNull();
+    await click(button("Chat features"));
+    expect(webSearch().disabled).toBe(true);
+    expect(popover().textContent).toContain(
+      "Set up web search in App Settings.",
+    );
+    await click(webSearch());
+    expect(fixture.overrides.get().native_tools).toBeUndefined();
+  });
+
+  it("prevents feature and reasoning changes when chat controls become disabled", async () => {
+    await renderPicker(HAIKU);
+    await act(async () => {
+      root!.render(<ChatInputModelSelector animaId="anima-1" disabled />);
+    });
+    await pressEffortKey("End");
+
+    expect(fixture.overrides.get()).toEqual({
+      native_tools: ["web_search"],
+      reasoning_effort: "medium",
+    });
+    expect(slider().getAttribute("data-disabled")).not.toBeNull();
+    expect(button("Chat features").disabled).toBe(true);
+    expect(trigger().disabled).toBe(true);
   });
 });

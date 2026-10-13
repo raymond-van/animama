@@ -66,6 +66,7 @@ import {
   useDebugRuntimeCapabilities,
 } from "@/ui/debug/useDebugSystemMetrics";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
+import { LipSyncDebugSection } from "@/ui/debug/LipSyncDebugSection";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import {
   useAnimaAnimationDebugStore,
@@ -380,6 +381,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
   const animationSectionEnabled = isAnimaDebugSectionAvailable("animation");
   const signalsSectionEnabled = isAnimaDebugSectionAvailable("signals");
   const voiceVadSectionEnabled = isAnimaDebugSectionAvailable("voiceVad");
+  const lipSyncSectionEnabled = isAnimaDebugSectionAvailable("lipSync");
   const emotionSectionEnabled = isAnimaDebugSectionAvailable("emotion");
   const activeActionsSectionEnabled =
     isAnimaDebugSectionAvailable("activeActions");
@@ -1255,6 +1257,15 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
               title={runtime.plannerEvents[0]?.type ?? undefined}
               mono
             />
+          </Section>
+
+          <Section
+            title="Lip-sync"
+            isOpen={sectionOpen.lipSync}
+            onToggle={() => toggleSection("lipSync")}
+            disabled={!lipSyncSectionEnabled}
+          >
+            <LipSyncDebugSection />
           </Section>
 
           <Section

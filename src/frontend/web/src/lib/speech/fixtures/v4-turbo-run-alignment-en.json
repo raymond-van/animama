@@ -1,0 +1,434 @@
+{
+  "source": "ElevenLabs Text to Dialogue HTTP stream with timestamps, eleven_v4_turbo, pcm_24000; spike of 2026-10-12. Times are seconds from the request's first audio sample: the shape and time base a hosted server socket forwards as `alignment`. The audio is omitted.",
+  "lines": [
+    {
+      "text": "[laughs] Oh wow, that's amazing! I can't believe you did it.",
+      "messages": [
+        {
+          "samples": 2277,
+          "alignment": {
+            "characters": [],
+            "character_start_times_seconds": [],
+            "character_end_times_seconds": []
+          }
+        },
+        {
+          "samples": 3795,
+          "alignment": {
+            "characters": ["[", "l", "a", "u", "g", "h", "s", "]", " "],
+            "character_start_times_seconds": [
+              0.0, 0.16, 0.173, 0.187, 0.2, 0.213, 0.227, 0.24, 0.28
+            ],
+            "character_end_times_seconds": [
+              0.16, 0.173, 0.187, 0.2, 0.213, 0.227, 0.24, 0.28, 0.32
+            ]
+          }
+        },
+        {
+          "samples": 2277,
+          "alignment": {
+            "characters": [],
+            "character_start_times_seconds": [],
+            "character_end_times_seconds": []
+          }
+        },
+        {
+          "samples": 6072,
+          "alignment": {
+            "characters": ["O", "h"],
+            "character_start_times_seconds": [0.32, 0.44],
+            "character_end_times_seconds": [0.44, 0.56]
+          }
+        },
+        {
+          "samples": 15180,
+          "alignment": {
+            "characters": [" ", "w", "o", "w"],
+            "character_start_times_seconds": [
+              0.56, 0.7200000000000001, 0.853, 0.9870000000000001
+            ],
+            "character_end_times_seconds": [
+              0.7200000000000001, 0.853, 0.9870000000000001, 1.12
+            ]
+          }
+        },
+        {
+          "samples": 30360,
+          "alignment": {
+            "characters": [
+              ",",
+              " ",
+              "t",
+              "h",
+              "a",
+              "t",
+              "'",
+              "s",
+              " ",
+              "a",
+              "m"
+            ],
+            "character_start_times_seconds": [
+              1.12, 1.4400000000000002, 1.52, 1.54, 1.56, 1.58, 1.6,
+              1.6400000000000001, 1.6800000000000002, 1.7600000000000002,
+              1.8800000000000001
+            ],
+            "character_end_times_seconds": [
+              1.4400000000000002, 1.52, 1.54, 1.56, 1.58, 1.6,
+              1.6400000000000001, 1.6800000000000002, 1.7600000000000002,
+              1.8800000000000001, 2.0
+            ]
+          }
+        },
+        {
+          "samples": 34914,
+          "alignment": {
+            "characters": [
+              "a",
+              "z",
+              "i",
+              "n",
+              "g",
+              "!",
+              " ",
+              "I",
+              " ",
+              "c",
+              "a",
+              "n",
+              "'",
+              "t",
+              " ",
+              "b",
+              "e",
+              "l",
+              "i",
+              "e",
+              "v",
+              "e",
+              " ",
+              "y",
+              "o",
+              "u",
+              " ",
+              "d",
+              "i",
+              "d"
+            ],
+            "character_start_times_seconds": [
+              2.0, 2.128, 2.2560000000000002, 2.384, 2.512, 2.64,
+              2.7199999999999998, 3.04, 3.12, 3.2, 3.2270000000000003, 3.253,
+              3.2800000000000002, 3.3200000000000003, 3.3600000000000003, 3.44,
+              3.467, 3.4930000000000003, 3.52, 3.54, 3.56, 3.58, 3.6,
+              3.6799999999999997, 3.733, 3.787, 3.84, 3.92, 3.947, 3.973
+            ],
+            "character_end_times_seconds": [
+              2.128, 2.2560000000000002, 2.384, 2.512, 2.64, 2.7199999999999998,
+              3.04, 3.12, 3.2, 3.2270000000000003, 3.253, 3.2800000000000002,
+              3.3200000000000003, 3.3600000000000003, 3.44, 3.467,
+              3.4930000000000003, 3.52, 3.54, 3.56, 3.58, 3.6,
+              3.6799999999999997, 3.733, 3.787, 3.84, 3.92, 3.947, 3.973, 4.0
+            ]
+          }
+        },
+        {
+          "samples": 14421,
+          "alignment": {
+            "characters": [" ", "i", "t", "."],
+            "character_start_times_seconds": [4.0, 4.08, 4.2, 4.32],
+            "character_end_times_seconds": [4.08, 4.2, 4.32, 4.64]
+          }
+        },
+        {
+          "samples": 144,
+          "alignment": null
+        }
+      ]
+    },
+    {
+      "text": "Hmm... [sighs] I suppose we could try again tomorrow, at 3:30 PM.",
+      "messages": [
+        {
+          "samples": 2277,
+          "alignment": {
+            "characters": [],
+            "character_start_times_seconds": [],
+            "character_end_times_seconds": []
+          }
+        },
+        {
+          "samples": 3795,
+          "alignment": {
+            "characters": [],
+            "character_start_times_seconds": [],
+            "character_end_times_seconds": []
+          }
+        },
+        {
+          "samples": 2277,
+          "alignment": {
+            "characters": [],
+            "character_start_times_seconds": [],
+            "character_end_times_seconds": []
+          }
+        },
+        {
+          "samples": 6072,
+          "alignment": {
+            "characters": ["H", "m", "m"],
+            "character_start_times_seconds": [0.0, 0.32, 0.4],
+            "character_end_times_seconds": [0.32, 0.4, 0.48]
+          }
+        },
+        {
+          "samples": 15180,
+          "alignment": {
+            "characters": [".", ".", ".", " ", "[", "s", "i", "g", "h"],
+            "character_start_times_seconds": [
+              0.48, 0.64, 0.8, 0.96, 1.0, 1.02, 1.04, 1.12, 1.2
+            ],
+            "character_end_times_seconds": [
+              0.64, 0.8, 0.96, 1.0, 1.02, 1.04, 1.12, 1.2, 1.28
+            ]
+          }
+        },
+        {
+          "samples": 30360,
+          "alignment": {
+            "characters": [
+              "s",
+              "]",
+              " ",
+              "I",
+              " ",
+              "s",
+              "u",
+              "p",
+              "p",
+              "o",
+              "s",
+              "e",
+              " ",
+              "w",
+              "e"
+            ],
+            "character_start_times_seconds": [
+              1.28, 1.36, 1.44, 1.6800000000000002, 1.76, 1.92,
+              1.9729999999999999, 2.027, 2.08, 2.14, 2.2, 2.26,
+              2.3200000000000003, 2.4000000000000004, 2.44
+            ],
+            "character_end_times_seconds": [
+              1.36, 1.44, 1.6800000000000002, 1.76, 1.92, 1.9729999999999999,
+              2.027, 2.08, 2.14, 2.2, 2.26, 2.3200000000000003,
+              2.4000000000000004, 2.44, 2.48
+            ]
+          }
+        },
+        {
+          "samples": 42504,
+          "alignment": {
+            "characters": [
+              " ",
+              "c",
+              "o",
+              "u",
+              "l",
+              "d",
+              " ",
+              "t",
+              "r",
+              "y",
+              " ",
+              "a",
+              "g",
+              "a",
+              "i",
+              "n",
+              " ",
+              "t",
+              "o",
+              "m",
+              "o",
+              "r",
+              "r",
+              "o",
+              "w",
+              ","
+            ],
+            "character_start_times_seconds": [
+              2.48, 2.56, 2.576, 2.592, 2.608, 2.624, 2.64, 2.7199999999999998,
+              2.747, 2.773, 2.8, 2.88, 2.928, 2.976, 3.024, 3.072, 3.12, 3.24,
+              3.2800000000000002, 3.32, 3.36, 3.44, 3.52, 3.6,
+              3.6799999999999997, 3.76
+            ],
+            "character_end_times_seconds": [
+              2.56, 2.576, 2.592, 2.608, 2.624, 2.64, 2.7199999999999998, 2.747,
+              2.773, 2.8, 2.88, 2.928, 2.976, 3.024, 3.072, 3.12, 3.24,
+              3.2800000000000002, 3.32, 3.36, 3.44, 3.52, 3.6,
+              3.6799999999999997, 3.76, 4.24
+            ]
+          }
+        },
+        {
+          "samples": 18975,
+          "alignment": {
+            "characters": [" ", "a", "t", " ", "3", ":", "3", "0", " "],
+            "character_start_times_seconds": [
+              4.24, 4.36, 4.42, 4.48, 4.5600000000000005, 4.5920000000000005,
+              4.6080000000000005, 4.6240000000000006, 4.640000000000001
+            ],
+            "character_end_times_seconds": [
+              4.36, 4.42, 4.48, 4.5600000000000005, 4.5920000000000005,
+              4.6080000000000005, 4.6240000000000006, 4.640000000000001,
+              4.800000000000001
+            ]
+          }
+        },
+        {
+          "samples": 14421,
+          "alignment": {
+            "characters": ["P", "M", "."],
+            "character_start_times_seconds": [
+              4.800000000000001, 5.200000000000001, 5.44
+            ],
+            "character_end_times_seconds": [
+              5.200000000000001, 5.44, 5.760000000000001
+            ]
+          }
+        },
+        {
+          "samples": 459,
+          "alignment": null
+        }
+      ]
+    },
+    {
+      "text": "It costs $25 for 2 tickets, and Dr. Smith said it's fine.",
+      "messages": [
+        {
+          "samples": 2277,
+          "alignment": {
+            "characters": ["I", "t", " "],
+            "character_start_times_seconds": [0.0, 0.08, 0.12],
+            "character_end_times_seconds": [0.08, 0.12, 0.16]
+          }
+        },
+        {
+          "samples": 3795,
+          "alignment": {
+            "characters": [],
+            "character_start_times_seconds": [],
+            "character_end_times_seconds": []
+          }
+        },
+        {
+          "samples": 2277,
+          "alignment": {
+            "characters": [],
+            "character_start_times_seconds": [],
+            "character_end_times_seconds": []
+          }
+        },
+        {
+          "samples": 6072,
+          "alignment": {
+            "characters": ["c", "o", "s", "t", "s", " "],
+            "character_start_times_seconds": [
+              0.16, 0.32, 0.36, 0.4, 0.44000000000000006, 0.48
+            ],
+            "character_end_times_seconds": [
+              0.32, 0.36, 0.4, 0.44000000000000006, 0.48, 0.64
+            ]
+          }
+        },
+        {
+          "samples": 15180,
+          "alignment": {
+            "characters": ["$", "2", "5", " "],
+            "character_start_times_seconds": [0.64, 0.88, 1.024, 1.12],
+            "character_end_times_seconds": [0.88, 1.024, 1.12, 1.28]
+          }
+        },
+        {
+          "samples": 30360,
+          "alignment": {
+            "characters": ["f", "o", "r", " ", "2", " "],
+            "character_start_times_seconds": [
+              1.28, 1.787, 1.8130000000000002, 1.84, 1.92, 2.0
+            ],
+            "character_end_times_seconds": [
+              1.787, 1.8130000000000002, 1.84, 1.92, 2.0, 2.08
+            ]
+          }
+        },
+        {
+          "samples": 36432,
+          "alignment": {
+            "characters": [
+              "t",
+              "i",
+              "c",
+              "k",
+              "e",
+              "t",
+              "s",
+              ",",
+              " ",
+              "a",
+              "n",
+              "d",
+              " ",
+              "D",
+              "r",
+              ".",
+              " ",
+              "S",
+              "m",
+              "i",
+              "t",
+              "h",
+              " ",
+              "s",
+              "a",
+              "i",
+              "d",
+              " ",
+              "i",
+              "t",
+              "'",
+              "s"
+            ],
+            "character_start_times_seconds": [
+              2.08, 2.16, 2.24, 2.3200000000000003, 2.4, 2.48, 2.56, 2.64, 2.72,
+              2.8, 2.88, 2.96, 3.04, 3.12, 3.16, 3.3600000000000003,
+              3.3600000000000003, 3.4400000000000004, 3.504, 3.568, 3.632,
+              3.696, 3.76, 3.84, 3.8600000000000003, 3.88, 3.9000000000000004,
+              3.92, 3.96, 3.98, 4.0, 4.04
+            ],
+            "character_end_times_seconds": [
+              2.16, 2.24, 2.3200000000000003, 2.4, 2.48, 2.56, 2.64, 2.72, 2.8,
+              2.88, 2.96, 3.04, 3.12, 3.16, 3.3600000000000003,
+              3.3600000000000003, 3.4400000000000004, 3.504, 3.568, 3.632,
+              3.696, 3.76, 3.84, 3.8600000000000003, 3.88, 3.9000000000000004,
+              3.92, 3.96, 3.98, 4.0, 4.04, 4.08
+            ]
+          }
+        },
+        {
+          "samples": 16698,
+          "alignment": {
+            "characters": [" ", "f", "i", "n", "e", "."],
+            "character_start_times_seconds": [
+              4.08, 4.16, 4.24, 4.32, 4.4, 4.48
+            ],
+            "character_end_times_seconds": [4.16, 4.24, 4.32, 4.4, 4.48, 4.8]
+          }
+        },
+        {
+          "samples": 189,
+          "alignment": null
+        }
+      ]
+    }
+  ]
+}

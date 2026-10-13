@@ -1,0 +1,123 @@
+{
+  "source": "ElevenLabs Text to Dialogue socket, eleven_v4_turbo, pcm_24000, sync_alignment=true. Each message keeps its audio sample count and alignment; the audio is omitted. Captured 2026-10-13 as the app sends: sentence chunks, a flush after the first.",
+  "text": "안녕하세요. 오늘 날씨가 정말 좋네요! 산책하러 갈까요? ",
+  "messages": [
+    {
+      "samples": 759,
+      "alignment": null
+    },
+    {
+      "samples": 2277,
+      "alignment": {
+        "chars": ["안", "녕"],
+        "char_start_times_ms": [0, 80],
+        "char_durations_ms": [80, 80]
+      }
+    },
+    {
+      "samples": 3795,
+      "alignment": {
+        "chars": ["하"],
+        "char_start_times_ms": [0],
+        "char_durations_ms": [80]
+      }
+    },
+    {
+      "samples": 1518,
+      "alignment": null
+    },
+    {
+      "samples": 6072,
+      "alignment": null
+    },
+    {
+      "samples": 6072,
+      "alignment": {
+        "chars": ["세", "요", ".", " "],
+        "char_start_times_ms": [0, 320, 480, 720],
+        "char_durations_ms": [320, 160, 240, 0]
+      }
+    },
+    {
+      "samples": 627,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "samples": 759,
+      "alignment": null
+    },
+    {
+      "samples": 2277,
+      "alignment": {
+        "chars": ["오", "늘"],
+        "char_start_times_ms": [0, 80],
+        "char_durations_ms": [80, 80]
+      }
+    },
+    {
+      "samples": 3795,
+      "alignment": {
+        "chars": [" "],
+        "char_start_times_ms": [0],
+        "char_durations_ms": [80]
+      }
+    },
+    {
+      "samples": 1518,
+      "alignment": null
+    },
+    {
+      "samples": 6072,
+      "alignment": {
+        "chars": ["날", "씨", "가"],
+        "char_start_times_ms": [0, 240, 320],
+        "char_durations_ms": [240, 80, 80]
+      }
+    },
+    {
+      "samples": 15180,
+      "alignment": {
+        "chars": [" ", "정", "말", " ", "좋"],
+        "char_start_times_ms": [0, 80, 240, 320, 400],
+        "char_durations_ms": [80, 160, 80, 80, 160]
+      }
+    },
+    {
+      "samples": 19734,
+      "alignment": {
+        "chars": ["네", "요", "!", " ", "산", "책", "하", "러"],
+        "char_start_times_ms": [0, 120, 240, 400, 480, 720, 760, 800],
+        "char_durations_ms": [120, 120, 160, 80, 240, 40, 40, 80]
+      }
+    },
+    {
+      "samples": 11385,
+      "alignment": {
+        "chars": [" ", "갈", "까", "요"],
+        "char_start_times_ms": [0, 80, 160, 280],
+        "char_durations_ms": [80, 80, 120, 120]
+      }
+    },
+    {
+      "samples": 2277,
+      "alignment": {
+        "chars": ["?", " "],
+        "char_start_times_ms": [0, 240],
+        "char_durations_ms": [240, 0]
+      }
+    },
+    {
+      "samples": 363,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "is_final": true
+    }
+  ]
+}

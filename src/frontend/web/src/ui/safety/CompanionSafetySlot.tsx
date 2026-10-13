@@ -3,7 +3,7 @@ import { CompanionSafetyView } from "./CompanionSafetyView";
 
 /**
  * Connected safety surface for the main window. The main window places the AI
- * notice (below the chat input) and the crisis card (bottom-right corner)
+ * notice (above the chat input) and the crisis card (bottom-right corner)
  * separately, so each slot renders one part.
  */
 export function CompanionSafetySlot({

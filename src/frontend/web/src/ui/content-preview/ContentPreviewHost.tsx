@@ -214,6 +214,7 @@ export function ContentPreviewHost() {
   const [observationStopped, setObservationStopped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [playRequest, setPlayRequest] = useState(0);
+  const [preparationRequest, setPreparationRequest] = useState(0);
   const [cameraChanged, setCameraChanged] = useState(false);
   const [resetCameraRequest, setResetCameraRequest] = useState(0);
   const [moveAvatar, setMoveAvatar] = useState(false);
@@ -299,6 +300,7 @@ export function ContentPreviewHost() {
     }
     activeAvatarRef.current?.resetAnimations();
     setStopRequest((current) => current + 1);
+    setResetCameraRequest((current) => current + 1);
     setLoop(false);
     setMoveAvatar(false);
     setMissingDependencies([]);
@@ -361,6 +363,7 @@ export function ContentPreviewHost() {
     setMissingDependencies([]);
     setDependenciesLoading(false);
     setPreparedPreview(prepared);
+    setPreparationRequest((current) => current + 1);
     setStatus("loading");
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -746,17 +749,21 @@ export function ContentPreviewHost() {
               : "Content preview closed."}
           </p>
           <div className="bg-muted/30 relative min-h-0 flex-1 overflow-hidden">
-            {renderablePrepared ? (
+            {/* Keep the last prepared scene, its Canvas and its Avatar while a
+                replacement prepares or the Dock is minimized; only controls
+                wait for the current target. Warm-idle eviction unmounts it. */}
+            {preparedPreview ? (
               <ContentPreviewScene
                 active={active}
                 avatarTransform={avatarTransform}
-                avatarEntry={renderablePrepared.runtime.avatar_model!}
+                avatarEntry={preparedPreview.runtime.avatar_model!}
                 catalog={catalogSession}
                 loop={loop}
                 playRequest={playRequest}
+                preparationRequest={preparationRequest}
                 resetCameraRequest={resetCameraRequest}
                 stopRequest={stopRequest}
-                target={renderablePrepared.target}
+                target={preparedPreview.target}
                 moveAvatar={moveAvatar}
                 onAvatarChange={handleAvatarChange}
                 onAvatarTransformChange={handleAvatarTransformChange}

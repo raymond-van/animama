@@ -3,7 +3,6 @@ import type {
   PyModelConnectionDetection,
   PyModelProviderCatalogItem,
 } from "@animama/runtime-contracts/api-types";
-import type { LocalOnboardingInput } from "@/app/local-runtime/LocalRuntimeProvider";
 import {
   SETUP_STEPS,
   type SetupDraft,
@@ -214,25 +213,6 @@ export function connectionForDetection(
 function sameBaseUrl(left: string | null | undefined, right: string): boolean {
   const normalize = (value: string) => value.trim().replace(/\/+$/u, "");
   return normalize(left ?? "") === normalize(right);
-}
-
-/**
- * The onboarding request: the Welcome answers and, when the AI step chose
- * one, the model that becomes the Chat default. A runtime that does not let
- * the owner configure models never sends one.
- */
-export function onboardingInput(
-  draft: Pick<SetupDraft, "adultConfirmed" | "chatModelId">,
-  displayName: string,
-  modelConfiguration: boolean,
-): LocalOnboardingInput {
-  return {
-    displayName,
-    adultConfirmed: draft.adultConfirmed,
-    ...(modelConfiguration && draft.chatModelId
-      ? { chatModelProviderId: draft.chatModelId }
-      : {}),
-  };
 }
 
 /**

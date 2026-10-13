@@ -134,7 +134,7 @@ imports even when that input is inherited as true. The literal
 `__ANIMAMA_DEV_BUILD__` guard at dynamic-import sites lets the bundler remove
 unreachable debug chunks; a cross-module flag alone is insufficient. Production
 registers no avatar inspector targets, face/spring-bone helpers, animation
-snapshot polling, or voice diagnostic recording. Development debug dialogs
+snapshot polling, lip-sync audio capture, or voice diagnostic recording. Development debug dialogs
 load when opened, and inspector state does not remount the avatar. Health,
 bounded errors, recovery, browser DevTools, and the operator `dev-tools` profile
 are unaffected.

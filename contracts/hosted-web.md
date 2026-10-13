@@ -166,11 +166,11 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **5.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **6.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.5.0 and
-`product-ui` is version 0.9.0. Consumers explicitly admit
+surface, not another wire schema. `runtime-contracts` is version 0.6.0 and
+`product-ui` is version 0.10.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -263,15 +263,38 @@ direct provider. The cookie authorizes the handshake. The consumer validates the
 current session and Origin, reserves before provider dispatch, and owns bounded
 cancellation and settlement. Browser fixtures do not establish those server gates.
 
+On a server socket the browser sends `{"text": " "}` when it opens, one
+`{"text": "<chunk>"}` per reply chunk and `{"text": ""}` at the end. It sends no
+other frames. It plays base64 `pcm_24000` from `{"audio": ...}` frames and
+ends the stream on `{"isFinal": true}` or `{"is_final": true}`. The realtime model
+is `eleven_v4_turbo`.
+
+An audio frame may also carry the spoken text's character timing as
+`alignment`: `{"characters": [...], "character_start_times_seconds": [...],
+"character_end_times_seconds": [...]}`, timed in seconds from the run's first
+audio sample. This is the shape ElevenLabs' `stream/with-timestamps` returns,
+offset to the run when it spans several requests. The browser keeps it as
+lip-sync evidence and ignores malformed timing. A frame without it plays as
+before. A multi-user hosted app keeps this server transport: a
+direct `ttd_websocket` token binds no text, voice or model, so a browser holding
+one could speak anything on the operator's account, beyond any reservation.
+
 The existing local session remains `transport: "direct"` (or an omitted legacy
-transport) with its backend-issued short-lived token. Direct playback additionally
-requires `provider_credentials: true`. Both paths fence late session/audio work,
+transport) with its backend-issued short-lived token. Its socket is ElevenLabs'
+Text to Dialogue socket, opened with a single-use `ttd_websocket` token. Direct
+playback additionally requires `provider_credentials: true`. Both paths fence late session/audio work,
 close audio resources on failure or teardown, and preserve text fallback.
 
-A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`
-for realtime sessions, `tts.error` for finalized `eleven_v3` audio, each with
-`run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's voice
-allowance cannot cover that reply, and no provider audio plays for it. A
+A speech error frame with `code: "speech_allowance_exhausted"`
+(`tts.session.error`, with `run_id`, `provider: "elevenlabs"` and a human
+`error`) means the owner's voice allowance cannot cover that reply, and no
+provider audio plays for it. ElevenLabs speech is always realtime: there is no
+finalized ElevenLabs model, and the browser ignores an ElevenLabs `tts.error`.
+The shared route maps a retired id (`eleven_v3`, `eleven_flash_v2_5` or
+`eleven_multilingual_v2`) to `eleven_v4_turbo`. A route that does not validate
+`dispatch_options.tts` with `PyAnimaTtsRunOptions` must map retired ids with
+`replace_retired_elevenlabs_tts_model_id` before `merge_chat_request_options`,
+which drops unsupported ids. A
 decline known before the turn precedes all reply text and no `tts.session` is
 sent for the run; one found while reserving the reply's speech may follow the
 reply text. Either must precede `run.completed`. Where Pocket TTS runs, the

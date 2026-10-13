@@ -11,12 +11,40 @@ class _ElevenLabsSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# ElevenLabs speaks every reply with Eleven v4 Turbo, streamed while the reply is
+# written; it offers no finalized model.
+ElevenLabsRealtimeTtsModelId = Literal["eleven_v4_turbo"]
+
+SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS: tuple[ElevenLabsRealtimeTtsModelId, ...] = ("eleven_v4_turbo",)
+
+DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID: ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo"
+
+# Text to Dialogue's documented limit across one request's inputs; longer requests
+# can end early while streaming or be refused.
+ELEVENLABS_DIALOGUE_MAX_REQUEST_CHARS = 2_000
+
+# Retired model ids and the model that now speaks for them. Saved preferences
+# and requests from a tab opened before an upgrade still carry these ids.
+RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: dict[str, ElevenLabsRealtimeTtsModelId] = {
+    "eleven_flash_v2_5": "eleven_v4_turbo",
+    "eleven_multilingual_v2": "eleven_v4_turbo",
+    "eleven_v3": "eleven_v4_turbo",
+}
+
+
+def replace_retired_elevenlabs_tts_model_id(value: object) -> object:
+    """Return the current model for a retired ElevenLabs model id, or the value unchanged."""
+
+    if isinstance(value, str):
+        return RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS.get(value, value)
+    return value
+
+
 class PyElevenLabsVoiceSettings(_ElevenLabsSchema):
+    """The voice settings Eleven v4 accepts; it has no Style, Speed or Speaker Boost."""
+
     stability: float | None = Field(default=None, ge=0.0, le=1.0)
     similarity_boost: float | None = Field(default=None, ge=0.0, le=1.0)
-    style: float | None = Field(default=None, ge=0.0, le=1.0)
-    use_speaker_boost: bool | None = None
-    speed: float | None = Field(default=None, gt=0.0, le=4.0)
 
 
 class PyElevenLabsVoice(_ElevenLabsSchema):
@@ -37,10 +65,15 @@ class PyElevenLabsAnimaVoiceProfileInput(_ElevenLabsSchema):
 
 class PyElevenLabsTextToSpeechRequest(_ElevenLabsSchema):
     voice_id: str = Field(..., min_length=1)
-    text: str = Field(..., min_length=1, max_length=5000)
-    model_id: str | None = Field(default="eleven_multilingual_v2")
+    text: str = Field(..., min_length=1, max_length=ELEVENLABS_DIALOGUE_MAX_REQUEST_CHARS)
+    model_id: ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo"
     output_format: str | None = Field(default="mp3_44100_128")
     voice_settings: PyElevenLabsVoiceSettings | None = None
+
+    @field_validator("model_id", mode="before")
+    @classmethod
+    def _replace_retired_model(cls, value: object) -> object:
+        return replace_retired_elevenlabs_tts_model_id(value)
 
 
 class PyElevenLabsAudioResponse(_ElevenLabsSchema):
@@ -60,54 +93,6 @@ class PyElevenLabsSoundEffectsRequest(_ElevenLabsSchema):
     model_id: str | None = None
 
 
-ElevenLabsRealtimeEmotionLabel = Literal[
-    "neutral",
-    "affection",
-    "esteem",
-    "delight",
-    "drive",
-    "alarm",
-    "rejection",
-    "revulsion",
-    "gloom",
-]
-
-ElevenLabsRealtimeTtsModelId = Literal[
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
-]
-
-ElevenLabsFinalizedTtsModelId = Literal["eleven_v3"]
-
-ElevenLabsChatTtsModelId = Literal[
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
-    "eleven_v3",
-]
-
-SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS: tuple[ElevenLabsRealtimeTtsModelId, ...] = (
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
-)
-
-SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS: tuple[ElevenLabsFinalizedTtsModelId, ...] = ("eleven_v3",)
-
-SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS: tuple[ElevenLabsChatTtsModelId, ...] = (
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
-    "eleven_v3",
-)
-
-
-class PyElevenLabsRealtimeTtsSessionRequest(_ElevenLabsSchema):
-    anima_id: str = Field(..., min_length=1)
-    run_id: str = Field(..., min_length=1)
-    emotion_label: ElevenLabsRealtimeEmotionLabel | None = None
-    emotion_intensity: int | None = Field(default=None, ge=0, le=3)
-    language_code: str | None = Field(default=None, min_length=2, max_length=8)
-    model_id: ElevenLabsRealtimeTtsModelId | None = None
-
-
 class PyElevenLabsRealtimeTtsSessionResponse(_ElevenLabsSchema):
     voice_id: str
     model_id: str
@@ -116,29 +101,3 @@ class PyElevenLabsRealtimeTtsSessionResponse(_ElevenLabsSchema):
     language_code: str | None = None
     token: str | None = None
     websocket_base_url: str | None = None
-
-
-class PyElevenLabsFinalizedTtsStreamRequest(_ElevenLabsSchema):
-    run_id: str | None = Field(default=None, min_length=1)
-    text: str = Field(..., min_length=1, max_length=5000)
-    model_id: ElevenLabsFinalizedTtsModelId = "eleven_v3"
-    language_code: str | None = Field(default=None, min_length=2, max_length=8)
-    text_basis: Literal["plain", "gruut_text_with_ws"] = "plain"
-
-    @field_validator("text")
-    @classmethod
-    def trim_text(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("text must not be blank")
-        return normalized
-
-    @field_validator("run_id", "language_code")
-    @classmethod
-    def trim_optional_text(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        normalized = value.strip()
-        if not normalized:
-            return None
-        return normalized

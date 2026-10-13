@@ -3,6 +3,7 @@
 export const DEBUG_SECTION_KEYS = [
   "animation",
   "signals",
+  "lipSync",
   "voiceVad",
   "emotion",
   "activeActions",
@@ -22,6 +23,8 @@ export const ANIMAMA_DEBUG_PANEL_PRODUCERS = {
   systemMetrics: false,
   voiceVad: true,
   pocketTts: true,
+  // Copies each realtime reply's audio and timing while the panel is enabled.
+  lipSyncCapture: true,
 } as const;
 
 export type AnimaDebugProducerKey = keyof typeof ANIMAMA_DEBUG_PANEL_PRODUCERS;
@@ -29,6 +32,7 @@ export type AnimaDebugProducerKey = keyof typeof ANIMAMA_DEBUG_PANEL_PRODUCERS;
 export const ANIMAMA_DEBUG_PANEL_SECTIONS = {
   animation: true,
   signals: true,
+  lipSync: true,
   voiceVad: true,
   emotion: true,
   activeActions: true,
@@ -45,6 +49,7 @@ const SECTION_PRODUCER_BY_KEY: Partial<
   Record<DebugSectionKey, AnimaDebugProducerKey>
 > = {
   animation: "animationSnapshot",
+  lipSync: "lipSyncCapture",
   voiceVad: "voiceVad",
   activeActions: "animationSnapshot",
   mainThreadHealth: "systemMetrics",

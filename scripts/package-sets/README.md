@@ -103,9 +103,11 @@ environment cleanup and are uploaded with test evidence, including on later test
 failure. Python names/versions identify the tested installation; they do not
 prove reproducible transitive wheel bytes or constitute a frozen consumer gate.
 
-Full validation retains unpublished package outputs in GitHub Actions. Ordinary
-successful logs and package archives expire after 3 days; explicit full requests,
-including manual and reusable release validation, retain them for 14 days.
+Full validation retains unpublished package outputs in GitHub Actions for 14
+days, so a PR run's set outlives the seven-day reuse window and a `main` set can
+serve a later baseline comparison. A `selective` PR run builds no set. A
+`reused` main run uploads none; its receipt names the PR run's set instead (see
+[reuse after merging](../../docs/backend/operations/development.md#reuse-a-full-hosted-pr-result-after-merging)).
 Failure diagnostics and compact validation receipts retain 14 days. Reduced
 profiles do not produce package sets. No bucket, Cloud checkout, R2 credential
 or desktop release is needed. A separate private maintainer workflow may select an exact successful
@@ -114,7 +116,8 @@ binaries and feature packs continue to use `animama-releases`.
 
 To identify a CI output, record the successful run ID, artifact ID, full source
 commit and SHA-256 of the canonical `manifest.json` inside
-`animama-set-<commit>-<attempt>`. The Actions ZIP digest checks the downloaded
+`animama-set-<commit>-<attempt>`. A run's `validation-receipt` carries the same
+identity as `package_set`. The Actions ZIP digest checks the downloaded
 transport archive; the manifest digest identifies the package set inside it.
 Retain both when recording a selection. The separate
 `validation-evidence-<commit>-<attempt>` artifact contains detailed check and
@@ -192,9 +195,15 @@ require them. A change to this shape is a change to this section.
 
 ## Compatibility policy
 
-Full validation compares package sets against the exact PR base, pre-push
-commit, or dispatched commit parent selected by the workflow. The baseline is
-built independently; an unavailable required baseline fails validation.
+Every run that executes the promotion suite compares its set against the exact
+PR base, pre-push commit, or dispatched commit parent selected by the workflow.
+`scripts/ci/baseline_set.py` first uses the set a successful full run of that
+baseline retained (or the PR set a `reused` receipt names for the same tree).
+That set must be verified and come from the same producer code and toolchain.
+Otherwise it rebuilds the baseline independently. The run's
+`validation-receipt` records the path taken as `baseline_set`. A baseline that
+can neither be found nor rebuilt fails validation. A `selective` PR run builds
+no set and makes no comparison.
 Contract versions must never decrease. Documentation-only JSON Schema/OpenAPI changes are compatible;
 all structural changes conservatively require a new major contract version,
 including additions not yet covered by a more precise compatibility rule.

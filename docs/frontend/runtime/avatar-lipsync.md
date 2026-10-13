@@ -44,9 +44,15 @@ Lip-sync is implemented as a layered pipeline:
 
 For main-structured TTS speech parts, the backend can also emit:
 
-- `tts_text` (gruut `text_with_ws` used as the exact v3 synthesis text)
+- `tts_text` (gruut `text_with_ws`, used as the exact synthesis text for English)
 - `tts_phonemized_text` (gruut phonemes for that same `tts_text`)
 - `tts_text_basis: "gruut_text_with_ws"`
+
+Speech with letters outside ASCII (other languages, or English with an accented
+loanword), or any speech when gruut is unavailable, carries no `tts_*` fields:
+the provider speaks the visible text, and lip-sync falls back to the visible
+text's `phonemized_text`. That is empty for Japanese, Korean and Chinese,
+so the mouth does not move for them yet.
 
 Non-TTS chat streams may still include `tokenized_text` and `phonemized_text`
 on structured `speech` events, but they do not emit `tts_*` speech fields and
@@ -63,7 +69,7 @@ viseme input. The worker builds or rebuilds the actual viseme plan:
 
 - `buildGruutVisemeKeyframes({ tokenizedText, phonemizedText })`
 
-For ElevenLabs (v3 and realtime) and Gemini speech, `useChatSession` prefers
+For ElevenLabs (Eleven v4 Turbo) and Gemini speech, `useChatSession` prefers
 `tts_text` and `tts_phonemized_text` so the TTS request and gruut phonemes share
 the same gruut `text_with_ws` basis. Empty final markers and complete
 corrections that were not re-sent to TTS do not append duplicate viseme input.
@@ -107,18 +113,40 @@ When provided, it recomputes the full viseme timeline from raw phoneme/text inpu
 
 This means actual-duration correction is not a simple frame stretch at the end of the pipeline; the planner is rerun from phoneme timing inputs.
 
-### Finalized server audio path (Eleven v3 and Gemini)
+### Finalized server audio path (Gemini)
 
-ElevenLabs v3 and Gemini use finalized-text `chat:sse` audio events instead of
-a realtime websocket. When main-structured SSE speech includes `tts_text` with
+Gemini uses finalized-text `chat:sse` audio events instead of a realtime
+websocket. When main-structured SSE speech includes `tts_text` with
 `tts_text_basis: "gruut_text_with_ws"`, the backend sends that prepared text to
 the provider and the frontend uses the matching `tts_phonemized_text` for
 avatar planning.
 
-Anima does not request or consume provider timestamp/alignment metadata for
-this path. The planner still estimates phoneme timing from gruut and can
+ElevenLabs returns character timing on the realtime socket. The bridge keeps it
+per run as evidence (`providerSpeechTimingByRun`; see
+[ElevenLabs TTS](elevenlabs-tts.md#provider-character-timing)), but the planner
+does not read it yet. It still estimates phoneme timing from gruut and can
 recompute the whole segment against the actual played audio duration when that
 duration is known.
+
+`lib/speech/speech-timing-evidence.ts` turns a run's timing into evidence for a
+planner that uses it (#468):
+
+- **Words:** runs of letters, digits and inner apostrophes. Han, kana and Hangul
+  characters each keep their own window.
+- **Punctuation:** runs of punctuation or symbols, each a possible pause.
+- **Audio tags:** bracketed spans, never words, with each comma-separated
+  direction classified by a small keyword table:
+  - `nonverbal` (a laugh, sigh or gasp): a non-speech interval;
+  - `sound_effect`: an interval with the mouth at rest;
+  - `pacing` (a pause): a silent interval;
+  - `delivery` (emotion, delivery and unknown directions): a zero-width marker at
+    the span's start for the words after it.
+
+The evidence reports provider times unchanged. Treat word ends that run into the
+following pause, and tag spans shorter than their effect (`[pause]` covers about
+60 ms; the pause falls on the punctuation before it), as hints. Pass
+`complete: true` once a run's audio has ended, so an unclosed bracket reads as
+punctuation instead of waiting for its tag to close.
 
 ## 4) `useChatSession` integration
 
@@ -148,6 +176,9 @@ If `artifacts.visemePlan` exists, `useChatSession` queues it into the bridge and
 - `onAudioDurationResolved` -> forwards resolved speech duration for viseme recompute
 - `onPlaybackEndedSignal` -> hard-stops avatar lip-sync immediately on raw speech playback end
 - `onAudioEnded` -> normal chat/avatar cleanup (also clears lip-sync)
+- `onChunksQueued` -> records the chunks sent to speech (`speechChunksByRun`)
+- `onSpeechTiming` -> appends ElevenLabs character timing
+  (`providerSpeechTimingByRun`), evidence the planner does not read yet
 
 The same audio start and duration entries are also used by the avatar frame
 loop to build a provider-agnostic procedural speech timing context for speech
@@ -237,6 +268,8 @@ The bridge tracks:
   ElevenLabs and Gemini
 - speech actual duration (`speechAudioDurationsByRun`) for Pocket TTS,
   ElevenLabs and Gemini
+- provider character timing (`providerSpeechTimingByRun`) for ElevenLabs,
+  evidence that the current planner does not read
 - speech gesture timelines (`speechGestureTimelinesByRun`) generated by the
   viseme worker and scaled to actual audio duration when known
 - started flags (`startedRuns`)
@@ -274,8 +307,8 @@ The bridge logs this as:
 - `Queue / Overprovisioning provisional viseme duration`
 
 This is a UX safeguard and does not replace the actual-duration recompute path.
-For streamed structured TTS, especially backend-pushed Eleven v3 or Gemini
-audio, later speech segments can arrive after audible playback has already
+For streamed structured TTS, especially backend-pushed Gemini audio, later
+speech segments can arrive after audible playback has already
 started. When that happens, the bridge rebuilds and immediately replaces the
 in-flight provisional
 segment using the same audio start anchor, so the avatar does not finish the
@@ -425,6 +458,46 @@ Inspect these stages in order:
    in-flight. Large duration corrections can affect perceived synchronization.
 5. Confirm raw playback-ended cleared lip-sync; the higher-level Audio ended
    callback may wait for run completion.
+
+### Comparing plans in the debug panel
+
+In a development build with `VITE_ENABLE_DEBUG_PANEL=true`, the Anima debug
+panel's **Lip-sync** section shows the latest realtime ElevenLabs reply:
+
+- its audio envelope;
+- its timing evidence: words, punctuation and tags;
+- one mouth-openness curve per plan source.
+
+**Replay** plays the captured audio through its own `AudioContext` and drives
+the avatar with that plan (`playReplaySegment`, under a replay run id), so plans
+can be compared by eye and ear.
+
+- Plans are built, and Replay is enabled, only once the captured reply has
+  finished playing: when the bridge clears its run. The stream ends earlier,
+  while buffered audio still plays.
+- Replay cannot start while any reply is speaking, whatever its provider. A
+  reply that starts speaking during a replay ends it. A reply whose own plan
+  has started keeps it; otherwise the mouth returns to rest.
+- A capped capture is drawn and replayed on the 90 s it kept.
+
+- **Capture.** `SceneDebugPanel` starts the capture while the panel is enabled,
+  whether or not it is open, because the panel closes on any outside click
+  such as typing a message.
+  - The ElevenLabs runtime hands each audio frame to the debug tap
+    (`lib/speech/speech-debug-tap.ts`). Without a capture the tap is empty and
+    nothing is copied.
+  - `stores/lipsync-debug-store.ts` keeps only the latest run, capped at 90 s.
+  - It copies the run's planner inputs, timing and length from the bridge
+    before the run is cleared, and clears with the session.
+- **Plan sources.** `lib/speech/lipsync-plan-sources.ts` lists "Estimated
+  (today)" (today's planner at the played length) first. A planner registers
+  itself with `registerLipSyncPlanSource({id, label, build})`; the view needs
+  no change.
+- **No estimated plan.** gruut's English model finds no phonemes in Japanese,
+  Chinese or Korean speech. "Estimated (today)" therefore has no plan for it,
+  and the avatar's mouth stays still while it plays, as before Eleven v4. Its
+  provider timing is still shown. Accented Latin text keeps gruut's
+  English-reading phonemes.
 
 ## 13) Known limitations / caveats
 

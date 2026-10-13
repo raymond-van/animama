@@ -390,6 +390,8 @@ export class PipWindowManager {
   private readonly stateChangedChannel: string;
   private readonly clickThroughSupported = process.platform !== "linux";
   private ownerContents: WebContents | null = null;
+  /** Owners already watched for destruction; each needs one listener, not one per PiP window. */
+  private readonly ownersWatchedForDestroy = new Set<number>();
   private mousePoll: ReturnType<typeof setInterval> | null = null;
   private pipMouseEventsIgnored = false;
   private pipWindow: BrowserWindow | null = null;
@@ -422,6 +424,7 @@ export class PipWindowManager {
   ): Promise<DesktopPipState> {
     const options = normalizeOpenOptions(rawOptions);
     this.ownerContents = ownerContents;
+    this.closePipWhenOwnerDestroyed(ownerContents);
 
     this.state = {
       isOpen: true,
@@ -535,13 +538,6 @@ export class PipWindowManager {
     pipWindow.on("hide", () => {
       this.setPipMouseEventsIgnored(pipWindow, false);
     });
-    ownerContents.once("destroyed", () => {
-      if (!pipWindow.isDestroyed()) {
-        this.setPipMouseEventsIgnored(pipWindow, false);
-        pipWindow.close();
-      }
-    });
-
     await this.loadPipRoute(pipWindow, options.animaId, options.chatId);
     this.sendStateChanged();
     return this.getState();
@@ -649,6 +645,25 @@ export class PipWindowManager {
         }
       }
     }
+  }
+
+  /**
+   * Close PiP if the window that opened it goes away. The listener reads the
+   * current PiP window when it fires, so closed PiP windows are not retained.
+   */
+  private closePipWhenOwnerDestroyed(ownerContents: WebContents): void {
+    const ownerId = ownerContents.id;
+    if (this.ownersWatchedForDestroy.has(ownerId)) return;
+    this.ownersWatchedForDestroy.add(ownerId);
+    ownerContents.once("destroyed", () => {
+      this.ownersWatchedForDestroy.delete(ownerId);
+      const pipWindow = this.pipWindow;
+      if (this.ownerContents !== ownerContents || !pipWindow) return;
+      if (!pipWindow.isDestroyed()) {
+        this.setPipMouseEventsIgnored(pipWindow, false);
+        pipWindow.close();
+      }
+    });
   }
 
   private async loadPipRoute(

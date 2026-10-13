@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
-import { useAvatarLipSyncBridgeStore } from "./avatar-lipsync-bridge-store";
+import {
+  isProviderTimingOnlyChange,
+  useAvatarLipSyncBridgeStore,
+} from "./avatar-lipsync-bridge-store";
 
 vi.mock("@/lib/avatar/viseme-worker-client", () => ({
   buildVisemeAssetsFromRaw: vi.fn(
@@ -186,5 +189,212 @@ describe("avatar lip-sync bridge store", () => {
     expect(buildVisemeAssetsFromRaw).not.toHaveBeenCalledWith(
       expect.objectContaining({ runId: "run-other" }),
     );
+  });
+});
+
+describe("provider speech timing", () => {
+  beforeEach(() => {
+    useAvatarLipSyncBridgeStore.getState().clearAll();
+  });
+
+  it("keeps each run's characters in arrival order until the run is cleared", () => {
+    const store = useAvatarLipSyncBridgeStore.getState();
+
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [{ char: "H", startSec: 0, endSec: 0.08 }],
+    });
+    store.appendProviderSpeechTiming({
+      runId: "run-2",
+      provider: "elevenlabs",
+      chars: [{ char: "Y", startSec: 0, endSec: 0.1 }],
+    });
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [{ char: "i", startSec: 0.08, endSec: 0.2 }],
+    });
+
+    expect(
+      useAvatarLipSyncBridgeStore.getState().providerSpeechTimingByRun["run-1"],
+    ).toEqual({
+      provider: "elevenlabs",
+      chars: [
+        { char: "H", startSec: 0, endSec: 0.08 },
+        { char: "i", startSec: 0.08, endSec: 0.2 },
+      ],
+    });
+
+    store.clearRun("run-1");
+    expect(
+      Object.keys(
+        useAvatarLipSyncBridgeStore.getState().providerSpeechTimingByRun,
+      ),
+    ).toEqual(["run-2"]);
+
+    store.clearAll();
+    expect(
+      useAvatarLipSyncBridgeStore.getState().providerSpeechTimingByRun,
+    ).toEqual({});
+  });
+
+  it("tells a timing-only update apart from one a mirror must copy", () => {
+    const changes: boolean[] = [];
+    const unsubscribe = useAvatarLipSyncBridgeStore.subscribe(
+      (state, previous) =>
+        changes.push(isProviderTimingOnlyChange(state, previous)),
+    );
+    const store = useAvatarLipSyncBridgeStore.getState();
+
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [{ char: "H", startSec: 0, endSec: 0.08 }],
+    });
+    store.markSpeechAudioDurationResolved({
+      runId: "run-1",
+      audioDurationSec: 1,
+      generationId: null,
+    });
+    unsubscribe();
+
+    expect(changes[0]).toBe(true);
+    expect(changes.slice(1)).not.toContain(true);
+  });
+
+  it("ignores an empty append", () => {
+    const store = useAvatarLipSyncBridgeStore.getState();
+    const before = useAvatarLipSyncBridgeStore.getState();
+
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [],
+    });
+
+    expect(useAvatarLipSyncBridgeStore.getState()).toBe(before);
+  });
+});
+
+describe("debug replay segments", () => {
+  beforeEach(() => {
+    useAvatarLipSyncBridgeStore.getState().clearAll();
+    useAvatarLipSyncBridgeStore.setState({ avatar: null, avatarAnimaId: null });
+  });
+
+  function fakeAvatar() {
+    const calls: string[] = [];
+    const avatar = {
+      isReady: true,
+      clearLipSync: () => calls.push("clear"),
+      setAudioContext: () => calls.push("context"),
+      initLipSyncSegment: (meta: { run_id?: string | null }) =>
+        calls.push(`init:${meta.run_id}`),
+      registerLipSyncFrame: () => calls.push("frame"),
+      onSegmentAudioStarted: (segmentId: string, audioStartSec: number) =>
+        calls.push(`start:${segmentId}@${audioStartSec}`),
+    };
+    return { avatar, calls };
+  }
+
+  const segment = {
+    segmentId: "replay-segment",
+    meta: { run_id: "lipsync-replay-1", segment_id: "replay-segment" },
+    frames: [
+      { time_sec: 0, values: [1, 0, 0, 0, 0] },
+      { time_sec: 1 / 60, values: [0, 1, 0, 0, 0] },
+    ],
+    frameCount: 2,
+    durationMs: 33,
+    durationSec: 0.033,
+    fps: 60,
+  };
+
+  it("plays a replay's plan on the avatar against the replay's clock", () => {
+    const { avatar, calls } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.registerAvatarInstance({
+      avatar: avatar as unknown as Parameters<
+        typeof store.registerAvatarInstance
+      >[0]["avatar"],
+    });
+
+    expect(
+      useAvatarLipSyncBridgeStore.getState().playReplaySegment({
+        segment,
+        audioContext: {} as AudioContext,
+        audioStartSec: 2.5,
+      }),
+    ).toBe(true);
+    expect(calls).toEqual([
+      "clear",
+      "context",
+      "init:lipsync-replay-1",
+      "frame",
+      "frame",
+      "start:replay-segment@2.5",
+    ]);
+    // A replay is not a chat run: nothing waits for the speech gate.
+    expect(useAvatarLipSyncBridgeStore.getState().segmentsByRun).toEqual({});
+
+    useAvatarLipSyncBridgeStore.getState().stopReplaySegment();
+    expect(calls.at(-1)).toBe("clear");
+  });
+
+  function speakingRun(started: boolean) {
+    useAvatarLipSyncBridgeStore.setState({
+      speechAudioStartsByRun: {
+        "run-1": {
+          runId: "run-1",
+          audioStartSec: 0,
+          audioContext: {} as AudioContext,
+          generationId: null,
+          receivedAtMs: 0,
+        },
+      },
+      startedRuns: started ? { "run-1": true } : {},
+    });
+  }
+
+  it("leaves a speaking reply's own plan when a replay stops", () => {
+    const { avatar, calls } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.registerAvatarInstance({
+      avatar: avatar as unknown as Parameters<
+        typeof store.registerAvatarInstance
+      >[0]["avatar"],
+    });
+    speakingRun(true);
+
+    useAvatarLipSyncBridgeStore.getState().stopReplaySegment();
+
+    expect(calls).toEqual([]);
+  });
+
+  it("clears a stopped replay when the speaking reply has no plan of its own", () => {
+    const { avatar, calls } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.registerAvatarInstance({
+      avatar: avatar as unknown as Parameters<
+        typeof store.registerAvatarInstance
+      >[0]["avatar"],
+    });
+    // A Japanese reply has no estimated plan, so the replay's pose would freeze.
+    speakingRun(false);
+
+    useAvatarLipSyncBridgeStore.getState().stopReplaySegment();
+
+    expect(calls).toEqual(["clear"]);
+  });
+
+  it("does not play a replay without a ready avatar", () => {
+    expect(
+      useAvatarLipSyncBridgeStore.getState().playReplaySegment({
+        segment,
+        audioContext: {} as AudioContext,
+        audioStartSec: 0,
+      }),
+    ).toBe(false);
   });
 });

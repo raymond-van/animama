@@ -32,7 +32,7 @@ import {
   typedIdleStylePreview,
 } from "@/lib/content/typedPreviewAdapters";
 import {
-  presentCustomGestureCatalog,
+  presentGestureCatalog,
   presentGestureLoadout,
 } from "@/lib/loadout/animaLoadoutPresentation";
 import { buildReactionLoadoutGrid } from "@/lib/loadout/reactionLoadoutGrid";
@@ -114,24 +114,14 @@ export function AnimaLoadout({
   );
   const runtimeQuery = { ...runtimeSnapshotQuery, data: runtimeData };
   const idleStylesQuery = useIdleStyles({ sort: "name" });
-  const customGesturesQuery = useGestures({ origin: "owned", sort: "name" });
-  const builtinGesturesQuery = useGestures({
-    origin: "builtin",
-    sort: "name",
-  });
+  const gesturesQuery = useGestures({ origin: "all", sort: "name" });
   const reactionsQuery = useReactions({ origin: "all", sort: "name" });
   const {
-    fetchNextPage: fetchNextCustomGesturesPage,
-    hasNextPage: hasNextCustomGesturesPage,
-    isFetchNextPageError: customGesturesNextPageError,
-    isFetchingNextPage: customGesturesFetchingNextPage,
-  } = customGesturesQuery;
-  const {
-    fetchNextPage: fetchNextBuiltinGesturesPage,
-    hasNextPage: hasNextBuiltinGesturesPage,
-    isFetchNextPageError: builtinGesturesNextPageError,
-    isFetchingNextPage: builtinGesturesFetchingNextPage,
-  } = builtinGesturesQuery;
+    fetchNextPage: fetchNextGesturesPage,
+    hasNextPage: hasNextGesturesPage,
+    isFetchNextPageError: gesturesNextPageError,
+    isFetchingNextPage: gesturesFetchingNextPage,
+  } = gesturesQuery;
   const {
     fetchNextPage: fetchNextReactionsPage,
     hasNextPage: hasNextReactionsPage,
@@ -151,32 +141,17 @@ export function AnimaLoadout({
 
   useEffect(() => {
     if (
-      hasNextCustomGesturesPage &&
-      !customGesturesFetchingNextPage &&
-      !customGesturesNextPageError
+      hasNextGesturesPage &&
+      !gesturesFetchingNextPage &&
+      !gesturesNextPageError
     ) {
-      void fetchNextCustomGesturesPage();
+      void fetchNextGesturesPage();
     }
   }, [
-    customGesturesFetchingNextPage,
-    customGesturesNextPageError,
-    fetchNextCustomGesturesPage,
-    hasNextCustomGesturesPage,
-  ]);
-
-  useEffect(() => {
-    if (
-      hasNextBuiltinGesturesPage &&
-      !builtinGesturesFetchingNextPage &&
-      !builtinGesturesNextPageError
-    ) {
-      void fetchNextBuiltinGesturesPage();
-    }
-  }, [
-    builtinGesturesFetchingNextPage,
-    builtinGesturesNextPageError,
-    fetchNextBuiltinGesturesPage,
-    hasNextBuiltinGesturesPage,
+    gesturesFetchingNextPage,
+    gesturesNextPageError,
+    fetchNextGesturesPage,
+    hasNextGesturesPage,
   ]);
 
   useEffect(() => {
@@ -214,19 +189,18 @@ export function AnimaLoadout({
       loadout
         ? presentGestureLoadout(
             loadout,
-            builtinGesturesQuery.data?.pages.flatMap((page) => page.items) ??
-              [],
+            gesturesQuery.data?.pages.flatMap((page) => page.items) ?? [],
           )
         : null,
-    [builtinGesturesQuery.data, loadout],
+    [gesturesQuery.data, loadout],
   );
-  const customGestureCatalog = useMemo(
+  const gestureCatalog = useMemo(
     () =>
-      presentCustomGestureCatalog(
-        customGesturesQuery.data?.pages.flatMap((page) => page.items) ?? [],
-        gesturePresentation?.custom ?? [],
+      presentGestureCatalog(
+        gesturesQuery.data?.pages.flatMap((page) => page.items) ?? [],
+        loadout?.gestures ?? [],
       ),
-    [customGesturesQuery.data, gesturePresentation?.custom],
+    [gesturesQuery.data, loadout?.gestures],
   );
   const reactionRows = useMemo(
     () => buildReactionLoadoutGrid(loadout?.reactions ?? []),
@@ -444,13 +418,13 @@ export function AnimaLoadout({
       <VoiceLoadoutSection key={animaId} />
       <GestureLoadoutSection
         presentation={gesturePresentation}
-        customCatalog={customGestureCatalog}
-        customCatalogLoading={
-          customGesturesQuery.isPending ||
-          customGesturesFetchingNextPage ||
-          Boolean(hasNextCustomGesturesPage && !customGesturesNextPageError)
+        catalog={gestureCatalog}
+        catalogLoading={
+          gesturesQuery.isPending ||
+          gesturesFetchingNextPage ||
+          Boolean(hasNextGesturesPage && !gesturesNextPageError)
         }
-        customCatalogError={customGesturesQuery.isError}
+        catalogError={gesturesQuery.isError}
         mutationsDisabled={mutationsDisabled}
         onPreview={(row) => void preview("gesture", row)}
         onPreviewAvailable={(gesture) => void preview("gesture", gesture)}
@@ -487,7 +461,7 @@ export function AnimaLoadout({
             config_overrides: {},
           })
         }
-        onRetryCustomCatalog={() => void customGesturesQuery.refetch()}
+        onRetryCatalog={() => void gesturesQuery.refetch()}
       />
       <ReactionLoadoutGrid
         rows={reactionRows}

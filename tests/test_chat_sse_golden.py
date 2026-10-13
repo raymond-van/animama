@@ -2,7 +2,7 @@
 
 Each scenario runs real ``POST /v1/animas/{anima_id}/chat:sse`` turns through the
 local application and a real database. Only the provider boundary is scripted: the
-model-client registry, the ElevenLabs client and the emotion tie-break. The
+model-client registry, the ElevenLabs and Gemini clients and the emotion tie-break. The
 normalized stream must equal its recorded transcript byte for byte, so moving the
 chat code into the shared package cannot change what clients receive. Set
 ``CHAT_SSE_GOLDEN_RECORD=1`` to record the transcripts again after an intended
@@ -33,6 +33,7 @@ from animama.app.model_clients import (
     ModelClientProviderError,
     StaticModelClientRegistry,
 )
+from animama.app.model_clients.credential_store import GEMINI_CREDENTIAL_ENV
 from animama.domain.emotions import normalize_emotional_state
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMChat
@@ -50,23 +51,24 @@ from tests.chat_turn_support import (
     seed_chat_owner,
     structured,
 )
+from tests.gemini_support import FakeInteractions, audio_event, completed_event, install_client
 
 GOLDEN = Path(__file__).parent / "fixtures" / "chat_sse_golden"
 RECORD = os.environ.get("CHAT_SSE_GOLDEN_RECORD") == "1"
 
 
 class FakeElevenLabs:
-    """The ElevenLabs SDK surface chat TTS uses: voice lookup, socket tokens and streamed PCM."""
+    """The ElevenLabs SDK surface realtime chat TTS uses: voice lookup and socket tokens."""
 
     def __init__(self) -> None:
         self.voices = SimpleNamespace(get=lambda voice_id: SimpleNamespace(voice_id=voice_id, labels={}))
         self.tokens = SimpleNamespace(single_use=SimpleNamespace(create=lambda **_: SimpleNamespace(token="tts-token")))
-        self.text_to_speech = SimpleNamespace(stream=self._stream)
-        self.spoken: list[str] = []
 
-    def _stream(self, voice_id: str, **kwargs: Any) -> Any:
-        self.spoken.append(kwargs["text"])
-        return iter([b"\x01\x00" * 4800, b"\x02\x00" * 100])
+
+def fake_gemini() -> FakeInteractions:
+    """Gemini's streamed PCM for each request: a full 0.2 s frame of samples, then a short remainder."""
+
+    return FakeInteractions(events=[audio_event(b"\x01\x00" * 4800), audio_event(b"\x02\x00" * 100), completed_event()])
 
 
 def normalize(stream: str, *names: str) -> str:
@@ -112,6 +114,7 @@ class ChatWorld:
     owner: str
     anima_id: str
     elevenlabs: FakeElevenLabs
+    gemini: FakeInteractions
 
     def client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(transport=httpx.ASGITransport(app=self.app), base_url="http://test")
@@ -155,13 +158,15 @@ async def world(
 
     app.dependency_overrides[get_current_principal] = principal
     fake = FakeElevenLabs()
-    set_runtime_credentials(ELEVENLABS_API_KEY="golden-key")
+    gemini = fake_gemini()
+    set_runtime_credentials(ELEVENLABS_API_KEY="golden-key", **{GEMINI_CREDENTIAL_ENV: "golden-gemini-key"})
     monkeypatch.setattr(elevenlabs_service, "get_elevenlabs_client", lambda: fake)
     elevenlabs_service.clear_elevenlabs_voice_access_cache()
+    install_client(monkeypatch, gemini)
     # The emotion tie-break is random; the first candidate keeps transcripts stable.
     monkeypatch.setattr("animama.app.primary_emotion_update.random.choice", lambda values: values[0])
     try:
-        yield ChatWorld(app, async_session_factory, model, owner, anima_id, fake)
+        yield ChatWorld(app, async_session_factory, model, owner, anima_id, fake, gemini)
     finally:
         await remove_chat_owner(async_session_factory, owner=owner, anima_id=anima_id)
 
@@ -173,8 +178,8 @@ async def test_reply_with_emotion_gesture_memory_title_and_notice(world: ChatWor
     assert_golden("reply", await world.turn("reply"), world)
 
 
-ELEVENLABS_REALTIME = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_flash_v2_5"}}
-ELEVENLABS_FINALIZED = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}}
+ELEVENLABS_REALTIME = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
+GEMINI_FINALIZED = {"tts": {"enabled": True, "provider": "gemini", "model_id": "gemini-3.8-flash-tts"}}
 
 
 async def test_realtime_speech_sends_a_session_and_phoneme_payloads(world: ChatWorld) -> None:
@@ -184,9 +189,13 @@ async def test_realtime_speech_sends_a_session_and_phoneme_payloads(world: ChatW
 
 async def test_finalized_speech_streams_audio_with_the_stored_mood(world: ChatWorld) -> None:
     world.model.replies.append(structured("Hello there. The kettle is on.", tone="joy", intensity=3))
-    assert_golden("tts-finalized", await world.turn("tts-finalized", dispatch_options=ELEVENLABS_FINALIZED), world)
-    # The provider spoke the prepared text, with the emotional prefix eleven_v3 takes.
-    assert world.elevenlabs.spoken
+    assert_golden("tts-finalized", await world.turn("tts-finalized", dispatch_options=GEMINI_FINALIZED), world)
+    # Gemini spoke each prepared sentence in the style of the reply's tone at the stored mood's level (joy 12).
+    style = [{"type": "speech_metadata", "style": "Speak in a happy tone."}]
+    assert [call["input"][0]["content"] for call in world.gemini.calls] == [
+        [{"type": "text", "text": "Hello there.", "annotations": style}],
+        [{"type": "text", "text": "The kettle is on.", "annotations": style}],
+    ]
 
 
 async def test_flagged_moderation_adds_the_crisis_card(world: ChatWorld) -> None:

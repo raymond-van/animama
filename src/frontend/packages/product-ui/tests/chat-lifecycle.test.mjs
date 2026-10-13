@@ -527,7 +527,7 @@ test("server speech session reaches the playback adapter without provider creden
         transport: "server",
         websocket_url: "/v1/voice/streams/fixture",
         voice_id: "voice-fixture",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: true,
       },
@@ -606,7 +606,7 @@ test("a voice allowance exhausted before the reply moves its speech to Pocket TT
       transport: "server",
       websocket_url: "/v1/voice/streams/fixture",
       voice_id: "voice-fixture",
-      model_id: "eleven_flash_v2_5",
+      model_id: "eleven_v4_turbo",
       output_format: "pcm_24000",
       sync_alignment: false,
     },
@@ -623,7 +623,7 @@ test("a voice allowance exhausted before the reply moves its speech to Pocket TT
 });
 
 test("a voice allowance exhausted after the reply text speaks the reply with Pocket TTS", async (t) => {
-  const { page, runId } = await speechTurn(t, { model: "eleven_v3" });
+  const { page, runId } = await speechTurn(t);
   const speech = await streamSpeechTurn(page, runId, [
     {
       text: "Hi there.",
@@ -638,12 +638,8 @@ test("a voice allowance exhausted after the reply text speaks the reply with Poc
       part_index: 0,
       part_final: true,
     },
-    {
-      type: "tts.error",
-      model_id: "eleven_v3",
-      output_format: "pcm_24000",
-      ...allowanceExhausted,
-    },
+    // Found while reserving the reply's speech, so it follows the text.
+    { type: "tts.session.error", ...allowanceExhausted },
     { chat_id: "chat-fixture" },
   ]);
   assert.deepEqual(speech.fallbacks, [runId]);

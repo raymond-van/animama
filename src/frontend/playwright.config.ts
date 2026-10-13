@@ -73,6 +73,11 @@ export default defineConfig({
   ],
   use: {
     baseURL: webUrl,
+    // Setup now waits for the Anima to open, so it needs the same WebGL
+    // renderer as the journeys. Headed runs use the normal hardware path.
+    launchOptions: {
+      args: headed ? [] : webglArgs[webgl],
+    },
     viewport: { width: 1_440, height: 900 },
     timezoneId: "America/Toronto",
     locale: "en-CA",
@@ -103,11 +108,6 @@ export default defineConfig({
       dependencies: ["installation-setup"],
       use: {
         browserName: "chromium",
-        launchOptions: {
-          // Headed verification uses Chromium's normal hardware path, matching
-          // a manual browser session.
-          args: headed ? [] : webglArgs[webgl],
-        },
       },
     },
   ],

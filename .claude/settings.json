@@ -1,4 +1,9 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
     "allow": [
       "Bash(uv run pytest -q)",
@@ -50,9 +55,7 @@
       }
     ]
   },
-  "attribution": {
-    "commit": "",
-    "pr": "",
-    "sessionUrl": false
+  "enabledPlugins": {
+    "codex@openai-codex": true
   }
 }

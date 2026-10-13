@@ -79,13 +79,69 @@ function mount(search: Partial<ContentLibrarySearch> = {}) {
   };
 }
 
-describe("Library Chat Uploads entry points", () => {
+describe("Library sections and content types", () => {
   let cleanup: (() => void) | null = null;
   afterEach(() => {
     cleanup?.();
     cleanup = null;
     fixture.capabilities = undefined;
   });
+
+  it("shows every subtype beneath All and changes only its type filter", () => {
+    const view = mount(normalizeContentLibrarySearch({ type: "poses" }));
+    cleanup = view.unmount;
+    const primaryAll = view.container.querySelector(
+      'nav[aria-label="Library sections"] button',
+    );
+    expect(primaryAll?.getAttribute("aria-pressed")).toBe("true");
+    const buttons = Array.from(
+      view.container.querySelectorAll<HTMLButtonElement>(
+        '[aria-label="Library content types"] button',
+      ),
+    );
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "All",
+      "Avatars",
+      "Gestures",
+      "Reactions",
+      "Poses",
+      "Idle Styles",
+      "Particle FX",
+      "Avatar FX",
+      "Scene FX",
+      "Sounds",
+    ]);
+    expect(
+      buttons
+        .find((button) => button.textContent === "Poses")
+        ?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    act(() =>
+      buttons.find((button) => button.textContent === "Gestures")!.click(),
+    );
+    expect(view.onSearchChange).toHaveBeenCalledWith({ type: "gestures" });
+    act(() => buttons.find((button) => button.textContent === "All")!.click());
+    expect(view.onSearchChange).toHaveBeenLastCalledWith({ type: "all" });
+  });
+
+  it.each([
+    ["actions", "Poses", { action: "poses" }],
+    ["fx", "Scene FX", { fx: "scene" }],
+  ] as const)(
+    "keeps %s subfilters separate from the All type row",
+    (section, label, expected) => {
+      const view = mount({ section });
+      cleanup = view.unmount;
+      expect(
+        view.container.querySelector('[aria-label="Library content types"]'),
+      ).toBeNull();
+      const filter = Array.from(
+        view.container.querySelectorAll<HTMLButtonElement>("button"),
+      ).find((button) => button.textContent === label);
+      act(() => filter!.click());
+      expect(view.onSearchChange).toHaveBeenCalledWith(expected);
+    },
+  );
 
   it("keep the offered Chat Uploads tab and section unchanged", () => {
     fixture.capabilities = {

@@ -1,15 +1,6 @@
-import type { ContentLibrarySearch } from "./librarySearch";
+import type { ContentLibrarySearch, LibraryContentType } from "./librarySearch";
 
-export type LibraryInventoryGroup =
-  | "avatars"
-  | "gestures"
-  | "reactions"
-  | "poses"
-  | "idle-styles"
-  | "particle"
-  | "avatar-effects"
-  | "scene"
-  | "sound";
+export type LibraryInventoryGroup = Exclude<LibraryContentType, "all">;
 
 /** Each product family owns its own query and cursor even on the All page. */
 export function contentInventoryGroups(
@@ -31,6 +22,7 @@ export function contentInventoryGroups(
     return ["particle", "avatar-effects", "scene", "sound"];
   }
   if (search.section === "chat-uploads") return [];
+  if (search.type !== "all") return [search.type];
   return [
     "avatars",
     "gestures",

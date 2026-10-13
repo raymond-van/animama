@@ -4,33 +4,26 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { createLogger } from "@/lib/logger";
 
-const ELEVENLABS_FINALIZED_SAMPLE_RATE = 24000;
+const FINALIZED_SAMPLE_RATE = 24000;
 const FIRST_BUFFER_START_LEAD_SEC = 0.08;
 const NEXT_BUFFER_START_LEAD_SEC = 0.02;
 
 type AudioEndedReason = "natural" | "error";
 
-type UseElevenLabsFinalizedTtsRuntimeOptions = {
+// Plays the PCM a finalized provider (Gemini) pushes over the chat stream; the
+// caller attaches the run's provider to these events.
+type UseFinalizedTtsRuntimeOptions = {
   onAudioStarted?: (event: {
     runId: string;
-    provider: "elevenlabs";
     audioStartSec?: number | null;
     audioContext?: AudioContext | null;
   }) => void;
   onAudioDurationResolved?: (event: {
     runId: string;
-    provider: "elevenlabs";
     audioDurationSec: number;
   }) => void;
-  onPlaybackEndedSignal?: (event: {
-    runId: string;
-    provider: "elevenlabs";
-  }) => void;
-  onAudioEnded?: (event: {
-    runId: string;
-    provider: "elevenlabs";
-    reason: AudioEndedReason;
-  }) => void;
+  onPlaybackEndedSignal?: (event: { runId: string }) => void;
+  onAudioEnded?: (event: { runId: string; reason: AudioEndedReason }) => void;
   onWarning?: (runId: string, reason: string, message: string) => void;
 };
 
@@ -76,7 +69,7 @@ function asSpeechAudioWindow(): SpeechAudioWindow | null {
   return window as SpeechAudioWindow;
 }
 
-export function decodeElevenLabsBase64Pcm(audioBase64: string): Int16Array {
+export function decodeBase64Pcm16(audioBase64: string): Int16Array {
   const binary = atob(audioBase64);
   const buffer = new ArrayBuffer(binary.length);
   const bytes = new Uint8Array(buffer);
@@ -86,7 +79,7 @@ export function decodeElevenLabsBase64Pcm(audioBase64: string): Int16Array {
   return new Int16Array(buffer);
 }
 
-export function convertElevenLabsPcm16ToFloat32(
+export function convertPcm16ToFloat32(
   pcm: Int16Array,
 ): Float32Array<ArrayBuffer> {
   const buffer = new ArrayBuffer(pcm.length * Float32Array.BYTES_PER_ELEMENT);
@@ -145,9 +138,7 @@ function createRuntime(runId: string): ActiveFinalizedRuntime {
   };
 }
 
-export function useElevenLabsFinalizedTtsRuntime(
-  options: UseElevenLabsFinalizedTtsRuntimeOptions,
-) {
+export function useFinalizedTtsRuntime(options: UseFinalizedTtsRuntimeOptions) {
   const optionsRef = useRef(options);
   optionsRef.current = options;
   const loggerRef = useRef(createLogger("FinalizedTTSRuntime"));
@@ -161,9 +152,7 @@ export function useElevenLabsFinalizedTtsRuntime(
       runtime.durationResolved = true;
       optionsRef.current.onAudioDurationResolved?.({
         runId: runtime.runId,
-        provider: "elevenlabs",
-        audioDurationSec:
-          runtime.totalSamples / ELEVENLABS_FINALIZED_SAMPLE_RATE,
+        audioDurationSec: runtime.totalSamples / FINALIZED_SAMPLE_RATE,
       });
     },
     [],
@@ -214,11 +203,9 @@ export function useElevenLabsFinalizedTtsRuntime(
       runtime.ended = true;
       optionsRef.current.onPlaybackEndedSignal?.({
         runId: runtime.runId,
-        provider: "elevenlabs",
       });
       optionsRef.current.onAudioEnded?.({
         runId: runtime.runId,
-        provider: "elevenlabs",
         reason,
       });
     },
@@ -272,7 +259,7 @@ export function useElevenLabsFinalizedTtsRuntime(
       if (!hadAudio) {
         loggerRef.current.info(
           "Audio",
-          "Received first ElevenLabs finalized audio chunk",
+          "Received first finalized audio chunk",
           {
             runId: runtime.runId,
             samples: pcm.length,
@@ -281,11 +268,11 @@ export function useElevenLabsFinalizedTtsRuntime(
       }
 
       try {
-        const samples = convertElevenLabsPcm16ToFloat32(pcm);
+        const samples = convertPcm16ToFloat32(pcm);
         const audioBuffer = audioContext.createBuffer(
           1,
           samples.length,
-          ELEVENLABS_FINALIZED_SAMPLE_RATE,
+          FINALIZED_SAMPLE_RATE,
         );
         audioBuffer.copyToChannel(samples, 0);
 
@@ -319,7 +306,6 @@ export function useElevenLabsFinalizedTtsRuntime(
           runtime.sawPlaybackStart = true;
           optionsRef.current.onAudioStarted?.({
             runId: runtime.runId,
-            provider: "elevenlabs",
             audioStartSec: startTime,
             audioContext,
           });
@@ -327,7 +313,7 @@ export function useElevenLabsFinalizedTtsRuntime(
       } catch (error) {
         handleRuntimeFailure(
           runtime,
-          "elevenlabs_finalized_audio_schedule_failed",
+          "finalized_audio_schedule_failed",
           error instanceof Error ? error.message : String(error),
         );
       }
@@ -409,14 +395,10 @@ export function useElevenLabsFinalizedTtsRuntime(
           audioContext.currentTime,
         );
 
-        loggerRef.current.info(
-          "Audio",
-          "Prepared ElevenLabs finalized audio resources",
-          {
-            runId: runtime.runId,
-            sampleRate: audioContext.sampleRate,
-          },
-        );
+        loggerRef.current.info("Audio", "Prepared finalized audio resources", {
+          runId: runtime.runId,
+          sampleRate: audioContext.sampleRate,
+        });
 
         flushPendingAudio(runtime);
         if (runtime.pendingFinish) {
@@ -426,7 +408,7 @@ export function useElevenLabsFinalizedTtsRuntime(
         if (activeRuntimeRef.current !== runtime || runtime.closed) return;
         handleRuntimeFailure(
           runtime,
-          "elevenlabs_finalized_audio_start_failed",
+          "finalized_audio_start_failed",
           error instanceof Error ? error.message : String(error),
         );
       });
@@ -453,12 +435,12 @@ export function useElevenLabsFinalizedTtsRuntime(
       if (!runtime || runtime.closed) return;
 
       try {
-        runtime.pendingPcm.push(decodeElevenLabsBase64Pcm(audioBase64));
+        runtime.pendingPcm.push(decodeBase64Pcm16(audioBase64));
       } catch {
         handleRuntimeFailure(
           runtime,
-          "elevenlabs_finalized_audio_decode_failed",
-          "Failed to decode ElevenLabs finalized audio.",
+          "finalized_audio_decode_failed",
+          "Failed to decode the reply's audio.",
         );
         return;
       }

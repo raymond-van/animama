@@ -14,7 +14,8 @@ Typed creators use stable product routes such as `/particle-effects/new`,
 - `setup.tsx`: required private display-name setup with Continue and no Skip. It
   is reachable only while the backend reports first run incomplete.
 - `_app.tsx`: pathless app layout (no URL segment) with the app shell; redirects
-  to `/setup` while first run is incomplete. App routes therefore live at
+  to `/setup` until the wizard is finished, then loads the app behind the blocking
+  age-confirmation modal. Chat and voice handlers wait for confirmation. App routes live at
   top-level paths such as `/library` and `/$animaId`. Static routes take
   precedence over the `/$animaId` parameter, so new top-level route names must
   never collide with valid Anima IDs.

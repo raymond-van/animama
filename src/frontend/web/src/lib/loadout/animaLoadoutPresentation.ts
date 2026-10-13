@@ -19,19 +19,20 @@ export type GestureLoadoutPresentation = {
   starterSummary: string;
 };
 
-export type CustomGestureCatalogRow = {
+export type GestureCatalogRow = {
   gesture: PyGesture;
   binding: PyGestureBinding | null;
 };
 
-export type CustomGestureCatalogPresentation = {
-  rows: CustomGestureCatalogRow[];
+export type GestureCatalogPresentation = {
+  rows: GestureCatalogRow[];
   unlistedEquipped: PyGestureBinding[];
 };
 
 export type UnifiedGestureListRow = {
   id: string;
   kind: "custom" | "starter";
+  source: "included" | "local";
   name: string;
   description: string | null;
   equipped: boolean;
@@ -45,8 +46,9 @@ export type UnifiedGestureListRow = {
 export type UnifiedGestureListPresentation = {
   rows: UnifiedGestureListRow[];
   equippedCount: number;
-  customCount: number;
-  starterCount: number;
+  totalCount: number;
+  includedCount: number;
+  localCount: number;
   updateAvailableCount: number;
   motionTypeCounts: Record<PyGesture["implementation_kind"], number>;
 };
@@ -67,18 +69,19 @@ function sameExactSource(
   return binding.catalog_item_id === available.catalog_item_id;
 }
 
-/** Reconcile ready owned Gestures with the exact bindings on this Anima. */
-export function presentCustomGestureCatalog(
+/** Reconcile the full ready catalog with the exact bindings on this Anima. */
+export function presentGestureCatalog(
   gestures: PyGesture[],
   equipped: PyGestureBinding[],
-): CustomGestureCatalogPresentation {
-  const rows = gestures
-    .filter(
-      (gesture) =>
-        gesture.origin === "owned" &&
-        gesture.state === "ready" &&
-        Boolean(gesture.source),
-    )
+): GestureCatalogPresentation {
+  const readyGestures = gestures.filter(
+    (gesture) => gesture.state === "ready" && Boolean(gesture.source),
+  );
+  const rows = [
+    ...new Map(
+      readyGestures.map((gesture) => [gesture.item_id, gesture]),
+    ).values(),
+  ]
     .sort((left, right) => left.name.localeCompare(right.name))
     .map((gesture) => ({
       gesture,
@@ -100,11 +103,33 @@ export function presentCustomGestureCatalog(
   };
 }
 
-/** Build the searchable custom-first list used by the Anima Loadout panel. */
+/** Keep catalog origin separate from starter/custom loadout behavior. */
+function gestureSource(gesture: PyGesture): "included" | "local" {
+  return gesture.source?.type === "catalog" && gesture.source.source
+    ? gesture.source.source
+    : gesture.origin === "builtin"
+      ? "included"
+      : "local";
+}
+
+/** Starter policy IDs are Included logical-key slugs, not AI selector names. */
+function includedGestureId(
+  source: PyExactContentSource | PyCatalogLoadoutSource | null,
+): string | null {
+  const prefix = "builtin:gesture:";
+  return source?.type === "catalog" &&
+    source.source === "included" &&
+    source.logical_key?.startsWith(prefix)
+    ? source.logical_key.slice(prefix.length)
+    : null;
+}
+
+/** Build a searchable catalog without hiding unequipped Included Gestures. */
 export function presentUnifiedGestureList({
   presentation,
   catalog,
-  showStarters,
+  showIncluded,
+  showLocal,
   updatesOnly,
   status,
   motionType,
@@ -112,30 +137,57 @@ export function presentUnifiedGestureList({
   query,
 }: {
   presentation: GestureLoadoutPresentation;
-  catalog: CustomGestureCatalogPresentation;
-  showStarters: boolean;
+  catalog: GestureCatalogPresentation;
+  showIncluded: boolean;
+  showLocal: boolean;
   updatesOnly: boolean;
   status: UnifiedGestureStatusFilter;
   motionType: UnifiedGestureMotionFilter;
   sort: UnifiedGestureSort;
   query: string;
 }): UnifiedGestureListPresentation {
-  const customRows: UnifiedGestureListRow[] = [
-    ...catalog.rows.map(({ gesture, binding }) => ({
-      id: `custom:${gesture.item_id}`,
-      kind: "custom" as const,
-      name: gesture.name,
-      description: gesture.description ?? null,
-      equipped: Boolean(binding),
-      updateAvailable: false,
-      motionType: binding?.implementation_kind ?? gesture.implementation_kind,
-      gesture,
-      binding,
-      starterId: null,
-    })),
+  const disabledStarterIds = new Set(
+    presentation.disabledStarter.map((row) => row.starterId),
+  );
+  const catalogRows: UnifiedGestureListRow[] = catalog.rows.map(
+    ({ gesture, binding }) => {
+      const source = gestureSource(gesture);
+      const includedId = includedGestureId(gesture.source);
+      const disabledStarter =
+        includedId !== null && disabledStarterIds.has(includedId);
+      // Explicit bindings keep Remove semantics even when their source is a starter.
+      const kind = binding?.origin ?? (disabledStarter ? "starter" : "custom");
+      return {
+        id: `catalog:${gesture.item_id}`,
+        kind,
+        source,
+        name: gesture.name,
+        description: gesture.description ?? null,
+        equipped: Boolean(binding),
+        updateAvailable: false,
+        motionType: binding?.implementation_kind ?? gesture.implementation_kind,
+        gesture,
+        binding,
+        starterId:
+          kind === "starter" ? (binding?.semantic_key ?? includedId) : null,
+      };
+    },
+  );
+  const representedIncludedIds = new Set([
+    ...catalog.rows
+      .filter(({ gesture }) => gestureSource(gesture) === "included")
+      .map(({ gesture }) => includedGestureId(gesture.source)),
+    ...catalog.unlistedEquipped
+      .filter((binding) => binding.source.source === "included")
+      .map((binding) => includedGestureId(binding.source)),
+  ]);
+  // Retain loadout-only entries while the catalog loads or a source is unavailable.
+  const allRows: UnifiedGestureListRow[] = [
+    ...catalogRows,
     ...catalog.unlistedEquipped.map((binding) => ({
-      id: `custom-binding:${binding.binding_id}`,
-      kind: "custom" as const,
+      id: `binding:${binding.binding_id}`,
+      kind: binding.origin,
+      source: binding.source.source,
       name: binding.name,
       description: binding.description ?? null,
       equipped: true,
@@ -143,27 +195,14 @@ export function presentUnifiedGestureList({
       motionType: binding.implementation_kind,
       gesture: null,
       binding,
-      starterId: null,
+      starterId: binding.origin === "starter" ? binding.semantic_key : null,
     })),
-  ].sort((left, right) => left.name.localeCompare(right.name));
-
-  const starterRows: UnifiedGestureListRow[] = [
-    ...presentation.starter.map((binding) => ({
-      id: `starter:${binding.binding_id}`,
-      kind: "starter" as const,
-      name: binding.name,
-      description: binding.description ?? null,
-      equipped: true,
-      updateAvailable: false,
-      motionType: binding.implementation_kind,
-      gesture: null,
-      binding,
-      starterId: binding.semantic_key,
-    })),
-    ...presentation.disabledStarter.map(
-      ({ starterId, motionType, gesture }) => ({
+    ...presentation.disabledStarter
+      .filter(({ starterId }) => !representedIncludedIds.has(starterId))
+      .map(({ starterId, motionType, gesture }) => ({
         id: `starter-disabled:${starterId}`,
         kind: "starter" as const,
+        source: "included" as const,
         name: gesture?.name ?? starterId,
         description: gesture?.description ?? null,
         equipped: false,
@@ -172,46 +211,44 @@ export function presentUnifiedGestureList({
         gesture,
         binding: null,
         starterId,
-      }),
-    ),
-  ].sort((left, right) => left.name.localeCompare(right.name));
-
-  const allRows = [...customRows, ...starterRows];
+      })),
+  ];
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const rows = [...customRows, ...(showStarters ? starterRows : [])].filter(
-    (row) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        row.name.toLocaleLowerCase().includes(normalizedQuery) ||
-        row.description?.toLocaleLowerCase().includes(normalizedQuery);
-      const matchesStatus =
-        status === "all" ||
-        (status === "equipped" ? row.equipped : !row.equipped);
-      const matchesMotionType =
-        motionType === "all" || row.motionType === motionType;
-      return (
-        matchesQuery &&
-        matchesStatus &&
-        matchesMotionType &&
-        (!updatesOnly || row.updateAvailable)
-      );
-    },
-  );
-
-  if (sort !== "custom-first") {
-    const direction = sort === "name-asc" ? 1 : -1;
-    rows.sort(
-      (left, right) =>
-        direction * left.name.localeCompare(right.name) ||
-        direction * left.id.localeCompare(right.id),
+  const rows = allRows.filter((row) => {
+    const matchesSource = row.source === "included" ? showIncluded : showLocal;
+    const matchesQuery =
+      !normalizedQuery ||
+      row.name.toLocaleLowerCase().includes(normalizedQuery) ||
+      row.description?.toLocaleLowerCase().includes(normalizedQuery);
+    const matchesStatus =
+      status === "all" ||
+      (status === "equipped" ? row.equipped : !row.equipped);
+    const matchesMotionType =
+      motionType === "all" || row.motionType === motionType;
+    return (
+      matchesSource &&
+      matchesQuery &&
+      matchesStatus &&
+      matchesMotionType &&
+      (!updatesOnly || row.updateAvailable)
     );
-  }
+  });
+  rows.sort((left, right) => {
+    if (sort === "custom-first" && left.kind !== right.kind)
+      return left.kind === "custom" ? -1 : 1;
+    const direction = sort === "name-desc" ? -1 : 1;
+    return (
+      direction *
+      (left.name.localeCompare(right.name) || left.id.localeCompare(right.id))
+    );
+  });
 
   return {
     rows,
     equippedCount: allRows.filter((row) => row.equipped).length,
-    customCount: customRows.length,
-    starterCount: starterRows.length,
+    totalCount: allRows.length,
+    includedCount: allRows.filter((row) => row.source === "included").length,
+    localCount: allRows.filter((row) => row.source === "local").length,
     updateAvailableCount: allRows.filter((row) => row.updateAvailable).length,
     motionTypeCounts: {
       anima_clip: allRows.filter((row) => row.motionType === "anima_clip")
@@ -229,7 +266,7 @@ export function presentGestureLoadout(
   const starter = loadout.gestures.filter((row) => row.origin === "starter");
   const custom = loadout.gestures.filter((row) => row.origin === "custom");
   const disabled = loadout.disabled_starter_gestures.length;
-  const builtinBySemanticKey = new Map(
+  const builtinByStarterId = new Map(
     builtinGestures
       .filter(
         (gesture) =>
@@ -237,7 +274,7 @@ export function presentGestureLoadout(
           gesture.state === "ready" &&
           Boolean(gesture.source),
       )
-      .map((gesture) => [gesture.semantic_key, gesture]),
+      .map((gesture) => [includedGestureId(gesture.source), gesture]),
   );
   return {
     starter,
@@ -246,7 +283,7 @@ export function presentGestureLoadout(
       starterId,
       motionType:
         loadout.starter_gesture_implementation_kinds?.[starterId] ?? null,
-      gesture: builtinBySemanticKey.get(starterId) ?? null,
+      gesture: builtinByStarterId.get(starterId) ?? null,
     })),
     starterSummary: `${starter.length} active${disabled ? ` · ${disabled} disabled` : ""}`,
   };

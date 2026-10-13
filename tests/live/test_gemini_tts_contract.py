@@ -131,7 +131,6 @@ async def test_voice_service_streams_a_styled_two_sentence_reply() -> None:
             text_basis="visible_text",
             emotional_tone="joy",
             emotional_state={"joy": 16},
-            apply_emotional_prefix=True,
         )
         first_frame: float | None = None
         frames: list[int] = []

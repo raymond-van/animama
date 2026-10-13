@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from elevenlabs.core import ApiError
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from animama.product_http.chat.tts import resolve_realtime_voice_from_preferences
 from animama.server.elevenlabs_service import (
@@ -17,8 +18,9 @@ from animama.server.elevenlabs_service import (
     generate_sound_effect,
     get_owned_voice,
     isolate_audio,
-    mint_tts_websocket_single_use_token,
+    mint_dialogue_websocket_single_use_token,
     normalize_voice_profile,
+    resolve_realtime_tts_model_id,
     synthesize_text,
     validate_elevenlabs_voice_profile,
 )
@@ -26,6 +28,7 @@ from animama.server.schemas.elevenlabs import (
     PyElevenLabsAnimaVoiceProfileInput,
     PyElevenLabsSoundEffectsRequest,
     PyElevenLabsTextToSpeechRequest,
+    PyElevenLabsVoiceSettings,
 )
 
 
@@ -74,13 +77,13 @@ class _FakeVoicesClient:
         return self.by_id[voice_id]
 
 
-class _FakeTextToSpeechClient:
+class _FakeTextToDialogueClient:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self.outcomes: list[object] = []
 
-    def convert(self, voice_id: str, **kwargs):
-        self.calls.append({"voice_id": voice_id, **kwargs})
+    def convert(self, **kwargs):
+        self.calls.append(kwargs)
         if self.outcomes:
             outcome = self.outcomes.pop(0)
             if isinstance(outcome, Exception):
@@ -110,7 +113,7 @@ class _FakeAudioIsolationClient:
 class _FakeElevenLabsClient:
     def __init__(self) -> None:
         self.voices = _FakeVoicesClient()
-        self.text_to_speech = _FakeTextToSpeechClient()
+        self.text_to_dialogue = _FakeTextToDialogueClient()
         self.text_to_sound_effects = _FakeTextToSoundEffectsClient()
         self.audio_isolation = _FakeAudioIsolationClient()
         self.tokens = SimpleNamespace(single_use=SimpleNamespace(create=self._create_single_use_token))
@@ -179,7 +182,51 @@ async def test_synthesize_text_returns_base64_audio(fake_client: _FakeElevenLabs
 
     assert base64.b64decode(response.audio_base64) == b"hello world"
     assert response.media_type == "audio/mpeg"
-    assert fake_client.text_to_speech.calls[0]["voice_id"] == "voice-owned"
+    # The utility route speaks with Eleven v4 Turbo through Text to Dialogue.
+    assert fake_client.text_to_dialogue.calls == [
+        {
+            "inputs": [{"text": "hello world", "voice_id": "voice-owned"}],
+            "model_id": "eleven_v4_turbo",
+            "output_format": "mp3_44100_128",
+            "settings": None,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_synthesize_text_sends_the_settings_eleven_v4_supports(fake_client: _FakeElevenLabsClient) -> None:
+    await synthesize_text(
+        user_id="user-1",
+        request=PyElevenLabsTextToSpeechRequest(
+            voice_id="voice-owned",
+            text="hello",
+            model_id="eleven_v4_turbo",
+            voice_settings=PyElevenLabsVoiceSettings(stability=0.4, similarity_boost=0.8),
+        ),
+    )
+
+    [call] = fake_client.text_to_dialogue.calls
+    assert call["model_id"] == "eleven_v4_turbo"
+    assert call["settings"] == {"stability": 0.4, "similarity": 0.8}
+
+
+def test_text_to_speech_request_refuses_settings_eleven_v4_ignores() -> None:
+    with pytest.raises(ValidationError):
+        PyElevenLabsVoiceSettings.model_validate({"stability": 0.4, "style": 0.3})
+
+
+@pytest.mark.parametrize("retired_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2", "eleven_v3"])
+def test_text_to_speech_request_maps_retired_models(retired_model_id: str) -> None:
+    request = PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="hi", model_id=retired_model_id)
+    assert request.model_id == "eleven_v4_turbo"
+
+
+def test_text_to_speech_request_refuses_text_over_the_dialogue_limit() -> None:
+    """Text to Dialogue takes at most 2,000 characters a request, so longer utility text is refused."""
+
+    assert len(PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="a" * 2_000).text) == 2_000
+    with pytest.raises(ValidationError):
+        PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="a" * 2_001)
 
 
 @pytest.mark.asyncio
@@ -187,7 +234,7 @@ async def test_synthesize_text_retries_retryable_429(
     fake_client: _FakeElevenLabsClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_client.text_to_speech.outcomes = [
+    fake_client.text_to_dialogue.outcomes = [
         ApiError(
             status_code=429,
             headers={"retry-after": "1"},
@@ -219,7 +266,7 @@ async def test_synthesize_text_retries_retryable_429(
     )
 
     assert base64.b64decode(response.audio_base64) == b"retry-success"
-    assert len(fake_client.text_to_speech.calls) == 2
+    assert len(fake_client.text_to_dialogue.calls) == 2
     assert sleep_calls == [1.0]
 
 
@@ -228,7 +275,7 @@ async def test_synthesize_text_exposes_retryable_concurrency_error(
     fake_client: _FakeElevenLabsClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_client.text_to_speech.outcomes = [
+    fake_client.text_to_dialogue.outcomes = [
         ApiError(
             status_code=429,
             headers={
@@ -354,23 +401,46 @@ def test_resolve_realtime_voice_from_preferences_rejects_missing_profile() -> No
 
 
 @pytest.mark.asyncio
-async def test_mint_tts_websocket_single_use_token(fake_client: _FakeElevenLabsClient) -> None:
-    token = await mint_tts_websocket_single_use_token()
+async def test_mint_dialogue_websocket_single_use_token(fake_client: _FakeElevenLabsClient) -> None:
+    """The Text to Dialogue socket refuses ``tts_websocket`` tokens; it needs ``ttd_websocket``."""
+
+    token = await mint_dialogue_websocket_single_use_token()
 
     assert token == "sutkn_123"
-    assert fake_client.single_use_token_calls == [{"token_type": "tts_websocket"}]
+    assert fake_client.single_use_token_calls == [{"token_type": "ttd_websocket"}]
 
 
 @pytest.mark.asyncio
-async def test_mint_tts_websocket_single_use_token_surfaces_api_error(
+async def test_mint_dialogue_websocket_single_use_token_surfaces_api_error(
     fake_client: _FakeElevenLabsClient,
 ) -> None:
     fake_client.single_use_token_outcomes = [ApiError(status_code=502, body={"detail": "upstream unavailable"})]
 
     with pytest.raises(HTTPException) as exc_info:
-        await mint_tts_websocket_single_use_token()
+        await mint_dialogue_websocket_single_use_token()
 
     assert exc_info.value.status_code == 502
+
+
+def test_realtime_tts_model_defaults_to_eleven_v4_turbo() -> None:
+    assert resolve_realtime_tts_model_id(None) == "eleven_v4_turbo"
+    assert resolve_realtime_tts_model_id(" ") == "eleven_v4_turbo"
+    assert resolve_realtime_tts_model_id("eleven_v4_turbo") == "eleven_v4_turbo"
+
+
+@pytest.mark.parametrize("legacy_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2", "eleven_v3"])
+def test_realtime_tts_model_maps_retired_models_to_eleven_v4_turbo(legacy_model_id: str) -> None:
+    assert resolve_realtime_tts_model_id(legacy_model_id) == "eleven_v4_turbo"
+
+
+@pytest.mark.parametrize("model_id", ["eleven_turbo_v2", "eleven_v4"])
+def test_realtime_tts_model_rejects_unknown_models(model_id: str) -> None:
+    """Unknown ids are refused, including the removed finalized ``eleven_v4``."""
+
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_realtime_tts_model_id(model_id)
+
+    assert exc_info.value.status_code == 422
 
 
 @pytest.mark.asyncio

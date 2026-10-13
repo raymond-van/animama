@@ -243,7 +243,7 @@ export function getTtsProviderOptions(
     {
       id: "elevenlabs",
       label: "ElevenLabs",
-      description: "ElevenLabs synthesis with realtime and finalized models.",
+      description: "Realtime ElevenLabs speech with Eleven v4 Turbo.",
       disabled: !elevenlabsSupported,
       reason: elevenlabsReason,
     },

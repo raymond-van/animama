@@ -7,6 +7,7 @@ import {
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { AnimationManager } from "./AnimationManager";
+import { releaseModelScene } from "./releaseModelScene";
 import type { AvatarFaceDebugBox } from "./vfx/AvatarFaceDebugBox";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { AvatarFaceLandmarks } from "./vfx/AvatarFaceLandmarks";
@@ -457,7 +458,7 @@ export class Avatar {
       spec.resourceUrls,
     );
     if (this._isDisposed) {
-      VRMUtils.deepDispose(vrm.scene);
+      releaseModelScene(vrm.scene);
       throw new DOMException("Avatar load cancelled.", "AbortError");
     }
     this.sourceGltf = gltf;
@@ -531,6 +532,8 @@ export class Avatar {
    * Unload the current VRM and dispose resources.
    */
   unload(): void {
+    // Detach before any controller cleanup so no frame can draw a half-released model.
+    this.vrm?.scene.removeFromParent();
     this._poseClipOnFinished = null;
     this.springBonePhysicsController?.dispose();
     this.springBonePhysicsController = null;
@@ -556,7 +559,7 @@ export class Avatar {
       this.reactionClipPlayer?.clear(null, { immediate: true });
       this.reactionClipPlayer = null;
       this.expressionController?.dispose();
-      VRMUtils.deepDispose(this.vrm.scene);
+      releaseModelScene(this.vrm.scene);
       this.vrm = null;
       this.sourceGltf = null;
       this.sourceUrl = null;
@@ -593,6 +596,12 @@ export class Avatar {
   dispose(): void {
     this.unload();
     this._isDisposed = true;
+    // Callers' closures can outlive a disposed Avatar; holding their sinks,
+    // providers or canvas would keep their previous model state alive.
+    this._poseClipExternalEventSink = null;
+    this._reactionClipExternalEventSink = null;
+    this._cursorLookAtInputProvider = null;
+    this._viewportElement = null;
   }
 
   /**
@@ -3141,7 +3150,7 @@ export class Avatar {
   /** Exercise the production VRM loader without retaining a mounted avatar. */
   static async preloadVrm(url: string): Promise<void> {
     const { vrm } = await Avatar._loadVrm(url);
-    VRMUtils.deepDispose(vrm.scene);
+    releaseModelScene(vrm.scene);
   }
 
   static clearVrmaCache(): void {

@@ -93,9 +93,9 @@ type ChatInterfaceProps = {
 
 type ChatInterfaceViewProps = {
   activeChat: PyChatResponse | null;
-  /** Safety content rendered below the chat input, such as the AI notice (spec R2). */
+  /** AI notice above the input; the bottom-anchored composer stays stationary. */
   safetySlot?: ReactNode;
-  /** Crisis card, placed in the panel's bottom-right corner (spec R4). */
+  /** Crisis card in the panel corner, or below the input in Quick Chat (spec R4). */
   crisisSlot?: ReactNode;
   activeMode?: "dictation" | "voice" | null;
   /** Names the Anima in memory cue details. */
@@ -224,7 +224,7 @@ export function ChatInterfaceView({
     panelRef,
     inputRegionRef,
     crisisCardRef,
-    crisisSlot !== null,
+    crisisSlot !== null && !quickChatSurface,
   );
   const capabilities = useRuntimeCapabilities();
   // Withholding the uploader removes the live attach button, drop overlay and
@@ -334,6 +334,9 @@ export function ChatInterfaceView({
             data-quick-chat-input-region={quickChatSurface ? "" : undefined}
             data-quick-chat-interactive={quickChatSurface ? "" : undefined}
           >
+            {safetySlot ? (
+              <div className="mb-2 empty:hidden">{safetySlot}</div>
+            ) : null}
             {contentWarning ? (
               <p
                 className="text-muted-foreground mb-2 flex items-center gap-1.5 px-1 text-xs"
@@ -473,11 +476,13 @@ export function ChatInterfaceView({
                 )}
               </details>
             ) : null}
-            {safetySlot}
+            {quickChatSurface && crisisSlot ? (
+              <div className="mt-2">{crisisSlot}</div>
+            ) : null}
           </div>
         </div>
       </div>
-      {crisisSlot ? (
+      {!quickChatSurface && crisisSlot ? (
         <div
           ref={crisisCardRef}
           className="absolute right-4 z-20 w-[min(24rem,calc(100%-2rem))]"
@@ -1045,7 +1050,7 @@ export const ChatInterface = ({
   return (
     <>
       <ChatInterfaceView
-        safetySlot={<CompanionSafetySlot part="notice" className="mt-2" />}
+        safetySlot={<CompanionSafetySlot part="notice" />}
         crisisSlot={<CompanionSafetySlot part="crisis" />}
         activeChat={activeChat}
         activeMode={activeMode}

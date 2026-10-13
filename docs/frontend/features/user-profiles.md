@@ -10,12 +10,14 @@ secret or public identity.
 
 On first run, `/setup` has three steps: **Welcome** → **AI** → **Voice**.
 Welcome asks “What should Animama call you?” and accepts a required nonblank
-display name up to 80 characters. Animama is for adults, so Continue also
-requires confirming the owner is 18 or older; setup links the `/safety` page
-and cannot finish without that confirmation. Welcome has no Skip action. AI
+display name up to 80 characters. Welcome has no Skip action. AI
 (model and the OpenAI or Anthropic key) and Voice (speech downloads,
-Text-to-Speech and the ElevenLabs key) offer "Skip for now"; Finish stores
-the name, confirmation and any chosen model, and writes changed Text-to-Speech preferences first. Completion is idempotent and controlled by backend runtime
+Text-to-Speech and the ElevenLabs key) offer "Skip for now". Finish writes changed
+Text-to-Speech preferences and opens a blocking 18+ modal on the first Anima.
+The app shell and Avatar load behind the modal and stay mounted when it closes;
+chat, microphone and Quick Chat handlers start only after confirmation.
+The modal links `/safety`; only explicit confirmation stores the name,
+age confirmation and any chosen model. Completion is idempotent and controlled by backend runtime
 context rather than browser storage. The bootstrap placeholder may be null
 before setup. An earlier skipped or unconfirmed setup reopens without resetting
 data.

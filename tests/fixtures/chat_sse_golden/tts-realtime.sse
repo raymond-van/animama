@@ -20,7 +20,7 @@ data: {"type": "chat.title.updated", "run_id": "run-tts-realtime", "chat_id": "c
 
 id: tts-session-run-tts-realtime
 event: tts.session
-data: {"type": "tts.session", "run_id": "run-tts-realtime", "provider": "elevenlabs", "transport": "direct", "voice_id": "voice-mika", "model_id": "eleven_flash_v2_5", "output_format": "pcm_24000", "sync_alignment": false, "websocket_base_url": "wss://api.elevenlabs.io", "token": "tts-token"}
+data: {"type": "tts.session", "run_id": "run-tts-realtime", "provider": "elevenlabs", "transport": "direct", "voice_id": "voice-mika", "model_id": "eleven_v4_turbo", "output_format": "pcm_24000", "sync_alignment": true, "websocket_base_url": "wss://api.elevenlabs.io", "token": "tts-token"}
 
 id: run-completed-run-tts-realtime
 event: run.completed

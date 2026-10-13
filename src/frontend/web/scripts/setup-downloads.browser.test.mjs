@@ -286,8 +286,17 @@ async function mount(options = {}) {
     const pathname = new URL(request.url()).pathname;
     const method = request.method();
     requests.push({ pathname, method });
+    if (pathname === "/v1/animas")
+      return route.fulfill({ json: [{ id: "annie" }] });
     if (pathname === "/v1/runtime-context")
       return route.fulfill({ json: context });
+    if (pathname === "/v1/users/me/profile")
+      return route.fulfill({
+        json: {
+          user_id: context.principal_id,
+          display_name: context.display_name,
+        },
+      });
     if (pathname === "/v1/runtime/onboarding:complete") {
       const input = request.postDataJSON();
       bodies.onboarding = input;
@@ -483,7 +492,6 @@ const writes = (requests) =>
 
 async function welcome(page) {
   await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
-  await page.getByLabel("I am 18 or older", { exact: true }).check();
   await button(page, "Continue").click();
   await heading(page, "Choose your AI").waitFor();
 }
@@ -509,18 +517,9 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     await page.getByLabel("Display name", { exact: true }).fill("   ");
     assert.equal(await next.isEnabled(), false);
     await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
-    // The 18+ confirmation, safety link and decline path are unchanged.
-    assert.equal(await next.isEnabled(), false);
-    assert.equal(
-      await page
-        .getByRole("link", { name: "Safety and crisis protocol" })
-        .getAttribute("href"),
-      "/safety",
-    );
-    await button(page, "I'm under 18").click();
-    await page.getByText(/only for adults 18 and older/u).waitFor();
-    assert.equal(await next.isEnabled(), false);
-    await page.getByLabel("I am 18 or older", { exact: true }).check();
+    // Age confirmation belongs after the wizard.
+    assert.equal(await next.isEnabled(), true);
+    assert.equal(await button(page, "I am 18 or older").count(), 0);
     await next.click();
 
     await heading(page, "Choose your AI").waitFor();
@@ -532,7 +531,66 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     assert.equal(await focusedText(page), "Set up voice");
     assert.equal(await currentStep(page).innerText(), "Voice(optional)");
     await button(page, "Skip for now").click();
+    const ageDialog = page.getByRole("dialog", { name: "Before you start" });
+    await ageDialog.waitFor();
+    const loadedApp = page.getByTestId("loaded-application");
+    await loadedApp.waitFor();
+    assert.equal(
+      await loadedApp.evaluate((element) =>
+        Boolean(element.closest("[inert]")),
+      ),
+      true,
+    );
+    await loadedApp.locator("button").evaluate((element) => element.focus());
+    assert.equal(
+      await ageDialog.evaluate((element) =>
+        element.contains(document.activeElement),
+      ),
+      true,
+    );
+    assert.equal(bodies.onboarding, undefined);
+    assert.equal(
+      await page.getByText("Setup complete", { exact: true }).count(),
+      0,
+    );
+    await page.keyboard.press("Escape");
+    assert.equal(await ageDialog.isVisible(), true);
+    await page.mouse.click(5, 5);
+    assert.equal(await ageDialog.isVisible(), true);
+    assert.equal(
+      await ageDialog
+        .getByRole("link", { name: "Safety and crisis protocol" })
+        .getAttribute("href"),
+      "/safety",
+    );
+    await button(page, "I'm under 18").click();
+    await page.getByText(/only for adults 18 and older/u).waitFor();
+    assert.equal(await button(page, "I am 18 or older").count(), 0);
+    assert.equal(bodies.onboarding, undefined);
+    await page.reload();
+    await page.getByRole("dialog", { name: "Before you start" }).waitFor();
+    assert.equal(bodies.onboarding, undefined);
+    const instance = await loadedApp.getAttribute("data-instance");
+    await page
+      .getByTestId("profile-name")
+      .filter({ hasText: /^You$/u })
+      .waitFor();
+    assert.equal(await page.getByTestId("profile-name").innerText(), "You");
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
+    await page
+      .getByTestId("profile-name")
+      .filter({ hasText: "Ada Lovelace" })
+      .waitFor();
+    assert.equal(await loadedApp.getAttribute("data-instance"), instance);
+    assert.equal(
+      await loadedApp.evaluate((element) =>
+        Boolean(element.closest("[inert]")),
+      ),
+      false,
+    );
+    await button(page, "Application control").focus();
+    assert.equal(await focusedText(page), "Application control");
 
     assert.deepEqual(bodies.onboarding, {
       display_name: "Ada Lovelace",
@@ -562,10 +620,6 @@ test("Back keeps values, and the step and choices survive renderer recreation", 
     assert.equal(
       await page.getByLabel("Display name", { exact: true }).inputValue(),
       "Ada Lovelace",
-    );
-    assert.equal(
-      await page.getByLabel("I am 18 or older", { exact: true }).isChecked(),
-      true,
     );
     await button(page, "Continue").click();
     await heading(page, "Choose your AI").waitFor();
@@ -614,6 +668,7 @@ test("saving the OpenAI key chooses OpenAI; Finish keeps the default voice setti
     );
     assert.equal(await page.getByRole("switch").count(), 0);
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
 
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
@@ -663,6 +718,7 @@ test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", a
     await button(page, "Continue").click();
     await heading(page, "Set up voice").waitFor();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
     assert.equal(bodies.onboarding.chat_model_provider_id, HAIKU);
@@ -691,6 +747,7 @@ test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model
     await page.getByRole("tab", { name: "OpenAI (connected)" }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
   } finally {
@@ -715,6 +772,7 @@ test("adding a model after the Anthropic key makes it the setup model", async ()
     await dialog.waitFor({ state: "hidden" });
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(
       bodies.onboarding.chat_model_provider_id,
@@ -937,6 +995,7 @@ test("OpenAI and Anthropic keys configured before setup do not pin a setup model
     await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -962,6 +1021,7 @@ test("Finish waits for a key save in flight, then saves ElevenLabs as the provid
     release();
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.settings.preferences.speech.tts_provider, "elevenlabs");
     assert.equal(bodies.settings.preferences.speech.tts_enabled, true);
@@ -1007,6 +1067,7 @@ test("a local server's model is added and becomes the setup model", async () => 
     );
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(
       bodies.onboarding.chat_model_provider_id,
@@ -1043,6 +1104,7 @@ test("saving the OpenAI key after adding a local model makes OpenAI the setup mo
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
   } finally {
@@ -1059,6 +1121,7 @@ test("with no local server, Set up later moves on without a model", async () => 
     await button(page, "Set up later").click();
     await heading(page, "Set up voice").waitFor();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1075,12 +1138,15 @@ test("a refused setup model is explained and Finish can retry after skipping it"
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText(/chosen model can no longer be used/u).waitFor();
+    await button(page, "Back to setup").click();
     await button(page, "Back").click();
     await button(page, "Skip for now").click();
     await heading(page, "Set up voice").waitFor();
     // Skipping AI clears the choice; OpenAI is chosen again only if returning.
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1097,6 +1163,22 @@ test("the hosted composition's AI step offers no model choice", async () => {
     assert.equal(await page.getByRole("radio").count(), 0);
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await page.getByRole("dialog", { name: "Before you start" }).waitFor();
+    // A restored legacy draft cannot attest age or override withheld model configuration.
+    await page.evaluate((chatModelId) => {
+      const key = Object.keys(localStorage).find((key) =>
+        key.startsWith("animama:setup-draft:"),
+      );
+      const draft = JSON.parse(localStorage.getItem(key));
+      localStorage.setItem(
+        key,
+        JSON.stringify({ ...draft, chatModelId, adultConfirmed: true }),
+      );
+    }, OPENAI_MODEL);
+    await page.reload();
+    await page.getByRole("dialog", { name: "Before you start" }).waitFor();
+    assert.equal(bodies.onboarding, undefined);
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1128,6 +1210,7 @@ test("a speech download keeps running after Finish and survives renderer recreat
     await button(page, "Continue").click();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(assets[0].status, "downloading");
   } finally {
@@ -1184,6 +1267,9 @@ test("steps, keys and downloads work when setup details cannot be retained", asy
       .waitFor();
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
     assert.equal(installs(requests).length, 1);
+    await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
   } finally {
     await page.close();
   }

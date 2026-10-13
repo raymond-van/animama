@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from hosted_evidence import MAX_BYTES, WORKFLOW_PATH, _download, bound_evidence, hosted_for_main
-from validation_policy import UNTIMED, _plan
+from validation_policy import SUITES, UNTIMED, _plan
 
 REPO = "raymond-van/animama"
 PREFIX = f"/repos/{REPO}"
@@ -26,6 +26,8 @@ RUNS_PATH = (
 )
 ARTIFACTS_PATH = f"{RUN_PATH}/artifacts?per_page=100&page=1"
 JOBS_PATH = f"{RUN_PATH}/attempts/1/jobs?per_page=100&page=1"
+SET_PATH = f"{PREFIX}/actions/artifacts/300"
+SET_DIGEST = "sha256:" + "9" * 64
 
 
 class Fixture:
@@ -35,7 +37,7 @@ class Fixture:
         self.paths = []
         self.downloads = []
         self.selection = {
-            "schema_version": 2,
+            "schema_version": 3,
             "event": "pull_request",
             "reusable": False,
             "diff_error": None,
@@ -50,7 +52,7 @@ class Fixture:
             "plan": _plan("full", "Full checks"),
         }
         self.receipt = {
-            "schema_version": 2,
+            "schema_version": 3,
             "success": True,
             "selection": self.selection,
             "steps": {
@@ -67,6 +69,14 @@ class Fixture:
                 }
                 for name in sorted(set(self.selection["plan"]["required"]) - UNTIMED)
             ],
+            "package_set": {
+                "artifact_id": 300,
+                "artifact_digest": SET_DIGEST,
+                "manifest_sha256": "7" * 64,
+                "source": {"commit": TESTED, "tree": TREE, "dirty": False},
+                "consumer_receipt_sha256": "8" * 64,
+                "promotion_suites": {name: "success" for name in sorted(SUITES["promotion"])},
+            },
         }
         pr = {
             "number": 7,
@@ -104,6 +114,14 @@ class Fixture:
             RUN_PATH: run,
             ARTIFACTS_PATH: {"total_count": 1, "artifacts": [self.artifact]},
             JOBS_PATH: {"total_count": 1, "jobs": [{"name": "Validation", "conclusion": "success"}]},
+            SET_PATH: {
+                "id": 300,
+                "name": f"animama-set-{TESTED}-1",
+                "expired": False,
+                "digest": SET_DIGEST,
+                "expires_at": "2026-10-02T11:55:00Z",
+                "workflow_run": {"id": 90},
+            },
         }
         for commit in (MERGE, TESTED):
             self.responses[f"{PREFIX}/git/commits/{commit}"] = {
@@ -172,6 +190,54 @@ class HostedEvidenceTests(unittest.TestCase):
         self.assertEqual(result["artifact_digest"], fixture.artifact["digest"])
         self.assertEqual(result["run_url"], f"https://github.com/{REPO}/actions/runs/90")
         self.assertEqual(fixture.downloads, [(REPO, 100)])
+        package_set = result["package_set"]
+        self.assertEqual(
+            (package_set["artifact_id"], package_set["artifact_name"], package_set["artifact_digest"]),
+            (300, f"animama-set-{TESTED}-1", SET_DIGEST),
+        )
+        self.assertEqual(package_set["source"]["commit"], TESTED)
+        self.assertEqual(package_set["source"]["tree"], TREE)
+        self.assertEqual(package_set["tested_commit_parents"], [BASE, HEAD])
+        self.assertEqual(package_set["expires_at"], "2026-10-02T11:55:00Z")
+
+    def test_reuse_requires_a_live_set_bound_to_the_tested_merge(self):
+        for kind in (
+            "absent",
+            "expired",
+            "renamed",
+            "digest",
+            "foreign_run",
+            "commit",
+            "tree",
+            "suites",
+            "step",
+            "bad_id",
+        ):
+            with self.subTest(kind=kind):
+                fixture = Fixture()
+                artifact, recorded = fixture.responses[SET_PATH], fixture.receipt["package_set"]
+                if kind == "absent":
+                    del fixture.receipt["package_set"]
+                elif kind == "expired":
+                    artifact["expired"] = True
+                elif kind == "renamed":
+                    artifact["name"] = f"animama-set-{HEAD}-1"
+                elif kind == "digest":
+                    artifact["digest"] = "sha256:" + "0" * 64
+                elif kind == "foreign_run":
+                    artifact["workflow_run"]["id"] = 91
+                elif kind == "commit":
+                    recorded["source"]["commit"] = HEAD
+                elif kind == "tree":
+                    recorded["source"]["tree"] = BASE
+                elif kind == "suites":
+                    recorded["promotion_suites"] = recorded["promotion_suites"] | {"package-build": "skipped"}
+                elif kind == "step":
+                    fixture.receipt["steps"]["package-consumers"]["outcome"] = "skipped"
+                else:
+                    recorded["artifact_id"] = "300"
+                fixture.pack()
+                self.assertFalse(fixture.verify()["accepted"])
 
     def test_source_baseline_and_head_must_match_both_merge_commits(self):
         for commit in (MERGE, TESTED):
@@ -257,11 +323,16 @@ class HostedEvidenceTests(unittest.TestCase):
             self.assertFalse(fixture.verify()["accepted"])
 
     def test_reduced_failed_or_incomplete_receipts_are_rejected(self):
-        for kind in ("reduced", "failed", "step", "missing_check", "failed_check"):
+        for kind in ("reduced", "selective", "old_schema", "failed", "step", "missing_check", "failed_check"):
             with self.subTest(kind=kind):
                 fixture = Fixture()
                 if kind == "reduced":
                     fixture.selection["plan"] = _plan("docs", "Documentation")
+                elif kind == "selective":
+                    # A full PR run that skipped the promotion suite is never promotion-complete.
+                    fixture.selection["plan"] = _plan("selective", "Full PR", ["promotion"])
+                elif kind == "old_schema":
+                    fixture.receipt["schema_version"] = 2
                 elif kind == "failed":
                     fixture.receipt["success"] = False
                 elif kind == "step":
@@ -302,6 +373,7 @@ class HostedEvidenceTests(unittest.TestCase):
         fixture.responses[RUN_PATH]["run_attempt"] = 2
         fixture.responses[f"{RUN_PATH}/attempts/2/jobs?per_page=100&page=1"] = fixture.responses[JOBS_PATH]
         fixture.artifact["name"] = f"validation-receipt-{TESTED}-2"
+        fixture.responses[SET_PATH]["name"] = f"animama-set-{TESTED}-2"
         fixture.pack()
         fixture.responses[ARTIFACTS_PATH]["artifacts"].append(prior)
         fixture.responses[ARTIFACTS_PATH]["total_count"] = 2
@@ -352,8 +424,21 @@ class HostedEvidenceTests(unittest.TestCase):
             {"run_id": True},
             {"artifact_id": None},
             {"baseline": HEAD},
+            {"package_set": None},
+            {"tested_commit": HEAD},
         ):
             self.assertFalse(bound_evidence(selection | {"hosted_evidence": evidence | changes}))
+        for changes in (
+            {"artifact_name": f"animama-set-{HEAD}-1"},
+            {"artifact_digest": "9" * 64},
+            {"manifest_sha256": "short"},
+            {"source": {"commit": TESTED, "tree": BASE}},
+            {"tested_commit_parents": [HEAD, HEAD]},
+            {"promotion_suites": []},
+            {"promotion_suites": {"package-build": "success"}},
+        ):
+            package_set = evidence["package_set"] | changes
+            self.assertFalse(bound_evidence(selection | {"hosted_evidence": evidence | {"package_set": package_set}}))
 
 
 class ArtifactDownloadTests(unittest.TestCase):

@@ -9,9 +9,9 @@ The local SSE path re-exports the package implementation. The local
 `web/src/ui/main/chat/useChatSession.ts` is the playback/settings adapter: it
 connects `useTtsPlayback`, avatar and lip-sync stores, mounted-content readiness,
 and the speech policy to the shared session. Its `finalizedServerAudio` flag
-(Eleven v3 or Gemini) routes `tts.audio`, `tts.done` and `tts.error` frames to
-playback. Run lifecycle order and structured-response handling remain in the
-shared hook.
+(Gemini) routes `tts.audio`, `tts.done` and `tts.error` frames to playback.
+Run lifecycle order and structured-response handling remain in the shared
+hook.
 
 A consumer supplies `ProductRuntimeProvider` with owner, chat capability and
 transport, plus its own `QueryClientProvider`. `useProductChatSession` also
@@ -155,7 +155,7 @@ changes through `PATCH /v1/animas/{anima_id}/chat-profile`.
 The selector groups catalog options by provider label, lists only chat models
 (hidden ones only while active; owner models without a context window disabled),
 marks the active `default_model_provider_id`, shows a warning when that row is
-no longer in the catalog, closes after selection, and disables while a chat
+no longer in the catalog, returns to reasoning after selection, and disables while a chat
 stream or profile update mutation is in flight. A failed update surfaces a
 toast and leaves the current persisted profile unchanged. The selected model
 applies to future chat requests; it does not alter an already-running stream.
@@ -183,9 +183,11 @@ The dialog, **Start a new chat?**, explains in user terms that the selected
 model keeps conversations differently, without naming APIs. Quick Chat does not
 switch; it shows a toast directing the user to the main chat.
 
-Catalog rows advertise `requestable_native_tool_support` and
-`supported_reasoning_efforts` for their settings menu. Users can toggle native tools, currently
-`web_search`, and choose a supported reasoning effort. Supported native tools
+The input's provider-logo button opens a popover with the supported reasoning
+slider. Its model name and Chat features icon switch the same popover to the
+model list or native-tool settings; Back returns to reasoning. Catalog rows
+advertise `requestable_native_tool_support` and `supported_reasoning_efforts`.
+Models without adjustable reasoning omit the slider. Supported native tools
 are enabled by default when the active model advertises them. The effort starts
 at the row's `default_reasoning_effort` when the row offers it (`medium` on
 Anthropic rows), else at its first supported effort (`defaultReasoningEffort`
@@ -224,8 +226,8 @@ settings after a catalog update; internal capabilities are
 never sent through `dispatch_options.native_tools`.
 
 Changing the base model resets request-scoped model settings to that model's
-catalog defaults. Changing settings for an inactive row first selects that model
-and then applies the requested native-tool or reasoning override. These settings
+catalog defaults. Reasoning and feature controls apply directly to the active
+model without switching it; changing one preserves the other. These settings
 live in `SettingsProvider` chat request overrides and are sent with future dispatch
 requests; they do not persist to the anima chat profile.
 
@@ -507,7 +509,7 @@ route, keyed by Anima, so its state survives canvas-mode switches that unmount
 the chat panel. It renders:
 
 - **AI notice.** App text such as "You're talking with <name>, an AI — not a
-  person." below the chat input, or bottom-center over the scene in Avatar-only
+  person." above the chat input without moving the composer, or bottom-center over the scene in Avatar-only
   mode through `MainShell`'s `avatarOnlyOverlay`. It is never spoken or added to
   the transcript. It stays visible until its turn completes, fails, stops or its
   chat panel unmounts, and for at least 8 seconds, then fades
@@ -532,7 +534,9 @@ Settings → Safety chooses the crisis-resource region (or Automatic, from the
 browser locale) and a reminder interval no longer than the operator's
 (`companion_safety.operator_reminder_hours` from runtime capabilities), and
 links the protocol. Both are saved under user preferences `safety`. First-run
-setup requires an 18+ confirmation checkbox before Continue.
+setup ends with a concise 18+ confirmation modal on entry to the first Anima.
+Chat remains blocked until the owner explicitly confirms; declining cannot
+complete onboarding.
 
 ## Memory cue
 

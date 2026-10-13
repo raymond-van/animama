@@ -5,7 +5,11 @@ import { LibrarySharingDialog } from "./LibrarySharingDialog";
 import { LibraryBig, Menu } from "lucide-react";
 
 import { hostedExclusionReasons } from "@/app/runtime/route-admission";
-import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
+import {
+  LIBRARY_CONTENT_TYPES,
+  type ContentLibrarySearch,
+  type LibraryContentType,
+} from "@/lib/content/librarySearch";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
@@ -31,6 +35,19 @@ const SECTIONS = [
   ["fx", "FX"],
   ["chat-uploads", "Chat Uploads"],
 ] as const;
+
+const CONTENT_TYPE_LABELS: Record<LibraryContentType, string> = {
+  all: "All",
+  avatars: "Avatars",
+  gestures: "Gestures",
+  reactions: "Reactions",
+  poses: "Poses",
+  "idle-styles": "Idle Styles",
+  particle: "Particle FX",
+  "avatar-effects": "Avatar FX",
+  scene: "Scene FX",
+  sound: "Sounds",
+};
 
 /** Common product Library. Creation starts from the dedicated Create hub. */
 export function LibraryPage({
@@ -96,6 +113,7 @@ export function LibraryPage({
               <button
                 type="button"
                 className={underlineTabClassName(search.section === value)}
+                aria-pressed={search.section === value}
               >
                 {label}
               </button>
@@ -105,6 +123,7 @@ export function LibraryPage({
               key={value}
               type="button"
               className={underlineTabClassName(search.section === value)}
+              aria-pressed={search.section === value}
               onClick={() => onSearchChange({ section: value })}
             >
               {label}
@@ -112,6 +131,25 @@ export function LibraryPage({
           ),
         )}
       </nav>
+      {search.section === "all" ? (
+        <div
+          role="group"
+          aria-label="Library content types"
+          className="flex flex-wrap items-center gap-2 pt-4"
+        >
+          {LIBRARY_CONTENT_TYPES.map((value) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={search.type === value ? "default" : "outline"}
+              aria-pressed={search.type === value}
+              onClick={() => onSearchChange({ type: value })}
+            >
+              {CONTENT_TYPE_LABELS[value]}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       {search.section === "actions" ? (
         <div className="flex flex-wrap items-center gap-2 pt-4">
           {(

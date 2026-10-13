@@ -187,17 +187,17 @@ mutations. Only admitted state supplies the installation principal to shared
 features through `RuntimeOwnerContext`. First-run state remains local to the
 local composition.
 
-The app layout sends `/` to `/setup` until the backend's `first_run_complete`
-boolean is true, which also requires the owner's recorded 18+ confirmation.
-Setup's Welcome step requires a nonblank private name and the 18+ checkbox;
-Finish calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed:
-true` and the model set up last in the AI step (saving the OpenAI or
-Anthropic key, or adding a chat model), if any. Text-to-Speech is on by
+The app layout gates application content on the backend's `first_run_complete`.
+`/setup` collects a nonblank private name, then Finish opens the first Anima URL
+with a blocking 18+ modal. Explicit confirmation
+calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed: true` and
+the model set up last in the AI step (saving the OpenAI or Anthropic key, or
+adding a chat model), if any. Text-to-Speech is on by
 default with built-in voices (`DEFAULT_ANIMAMA_PREFERENCES`); `/setup` sits outside
 `SettingsProvider`, so a provider chosen in the Voice step is saved with
 `useMergeUserPreferences` (fresh read, merge, write). The step and nonsecret
 choices persist in a per-owner localStorage draft (`setup-draft.ts`), never
-keys. Repeating the request after a lost response returns the completed
+keys or proof of age confirmation. Repeating the request after a lost response returns the completed
 context. The `/` entry route shares the owned Anima and user
 settings queries, waits for both, and opens the remembered owned Anima
 (`last_active_anima_id`) or the first in stable creation order. Desktop PiP

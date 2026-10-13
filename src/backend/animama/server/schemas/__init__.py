@@ -41,8 +41,6 @@ from .dispatch import (
 from .elevenlabs import (
     PyElevenLabsAnimaVoiceProfileInput,
     PyElevenLabsAudioResponse,
-    PyElevenLabsFinalizedTtsStreamRequest,
-    PyElevenLabsRealtimeTtsSessionRequest,
     PyElevenLabsRealtimeTtsSessionResponse,
     PyElevenLabsSoundEffectsRequest,
     PyElevenLabsTextToSpeechRequest,
@@ -96,8 +94,6 @@ __all__ = [
     "PyElevenLabsVoiceSettings",
     "PyElevenLabsAnimaVoiceProfileInput",
     "PyElevenLabsAudioResponse",
-    "PyElevenLabsFinalizedTtsStreamRequest",
-    "PyElevenLabsRealtimeTtsSessionRequest",
     "PyElevenLabsRealtimeTtsSessionResponse",
     "PyElevenLabsTextToSpeechRequest",
     "PyElevenLabsSoundEffectsRequest",

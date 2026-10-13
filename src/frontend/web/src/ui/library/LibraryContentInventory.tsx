@@ -392,9 +392,7 @@ export function LibraryContentInventory({
     origin,
     sort: search.sort,
     implementationKind:
-      search.section !== "actions" || search.gestureMotion === "all"
-        ? undefined
-        : search.gestureMotion,
+      search.gestureMotion === "all" ? undefined : search.gestureMotion,
     enabled: includes("gestures"),
   });
   const idleStyles = useIdleStyles({
@@ -451,7 +449,7 @@ export function LibraryContentInventory({
   );
   useEffect(
     () => () => soundPreview.stop(),
-    [soundPreview, search.section, search.fx],
+    [soundPreview, search.section, search.type, search.fx],
   );
   const { openPreview } = useContentPreviewDock();
   const gestureRows = useMemo(() => {

@@ -1,13 +1,13 @@
-"""Text and audio framing shared by the finalized speech providers (ElevenLabs and Gemini).
+"""Text and audio framing for finalized speech (Gemini).
 
-Both speak a reply segment's gruut-normalized text, so lip-sync phonemes match
-the words heard, and both push 24 kHz 16-bit little-endian PCM to the browser in
-frames of at least 0.2 s.
+It speaks an English segment's gruut-normalized text, so lip-sync phonemes match
+the words heard, and other languages as written. It pushes 24 kHz 16-bit
+little-endian PCM to the browser in frames of at least 0.2 s.
 """
 
 from __future__ import annotations
 
-from animama.app.gruut_text import build_gruut_sse_text
+from animama.app.gruut_text import build_gruut_sse_text, gruut_prepares_text
 from animama.product_http.chat.sse_events import TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS
 
 FINALIZED_TTS_PCM_FRAME_BYTES = 9600
@@ -16,9 +16,9 @@ FINALIZED_TTS_OUTPUT_FORMAT = "pcm_24000"
 
 
 def finalized_tts_text(text: str, *, text_basis: str) -> str:
-    """The text to speak: prepared gruut text as is, other text normalized through gruut."""
+    """The text to speak: prepared gruut text as is; English normalized through gruut; other text as written."""
 
-    if text_basis == TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS:
+    if text_basis == TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS or not gruut_prepares_text(text):
         return text
     gruut_payload = build_gruut_sse_text(text, lang="en_US", tokenized_text_source="text_with_ws")
     gruut_text = gruut_payload.get("tokenized_text") if gruut_payload else None

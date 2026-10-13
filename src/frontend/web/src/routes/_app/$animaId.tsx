@@ -5,6 +5,7 @@ import {
   useParams,
 } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
 import { CompanionSafetyProvider } from "@/ui/safety/CompanionSafetyProvider";
 import { AvatarOnlySafetyOverlay } from "@/ui/safety/CompanionSafetySlot";
 
@@ -19,7 +20,10 @@ export const Route = createFileRoute("/_app/$animaId")({
 
 function AnimaRuntimeLayout() {
   const { animaId } = Route.useParams();
-  useRememberLastActiveAnima(animaId);
+  const { admission } = useRuntimeAdmission();
+  const confirmed =
+    admission.status === "ready" && !admission.onboardingRequired;
+  useRememberLastActiveAnima(confirmed ? animaId : null);
   const params = useParams({ strict: false });
   const chatId = typeof params?.chatId === "string" ? params.chatId : null;
   const navigate = useNavigate();
@@ -54,17 +58,23 @@ function AnimaRuntimeLayout() {
       <CompanionSafetyProvider key={animaId}>
         <MainShell
           avatarOnlyOverlay={<AvatarOnlySafetyOverlay />}
-          chatPanel={({ canvasMode }) => (
-            <ChatInterface
-              key={animaId}
-              layout={canvasMode === "chat" ? "chat-only" : "scene-overlay"}
-              animaId={animaId}
-              chatId={chatId}
-              openDraftChatRoute={openDraftChatRoute}
-              replaceChatRoute={replaceChatRoute}
-              openMemoryEntry={openMemoryEntry}
-            />
-          )}
+          // Delay chat's voice, Quick Chat and native shortcut handlers while
+          // the heavier avatar/content preparation runs behind the age dialog.
+          chatPanel={({ canvasMode }) =>
+            confirmed ? (
+              <ChatInterface
+                key={animaId}
+                layout={canvasMode === "chat" ? "chat-only" : "scene-overlay"}
+                animaId={animaId}
+                chatId={chatId}
+                openDraftChatRoute={openDraftChatRoute}
+                replaceChatRoute={replaceChatRoute}
+                openMemoryEntry={openMemoryEntry}
+              />
+            ) : (
+              <></>
+            )
+          }
         >
           <Outlet />
         </MainShell>

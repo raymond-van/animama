@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.chat import DirectChatTurnExecutor, PreparedDirectChatTurn
+from animama.app.contracts.gemini import DEFAULT_GEMINI_VOICE
 from animama.app.model_clients import ModelClientProviderError, StaticModelClientRegistry
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.model_role_resolver import ModelRoleDefaults
@@ -42,11 +43,14 @@ from tests.product_http_support import (
     TEST_CHAT_POLICY,
     DeferredCommitFailed,
     DeferredCommitPorts,
+    FakeGeminiSpeech,
     TwoOwnerComposition,
     product_app,
 )
 
 STOP = ChatTurnStop(code="credits_exhausted", message="Your credits ran out.")
+# Gemini is the only voice pushed in the reply's stream (``tts.audio`` / ``tts.error``).
+GEMINI_SPEECH = {"tts": {"enabled": True, "provider": "gemini", "model_id": "gemini-3.8-flash-tts"}}
 
 
 def frames(stream: str) -> list[tuple[str, dict[str, Any]]]:
@@ -421,7 +425,7 @@ async def test_an_anima_without_an_owner_is_not_found(guarded: GuardedChat) -> N
 
 async def test_speech_resolves_only_the_callers_anima_voice(guarded: GuardedChat) -> None:
     guarded.model.replies.append(structured("Hello there. The kettle is on."))
-    realtime = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_flash_v2_5"}}
+    realtime = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
 
     response = await guarded.turn("speech", dispatch_options=realtime)
 
@@ -441,24 +445,24 @@ async def test_speech_resolves_only_the_callers_anima_voice(guarded: GuardedChat
 
 
 async def test_a_speech_refusal_keeps_its_code_in_the_speech_frames(guarded: GuardedChat) -> None:
-    guarded.ports.speech.refusal = ProductRefusal(402, "speech_allowance_exhausted")
+    refusal = ProductRefusal(402, "speech_allowance_exhausted")
+    # ElevenLabs speaks in realtime; Gemini audio is pushed in the reply's stream.
+    guarded.ports.speech.refusal = refusal
+    guarded.ports.gemini_speech = FakeGeminiSpeech(refusal=refusal)
     guarded.model.replies.extend(
         [structured("Hello there. The kettle is on."), structured("Hello again. The tea is ready.")]
     )
 
     realtime = await guarded.turn(
         "declined-realtime",
-        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_flash_v2_5"}},
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}},
     )
-    finalized = await guarded.turn(
-        "declined-finalized",
-        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
-    )
+    finalized = await guarded.turn("declined-finalized", dispatch_options=GEMINI_SPEECH)
 
     sessions = [data for name, data in frames(realtime.text) if name == "tts.session.error"]
     assert [(data["code"], data["status_code"]) for data in sessions] == [("speech_allowance_exhausted", 402)]
     speech = [data for name, data in frames(finalized.text) if name == "tts.error"]
-    assert speech and {data["code"] for data in speech} == {"speech_allowance_exhausted"}
+    assert [(data["provider"], data["code"]) for data in speech] == [("gemini", "speech_allowance_exhausted")]
     # Declined speech leaves the turns themselves complete.
     assert [lease.settlements for lease in guarded.ports.chat_guard.leases] == [["completed"], ["completed"]]
 
@@ -519,15 +523,15 @@ async def test_cancelling_a_turn_stopped_by_a_full_bridge_stops_its_provider_str
 
 
 async def test_a_refusal_while_streaming_speech_keeps_its_code(guarded: GuardedChat) -> None:
-    guarded.ports.speech.stream_refusal = ProductRefusal(402, "speech_allowance_exhausted")
+    gemini = FakeGeminiSpeech(stream_refusal=ProductRefusal(402, "speech_allowance_exhausted"))
+    guarded.ports.gemini_speech = gemini
     guarded.model.replies.append(structured("Hello there. The kettle is on."))
 
-    response = await guarded.turn(
-        "declined-stream",
-        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
-    )
+    response = await guarded.turn("declined-stream", dispatch_options=GEMINI_SPEECH)
 
     speech = [data for name, data in frames(response.text) if name == "tts.error"]
-    assert speech and {data["code"] for data in speech} == {"speech_allowance_exhausted"}
+    assert [(data["provider"], data["code"]) for data in speech] == [("gemini", "speech_allowance_exhausted")]
+    # The first segment was prepared for the caller, with the voice the turn resolved (the default here).
+    assert gemini.calls == [("prepare_finalized", guarded.owner, DEFAULT_GEMINI_VOICE)]
     [lease] = guarded.ports.chat_guard.leases
     assert lease.settlements == ["completed"]

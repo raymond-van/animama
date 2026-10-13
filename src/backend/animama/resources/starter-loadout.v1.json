@@ -102,6 +102,286 @@
     {
       "content_id": "builtin:gesture:prayer-hands-thanks",
       "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:air-quotes",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:attentive-lean-in",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:beckon",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:big-circle-maru",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:big-x-batsu",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:blow-a-kiss",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:blow-a-kiss-2",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:cat-paws-nya",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:celebration",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:chefs-kiss",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:count-on-fingers",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:cover-face-and-peek",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:cower",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:deflated-sigh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:drumroll",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:emphasise-a-point",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:enthusiastic-yes",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:ew-recoil",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:excited-triple-clap",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:fighting-fist-pump",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:fingers-crossed",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:fist-bump",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:flex",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:flustered-fan",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:gentle-double-nod",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:gentle-head-shake",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:grr-fists",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:hand-to-ear",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:have-an-idea",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:head-pat",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:hearty-laugh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:high-five",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:hysterical-laughter",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:kyaa-hands-on-cheeks",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:medium-laugh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:meme-dab",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:mild-laugh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:mind-blown",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:nervous-head-scratch",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:ohohoho-noble-laugh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:on-one-hand",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:palms-up-shrug",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:peace-over-eye",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:phew-brow-wipe",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:pinky-promise",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:please-hands",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:polite-bow",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:pon-realization",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:pout-huff",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:presenting",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:scheming-hands",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:shh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:shy-giggle",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:small-shy-wave",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:smug-heh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:so-so-wobble",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:soul-leaves-body",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:stretch-break",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:surprise-gasp",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:tehepero",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:thinking-chin-rest",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:this-big",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:tiny-bit",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:tongue-out-bleh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:typing-away",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:virtual-hug",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:wait-stop-palm",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:wave-hello",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:who-me",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:zip-lips",
+      "version": 1
     }
   ],
   "reactions": [

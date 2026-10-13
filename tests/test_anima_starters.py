@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import replace
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -462,7 +463,7 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert {gesture.source.logical_key for gesture in loadout.gestures if gesture.source} == set(
                 EXPECTED_STARTER_GESTURE_IDS
             )
-            assert len(loadout.gestures) == 25
+            assert len(loadout.gestures) == 95
             assert loadout.idle_style.state == "empty"
             assert all(cell.source is not None for cell in loadout.reactions)
 
@@ -471,6 +472,31 @@ def test_starter_gesture_policy_matches_reviewed_identities():
     assert (
         tuple(choice["content_id"] for choice in starter_loadout_policy()["gestures"]) == EXPECTED_STARTER_GESTURE_IDS
     )
+
+
+def test_starter_gestures_include_every_non_idle_gesture_and_exclude_streamer_idles():
+    """Chat starters cover Included Gestures without equipping Idle Style motions."""
+
+    included_root = Path(__file__).resolve().parents[1] / "content/included"
+    idle_style = json.loads((included_root / "idle-styles/streamer-idle/streamer-idle.json").read_text())
+    idle_ids = set(idle_style["default_pool"]) | {
+        gesture_id
+        for cells in idle_style["cells"].values()
+        for cell in cells.values()
+        for gesture_id in cell["gestures"]
+    }
+    included_ids = {
+        json.loads(descriptor.read_text())["content_id"]
+        for descriptor in (included_root / "gestures").glob("*/*.meta.json")
+    }
+    starter_ids = {choice["content_id"] for choice in starter_loadout_policy()["gestures"]}
+
+    assert len(included_ids) == 107
+    assert len(idle_ids) == 12
+    assert idle_ids <= included_ids
+    assert starter_ids.isdisjoint(idle_ids)
+    assert starter_ids == included_ids - idle_ids
+    assert len(starter_ids) == 95
 
 
 async def test_tracked_checkout_materializes_both_starters_without_optional_local_assets(async_session, tmp_path):
@@ -488,6 +514,6 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=starter["anima_id"]
             )
-            assert len(loadout.gestures) == 25
+            assert len(loadout.gestures) == 95
             assert all(cell.source is not None for cell in loadout.reactions)
             assert loadout.idle_style.state == "empty"

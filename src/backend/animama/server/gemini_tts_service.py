@@ -3,7 +3,7 @@
 Each reply segment is one streamed Interactions request with the Anima's prebuilt
 voice and a speaking style from the reply's emotional tone. Gemini streams
 24 kHz 16-bit little-endian PCM (``audio/l16``; measured 2026-10-11), which is
-re-framed into the same ``pcm_24000`` payloads finalized ElevenLabs audio uses.
+re-framed into ``pcm_24000`` payloads of at least 0.2 s for the chat stream.
 Nothing is stored on Google's side (``store: false``). Error messages reach the
 browser, so they name only the HTTP status, never request text or the key.
 """
@@ -30,7 +30,7 @@ from animama.app.model_clients.credential_store import GEMINI_CREDENTIAL_ENV
 from animama.app.voice_emotional_tone import gemini_speaking_style
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
-from animama.product_http.ports import ProductRefusal, VoiceResolver
+from animama.product_http.ports import ProductRefusal
 from animama.server.finalized_speech import FINALIZED_TTS_OUTPUT_FORMAT, finalized_tts_text, pop_pcm_audio_frame
 from animama.server.runtime_credentials import runtime_credentials
 
@@ -40,7 +40,7 @@ GEMINI_TTS_STREAM_FAILED_CODE = "gemini_tts_stream_failed"
 GEMINI_TTS_SAMPLE_RATE = 24000
 GEMINI_TTS_REQUEST_TIMEOUT_MS = 60_000
 GEMINI_TTS_MAX_IN_FLIGHT = 3
-"""Requests in flight across the process, like ElevenLabs' finalized limit."""
+"""Gemini requests in flight across the process; others wait for a slot."""
 
 _semaphore = asyncio.Semaphore(GEMINI_TTS_MAX_IN_FLIGHT)
 _client_cache: tuple[str, Any] | None = None
@@ -92,7 +92,6 @@ async def prepare_gemini_finalized_speech(
     text_basis: str,
     emotional_tone: str | None,
     emotional_state: dict[str, int] | None,
-    apply_emotional_prefix: bool,
 ) -> GeminiFinalizedSpeech:
     """Check the key and prepare one segment; an unknown voice or model falls back to the default."""
 
@@ -102,11 +101,8 @@ async def prepare_gemini_finalized_speech(
         voice_id=gemini_voice_or_default(voice_id),
         model_id=model_id if model_id in SUPPORTED_GEMINI_TTS_MODEL_IDS else DEFAULT_GEMINI_TTS_MODEL_ID,
         text=finalized_tts_text(text, text_basis=text_basis),
-        style=(
-            gemini_speaking_style(emotional_tone=emotional_tone, emotional_state=emotional_state)
-            if apply_emotional_prefix
-            else None
-        ),
+        # Every segment speaks in the reply's style.
+        style=gemini_speaking_style(emotional_tone=emotional_tone, emotional_state=emotional_state),
     )
 
 
@@ -224,18 +220,14 @@ class LocalGeminiSpeech:
         self,
         principal: RequestPrincipal,
         *,
-        voice: VoiceResolver | None,
-        voice_id: str | None,
+        voice_id: str,
         anima_id: str,
         run_id: str,
         text: str,
         model_id: str | None,
-        language_code: str | None,
         text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
-        previous_text: str | None,
-        apply_emotional_prefix: bool,
     ) -> GeminiFinalizedSpeech:
         # The turn resolves the prebuilt voice itself; Gemini detects the language.
         return await prepare_gemini_finalized_speech(
@@ -246,7 +238,6 @@ class LocalGeminiSpeech:
             text_basis=text_basis,
             emotional_tone=emotional_tone,
             emotional_state=emotional_state,
-            apply_emotional_prefix=apply_emotional_prefix,
         )
 
     def stream_finalized(self, prepared: Any) -> AsyncIterator[dict[str, Any]]:

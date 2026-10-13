@@ -1,0 +1,115 @@
+{
+  "source": "ElevenLabs Text to Dialogue socket, eleven_v4_turbo, pcm_24000, sync_alignment=true. Each message keeps its audio sample count and alignment; the audio is omitted. Captured 2026-10-13 as the app sends: sentence chunks, a flush after the first.",
+  "text": "おはようございます。 今日はいい天気ですね。 散歩に行きましょう！ ",
+  "messages": [
+    {
+      "samples": 759,
+      "alignment": {
+        "chars": ["お", "は"],
+        "char_start_times_ms": [0, 40],
+        "char_durations_ms": [40, 40]
+      }
+    },
+    {
+      "samples": 2277,
+      "alignment": {
+        "chars": ["よ"],
+        "char_start_times_ms": [0],
+        "char_durations_ms": [80]
+      }
+    },
+    {
+      "samples": 3795,
+      "alignment": {
+        "chars": ["う", "ご"],
+        "char_start_times_ms": [0, 80],
+        "char_durations_ms": [80, 80]
+      }
+    },
+    {
+      "samples": 1518,
+      "alignment": null
+    },
+    {
+      "samples": 6072,
+      "alignment": null
+    },
+    {
+      "samples": 12144,
+      "alignment": {
+        "chars": ["ざ", "い", "ま", "す", "。", " "],
+        "char_start_times_ms": [0, 256, 384, 512, 640, 720],
+        "char_durations_ms": [256, 128, 128, 128, 80, 160]
+      }
+    },
+    {
+      "samples": 315,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "samples": 759,
+      "alignment": null
+    },
+    {
+      "samples": 2277,
+      "alignment": null
+    },
+    {
+      "samples": 3795,
+      "alignment": {
+        "chars": ["今", "日", "は"],
+        "char_start_times_ms": [0, 213, 267],
+        "char_durations_ms": [213, 54, 53]
+      }
+    },
+    {
+      "samples": 1518,
+      "alignment": null
+    },
+    {
+      "samples": 6072,
+      "alignment": {
+        "chars": ["い", "い", "天"],
+        "char_start_times_ms": [0, 80, 160],
+        "char_durations_ms": [80, 80, 160]
+      }
+    },
+    {
+      "samples": 15180,
+      "alignment": {
+        "chars": ["気", "で", "す", "ね"],
+        "char_start_times_ms": [0, 80, 213, 347],
+        "char_durations_ms": [80, 133, 134, 133]
+      }
+    },
+    {
+      "samples": 13662,
+      "alignment": {
+        "chars": ["。", " ", "散", "歩", "に", "行", "き"],
+        "char_start_times_ms": [0, 160, 320, 400, 480, 560, 640],
+        "char_durations_ms": [160, 160, 80, 80, 80, 80, 80]
+      }
+    },
+    {
+      "samples": 12144,
+      "alignment": {
+        "chars": ["ま", "し", "ょ", "う", "！", " "],
+        "char_start_times_ms": [0, 80, 160, 240, 320, 400],
+        "char_durations_ms": [80, 80, 80, 80, 80, 160]
+      }
+    },
+    {
+      "samples": 273,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "is_final": true
+    }
+  ]
+}

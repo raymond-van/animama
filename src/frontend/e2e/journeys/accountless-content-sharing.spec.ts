@@ -265,9 +265,9 @@ test("local content sharing complete Anima export, reviewed install and persiste
   creatorContent,
   animamaEvidence,
 }, testInfo) => {
-  // The complete starter Anima has over a hundred entries. Verify and remove
-  // each original receipt identity within the same bounded journey.
-  test.setTimeout(900_000);
+  // The expanded starter closure has hundreds of entries; serial verification
+  // and exact receipt cleanup must both finish within this bounded journey.
+  test.setTimeout(2_400_000);
   const before = await creatorContent.snapshotLocalCatalog();
   await openSharing(page, "Export");
   await page.getByRole("tab", { name: "Anima", exact: true }).click();

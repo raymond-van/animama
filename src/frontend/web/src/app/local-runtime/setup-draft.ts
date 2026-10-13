@@ -22,7 +22,8 @@ export type SetupTtsProvider = "pocket_tts" | "elevenlabs";
 export type SetupDraft = {
   step: SetupStep;
   displayName: string;
-  adultConfirmed: boolean;
+  /** The wizard is finished; backend onboarding still needs explicit confirmation. */
+  awaitingAgeConfirmation: boolean;
   modelLocation: SetupModelLocation;
   chatModelId: string | null;
   ttsProvider: SetupTtsProvider | null;
@@ -32,11 +33,13 @@ type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const MAX_DRAFT_LENGTH = 4096;
 const MAX_MODEL_ID_LENGTH = 512;
+// Keep the current renderer usable when browser storage is disabled.
+let volatileDraft: { ownerId: string; draft: SetupDraft } | null = null;
 
 export const emptySetupDraft = (): SetupDraft => ({
   step: "welcome",
   displayName: "",
-  adultConfirmed: false,
+  awaitingAgeConfirmation: false,
   modelLocation: "cloud",
   chatModelId: null,
   ttsProvider: null,
@@ -58,16 +61,16 @@ function parseDraft(value: unknown): SetupDraft {
   const raw = value as Record<string, unknown>;
   if (
     typeof raw.displayName !== "string" ||
-    raw.displayName.length > DISPLAY_NAME_MAX_LENGTH ||
-    typeof raw.adultConfirmed !== "boolean"
+    raw.displayName.length > DISPLAY_NAME_MAX_LENGTH
   )
     return empty;
   const step = SETUP_STEPS.find((item) => item === raw.step) ?? "welcome";
   return {
-    // A later step is never reachable without the Welcome answers.
-    step: raw.displayName.trim() && raw.adultConfirmed ? step : "welcome",
+    // The name is the wizard prerequisite; age confirmation follows it.
+    step: raw.displayName.trim() ? step : "welcome",
     displayName: raw.displayName,
-    adultConfirmed: raw.adultConfirmed,
+    awaitingAgeConfirmation:
+      Boolean(raw.displayName.trim()) && raw.awaitingAgeConfirmation === true,
     modelLocation: raw.modelLocation === "local" ? "local" : "cloud",
     chatModelId:
       typeof raw.chatModelId === "string" &&
@@ -88,6 +91,7 @@ export function readSetupDraft(
   storage = browserStorage(),
 ): SetupDraft {
   try {
+    if (volatileDraft?.ownerId === ownerId) return volatileDraft.draft;
     const raw = storage?.getItem(draftKey(ownerId));
     if (!raw || raw.length > MAX_DRAFT_LENGTH) return emptySetupDraft();
     return parseDraft(JSON.parse(raw));
@@ -102,17 +106,19 @@ export function writeSetupDraft(
   draft: SetupDraft,
   storage = browserStorage(),
 ): boolean {
-  if (!storage) return false;
   try {
     const projected: SetupDraft = {
       step: draft.step,
       displayName: draft.displayName.slice(0, DISPLAY_NAME_MAX_LENGTH),
-      adultConfirmed: draft.adultConfirmed === true,
+      awaitingAgeConfirmation: draft.awaitingAgeConfirmation === true,
       modelLocation: draft.modelLocation === "local" ? "local" : "cloud",
       chatModelId: draft.chatModelId?.slice(0, MAX_MODEL_ID_LENGTH) || null,
       ttsProvider: draft.ttsProvider,
     };
+    volatileDraft = { ownerId, draft: parseDraft(projected) };
+    if (!storage) return false;
     storage.setItem(draftKey(ownerId), JSON.stringify(projected));
+    volatileDraft = null;
     return true;
   } catch {
     return false;
@@ -125,6 +131,7 @@ export function clearSetupDraft(
   storage = browserStorage(),
 ): void {
   try {
+    if (volatileDraft?.ownerId === ownerId) volatileDraft = null;
     storage?.removeItem(draftKey(ownerId));
   } catch {
     // Backend first-run state still prevents a completed installation reopening setup.

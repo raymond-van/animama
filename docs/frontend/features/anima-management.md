@@ -73,9 +73,12 @@ active application provider. Avatar and Appearance use their own focused control
 Imported encoded-only voice clones remain selectable for speech; their original
 recording preview is unavailable because the recording is not shared.
 
-The unified Gesture list keeps ready user-created Gestures first and optionally
-reveals active or disabled Starter Gestures through the header filter menu.
-Local search matches full names and descriptions. The menu filters equipped or unequipped rows
+The unified Gesture list includes every ready Local and Included Gesture,
+including unequipped Gestures outside the starter set. The header shows the
+number equipped out of the full inventory, independent of search or filters.
+The filter menu offers independent Show included and Show local controls;
+Included content remains Included when explicitly equipped. Local search matches
+full names and descriptions. The menu filters equipped or unequipped rows
 and sorts by custom-first, name A–Z, or name Z–A. Motion type can be narrowed
 to VRMA or Clips; Clips maps to the normalized
 `anima_clip` implementation. A compact checked status identifies

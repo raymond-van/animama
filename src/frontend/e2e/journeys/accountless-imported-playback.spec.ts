@@ -1102,9 +1102,9 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
   creatorContent,
   animamaEvidence,
 }, testInfo) => {
-  // Exact cleanup rescans each imported item; the complete starter closure is
-  // currently 136 entries and has taken about fifteen minutes to remove.
-  test.setTimeout(1_800_000);
+  // The expanded starter closure has hundreds of entries; allow playback
+  // verification and serial exact receipt cleanup within the same bound.
+  test.setTimeout(2_400_000);
   const before = await creatorContent.snapshotLocalCatalog();
   await openSharing(page, "Export");
   await page.getByRole("tab", { name: "Anima", exact: true }).click();

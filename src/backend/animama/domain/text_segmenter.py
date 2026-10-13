@@ -10,6 +10,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+# A sentence end: ASCII marks need following whitespace, as in English or Korean.
+# Japanese and Chinese marks need none. They end at the next character that is not
+# a mark or a closing bracket or quote, so a run streamed one mark per delta, and
+# its closer, stay with the sentence.
+_SENTENCE_END = re.compile(
+    r"(?P<ascii>[.!?]+[\"')\]}]*)(?=\s)"
+    r"|(?P<full_width>[。！？][。！？.!?]*[」』”’)\]）】\"']*)(?=[^。！？.!?」』”’)\]）】\"'])"
+)
+
 
 @dataclass
 class Segment:
@@ -125,38 +134,27 @@ class UserResponseSegmenter:
         sentences: list[str] = []
         start = 0
 
-        # IMPROVEMENT 1: Match sequences of punctuation ([.!?]+) instead of single chars.
-        # IMPROVEMENT 2: Added ')' and '}' to the trailing chars to capture "(parentheses)."
-        # Regex:
-        #   ([.!?]+           -> 1 or more sentence terminators (captures "...", "!!")
-        #   ["\')\]}]*)       -> 0 or more closing quotes/brackets
-        #   (?=\s)            -> Lookahead: must be followed by whitespace
-        for match in re.finditer(r'([.!?]+["\')\]}]*)(?=\s)', text):
+        # A run of marks ("...", "!!", "！？") with any closing quotes or brackets.
+        for match in _SENTENCE_END.finditer(text):
             end_idx = match.end()
             candidate = text[start:end_idx]
 
-            # --- Heuristics ---
+            # --- Heuristics for ASCII marks only ---
+            punctuation = match.group("ascii")
+            if punctuation is not None:
+                content = candidate[: -len(punctuation)]
 
-            # 1. Skip Lists (e.g., "1.")
-            # If the candidate is just digits plus punctuation, it's likely a list item.
-            # We check the part before the punctuation.
-            punctuation = match.group(1)
-            content = candidate[: -len(punctuation)]
+                # 1. Skip list items (e.g., "1.").
+                if content.isdigit():
+                    continue
 
-            if content.isdigit():
-                continue
+                # 2. Skip initials (e.g., "J.").
+                if len(content) == 1 and content.isupper():
+                    continue
 
-            # 2. Skip Initials (e.g., "J.")
-            # If the content is a single uppercase letter, it's an initial.
-            if len(content) == 1 and content.isupper():
-                continue
-
-            # 3. Standard Abbreviation Check (e.g., "Mr.")
-            # Find the last word in the segment
-            last_word_match = re.search(r"(\w+)$", content)
-            if last_word_match:
-                last_word = last_word_match.group(1)
-                if last_word in self.ABBREVIATIONS:
+                # 3. Skip common abbreviations (e.g., "Mr.").
+                last_word_match = re.search(r"(\w+)$", content)
+                if last_word_match and last_word_match.group(1) in self.ABBREVIATIONS:
                     continue
 
             # 4. Minimum Char Length Check

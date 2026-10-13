@@ -18,11 +18,15 @@ import zipfile
 from datetime import UTC, datetime, timedelta
 
 from github_evidence import _full_requested, _get_json, _merged_pull, _NoRedirect, _number, _repository, _sha
-from validation_policy import UNTIMED, evaluate
+from validation_policy import SUITES, UNTIMED, evaluate
 
 WORKFLOW_PATH = ".github/workflows/validate-public.yml"
 MAX_BYTES = 8 * 1024 * 1024
 MAX_AGE = timedelta(days=7)
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+# The PR run's promotion-suite steps and the outcomes its receipt recorded.
+PROMOTION_SUCCESS = {name: "success" for name in sorted(SUITES["promotion"])}
 
 
 def _require(condition: object, reason: str) -> None:
@@ -36,8 +40,8 @@ def _time(value: str) -> datetime:
     return parsed
 
 
-def _download(repository: str, artifact_id: int) -> bytes:
-    """Follow GitHub's signed download redirect without forwarding credentials."""
+def _open_artifact(repository: str, artifact_id: int):
+    """Open an artifact ZIP, following GitHub's signed redirect without forwarding credentials."""
     token = os.environ.get("CI_READ_TOKEN", "")
     _require(token, "Missing read-only token")
     request = urllib.request.Request(
@@ -61,13 +65,19 @@ def _download(repository: str, artifact_id: int) -> bytes:
             "Unexpected artifact storage destination",
         )
         response = opener.open(urllib.request.Request(destination), timeout=30)
+    return response
+
+
+def _download(repository: str, artifact_id: int) -> bytes:
+    """Read one small, bounded artifact ZIP."""
+    response = _open_artifact(repository, artifact_id)
     with response:
         data = response.read(MAX_BYTES + 1)
     _require(len(data) <= MAX_BYTES, "Artifact exceeds size bound")
     return data
 
 
-def _receipt(data: bytes, artifact: dict) -> dict:
+def _receipt(data: bytes, artifact: dict, modes: frozenset[str] = frozenset({"full"})) -> dict:
     _require(len(data) <= MAX_BYTES, "Artifact exceeds size bound")
     _require(artifact["digest"] == "sha256:" + hashlib.sha256(data).hexdigest(), "Artifact digest mismatch")
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -82,8 +92,8 @@ def _receipt(data: bytes, artifact: dict) -> dict:
         selection = json.loads(archive.read("selection.json"))
         receipt = json.loads(archive.read("validation.json"))
         _require(receipt["selection"] == selection, "Inconsistent artifact selection")
-        _require(receipt["schema_version"] == 2 and receipt["success"] is True, "Unsuccessful full receipt")
-        _require(selection["plan"]["mode"] == "full", "Prior run did not execute full validation")
+        _require(receipt["schema_version"] == 3 and receipt["success"] is True, "Unsuccessful full receipt")
+        _require(selection["plan"]["mode"] in modes, "Prior run did not execute full validation")
         _require(evaluate(selection["plan"], receipt["steps"])["success"], "Full contract did not pass")
         checks = receipt["checks"]
         ids = [check["id"] for check in checks]
@@ -93,6 +103,45 @@ def _receipt(data: bytes, artifact: dict) -> dict:
             _require(check["status"] == "passed" and check["exit_code"] == 0, "Failed command receipt")
             _require(json.loads(archive.read(f"checks/{check['id']}.json")) == check, "Command receipt mismatch")
     return receipt
+
+
+def _package_set(receipt: dict, run: dict, tested: str, tree: str, parents: list[str], prefix: str, fetch) -> dict:
+    """Name the PR run's uploaded set so promotion needs no second full run.
+
+    The set records the test-merge commit; a consumer binds it to the main
+    commit through the identical tree and parents recorded here.
+    """
+    recorded = receipt["package_set"]
+    name = f"animama-set-{tested}-{run['run_attempt']}"
+    _require(_number(recorded["artifact_id"]), "Malformed package set identity")
+    _require(
+        recorded["promotion_suites"] == PROMOTION_SUCCESS
+        and all(receipt["steps"][step]["outcome"] == "success" for step in PROMOTION_SUCCESS),
+        "Promotion suite did not succeed in the PR run",
+    )
+    artifact = fetch(f"{prefix}/actions/artifacts/{recorded['artifact_id']}")
+    _require(
+        artifact["id"] == recorded["artifact_id"]
+        and artifact["name"] == name
+        and artifact["expired"] is False
+        and artifact["digest"] == recorded["artifact_digest"]
+        and artifact["workflow_run"]["id"] == run["id"]
+        and recorded["source"]["commit"] == tested
+        and recorded["source"]["tree"] == tree
+        and all(_HEX64.fullmatch(recorded[key]) for key in ("manifest_sha256", "consumer_receipt_sha256")),
+        "Package set unavailable or not bound to the tested merge",
+    )
+    return {
+        "artifact_id": artifact["id"],
+        "artifact_name": name,
+        "artifact_digest": artifact["digest"],
+        "expires_at": artifact["expires_at"],
+        "manifest_sha256": recorded["manifest_sha256"],
+        "source": recorded["source"],
+        "tested_commit_parents": parents,
+        "consumer_receipt_sha256": recorded["consumer_receipt_sha256"],
+        "promotion_suites": recorded["promotion_suites"],
+    }
 
 
 def hosted_for_main(
@@ -201,7 +250,7 @@ def hosted_for_main(
         tested = selection["source_commit"]
         _require(_sha(tested), "Malformed tested commit")
         _require(
-            selection["schema_version"] == 2
+            selection["schema_version"] == 3
             and selection["event"] == "pull_request"
             and selection["reusable"] is False
             and selection["diff_error"] is None
@@ -222,6 +271,7 @@ def hosted_for_main(
             and [parent["sha"] for parent in commit["parents"]] == [baseline, head],
             "Hosted run did not test this proposed merged result",
         )
+        package_set = _package_set(receipt, run, tested, source_tree, [baseline, head], prefix, fetch)
         return {
             "accepted": True,
             "reason": "Verified full hosted PR validation for identical tree and baseline",
@@ -236,6 +286,7 @@ def hosted_for_main(
             "run_url": f"https://github.com/{repository}/actions/runs/{run['id']}",
             "artifact_id": artifact["id"],
             "artifact_digest": artifact["digest"],
+            "package_set": package_set,
             "verified_at": now.astimezone(UTC).isoformat(),
         }
     except Exception:
@@ -264,4 +315,31 @@ def bound_evidence(selection: dict) -> bool:
         and re.fullmatch(r"https://github.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/runs/[0-9]+", evidence["run_url"])
         is not None
         and evidence.get("workflow") == WORKFLOW_PATH
+        and _bound_package_set(evidence, selection)
+    )
+
+
+def _bound_package_set(evidence: dict, selection: dict) -> bool:
+    package_set = evidence.get("package_set")
+    if not isinstance(package_set, dict) or not isinstance(package_set.get("source"), dict):
+        return False
+    tested = evidence.get("tested_commit")
+    parents = package_set.get("tested_commit_parents")
+    return (
+        _sha(tested)
+        and _number(package_set.get("artifact_id"))
+        and package_set.get("artifact_name") == f"animama-set-{tested}-{evidence['run_attempt']}"
+        and isinstance(package_set.get("artifact_digest"), str)
+        and _DIGEST.fullmatch(package_set["artifact_digest"]) is not None
+        and all(
+            isinstance(package_set.get(key), str) and _HEX64.fullmatch(package_set[key]) is not None
+            for key in ("manifest_sha256", "consumer_receipt_sha256")
+        )
+        and package_set["source"].get("commit") == tested
+        and package_set["source"].get("tree") == selection["source_tree"]
+        and isinstance(parents, list)
+        and len(parents) == 2
+        and parents[0] == selection["base"]
+        and _sha(parents[1])
+        and package_set.get("promotion_suites") == PROMOTION_SUCCESS
     )

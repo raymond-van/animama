@@ -30,6 +30,13 @@ Avatar, and Scene Effects. The Dock waits for the runtime before preparing a
 scene and shows a clear blocker when no Anima or runtime is available; it never
 silently substitutes a bundled neutral model.
 
+The Dock keeps one Canvas and its loaded Avatar while targets replace each
+other and while it is minimized or closed. Targets that share a model revision
+reuse that Avatar without another model fetch; a different revision mounts a
+fresh Avatar in the same Canvas. Destroying the minimized preview, the
+five-minute warm-idle eviction, or a management or creator surface claiming the
+renderer unmounts the Dock.
+
 Standalone Pose targets first load their registered descriptor through
 `PreviewByteSession`, verifying size, digest and selected revision. Preparation
 converts its resolved values to a temporary one-beat `animaPoseClip/2.0` hold

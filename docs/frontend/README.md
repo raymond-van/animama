@@ -43,7 +43,7 @@ Runtime guides:
   Chat mirror, Settings → Safety, and the protocol dialog and `/safety` page;
   see the [safety and crisis protocol](../safety/crisis-protocol.md))
 - `runtime/voice.md`
-- `runtime/elevenlabs-tts.md` (ElevenLabs realtime and v3 finalized TTS)
+- `runtime/elevenlabs-tts.md` (ElevenLabs realtime TTS with Eleven v4 Turbo)
 - `runtime/gemini-tts.md` (Gemini cloud voice: availability, key, settings,
   errors and Google's terms)
 - `runtime/sound.md`

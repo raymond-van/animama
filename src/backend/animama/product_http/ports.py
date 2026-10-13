@@ -180,7 +180,7 @@ VoiceResolver = Callable[[], Awaitable[PyElevenLabsVoice]]
 
 
 class FinalizedSpeech(Protocol):
-    """One reply segment prepared for finalized speech (ElevenLabs ``eleven_v3`` or Gemini)."""
+    """One reply segment prepared for finalized speech (Gemini)."""
 
     @property
     def voice_id(self) -> str: ...
@@ -195,28 +195,24 @@ class FinalizedSpeech(Protocol):
 class FinalizedSpeechPort(Protocol):
     """Finalized speech for a chat reply: each segment prepared, then streamed as PCM payloads.
 
-    ``ProductSpeech`` offers it for ElevenLabs; a composition may also offer it
-    for Gemini through ``ChatTurnServices.gemini_speech``.
+    A composition may offer it for Gemini through ``ChatTurnServices.gemini_speech``;
+    ElevenLabs speaks in realtime instead.
     """
 
     async def prepare_finalized(
         self,
         principal: RequestPrincipal,
         *,
-        voice: VoiceResolver | None,
-        voice_id: str | None,
+        voice_id: str,
         anima_id: str,
         run_id: str,
         text: str,
         model_id: str | None,
-        language_code: str | None,
         text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
-        previous_text: str | None,
-        apply_emotional_prefix: bool,
     ) -> FinalizedSpeech:
-        """Prepare one reply segment; ``voice_id`` reuses the voice an earlier segment resolved."""
+        """Prepare one reply segment with the voice the turn resolved for the Anima."""
         ...
 
     def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
@@ -224,17 +220,17 @@ class FinalizedSpeechPort(Protocol):
         ...
 
 
-class ProductSpeech(FinalizedSpeechPort, Protocol):
+class ProductSpeech(Protocol):
     """Paid speech operations a composition offers its owners (ElevenLabs).
 
     The composition holds the provider credentials, retries, concurrency and any
     metering; it refuses an operation it does not offer with ``ProductRefusal`` (or
     an ``HTTPException`` with its own body). ``audio_upload_max_bytes`` bounds each
-    uploaded sample. The chat-turn operations resolve the Anima's voice through the
-    ``voice`` the turn supplies, after the composition's own checks. They decline
-    a reply's speech with ``ProductRefusal``, whose code the speech error frame
-    carries (``tts.session.error`` also its status); other errors' messages reach
-    the browser in those frames, so they must be safe to show.
+    uploaded sample. The chat-turn operation (``realtime_session``) resolves the
+    Anima's voice through the ``voice`` the turn supplies, after the composition's
+    own checks. It declines a reply's speech with ``ProductRefusal``, whose code
+    and status ``tts.session.error`` carries; other errors' messages reach the
+    browser in that frame, so they must be safe to show.
     """
 
     @property
@@ -366,7 +362,7 @@ class ChatTurnServices(Protocol):
         """Gemini speech for the reply, or ``None`` where the composition does not offer it.
 
         Read only when a turn asks for Gemini voice. The turn resolves the Anima's
-        prebuilt voice itself and passes it as ``voice_id`` with no resolver.
+        prebuilt voice itself and passes it as ``voice_id``.
         """
         ...
 

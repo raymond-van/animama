@@ -63,6 +63,11 @@ const fixture = vi.hoisted(() => {
         audioStartSec?: number | null;
         audioContext?: AudioContext | null;
       }) => void;
+      onSpeechTiming?: (event: {
+        runId: string;
+        provider: "elevenlabs";
+        chars: Array<{ char: string; startSec: number; endSec: number }>;
+      }) => void;
     },
     // The callbacks the finalized runtime reports pushed audio through.
     finalizedOptions: null as null | {
@@ -112,10 +117,8 @@ vi.mock("@/hooks/use-elevenlabs-tts-runtime", () => ({
     return fixture.realtime;
   },
 }));
-vi.mock("@/hooks/use-elevenlabs-finalized-tts-runtime", () => ({
-  useElevenLabsFinalizedTtsRuntime: (
-    options: typeof fixture.finalizedOptions,
-  ) => {
+vi.mock("@/hooks/use-finalized-tts-runtime", () => ({
+  useFinalizedTtsRuntime: (options: typeof fixture.finalizedOptions) => {
     fixture.finalizedOptions = options;
     return fixture.finalized;
   },
@@ -180,7 +183,7 @@ let root: Root | null = null;
 
 /** Mount the hook for an Anima whose owner chose ElevenLabs with `modelId`. */
 function renderPlayback({
-  modelId = "eleven_flash_v2_5",
+  modelId = "eleven_v4_turbo",
   mountedVoice = null,
 }: {
   modelId?: string;
@@ -266,7 +269,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     act(() =>
       playback().acceptElevenLabsSession("run-1", {
         voice_id: "voice-1",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: false,
         transport: "server",
@@ -313,10 +316,9 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     expect(fixture.toast.warning).not.toHaveBeenCalled();
   });
 
-  it("speaks a finalized reply declined after its text with the Anima's Pocket voice", () => {
+  it("speaks a reply declined after its text with the Anima's Pocket voice", () => {
     const assertActive = vi.fn();
     const { playback } = renderPlayback({
-      modelId: "eleven_v3",
       mountedVoice: { catalogUrl: "blob:anima-voice", assertActive },
     });
     act(() => {
@@ -329,18 +331,15 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       });
       playback().completeRun("run-1");
     });
-    expect(fixture.finalized.prepareRun).toHaveBeenCalledWith("run-1");
-    // Eleven v3 waits for pushed audio after the reply text completes.
+    // The realtime run owns the reply until the server declines its speech.
     expect(fixture.pocket.generateAndWait).not.toHaveBeenCalled();
-    fixture.finalized.stop.mockClear();
 
     let switched = false;
     act(() => {
       switched = playback().fallBackToPocketTts("run-1");
     });
     expect(switched).toBe(true);
-    expect(fixture.finalized.stop).toHaveBeenCalledTimes(1);
-    expect(fixture.finalized.failPushedStream).not.toHaveBeenCalled();
+    expect(fixture.realtime.markSessionFailed).not.toHaveBeenCalled();
     expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
     const [text, options] = fixture.pocket.generateAndWait.mock.calls[0];
     expect(text).toBe("Hi there. Nice to meet you.");
@@ -392,7 +391,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       playback().startRun("run-1");
       playback().acceptElevenLabsSession("run-1", {
         voice_id: "voice-1",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: false,
         transport: "server",
@@ -423,33 +422,6 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       expect.objectContaining({ endStream: true }),
     );
     expect(fixture.toast.error).not.toHaveBeenCalled();
-  });
-
-  it("ignores finalized audio or completion that arrives after the switch", () => {
-    const { playback } = renderPlayback({ modelId: "eleven_v3" });
-    act(() => {
-      playback().startRun("run-1");
-      playback().appendToken("run-1", "Hello there.", {
-        textBasis: "gruut_text_with_ws",
-      });
-      playback().completeRun("run-1");
-      playback().fallBackToPocketTts("run-1");
-    });
-    expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
-
-    act(() => {
-      playback().acceptElevenLabsFinalizedAudio("run-1", {
-        run_id: "run-1",
-        model_id: "eleven_v3",
-        output_format: "mp3_44100_128",
-        audio_base64: "AAA=",
-      });
-      playback().completeElevenLabsFinalizedAudio("run-1");
-    });
-    // The reply is spoken once, by Pocket only.
-    expect(fixture.finalized.acceptAudioChunk).not.toHaveBeenCalled();
-    expect(fixture.finalized.finishPushedStream).not.toHaveBeenCalled();
-    expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
   });
 
   it("uses the Anima's downloadable Pocket voice once its install state is read", () => {
@@ -582,6 +554,35 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
   });
 });
 
+describe("ElevenLabs character timing", () => {
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+  });
+
+  it("forwards the realtime runtime's timing for lip-sync", () => {
+    fixture.speech = { tts_provider: "elevenlabs" };
+    const onSpeechTiming = vi.fn();
+    function Harness() {
+      useTtsPlayback({ onSpeechTiming });
+      return null;
+    }
+    act(() => {
+      root = createRoot(document.createElement("div"));
+      root.render(<Harness />);
+    });
+
+    const event = {
+      runId: "run-1",
+      provider: "elevenlabs" as const,
+      chars: [{ char: "H", startSec: 0, endSec: 0.08 }],
+    };
+    act(() => fixture.realtimeOptions?.onSpeechTiming?.(event));
+
+    expect(onSpeechTiming).toHaveBeenCalledWith(event);
+  });
+});
+
 describe("playing Gemini audio the server pushes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -629,9 +630,9 @@ describe("playing Gemini audio the server pushes", () => {
     });
     act(() => {
       playback().startRun("run-1");
-      playback().acceptElevenLabsFinalizedAudio("run-1", audio);
-      playback().completeElevenLabsFinalizedAudio("run-1");
-      playback().markElevenLabsFinalizedAudioFailed("run-1", "voice error");
+      playback().acceptFinalizedAudio("run-1", audio);
+      playback().completeFinalizedAudio("run-1");
+      playback().markFinalizedAudioFailed("run-1", "voice error");
     });
 
     expect(fixture.finalized.acceptAudioChunk).toHaveBeenCalledWith(
@@ -700,7 +701,7 @@ describe("playing Gemini audio the server pushes", () => {
     });
     act(() => {
       latest.current.startRun("run-1");
-      latest.current.acceptElevenLabsFinalizedAudio("run-1", audio);
+      latest.current.acceptFinalizedAudio("run-1", audio);
     });
     expect(fixture.finalized.prepareRun).not.toHaveBeenCalled();
     expect(fixture.finalized.acceptAudioChunk).not.toHaveBeenCalled();

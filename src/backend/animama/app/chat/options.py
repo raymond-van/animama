@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-from animama.app.contracts.elevenlabs import SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS
+from animama.app.contracts.elevenlabs import SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS
 from animama.app.contracts.gemini import SUPPORTED_GEMINI_TTS_MODEL_IDS
 
 DirectChatFinalizedTtsChunking = Literal["sentence", "paragraph"]
@@ -203,7 +203,7 @@ def _normalize_tts_options(value: object) -> DirectChatTtsOptions | None:
     model_id = _pick_str(value.get("model_id"))
     # A model id is kept only for its own provider.
     provider_models = (
-        SUPPORTED_GEMINI_TTS_MODEL_IDS if provider == "gemini" else SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS
+        SUPPORTED_GEMINI_TTS_MODEL_IDS if provider == "gemini" else SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS
     )
     if model_id in provider_models:
         normalized["model_id"] = model_id

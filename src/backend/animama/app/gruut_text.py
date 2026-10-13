@@ -26,6 +26,19 @@ except Exception as _gruut_import_exc:
     _GRUUT_IMPORT_ERROR = str(_gruut_import_exc)
 
 
+def gruut_prepares_text(text: str) -> bool:
+    """Whether gruut's English model should prepare ``text`` for speech.
+
+    It verbalizes numbers and symbols only in English, so text whose letters are
+    all ASCII is treated as English; typographic punctuation, symbols and emoji
+    do not count. Text with other letters (accented, CJK or Hangul) is spoken as
+    written and left to the provider to normalize, until the reply carries its
+    speech language.
+    """
+
+    return all(character.isascii() for character in text if character.isalpha())
+
+
 def build_gruut_sse_text(
     text: str,
     *,

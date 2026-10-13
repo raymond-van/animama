@@ -13,7 +13,8 @@ import re
 import subprocess
 from pathlib import Path
 
-from validation_policy import LOCAL_CHECKS, UNTIMED, choose_plan, classify, evaluate
+from browser_tests import browser_groups
+from validation_policy import LOCAL_CHECKS, SUITES, UNTIMED, choose_plan, classify, evaluate
 
 SHA = re.compile(r"[0-9a-f]{40}")
 WORKFLOW = "Portable product validation"
@@ -161,10 +162,15 @@ def changed_dependencies(root: Path, merge_base: str | None, source_head: str, c
 
 
 def special_inputs(
-    root: Path, merge_base: str | None, changes: list[dict] | None, *, source_head: str = "HEAD"
+    root: Path,
+    merge_base: str | None,
+    changes: list[dict] | None,
+    *,
+    source_head: str = "HEAD",
+    dependencies: bool = True,
 ) -> set[str]:
-    """Special files and changed/uncertain dependencies require full validation."""
-    excluded = changed_dependencies(root, merge_base, source_head, changes)
+    """Special files and (unless disabled) changed/uncertain dependencies require full validation."""
+    excluded = changed_dependencies(root, merge_base, source_head, changes) if dependencies else set()
     for revision in filter(None, ("HEAD", merge_base)):
         for entry in git(root, "ls-tree", "-r", "-z", revision).split(b"\0"):
             if entry:
@@ -249,11 +255,14 @@ def plan(root: Path, output: Path) -> None:
         error = str(exc)
     try:
         dependency_head = exact_sha(event["pull_request"]["head"]["sha"]) if event_name == "pull_request" else source
-        excluded = special_inputs(root, merge_base, changes, source_head=dependency_head)
+        # Links, executables and LFS inputs select every suite; changed imports only
+        # matter to the reduced profiles' allowlists.
+        special = special_inputs(root, merge_base, changes, source_head=dependency_head, dependencies=False)
+        excluded = special | changed_dependencies(root, merge_base, dependency_head, changes)
     except (ValueError, KeyError, TypeError, OSError):
-        excluded, error = set(), "Cannot establish special-input exclusions"
+        excluded, special, error = set(), set(), "Cannot establish special-input exclusions"
     # Local assertions never reduce high-risk changes. Hosted full results may.
-    selected = choose_plan(event_name, event, changes, error, reusable, excluded)
+    selected = choose_plan(event_name, event, changes, error, reusable, excluded, special_paths=special)
     area = classify(changes, excluded)
     reviewed = {"accepted": False, "reason": "Not applicable to this selection"}
     pr = event.get("pull_request", {})
@@ -272,7 +281,9 @@ def plan(root: Path, output: Path) -> None:
         if docs_override.get("allow_focused") is not True:
             # Keep the known baseline: uncertain PR metadata expands coverage,
             # rather than failing source selection before full checks can run.
-            selected = choose_plan(event_name, event, changes, "Main documentation override", reusable, excluded)
+            selected = choose_plan(
+                event_name, event, changes, "Main documentation override", reusable, excluded, special_paths=special
+            )
             selected["reason"] = docs_override["reason"]
         if docs_override.get("full_requested") is True:
             explicit = True
@@ -287,7 +298,14 @@ def plan(root: Path, output: Path) -> None:
             now=datetime.now(UTC),
         )
         selected = choose_plan(
-            event_name, event, changes, error, reusable, excluded, local_reviewed=reviewed.get("accepted") is True
+            event_name,
+            event,
+            changes,
+            error,
+            reusable,
+            excluded,
+            local_reviewed=reviewed.get("accepted") is True,
+            special_paths=special,
         )
     if event_name == "schedule" and not reusable:
         selected = choose_plan(
@@ -303,7 +321,7 @@ def plan(root: Path, output: Path) -> None:
         if hosted.get("accepted") is True:
             selected = choose_plan(event_name, event, changes, hosted_verified=True)
     receipt = {
-        "schema_version": 2,
+        "schema_version": 3,
         "source_commit": source,
         "source_tree": tree,
         "event": event_name,
@@ -324,11 +342,16 @@ def plan(root: Path, output: Path) -> None:
         "cold_cache": inputs.get("cold-cache", False),
     }
     write_json(output, receipt)
+    skipped = {row["suite"] for row in selected.get("skipped", [])}
+    promotion = selected["mode"] in {"full", "selective"} and "promotion" not in skipped
     with open(os.environ["GITHUB_OUTPUT"], "a") as target:
         target.write("mode=" + selected["mode"] + "\n")
         target.write("baseline=" + (baseline or "") + "\n")
-        target.write(f"retention={14 if explicit or event_name == 'schedule' else 3}\n")
-    if selected["mode"] == "full" and (baseline is None or baseline == "0" * 40):
+        target.write("promotion=" + ("true" if promotion else "false") + "\n")
+        target.write("browser-groups=" + ",".join(browser_groups(skipped)) + "\n")
+        # Promotion-complete sets outlive the reuse window and serve later baselines.
+        target.write(f"retention={14 if explicit or event_name == 'schedule' or selected['mode'] == 'full' else 3}\n")
+    if promotion and (baseline is None or baseline == "0" * 40):
         raise ValueError("Full validation requires an exact compatibility baseline")
     print(json.dumps(receipt, indent=2))
 
@@ -371,6 +394,51 @@ def check_receipts(directory: Path, selected: object) -> tuple[list[dict], str |
     return checks, None
 
 
+def package_set_record(steps: object, directory: Path) -> tuple[dict | None, str | None]:
+    """Identify the uploaded set of a run that executed the promotion suite.
+
+    The PR receipt carries this record so a later `reused` main run can name the
+    set without downloading it; a missing identity fails the run.
+    """
+    upload = steps.get("package-artifacts") if isinstance(steps, dict) else None
+    if not isinstance(upload, dict) or upload.get("outcome") != "success":
+        return None, None
+    try:
+        outputs = upload["outputs"]
+        digest = outputs["artifact-digest"].removeprefix("sha256:")
+        manifest = (directory / "manifest.json").read_bytes()
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise ValueError("Malformed artifact digest")
+        return {
+            "artifact_id": int(outputs["artifact-id"]),
+            "artifact_digest": "sha256:" + digest,
+            "manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+            "source": json.loads(manifest)["source"],
+            "consumer_receipt_sha256": hashlib.sha256((directory / "validation.json").read_bytes()).hexdigest(),
+            # Outcome of every promotion-suite step, so consumers see what ran.
+            "promotion_suites": {name: steps[name]["outcome"] for name in sorted(SUITES["promotion"])},
+        }, None
+    except (OSError, KeyError, TypeError, ValueError, AttributeError):
+        return None, "Uploaded package set cannot be identified"
+
+
+def browser_record(steps: object, selected: object, path: Path) -> tuple[dict | None, str | None]:
+    """A successful browser step must have run exactly the plan's groups, all passing."""
+    step = steps.get("browser-tests") if isinstance(steps, dict) else None
+    if not isinstance(step, dict) or step.get("outcome") != "success":
+        return None, None
+    try:
+        record = json.loads(path.read_text())
+        skipped = {row["suite"] for row in selected["skipped"]}
+        if record["groups"] != browser_groups(skipped):
+            return record, "Browser groups differ from the selection"
+        if not record["files"] or any(row["status"] != "passed" for row in record["files"]):
+            return record, "Browser file results missing or failed"
+        return record, None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None, "Missing or malformed browser file results"
+
+
 def gate(output: Path) -> int:
     """Evaluate actual step outcomes and preserve a receipt even after early failure."""
     try:
@@ -392,28 +460,45 @@ def gate(output: Path) -> int:
     checks, receipt_error = check_receipts(directory, selected)
     if receipt_error:
         result = {"success": False, "reason": receipt_error}
-    receipt = {"schema_version": 2, "selection": selection, "steps": steps, "checks": checks, **result}
+    package_set, set_error = package_set_record(steps, Path(os.environ.get("CI_PACKAGE_SET_DIR", "/nonexistent")))
+    if set_error:
+        result = {"success": False, "reason": set_error}
+    baseline_set, baseline_record = None, Path(os.environ.get("CI_BASELINE_RECORD", "/nonexistent"))
+    if baseline_record.is_file():
+        try:
+            baseline_set = json.loads(baseline_record.read_text())
+        except (OSError, ValueError):
+            result = {"success": False, "reason": "Malformed baseline set record"}
+    browser, browser_error = browser_record(steps, selected, Path(os.environ.get("CI_BROWSER_RESULTS", "/nonexistent")))
+    if browser_error:
+        result = {"success": False, "reason": browser_error}
+    receipt = {"schema_version": 3, "selection": selection, "steps": steps, "checks": checks, **result}
+    if package_set:
+        receipt["package_set"] = package_set
+    if baseline_set is not None:
+        receipt["baseline_set"] = baseline_set
     write_json(output, receipt)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+        from run_summary import render
+
+        try:
+            evidence = ""
+            if isinstance(selected, dict) and selected.get("mode") == "reused" and result["success"]:
+                hosted = selection["hosted_evidence"]
+                named = hosted["package_set"]
+                evidence = (
+                    f"Full hosted evidence: [run {hosted['run_id']}]({hosted['run_url']}); "
+                    f"artifact `{hosted['artifact_id']}`, digest `{hosted['artifact_digest']}`.\n\n"
+                    f"Package set for promotion: `{named['artifact_name']}` "
+                    f"(artifact `{named['artifact_id']}`, manifest `{named['manifest_sha256']}`), "
+                    f"built from tested merge `{hosted['tested_commit']}` with this tree."
+                )
+            text = render(selected, result["reason"], checks, browser, evidence)
+        except (KeyError, TypeError, ValueError):
+            # The summary is informational; acceptance is already decided above.
+            text = f"## Validation\n\n{result['reason']}\n\nSummary details unavailable.\n\n"
         with open(summary, "a") as target:
-            target.write("## Validation\n\n" + result["reason"] + "\n\n")
-            if (
-                isinstance(selected, dict)
-                and isinstance(selected.get("mode"), str)
-                and isinstance(selected.get("reason"), str)
-            ):
-                target.write("Profile: **" + selected["mode"] + "**. " + selected["reason"] + "\n\n")
-                if selected["mode"] == "reused" and result["success"]:
-                    evidence = selection["hosted_evidence"]
-                    target.write(
-                        f"Full hosted evidence: [run {evidence['run_id']}]({evidence['run_url']}); "
-                        f"artifact `{evidence['artifact_id']}`, digest `{evidence['artifact_digest']}`.\n\n"
-                    )
-                else:
-                    target.write("Local assertions are owner-reviewed, not independently executed by this runner.\n\n")
-            target.write("| Check | Result | Seconds |\n| --- | --- | ---: |\n")
-            for check in checks:
-                target.write(f"| {check['id']} | {check['status']} | {check['duration_seconds']} |\n")
+            target.write(text)
     print(json.dumps(receipt, indent=2))
     return 0 if result["success"] else 1
 

@@ -55,7 +55,7 @@ function throwIfAborted(signal?: AbortSignal): void {
 async function readExactBytes(
   response: Response,
   expectedBytes: number,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const declaredLength = response.headers.get("content-length");
   if (declaredLength !== null && Number(declaredLength) !== expectedBytes) {
     throw new VerifiedByteError(
@@ -107,7 +107,7 @@ async function readExactBytes(
 /** Shared exact-byte admission for individual responses and bundled JSON text. */
 export async function verifyRuntimeBytes(
   member: VerifiedByteMember,
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
   signal?: AbortSignal,
 ): Promise<VerifiedByte> {
   throwIfAborted(signal);
@@ -126,7 +126,8 @@ export async function verifyRuntimeBytes(
   throwIfAborted(signal);
   return {
     member,
-    blob: new Blob([bytes.slice().buffer], { type: member.media_type }),
+    // Blob copies just the view's bytes; an extra slice would briefly double a model.
+    blob: new Blob([bytes], { type: member.media_type }),
   };
 }
 

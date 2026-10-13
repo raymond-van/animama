@@ -10,7 +10,10 @@ import {
   type DesktopPipVisualState,
 } from "@/lib/desktop-pip/visual-state";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
-import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
+import {
+  isProviderTimingOnlyChange,
+  useAvatarLipSyncBridgeStore,
+} from "@/stores/avatar-lipsync-bridge-store";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import type { SceneCameraSettings } from "@/ui/main/canvas/sceneCameraPresets";
@@ -152,9 +155,14 @@ export function useDesktopPipRuntimeProducer({
     const unsubscribeAvatarRuntime = useAvatarRuntimeStore.subscribe(() => {
       scheduleSnapshot();
     });
-    const unsubscribeLipSync = useAvatarLipSyncBridgeStore.subscribe(() => {
-      scheduleSnapshot();
-    });
+    const unsubscribeLipSync = useAvatarLipSyncBridgeStore.subscribe(
+      (state, previous) => {
+        // The PiP window does not mirror provider timing, which updates with
+        // every realtime audio frame.
+        if (isProviderTimingOnlyChange(state, previous)) return;
+        scheduleSnapshot();
+      },
+    );
     const unsubscribeSceneVfx = useSceneVFXStore.subscribe(() => {
       scheduleSnapshot();
     });

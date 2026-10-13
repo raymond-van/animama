@@ -6,7 +6,7 @@ import {
 
 const session: ElevenLabsSessionResponse = {
   voice_id: "voice-fixture",
-  model_id: "eleven_flash_v2_5",
+  model_id: "eleven_v4_turbo",
   output_format: "pcm_24000",
   sync_alignment: true,
 };
@@ -68,6 +68,7 @@ describe("admitted realtime speech transport", () => {
       ),
     );
     expect(url.origin).toBe("wss://api.elevenlabs.io");
+    expect(url.pathname).toBe("/v1/text-to-dialogue/stream-input");
     expect(url.searchParams.get("single_use_token")).toBe("provider-token");
     expect(url.searchParams.get("model_id")).toBe(session.model_id);
   });

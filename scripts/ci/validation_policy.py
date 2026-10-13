@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from pathlib import PurePosixPath
 
-PLAN_KEYS = {"schema_version", "mode", "reason", "required"}
+from browser_tests import GROUPS
+
+PLAN_KEYS = {"schema_version", "mode", "reason", "required", "skipped"}
 BASE = {"checkout", "ci-policy-tests", "select"}
 COMMON = {"uv", "uv-sync", "rg-setup", "audit"}
 PYTHON = {"backend-format", "backend-lint", "backend-types"}
@@ -40,6 +42,7 @@ FULL = (
         "sdk-tests",
         "packages-tests",
         "web-tests",
+        "browser-tests",
         "desktop-tests",
         "web-build",
         "browser-smoke",
@@ -54,8 +57,30 @@ FULL = (
 )
 # Action timings are available in the job API; every command has a hashed receipt.
 UNTIMED = {"checkout", "select", "uv", "node", "baseline-checkout", "package-artifacts"}
+# Expensive work a full PR run may skip when none of its inputs changed. The
+# browser groups keep their step: the runner receives the selected groups.
+SUITES = {
+    "promotion": {
+        "package-build",
+        "package-consumers",
+        "workspace-reclaim",
+        "baseline-checkout",
+        "package-compat",
+        "package-artifacts",
+    },
+    "browser-hosted": set(),
+    "browser-tooling": set(),
+}
+SUITE_REASONS = {
+    "promotion": "No packaging input changed; package build, installed and whole-application consumers, "
+    "baseline comparison and set upload run on main or promotion runs",
+    "browser-hosted": "No hosted-screen input changed",
+    "browser-tooling": "No effect or animation tooling input changed",
+}
 PROFILES = {
     "full": FULL,
+    # A full PR run with recorded skips; never promotion-complete.
+    "selective": FULL,
     "docs": COMMON | {"docs-tests"},
     "backend": COMMON | PYTHON | {"accountless-guards"},
     "web": COMMON | FRONTEND | {"accountless-guards"},
@@ -86,8 +111,20 @@ SHARED_TESTS = {
 }
 
 
-def _plan(mode: str, reason: str) -> dict[str, object]:
-    return {"schema_version": 2, "mode": mode, "reason": reason, "required": sorted(BASE | PROFILES[mode])}
+def _required(mode: str, skipped: Iterable[str] = ()) -> list[str]:
+    omitted = set().union(*(SUITES[suite] for suite in skipped))
+    return sorted((BASE | PROFILES[mode]) - omitted)
+
+
+def _plan(mode: str, reason: str, skipped: Iterable[str] = ()) -> dict[str, object]:
+    rows = [{"suite": suite, "reason": SUITE_REASONS[suite]} for suite in sorted(skipped)]
+    return {
+        "schema_version": 3,
+        "mode": mode,
+        "reason": reason,
+        "required": _required(mode, skipped),
+        "skipped": rows,
+    }
 
 
 def _path(value: object) -> bool:
@@ -157,6 +194,143 @@ def classify(changes: object, excluded_paths: Iterable[str] = ()) -> str:
     return areas.pop() if len(areas) == 1 else "full"
 
 
+ALL_SUITES = frozenset(SUITES)
+TOOLING = frozenset({"browser-tooling"})
+HOSTED = frozenset({"browser-hosted"})
+NONE: frozenset[str] = frozenset()
+# Any packaging input selects every suite, so a PR that changes what the set
+# contains is promotion-complete (mode `full`) and can serve reuse after merge.
+# Only unpackaged paths, tooling-only and hosted-fixture-only changes narrow it.
+# Changes that alter how checks run, which dependencies resolve or what the
+# browser harness loads also select every suite.
+EVERYTHING_PREFIXES = (
+    ".github/",
+    "scripts/ci/",
+    "src/frontend/patches/",
+    "src/frontend/web/vite-plugins/",
+)
+EVERYTHING_FILES = {
+    "uv.lock",
+    "pyproject.toml",
+    "src/frontend/package.json",
+    "src/frontend/pnpm-lock.yaml",
+    "src/frontend/pnpm-workspace.yaml",
+    "src/frontend/web/package.json",
+    "src/frontend/web/vite.config.ts",
+}
+# Not packaged and not loaded by a selectable browser group. The always-run
+# checks still cover them; anything not listed here is a packaging input.
+UNPACKAGED_PREFIXES = (
+    "tests/",
+    ".agents/",
+    ".claude/",
+    ".vscode/",
+    "src/frontend/e2e/",
+    # Electron-only desktop sources; the hosted build reads other desktop paths.
+    "src/frontend/desktop/src/",
+    "src/frontend/desktop/tests/",
+    "src/frontend/desktop/native/",
+    "src/frontend/desktop/scripts/native/",
+    "src/frontend/desktop/build/",
+    "src/frontend/web/tests/",
+    "scripts/evals/",
+    "scripts/public-release/",
+    "scripts/repository-cleanup/",
+)
+UNPACKAGED_FILES = {
+    "docker-compose.yml",
+    "docker-compose.development.yml",
+    "Dockerfile",
+    "reset.sh",
+    "Makefile",
+    "pytest.ini",
+    "src/frontend/playwright.config.ts",
+    "src/frontend/tsconfig.e2e.json",
+    "src/frontend/desktop/electron-builder.yml",
+    "src/frontend/desktop/README.md",
+    "src/frontend/desktop/tsconfig.json",
+    "src/frontend/desktop/vitest.config.ts",
+    "scripts/audit-typed-content.sh",
+    "scripts/backup-local.sh",
+    "scripts/restore-local.sh",
+    "scripts/local-stack-state-common.sh",
+    "scripts/validate_local_compose.py",
+    "scripts/check-repository-dependencies.py",
+    "scripts/generate_synthetic_docs.py",
+    "scripts/seed_synthetic_context.py",
+}
+# README.md is the backend wheel's package description (pyproject `readme`).
+PACKAGED_FILES = {"README.md"}
+HOSTED_FIXTURES = (
+    "src/frontend/web/tests/fixtures/hosted-composition/",
+    "src/frontend/web/tests/fixtures/retained-screens/",
+)
+WEB_SCRIPTS = "src/frontend/web/scripts/"
+
+
+def _web_script_suites(name: str) -> frozenset[str]:
+    """Web scripts are tooling and tests; only TypeScript enters the app's type build."""
+    if name.endswith(".browser.test.mjs"):
+        stem = name.split("/")[-1].removesuffix(".browser.test.mjs")
+        return TOOLING if stem in GROUPS["tooling"] else HOSTED if stem in GROUPS["hosted"] else NONE
+    if name.endswith(".test.mjs"):
+        return NONE
+    if name.startswith("fixtures/"):
+        # Shared browser setup; the whole-application consumer also copies
+        # fixtures/hosted-workflows-http.mjs.
+        return ALL_SUITES
+    # TypeScript scripts are packaging inputs: tsconfig.scripts.json is part of
+    # the hosted build's `tsc -b`.
+    if name.startswith(("animation", "effect")) and name.endswith(".mjs"):
+        return TOOLING
+    return ALL_SUITES
+
+
+def _path_suites(path: str) -> frozenset[str]:
+    p = PurePosixPath(path)
+    if path in EVERYTHING_FILES or path.startswith(EVERYTHING_PREFIXES):
+        return ALL_SUITES
+    if path.startswith(HOSTED_FIXTURES):
+        return HOSTED
+    if path.startswith(WEB_SCRIPTS):
+        return _web_script_suites(path.removeprefix(WEB_SCRIPTS))
+    if path in PACKAGED_FILES:
+        return ALL_SUITES
+    if path in UNPACKAGED_FILES or path.startswith(UNPACKAGED_PREFIXES):
+        return NONE
+    # docs/safety is bundled into the web app.
+    if path.startswith("docs/") and not path.startswith("docs/safety/"):
+        return NONE
+    if len(p.parts) == 1 and p.suffix == ".md" or path in {"src/frontend/AGENTS.md", "src/frontend/electron-guide.md"}:
+        return NONE
+    # The backend, web app, packages, Included content, contracts, models,
+    # packaging scripts and unknown paths.
+    return ALL_SUITES
+
+
+def select_suites(changes: object, excluded_paths: Iterable[str] = ()) -> set[str]:
+    """Suites whose inputs a full PR run changed; uncertainty selects every suite."""
+    if not isinstance(changes, list) or not changes or isinstance(excluded_paths, str | bytes):
+        return set(ALL_SUITES)
+    try:
+        excluded = set(excluded_paths)
+    except (TypeError, ValueError):
+        return set(ALL_SUITES)
+    if any(not _path(path) for path in excluded):
+        return set(ALL_SUITES)
+    selected: set[str] = set()
+    for change in changes:
+        if not isinstance(change, dict) or set(change) != {"status", "old_path", "path"}:
+            return set(ALL_SUITES)
+        for path in (change["old_path"], change["path"]):
+            if path is None and change["path"] is not None:
+                continue
+            if not _path(path) or path in excluded:
+                return set(ALL_SUITES)
+            selected |= _path_suites(path)
+    return selected
+
+
 def choose_plan(
     event_name: str,
     event: Mapping[str, object],
@@ -167,6 +341,7 @@ def choose_plan(
     local_reviewed: bool = False,
     periodic_unchanged: bool = False,
     hosted_verified: bool = False,
+    special_paths: Iterable[str] | None = None,
 ) -> dict[str, object]:
     """A reviewed local assertion reduces routine work, never high-risk/full requests."""
     if reusable or not isinstance(event_name, str) or event_name not in {"pull_request", "push", "schedule"}:
@@ -207,7 +382,32 @@ def choose_plan(
         return _plan("docs", "Existing eligible documentation: independent focused hosted checks")
     if area in LOCAL_CHECKS and local_reviewed is True:
         return _plan(area, "Owner-reviewed exact local evidence; hosted result covers only selected checks")
+    if event_name == "pull_request":
+        # Not a promotion candidate (ci:full, manual, release and main returned above).
+        # Callers pass only special files here; changed imports do not alter packaging.
+        special = excluded_paths if special_paths is None else special_paths
+        skipped = ALL_SUITES - select_suites(changes, special)
+        if skipped:
+            return _plan("selective", "Full PR validation; unchanged suites deferred to promotion runs", skipped)
     return _plan("full", "High-risk/unknown changes or missing, stale, failed or unreviewed local evidence")
+
+
+def _skipped_suites(rows: object) -> list[str] | None:
+    """Return the recorded suites only for a sorted, unique, explained list."""
+    if not isinstance(rows, list):
+        return None
+    suites = []
+    for row in rows:
+        if (
+            not isinstance(row, dict)
+            or set(row) != {"suite", "reason"}
+            or row["suite"] not in SUITES
+            or not isinstance(row["reason"], str)
+            or not row["reason"].strip()
+        ):
+            return None
+        suites.append(row["suite"])
+    return suites if suites == sorted(set(suites)) else None
 
 
 def evaluate(plan: object, steps: object) -> dict[str, object]:
@@ -221,16 +421,22 @@ def evaluate(plan: object, steps: object) -> dict[str, object]:
     mode = plan.get("mode")
     if (
         type(plan.get("schema_version")) is not int
-        or plan["schema_version"] != 2
+        or plan["schema_version"] != 3
         or not isinstance(mode, str)
         or mode not in PROFILES
         or not isinstance(plan.get("reason"), str)
         or not plan["reason"].strip()
-        or plan.get("required") != sorted(BASE | PROFILES[mode])
     ):
+        return fail("Malformed or inconsistent required-step plan")
+    skipped = _skipped_suites(plan.get("skipped"))
+    if skipped is None or bool(skipped) != (mode == "selective") or plan.get("required") != _required(mode, skipped):
         return fail("Malformed or inconsistent required-step plan")
     if not isinstance(steps, dict):
         return fail("Missing step results")
+    for name in set().union(*(SUITES[suite] for suite in skipped)):
+        step = steps.get(name)
+        if step is not None and (not isinstance(step, dict) or step.get("outcome") != "skipped"):
+            return fail(f"Step ran although its suite was skipped: {name}")
     for name in plan["required"]:
         step = steps.get(name)
         if not isinstance(step, dict) or step.get("outcome") != "success" or step.get("conclusion") != "success":

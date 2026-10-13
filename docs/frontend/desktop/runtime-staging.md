@@ -419,10 +419,11 @@ stages the same way as `runtime/content/wow-comedy-sfx` from
 `build-inputs/wow-comedy-sfx/`, required by `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1`;
 without it, built-in effects play silently. The supervisor mounts each staged
 pack as its own Included source.
-The starter closure contains 25 authored gestures, 72 reactions and no required
-Idle Style. The tracked-only staging gate still fails on an unavailable selected
-dependency, even if an ignored local copy exists. Full native stage and packaged
-acceptance remain separate checks; do not infer them from a passing content test.
+The starter closure contains all 95 non-idle authored gestures, 72 reactions and
+no required Idle Style. The 12 Streamer Idle gestures are not starters. The
+tracked-only staging gate still fails on an unavailable selected dependency, even
+if an ignored local copy exists. Full native stage and packaged acceptance remain
+separate checks; do not infer them from a passing content test.
 
 Content with `distribution: excluded` or `distribution: non-portable` is
 omitted from core and expanded inputs (reasons `redistribution_excluded` and

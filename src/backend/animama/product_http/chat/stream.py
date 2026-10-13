@@ -245,7 +245,6 @@ async def stream_direct_chat_sse(
         tts_bootstrap = _TtsSessionBootstrap(run_id=run_id, anima_id=anima_id)
         finalized_tts = _FinalizedTtsStreamBootstrap.start_if_requested(
             chat_options=turn.chat_options,
-            speech=speech,
             sessions=sessions,
             anima_id=anima_id,
             run_id=run_id,

@@ -359,9 +359,9 @@ export function useProductChatSession({
     completeTtsRun,
     acceptElevenLabsSession,
     markElevenLabsSessionFailed,
-    acceptElevenLabsFinalizedAudio,
-    completeElevenLabsFinalizedAudio,
-    markElevenLabsFinalizedAudioFailed,
+    acceptFinalizedAudio,
+    completeFinalizedAudio,
+    markFinalizedAudioFailed,
     fallBackToPocketTts,
     cancelTts,
     isTtsAudioActive,
@@ -1291,7 +1291,7 @@ export function useProductChatSession({
             ) {
               return;
             }
-            acceptElevenLabsFinalizedAudio(audioRunId, data);
+            acceptFinalizedAudio(audioRunId, data);
           },
           onTtsDone: (data) => {
             const audioRunId = data.run_id ?? runId;
@@ -1303,7 +1303,7 @@ export function useProductChatSession({
             ) {
               return;
             }
-            completeElevenLabsFinalizedAudio(audioRunId);
+            completeFinalizedAudio(audioRunId);
           },
           onTtsError: (data) => {
             const audioRunId = data.run_id ?? runId;
@@ -1314,9 +1314,9 @@ export function useProductChatSession({
             ) {
               return;
             }
-            if (fallBackFromDeclinedSpeech(audioRunId, data)) return;
+            // Finalized speech (Gemini) has no Pocket fallback: a decline ends it.
             skippedTtsRunIdsRef.current.add(audioRunId);
-            markElevenLabsFinalizedAudioFailed(audioRunId, data);
+            markFinalizedAudioFailed(audioRunId, data);
           },
           onEmotionUpdate: (data) => {
             // Full-state emotion updates drive both the live avatar runtime
@@ -1561,7 +1561,7 @@ export function useProductChatSession({
     [
       isStreaming,
       animaId,
-      acceptElevenLabsFinalizedAudio,
+      acceptFinalizedAudio,
       acceptElevenLabsSession,
       appendTtsToken,
       applyAvatarEmotionUpdate,
@@ -1569,7 +1569,7 @@ export function useProductChatSession({
       cancelTts,
       clearAvatarVisemeBridgeAll,
       clearAvatarVisemeBridgeRun,
-      completeElevenLabsFinalizedAudio,
+      completeFinalizedAudio,
       completeTtsRun,
       fallBackToPocketTts,
       markNonTtsResponseStarted,
@@ -1584,7 +1584,7 @@ export function useProductChatSession({
       capabilities.chat,
       recordUiInteraction,
       recordUiInteractionDuration,
-      markElevenLabsFinalizedAudioFailed,
+      markFinalizedAudioFailed,
       markElevenLabsSessionFailed,
       replaceChatRoute,
       routeChatId,

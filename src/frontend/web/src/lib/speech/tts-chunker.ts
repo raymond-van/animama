@@ -52,33 +52,23 @@ function normalizeLeadingWhitespace(text: string): string {
   return text.replace(/^\s+/, "");
 }
 
+// Japanese and Chinese end sentences with full-width marks and no following space.
 function isSentenceBoundaryChar(char: string): boolean {
-  return (
-    char === "." ||
-    char === "!" ||
-    char === "?" ||
-    char === ";" ||
-    char === "\n"
-  );
+  return /[.!?;\n。！？]/.test(char);
 }
 
+// Closing quotes and brackets (ASCII and full-width) and spaces stay with the sentence.
 function isBoundaryContinuationChar(char: string): boolean {
-  return (
-    char === '"' ||
-    char === "'" ||
-    char === ")" ||
-    char === "]" ||
-    char === "}" ||
-    /\s/.test(char)
-  );
+  return /["')\]}」』”’）】]/.test(char) || /\s/.test(char);
 }
 
 export function countTtsChunkWords(text: string): number {
   return text.match(/[A-Za-z0-9']+/g)?.length ?? 0;
 }
 
+/** Whether the chunk's closing run of marks includes `!` ("Wow!", "Really?!"). */
 export function isExclamationTtsChunk(text: string): boolean {
-  return /![\s"')\]}]*$/.test(text.trim());
+  return /![\s"')\]}!?.]*$/.test(text.trim());
 }
 
 function createChunkCandidate(
@@ -103,7 +93,18 @@ function findSentenceBoundaryEnd(
   for (let i = minIndex; i < text.length; i++) {
     if (!isSentenceBoundaryChar(text[i])) continue;
     let end = i + 1;
-    while (end < text.length && isBoundaryContinuationChar(text[end])) {
+    // A line break ends the sentence like the space after a mark.
+    let sawSpace = /\s/.test(text[i]);
+    while (end < text.length) {
+      const char = text[end];
+      // A run of marks ("?!", "！？", "...") stays with its sentence; after a
+      // space, a mark starts the next one (".NET").
+      if (
+        !isBoundaryContinuationChar(char) &&
+        (sawSpace || !isSentenceBoundaryChar(char))
+      )
+        break;
+      if (/\s/.test(char)) sawSpace = true;
       end += 1;
     }
     return end;

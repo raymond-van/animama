@@ -6,6 +6,7 @@ import { normalizeContentLibrarySearch } from "@/lib/content/librarySearch";
 import { LibraryContentInventory } from "./LibraryContentInventory";
 const mocks = vi.hoisted(() => ({
   poseInput: vi.fn(),
+  gestureInput: vi.fn(),
   layoutActions: {} as Record<string, () => void>,
   otherRows: [] as Array<Record<string, unknown>>,
   avatars: [] as Array<Record<string, unknown>>,
@@ -47,13 +48,16 @@ vi.mock("@/query/hooks/usePoses", () => ({
   },
 }));
 vi.mock("@/query/hooks/useActions", () => ({
-  useGestures: () => ({
-    data: {
-      pages: [
-        { items: mocks.otherRows.filter((row) => row.family === "gesture") },
-      ],
-    },
-  }),
+  useGestures: (input: unknown) => {
+    mocks.gestureInput(input);
+    return {
+      data: {
+        pages: [
+          { items: mocks.otherRows.filter((row) => row.family === "gesture") },
+        ],
+      },
+    };
+  },
   useReactions: () => ({
     data: {
       pages: [
@@ -140,6 +144,7 @@ beforeEach(() => {
   mocks.avatars = [];
   mocks.capabilities = undefined;
   mocks.poseInput.mockClear();
+  mocks.gestureInput.mockClear();
   mocks.open.mockClear();
   mocks.preview = null;
 });
@@ -147,6 +152,42 @@ describe("Library Poses", () => {
   beforeEach(() => {
     vi.stubGlobal("window", { localStorage: { getItem: () => "list" } });
   });
+  it("shows only the selected All subtype and disables unrelated family queries", () => {
+    const html = renderToString(
+      <LibraryContentInventory
+        search={normalizeContentLibrarySearch({ type: "poses" })}
+        onSearchChange={() => {}}
+      />,
+    );
+    expect(html).toContain('id="library-poses-heading"');
+    expect(html).not.toContain('id="library-gestures-heading"');
+    expect(html).not.toContain('id="library-avatars-heading"');
+    expect(mocks.poseInput).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true }),
+    );
+    expect(mocks.gestureInput).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
+  });
+
+  it("applies the Gesture motion filter under All", () => {
+    renderToString(
+      <LibraryContentInventory
+        search={normalizeContentLibrarySearch({
+          type: "gestures",
+          gestureMotion: "vrma",
+        })}
+        onSearchChange={() => {}}
+      />,
+    );
+    expect(mocks.gestureInput).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true, implementationKind: "vrma" }),
+    );
+    expect(mocks.poseInput).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
+  });
+
   it("renders Included and Local editing with no equipment or creation action", () => {
     const html = renderToString(
       <LibraryContentInventory

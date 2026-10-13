@@ -6,7 +6,7 @@ from collections.abc import Iterator
 import pytest
 
 from animama.app import gruut_text
-from animama.app.gruut_text import build_gruut_sse_text
+from animama.app.gruut_text import build_gruut_sse_text, gruut_prepares_text
 
 REPLY = "Some private reply."
 _STANDARD_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
@@ -60,3 +60,33 @@ def test_build_gruut_sse_text_never_logs_reply_text(gruut_records: list[logging.
         content = _logged_content(record)
         for fragment in (REPLY, "private", "reply"):
             assert fragment not in content
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "That's great! See you at 3:30.",
+        "That’s great! See you at 3:30.",
+        "I don’t know — maybe tomorrow.",
+        "Well… let me think.",
+        "See you soon, bye! 😊",
+        "42",
+    ],
+)
+def test_gruut_prepares_english_whatever_its_punctuation_and_symbols(text: str) -> None:
+    assert gruut_prepares_text(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "おはようございます。",
+        "안녕하세요.",
+        "你好。",
+        "¿Cómo estás?",
+        # A known limit: an accented loanword sends English as written too.
+        "I love this café.",
+    ],
+)
+def test_gruut_leaves_text_with_other_letters_as_written(text: str) -> None:
+    assert not gruut_prepares_text(text)

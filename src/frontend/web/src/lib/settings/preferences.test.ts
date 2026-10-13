@@ -2,16 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
-  DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  DEFAULT_ELEVENLABS_TTS_MODEL_ID,
   isParakeetWebgpuPreferred,
   mergePreferences,
   modelRolePatch,
   modelRolePreferencePath,
   readModelRoleId,
   normalizeThemeSetting,
-  resolveElevenLabsV3FinalizedChunking,
   resolvePreferences,
-  toElevenLabsV3FinalizedChunking,
+  toElevenLabsTtsModelId,
   toGeminiTtsModelId,
 } from "./preferences";
 
@@ -52,24 +51,27 @@ describe("Anima TTS provider", () => {
   );
 });
 
-describe("ElevenLabs v3 finalized chunking preferences", () => {
-  it("defaults and coerces saved audio grouping values", () => {
-    expect(DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING).toBe("paragraph");
-    expect(resolveElevenLabsV3FinalizedChunking(undefined)).toBe("paragraph");
-    expect(resolveElevenLabsV3FinalizedChunking("paragraph")).toBe("paragraph");
-    expect(toElevenLabsV3FinalizedChunking("chapter")).toBeNull();
+describe("ElevenLabs model preference", () => {
+  it("speaks with Eleven v4 Turbo", () => {
+    expect(DEFAULT_ELEVENLABS_TTS_MODEL_ID).toBe("eleven_v4_turbo");
+    expect(DEFAULT_ANIMAMA_PREFERENCES.speech?.tts_elevenlabs_model_id).toBe(
+      "eleven_v4_turbo",
+    );
   });
 
-  it("persists and restores the saved grouping value through preference merge", () => {
-    const merged = mergePreferences(DEFAULT_ANIMAMA_PREFERENCES, {
-      speech: {
-        tts_elevenlabs_v3_finalized_chunking: "paragraph",
-      },
-    });
+  it.each([
+    ["eleven_flash_v2_5", "eleven_v4_turbo"],
+    ["eleven_multilingual_v2", "eleven_v4_turbo"],
+    ["eleven_v3", "eleven_v4_turbo"],
+  ])("reads the retired model %s as %s", (saved, replacement) => {
+    expect(toElevenLabsTtsModelId(saved)).toBe(replacement);
+  });
 
-    expect(merged.speech?.tts_elevenlabs_v3_finalized_chunking).toBe(
-      "paragraph",
-    );
+  it("keeps the current model and rejects unknown ones", () => {
+    expect(toElevenLabsTtsModelId("eleven_v4_turbo")).toBe("eleven_v4_turbo");
+    expect(toElevenLabsTtsModelId("eleven_v4")).toBeNull();
+    expect(toElevenLabsTtsModelId("eleven_turbo_v2")).toBeNull();
+    expect(toElevenLabsTtsModelId(undefined)).toBeNull();
   });
 });
 
@@ -182,7 +184,7 @@ describe("Gemini TTS model preference", () => {
     expect(toGeminiTtsModelId("gemini-3.8-flash-tts")).toBe(
       "gemini-3.8-flash-tts",
     );
-    expect(toGeminiTtsModelId("eleven_v3")).toBeNull();
+    expect(toGeminiTtsModelId("eleven_v4")).toBeNull();
     expect(toGeminiTtsModelId(undefined)).toBeNull();
   });
 });

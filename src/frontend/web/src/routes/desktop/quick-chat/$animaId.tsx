@@ -187,11 +187,20 @@ function DesktopQuickChatRoute() {
               <CompanionSafetyView
                 notice={snapshot.safety.notice}
                 noticeVisible={snapshot.safety.noticeVisible}
+                crisis={null}
+                onDismissCrisis={() => {}}
+              />
+            ) : null
+          }
+          crisisSlot={
+            snapshot.safety?.crisis ? (
+              <CompanionSafetyView
+                notice={null}
+                noticeVisible={false}
                 crisis={snapshot.safety.crisis}
                 onDismissCrisis={() =>
                   sendCommand({ type: "dismiss-crisis-card" })
                 }
-                className="mt-2"
               />
             ) : null
           }

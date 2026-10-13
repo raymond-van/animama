@@ -1504,7 +1504,7 @@ test("unavailable speech worklet closes its actual Web Audio context and retains
       transport: "server",
       websocket_url: "/v1/voice/streams/fixture",
       voice_id: "voice",
-      model_id: "eleven_flash_v2_5",
+      model_id: "eleven_v4_turbo",
       output_format: "pcm_24000",
       sync_alignment: true,
     });
@@ -1620,7 +1620,7 @@ test("server speech opens a cookie-bound same-origin socket with the actual work
         transport: "server",
         websocket_url: "/v1/voice/streams/fixture",
         voice_id: "voice",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: false,
       });

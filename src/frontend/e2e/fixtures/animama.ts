@@ -250,19 +250,28 @@ export const test = base.extend<AnimamaFixtures>({
       return client;
     };
 
-    const cleanup = async () => {
-      const summary = await cleanupLedgerOwnedContent({
-        ledgerPath,
-        catalogClient: await catalogClient(),
-        localRoot,
-        repositoryRoot,
-        actor: "fixture",
+    // A timed-out explicit cleanup may still be running when teardown begins.
+    // Both callers must await the same ledger pass before closing its client.
+    let cleanupPromise: Promise<Record<string, unknown>> | null = null;
+    const cleanup = () => {
+      cleanupPromise ??= (async () => {
+        const summary = await cleanupLedgerOwnedContent({
+          ledgerPath,
+          catalogClient: await catalogClient(),
+          localRoot,
+          repositoryRoot,
+          actor: "fixture",
+        });
+        await writePrivateJson(cleanupSummaryPath, {
+          status: "complete",
+          fixture: summary,
+        });
+        return summary;
+      })().finally(() => {
+        // A later explicit cleanup may own content created after this pass.
+        cleanupPromise = null;
       });
-      await writePrivateJson(cleanupSummaryPath, {
-        status: "complete",
-        fixture: summary,
-      });
-      return summary;
+      return cleanupPromise;
     };
 
     const readPlannedOwnedItem = async (

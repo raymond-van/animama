@@ -180,9 +180,6 @@ class Settings(BaseModel):
     elevenlabs_concurrency_retry_delay_seconds: float = float(
         os.getenv("ELEVENLABS_CONCURRENCY_RETRY_DELAY_SECONDS", "1.5")
     )
-    elevenlabs_realtime_tts_default_model_id: str = (
-        _env_text("ANIMAMA_ELEVENLABS_REALTIME_TTS_DEFAULT_MODEL_ID") or "eleven_flash_v2_5"
-    )
     # Companion safety (spec R8). The global switch turns the AI notice, crisis
     # detection (including OpenAI Responses moderation) and the crisis card off together; the Companion
     # Guardrails in chat instructions are never configurable.

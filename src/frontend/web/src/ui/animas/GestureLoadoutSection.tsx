@@ -14,7 +14,7 @@ import type { PyGestureBinding } from "@animama/runtime-contracts/api-types";
 import type { PyGesture } from "@/lib/content/catalogTypes";
 import {
   presentUnifiedGestureList,
-  type CustomGestureCatalogPresentation,
+  type GestureCatalogPresentation,
   type GestureLoadoutPresentation,
   type UnifiedGestureListRow,
   type UnifiedGestureMotionFilter,
@@ -98,8 +98,8 @@ function GestureListRow({
     else if (row.gesture) onPreviewAvailable(row.gesture);
   };
   const equip = () => {
-    if (row.gesture) onEquip(row.gesture);
-    else if (row.starterId) onRestoreStarter(row.starterId);
+    if (row.starterId) onRestoreStarter(row.starterId);
+    else if (row.gesture) onEquip(row.gesture);
   };
   const unequip = () => {
     if (!row.binding) return;
@@ -214,12 +214,12 @@ function GestureListRow({
   );
 }
 
-/** Unified custom-first Gesture catalog with optional Starter visibility. */
+/** Full Gesture catalog with independent Included and Local visibility. */
 export function GestureLoadoutSection({
   presentation,
-  customCatalog,
-  customCatalogLoading,
-  customCatalogError,
+  catalog,
+  catalogLoading,
+  catalogError,
   mutationsDisabled,
   onPreview,
   onPreviewAvailable,
@@ -227,12 +227,12 @@ export function GestureLoadoutSection({
   onRemove,
   onDisableStarter,
   onRestoreStarter,
-  onRetryCustomCatalog,
+  onRetryCatalog,
 }: {
   presentation: GestureLoadoutPresentation;
-  customCatalog: CustomGestureCatalogPresentation;
-  customCatalogLoading: boolean;
-  customCatalogError: boolean;
+  catalog: GestureCatalogPresentation;
+  catalogLoading: boolean;
+  catalogError: boolean;
   mutationsDisabled: boolean;
   onPreview: (row: PyGestureBinding) => void;
   onPreviewAvailable: (gesture: PyGesture) => void;
@@ -240,11 +240,12 @@ export function GestureLoadoutSection({
   onRemove: (row: PyGestureBinding) => void;
   onDisableStarter: (row: PyGestureBinding) => void;
   onRestoreStarter: (starterId: string) => void;
-  onRetryCustomCatalog: () => void;
+  onRetryCatalog: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
-  const [showStarters, setShowStarters] = useState(true);
+  const [showIncluded, setShowIncluded] = useState(true);
+  const [showLocal, setShowLocal] = useState(true);
   const [updatesOnly, setUpdatesOnly] = useState(false);
   const [statusFilter, setStatusFilter] =
     useState<UnifiedGestureStatusFilter>("all");
@@ -256,8 +257,9 @@ export function GestureLoadoutSection({
     () =>
       presentUnifiedGestureList({
         presentation,
-        catalog: customCatalog,
-        showStarters,
+        catalog,
+        showIncluded,
+        showLocal,
         updatesOnly,
         status: statusFilter,
         motionType,
@@ -265,11 +267,12 @@ export function GestureLoadoutSection({
         query,
       }),
     [
-      customCatalog,
+      catalog,
       motionType,
       presentation,
       query,
-      showStarters,
+      showIncluded,
+      showLocal,
       sort,
       statusFilter,
       updatesOnly,
@@ -282,13 +285,22 @@ export function GestureLoadoutSection({
   }, [list.updateAvailableCount, updatesOnly]);
   useEffect(() => {
     setShowAllRows(false);
-  }, [motionType, query, showStarters, sort, statusFilter, updatesOnly]);
+  }, [
+    motionType,
+    query,
+    showIncluded,
+    showLocal,
+    sort,
+    statusFilter,
+    updatesOnly,
+  ]);
   const visibleRows = showAllRows
     ? list.rows
     : list.rows.slice(0, INITIAL_GESTURE_ROW_COUNT);
   const hasMoreRows = visibleRows.length < list.rows.length;
   const hasNonDefaultView =
-    !showStarters ||
+    !showIncluded ||
+    !showLocal ||
     updatesOnly ||
     statusFilter !== "all" ||
     motionType !== "all" ||
@@ -303,138 +315,155 @@ export function GestureLoadoutSection({
       onToggle={() => setExpanded((current) => !current)}
       sticky
       actions={
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant={hasNonDefaultView ? "secondary" : "outline"}
-                  aria-label="Filter and sort Gestures"
-                >
-                  <ListFilter />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              Filter and sort Gestures
-            </TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end" className="min-w-60">
-            <DropdownMenuLabel>Show</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem
-              checked={showStarters}
-              onCheckedChange={(checked) => setShowStarters(checked === true)}
-              onSelect={(event) => event.preventDefault()}
-            >
-              Show starters
-              <span className="text-muted-foreground ml-auto text-xs">
-                {list.starterCount}
-              </span>
-            </DropdownMenuCheckboxItem>
-            {list.updateAvailableCount ? (
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {list.equippedCount} equipped / {list.totalCount} total
+          </span>
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant={hasNonDefaultView ? "secondary" : "outline"}
+                    aria-label="Filter and sort Gestures"
+                  >
+                    <ListFilter />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={6}>
+                Filter and sort Gestures
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="min-w-60">
+              <DropdownMenuLabel>Show</DropdownMenuLabel>
               <DropdownMenuCheckboxItem
-                checked={updatesOnly}
-                onCheckedChange={(checked) => setUpdatesOnly(checked === true)}
+                checked={showIncluded}
+                onCheckedChange={(checked) => setShowIncluded(checked === true)}
                 onSelect={(event) => event.preventDefault()}
               >
-                Updates available only
+                Show included
                 <span className="text-muted-foreground ml-auto text-xs">
-                  {list.updateAvailableCount}
+                  {list.includedCount}
                 </span>
               </DropdownMenuCheckboxItem>
-            ) : null}
-
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Status</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={statusFilter}
-              onValueChange={(value) =>
-                setStatusFilter(value as UnifiedGestureStatusFilter)
-              }
-            >
-              <DropdownMenuRadioItem
-                value="all"
+              <DropdownMenuCheckboxItem
+                checked={showLocal}
+                onCheckedChange={(checked) => setShowLocal(checked === true)}
                 onSelect={(event) => event.preventDefault()}
               >
-                All
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="equipped"
-                onSelect={(event) => event.preventDefault()}
-              >
-                Equipped
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="unequipped"
-                onSelect={(event) => event.preventDefault()}
-              >
-                Unequipped
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Motion type</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={motionType}
-              onValueChange={(value) =>
-                setMotionType(value as UnifiedGestureMotionFilter)
-              }
-            >
-              <DropdownMenuRadioItem
-                value="all"
-                onSelect={(event) => event.preventDefault()}
-              >
-                All
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="vrma"
-                onSelect={(event) => event.preventDefault()}
-              >
-                VRMA
+                Show local
                 <span className="text-muted-foreground ml-auto text-xs">
-                  {list.motionTypeCounts.vrma}
+                  {list.localCount}
                 </span>
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="anima_clip"
-                onSelect={(event) => event.preventDefault()}
-              >
-                Clips
-                <span className="text-muted-foreground ml-auto text-xs">
-                  {list.motionTypeCounts.anima_clip}
-                </span>
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
+              </DropdownMenuCheckboxItem>
+              {list.updateAvailableCount ? (
+                <DropdownMenuCheckboxItem
+                  checked={updatesOnly}
+                  onCheckedChange={(checked) =>
+                    setUpdatesOnly(checked === true)
+                  }
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Updates available only
+                  <span className="text-muted-foreground ml-auto text-xs">
+                    {list.updateAvailableCount}
+                  </span>
+                </DropdownMenuCheckboxItem>
+              ) : null}
 
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={sort}
-              onValueChange={(value) => setSort(value as UnifiedGestureSort)}
-            >
-              <DropdownMenuRadioItem
-                value="custom-first"
-                onSelect={(event) => event.preventDefault()}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={statusFilter}
+                onValueChange={(value) =>
+                  setStatusFilter(value as UnifiedGestureStatusFilter)
+                }
               >
-                Custom first
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="name-asc"
-                onSelect={(event) => event.preventDefault()}
+                <DropdownMenuRadioItem
+                  value="all"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  All
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="equipped"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Equipped
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="unequipped"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Unequipped
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Motion type</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={motionType}
+                onValueChange={(value) =>
+                  setMotionType(value as UnifiedGestureMotionFilter)
+                }
               >
-                Name A–Z
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="name-desc"
-                onSelect={(event) => event.preventDefault()}
+                <DropdownMenuRadioItem
+                  value="all"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  All
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="vrma"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  VRMA
+                  <span className="text-muted-foreground ml-auto text-xs">
+                    {list.motionTypeCounts.vrma}
+                  </span>
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="anima_clip"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Clips
+                  <span className="text-muted-foreground ml-auto text-xs">
+                    {list.motionTypeCounts.anima_clip}
+                  </span>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={sort}
+                onValueChange={(value) => setSort(value as UnifiedGestureSort)}
               >
-                Name Z–A
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <DropdownMenuRadioItem
+                  value="custom-first"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Custom first
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="name-asc"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Name A–Z
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="name-desc"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Name Z–A
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       }
     >
       <div className="space-y-4">
@@ -476,37 +505,32 @@ export function GestureLoadoutSection({
                 </button>
               </div>
             ) : null}
-            {customCatalogLoading ? (
+            {catalogLoading ? (
               <p className="text-muted-foreground flex items-center justify-center gap-2 px-4 py-5 text-sm">
-                <Loader2 className="size-4 animate-spin" /> Loading custom
-                Gestures…
+                <Loader2 className="size-4 animate-spin" /> Loading Gestures…
               </p>
             ) : null}
-            {customCatalogError ? (
+            {catalogError ? (
               <div className="flex items-center justify-between gap-3 px-4 py-4 text-sm">
                 <p className="text-destructive">
-                  Custom Gestures could not be loaded.
+                  Gestures could not be loaded.
                 </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onRetryCustomCatalog}
-                >
+                <Button size="sm" variant="outline" onClick={onRetryCatalog}>
                   Retry
                 </Button>
               </div>
             ) : null}
-            {!customCatalogLoading &&
-            !customCatalogError &&
-            !list.rows.length ? (
+            {!catalogLoading && !catalogError && !list.rows.length ? (
               <p className="text-muted-foreground px-4 py-8 text-center text-sm">
                 {query.trim()
                   ? "No Gestures match your search."
                   : statusFilter !== "all" ||
                       motionType !== "all" ||
-                      updatesOnly
+                      updatesOnly ||
+                      !showIncluded ||
+                      !showLocal
                     ? "No Gestures match the selected filters."
-                    : "No custom Gestures available."}
+                    : "No Gestures available."}
               </p>
             ) : null}
           </div>

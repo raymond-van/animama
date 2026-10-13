@@ -8,6 +8,44 @@ import {
 } from "./librarySearch";
 
 describe("typed Library search", () => {
+  it("round-trips an All subtype without changing the main section", () => {
+    const search = contentLibrarySearchFromUrl(
+      new URL(
+        "https://app.test/library?type=poses&query=Salute&sort=updated&gestureMotion=vrma",
+      ),
+    );
+    expect(search).toEqual({ type: "poses", query: "Salute", sort: "name" });
+    expect(normalizeContentLibrarySearch(search)).toMatchObject({
+      section: "all",
+      type: "poses",
+    });
+    expect(shouldReplaceContentLibrarySearch({ type: "poses" })).toBe(false);
+  });
+
+  it("keeps relevant All gesture filters and drops its subtype when leaving All", () => {
+    expect(
+      compactContentLibrarySearch({
+        type: "gestures",
+        gestureMotion: "vrma",
+        gestureStatus: "equipped",
+      }),
+    ).toEqual({
+      type: "gestures",
+      gestureMotion: "vrma",
+      gestureStatus: "equipped",
+    });
+    expect(
+      compactContentLibrarySearch({
+        section: "fx",
+        type: "gestures",
+        gestureMotion: "vrma",
+        fx: "scene",
+      }),
+    ).toEqual({ section: "fx", fx: "scene" });
+    expect(compactContentLibrarySearch({ type: "all" })).toEqual({});
+    expect(compactContentLibrarySearch({ type: "unsupported" })).toEqual({});
+  });
+
   it("round-trips Poses and discards Gesture-only filters", () => {
     const search = contentLibrarySearchFromUrl(
       new URL(

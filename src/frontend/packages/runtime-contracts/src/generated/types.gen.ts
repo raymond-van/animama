@@ -3160,7 +3160,7 @@ export type PyAnimaTtsRunOptions = {
     /**
      * Model Id
      */
-    model_id?: 'eleven_multilingual_v2' | 'eleven_flash_v2_5' | 'eleven_v3' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
+    model_id?: 'eleven_v4_turbo' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
     /**
      * Provider
      */
@@ -4962,7 +4962,7 @@ export type PyElevenLabsTextToSpeechRequest = {
     /**
      * Model Id
      */
-    model_id?: string | null;
+    model_id?: 'eleven_v4_turbo';
     /**
      * Output Format
      */
@@ -5016,6 +5016,8 @@ export type PyElevenLabsVoice = {
 
 /**
  * PyElevenLabsVoiceSettings
+ *
+ * The voice settings Eleven v4 accepts; it has no Style, Speed or Speaker Boost.
  */
 export type PyElevenLabsVoiceSettings = {
     /**
@@ -5023,21 +5025,9 @@ export type PyElevenLabsVoiceSettings = {
      */
     similarity_boost?: number | null;
     /**
-     * Speed
-     */
-    speed?: number | null;
-    /**
      * Stability
      */
     stability?: number | null;
-    /**
-     * Style
-     */
-    style?: number | null;
-    /**
-     * Use Speaker Boost
-     */
-    use_speaker_boost?: boolean | null;
 };
 
 /**

@@ -3,6 +3,22 @@ import { contentInventoryGroups } from "./libraryContentInventory";
 import { normalizeContentLibrarySearch } from "./librarySearch";
 
 describe("typed Library inventory", () => {
+  it.each([
+    "avatars",
+    "gestures",
+    "reactions",
+    "poses",
+    "idle-styles",
+    "particle",
+    "avatar-effects",
+    "scene",
+    "sound",
+  ])("filters All to %s without moving to another section", (type) => {
+    const search = normalizeContentLibrarySearch({ type });
+    expect(search.section).toBe("all");
+    expect(contentInventoryGroups(search)).toEqual([type]);
+  });
+
   it("includes Poses in Actions All and limits the Poses view to its family", () => {
     expect(
       contentInventoryGroups(

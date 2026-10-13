@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import validation
-from validation_policy import UNTIMED, choose_plan
+from validation_policy import SUITES, UNTIMED, choose_plan
 
 
 class GitSelectionTests(unittest.TestCase):
@@ -84,6 +84,39 @@ class GitSelectionTests(unittest.TestCase):
             self.run_plan("pull_request", self.event(head))
             self.run_plan("workflow_dispatch", {})
         evidence.assert_not_called()
+
+    def outputs(self):
+        lines = (Path(self.directory.name) / "outputs").read_text().splitlines()
+        return dict(line.split("=", 1) for line in lines)
+
+    def test_step_outputs_follow_the_selected_suites(self):
+        for path in ("tests/test_example.py", "src/backend/animama/example.py", "uv.lock"):
+            self.write(path, "original\n")
+        self.base = self.commit("inputs")
+        for path, mode, promotion, groups, retention in (
+            ("tests/test_example.py", "selective", "false", "core", "3"),
+            ("src/backend/animama/example.py", "full", "true", "core,hosted,tooling", "14"),
+            ("uv.lock", "full", "true", "core,hosted,tooling", "14"),
+        ):
+            with self.subTest(path=path):
+                self.git("checkout", "-q", "--detach", self.base)
+                self.write(path, "changed\n")
+                head = self.commit(f"change {path}")
+                (Path(self.directory.name) / "outputs").unlink(missing_ok=True)
+                with patch("github_evidence.review_for_event", return_value={"accepted": False, "reason": "x"}):
+                    receipt = self.run_plan("pull_request", self.event(head))
+                self.assertEqual(receipt["plan"]["mode"], mode)
+                outputs = self.outputs()
+                self.assertEqual(
+                    (outputs["mode"], outputs["promotion"], outputs["browser-groups"], outputs["retention"]),
+                    (mode, promotion, groups, retention),
+                )
+                self.assertEqual(outputs["baseline"], self.base)
+        (Path(self.directory.name) / "outputs").unlink()
+        with patch("hosted_evidence.hosted_for_main", return_value={"accepted": False}):
+            self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
+        outputs = self.outputs()
+        self.assertEqual((outputs["mode"], outputs["promotion"], outputs["retention"]), ("full", "true", "14"))
 
     def test_complete_diff_includes_earlier_commits(self):
         self.write("docs/backend/a.md", "earlier\n")
@@ -178,12 +211,32 @@ class GitSelectionTests(unittest.TestCase):
                     "github_evidence.review_for_event", return_value={"accepted": reviewed, "reason": "fixture"}
                 ) as review:
                     receipt = self.run_plan(event_name, event)
-                self.assertEqual(receipt["plan"]["mode"], "backend" if reviewed is True else "full")
+                # A full PR run of an unpackaged test file skips the promotion suite.
+                unreviewed = "selective" if event_name == "pull_request" else "full"
+                self.assertEqual(receipt["plan"]["mode"], "backend" if reviewed is True else unreviewed)
                 review.assert_called_once()
                 self.assertEqual(review.call_args.kwargs["source_commit"], head)
                 self.assertEqual(review.call_args.kwargs["source_tree"], self.git("rev-parse", "HEAD^{tree}"))
                 self.assertEqual(review.call_args.kwargs["baseline"], self.base)
                 self.assertEqual(set(review.call_args.kwargs["required_checks"]), {"backend-full"})
+
+    def test_full_pr_selection_ignores_test_imports_but_not_special_files(self):
+        self.write("tests/test_example.py", "assert True\n")
+        self.write("tests/run_example.sh", "true\n")
+        self.base = self.commit("existing test")
+        self.write("tests/test_example.py", "import json\nassert json\n")
+        head = self.commit("test imports")
+        with patch("github_evidence.review_for_event", return_value={"accepted": False, "reason": "fixture"}):
+            receipt = self.run_plan("pull_request", self.event(head))
+        self.assertEqual(receipt["plan"]["mode"], "selective")
+        self.assertEqual([row["suite"] for row in receipt["plan"]["skipped"]], sorted(SUITES))
+        self.base = head
+        (self.root / "tests/run_example.sh").chmod(0o755)
+        self.git("add", "--chmod=+x", "tests/run_example.sh")
+        head = self.commit("executable helper")
+        with patch("github_evidence.review_for_event", return_value={"accepted": False, "reason": "fixture"}):
+            receipt = self.run_plan("pull_request", self.event(head))
+        self.assertEqual((receipt["plan"]["mode"], receipt["plan"]["skipped"]), ("full", []))
 
     def test_high_risk_path_and_explicit_full_do_not_consult_local_review(self):
         self.write("uv.lock", "version = 1\n")
@@ -381,8 +434,20 @@ class GateReceiptTests(unittest.TestCase):
         self.selection = self.root / "selection.json"
         self.selection.write_text(json.dumps({"plan": self.plan, "source_commit": "a" * 40, "source_tree": "b" * 40}))
         self.steps = {name: {"outcome": "success", "conclusion": "success"} for name in self.plan["required"]}
+        self.steps["package-artifacts"]["outputs"] = {"artifact-id": "300", "artifact-digest": "9" * 64}
+        self.set_dir = self.root / "public-artifacts"
+        self.set_dir.mkdir()
+        self.manifest = json.dumps({"source": {"commit": "a" * 40, "tree": "b" * 40}}).encode()
+        (self.set_dir / "manifest.json").write_bytes(self.manifest)
+        (self.set_dir / "validation.json").write_bytes(b'{"passed": true}')
+        self.browser = self.root / "browser-results.json"
+        self.write_browser(["core", "hosted", "tooling"])
         for name in set(self.plan["required"]) - UNTIMED:
             self.write_check(name)
+
+    def write_browser(self, groups, status="passed"):
+        files = [{"file": "a.browser.test.mjs", "group": "core", "lane": "prelude", "status": status, "seconds": 1}]
+        self.browser.write_text(json.dumps({"groups": groups, "wall_seconds": 1, "files": files}))
 
     def write_check(self, name, **changes):
         log = f"Synthetic unit-test command record for {name}\n".encode()
@@ -406,6 +471,9 @@ class GateReceiptTests(unittest.TestCase):
                     "CI_PLAN_PATH": str(self.selection),
                     "CI_STEPS": json.dumps(self.steps),
                     "CI_RESULTS_DIR": str(self.checks),
+                    "CI_PACKAGE_SET_DIR": str(self.set_dir),
+                    "CI_BASELINE_RECORD": str(self.root / "baseline-set.json"),
+                    "CI_BROWSER_RESULTS": str(self.browser),
                     "GITHUB_STEP_SUMMARY": str(self.root / "summary.md"),
                 },
             ),
@@ -413,6 +481,57 @@ class GateReceiptTests(unittest.TestCase):
         ):
             code = validation.gate(output)
         return code, json.loads(output.read_text())
+
+    def test_promotion_runs_record_their_uploaded_set(self):
+        (self.root / "baseline-set.json").write_text(json.dumps({"path": "retained", "run_id": 5}))
+        code, receipt = self.gate()
+        self.assertEqual(code, 0, receipt["reason"])
+        self.assertEqual(receipt["schema_version"], 3)
+        self.assertEqual(
+            receipt["package_set"],
+            {
+                "artifact_id": 300,
+                "artifact_digest": "sha256:" + "9" * 64,
+                "manifest_sha256": hashlib.sha256(self.manifest).hexdigest(),
+                "source": {"commit": "a" * 40, "tree": "b" * 40},
+                "consumer_receipt_sha256": hashlib.sha256(b'{"passed": true}').hexdigest(),
+                "promotion_suites": {name: "success" for name in sorted(SUITES["promotion"])},
+            },
+        )
+        self.assertEqual(receipt["baseline_set"], {"path": "retained", "run_id": 5})
+        (self.root / "baseline-set.json").write_text("{truncated")
+        code, receipt = self.gate()
+        self.assertEqual((code, receipt["reason"]), (1, "Malformed baseline set record"))
+        (self.root / "baseline-set.json").unlink()
+        for outputs in (
+            {},
+            {"artifact-id": "x", "artifact-digest": "9" * 64},
+            {"artifact-id": "1", "artifact-digest": "z"},
+        ):
+            self.steps["package-artifacts"]["outputs"] = outputs
+            code, receipt = self.gate()
+            self.assertEqual(code, 1)
+            self.assertNotIn("package_set", receipt)
+        self.steps["package-artifacts"]["outputs"] = {"artifact-id": "300", "artifact-digest": "9" * 64}
+        (self.set_dir / "manifest.json").unlink()
+        self.assertEqual(self.gate()[0], 1)
+
+    def test_browser_results_must_match_the_selected_groups(self):
+        self.assertEqual(self.gate()[0], 0)
+        for groups, status in ((["core"], "passed"), (["core", "hosted", "tooling"], "failed")):
+            self.write_browser(groups, status)
+            self.assertEqual(self.gate()[0], 1)
+        self.browser.unlink()
+        code, receipt = self.gate()
+        self.assertEqual((code, receipt["reason"]), (1, "Missing or malformed browser file results"))
+        self.steps["browser-tests"] = {"outcome": "failure", "conclusion": "failure"}
+        self.assertEqual(self.gate()[0], 1)
+
+    def test_runs_without_the_promotion_suite_record_no_set(self):
+        self.steps["package-artifacts"] = {"outcome": "skipped", "conclusion": "skipped"}
+        code, receipt = self.gate()
+        self.assertNotIn("package_set", receipt)
+        self.assertNotIn("baseline_set", receipt)
 
     def test_reused_gate_rejects_missing_or_mismatched_evidence(self):
         from hosted_evidence import WORKFLOW_PATH
@@ -429,6 +548,18 @@ class GateReceiptTests(unittest.TestCase):
             "artifact_digest": "sha256:" + "d" * 64,
             "run_url": "https://github.com/owner/repo/actions/runs/10",
             "workflow": WORKFLOW_PATH,
+            "tested_commit": "e" * 40,
+            "package_set": {
+                "artifact_id": 30,
+                "artifact_name": f"animama-set-{'e' * 40}-1",
+                "artifact_digest": "sha256:" + "f" * 64,
+                "expires_at": "2026-10-26T00:00:00Z",
+                "manifest_sha256": "1" * 64,
+                "source": {"commit": "e" * 40, "tree": "b" * 40},
+                "tested_commit_parents": ["c" * 40, "9" * 40],
+                "consumer_receipt_sha256": "2" * 64,
+                "promotion_suites": {name: "success" for name in sorted(SUITES["promotion"])},
+            },
         }
         selection = {
             "plan": selected,
@@ -438,7 +569,7 @@ class GateReceiptTests(unittest.TestCase):
             "source_tree": "b" * 40,
             "base": "c" * 40,
         }
-        for value in (None, {}, evidence | {"source_tree": "d" * 40}, evidence):
+        for value in (None, {}, evidence | {"source_tree": "d" * 40}, evidence | {"package_set": {}}, evidence):
             selection["hosted_evidence"] = value
             self.selection.write_text(json.dumps(selection))
             self.assertEqual(self.gate()[0], 0 if value == evidence else 1)

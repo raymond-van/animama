@@ -1793,11 +1793,7 @@ export const zPyAnimaTtsRunOptions = z.object({
         z.null()
     ])),
     model_id: z.optional(z.union([
-        z.enum([
-            'eleven_multilingual_v2',
-            'eleven_flash_v2_5',
-            'eleven_v3'
-        ]),
+        z.literal('eleven_v4_turbo'),
         z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']),
         z.null()
     ])),
@@ -2702,26 +2698,16 @@ export const zPyElevenLabsVoice = z.object({
 
 /**
  * PyElevenLabsVoiceSettings
+ *
+ * The voice settings Eleven v4 accepts; it has no Style, Speed or Speaker Boost.
  */
 export const zPyElevenLabsVoiceSettings = z.object({
     similarity_boost: z.optional(z.union([
         z.number().gte(0).lte(1),
         z.null()
     ])),
-    speed: z.optional(z.union([
-        z.number().gt(0).lte(4),
-        z.null()
-    ])),
     stability: z.optional(z.union([
         z.number().gte(0).lte(1),
-        z.null()
-    ])),
-    style: z.optional(z.union([
-        z.number().gte(0).lte(1),
-        z.null()
-    ])),
-    use_speaker_boost: z.optional(z.union([
-        z.boolean(),
         z.null()
     ]))
 });
@@ -2730,15 +2716,12 @@ export const zPyElevenLabsVoiceSettings = z.object({
  * PyElevenLabsTextToSpeechRequest
  */
 export const zPyElevenLabsTextToSpeechRequest = z.object({
-    model_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])).default('eleven_multilingual_v2'),
+    model_id: z.optional(z.literal('eleven_v4_turbo')).default('eleven_v4_turbo'),
     output_format: z.optional(z.union([
         z.string(),
         z.null()
     ])).default('mp3_44100_128'),
-    text: z.string().min(1).max(5000),
+    text: z.string().min(1).max(2000),
     voice_id: z.string().min(1),
     voice_settings: z.optional(z.union([
         zPyElevenLabsVoiceSettings,

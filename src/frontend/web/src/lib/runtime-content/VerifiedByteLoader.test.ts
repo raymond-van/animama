@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   VerifiedByteLoader,
+  verifyRuntimeBytes,
   type VerifiedByteMember,
 } from "./VerifiedByteLoader";
 
@@ -18,6 +19,16 @@ function member(payload: Uint8Array): VerifiedByteMember {
 }
 
 describe("VerifiedByteLoader", () => {
+  it("keeps exactly a view's verified bytes when its buffer is larger", async () => {
+    const buffer = new TextEncoder().encode("xxruntimeyy").buffer;
+    const view = new Uint8Array(buffer, 2, 7);
+
+    const verified = await verifyRuntimeBytes(member(view), view);
+    new Uint8Array(buffer).fill(0);
+
+    expect(await verified.blob.text()).toBe("runtime");
+  });
+
   it("deduplicates concurrent requests and verifies exact bytes", async () => {
     const payload = new TextEncoder().encode("runtime");
     const fetcher = vi.fn(

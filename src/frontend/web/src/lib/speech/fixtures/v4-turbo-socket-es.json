@@ -1,0 +1,149 @@
+{
+  "source": "ElevenLabs Text to Dialogue socket, eleven_v4_turbo, pcm_24000, sync_alignment=true. Each message keeps its audio sample count and alignment; the audio is omitted. Captured 2026-10-13 as the app sends: sentence chunks, a flush after the first.",
+  "text": "¡Hola! Hoy hace un día precioso. ¿Vamos a dar un paseo? ",
+  "messages": [
+    {
+      "samples": 759,
+      "alignment": null
+    },
+    {
+      "samples": 2277,
+      "alignment": null
+    },
+    {
+      "samples": 3795,
+      "alignment": null
+    },
+    {
+      "samples": 1518,
+      "alignment": {
+        "chars": ["¡", "H", "o", "l", "a"],
+        "char_start_times_ms": [0, 267, 300, 333, 367],
+        "char_durations_ms": [267, 33, 33, 34, 33]
+      }
+    },
+    {
+      "samples": 4554,
+      "alignment": {
+        "chars": ["!", " "],
+        "char_start_times_ms": [0, 160],
+        "char_durations_ms": [160, 0]
+      }
+    },
+    {
+      "samples": 537,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "samples": 759,
+      "alignment": {
+        "chars": ["H", "o"],
+        "char_start_times_ms": [0, 40],
+        "char_durations_ms": [40, 40]
+      }
+    },
+    {
+      "samples": 2277,
+      "alignment": {
+        "chars": ["y", " "],
+        "char_start_times_ms": [0, 40],
+        "char_durations_ms": [40, 40]
+      }
+    },
+    {
+      "samples": 3795,
+      "alignment": {
+        "chars": ["h"],
+        "char_start_times_ms": [0],
+        "char_durations_ms": [80]
+      }
+    },
+    {
+      "samples": 1518,
+      "alignment": {
+        "chars": ["a", "c", "e"],
+        "char_start_times_ms": [0, 107, 133],
+        "char_durations_ms": [107, 26, 27]
+      }
+    },
+    {
+      "samples": 6072,
+      "alignment": {
+        "chars": [" ", "u", "n", " "],
+        "char_start_times_ms": [0, 80, 100, 120],
+        "char_durations_ms": [80, 20, 20, 40]
+      }
+    },
+    {
+      "samples": 15180,
+      "alignment": {
+        "chars": ["d", "í", "a", " ", "p", "r", "e", "c"],
+        "char_start_times_ms": [0, 53, 107, 160, 240, 300, 360, 420],
+        "char_durations_ms": [53, 54, 53, 80, 60, 60, 60, 60]
+      }
+    },
+    {
+      "samples": 19734,
+      "alignment": {
+        "chars": [
+          "i",
+          "o",
+          "s",
+          "o",
+          ".",
+          " ",
+          "¿",
+          "V",
+          "a",
+          "m",
+          "o",
+          "s",
+          " "
+        ],
+        "char_start_times_ms": [
+          0, 100, 200, 300, 400, 560, 720, 800, 880, 900, 920, 940, 960
+        ],
+        "char_durations_ms": [
+          100, 100, 100, 100, 160, 160, 80, 80, 20, 20, 20, 20, 80
+        ]
+      }
+    },
+    {
+      "samples": 5313,
+      "alignment": {
+        "chars": ["a", " ", "d", "a", "r", " "],
+        "char_start_times_ms": [0, 53, 107, 124, 142, 160],
+        "char_durations_ms": [53, 54, 17, 18, 18, 80]
+      }
+    },
+    {
+      "samples": 6072,
+      "alignment": {
+        "chars": ["u", "n", " "],
+        "char_start_times_ms": [0, 20, 40],
+        "char_durations_ms": [20, 20, 40]
+      }
+    },
+    {
+      "samples": 9867,
+      "alignment": {
+        "chars": ["p", "a", "s", "e", "o", "?", " "],
+        "char_start_times_ms": [0, 160, 213, 267, 320, 400, 640],
+        "char_durations_ms": [160, 53, 54, 53, 80, 240, 0]
+      }
+    },
+    {
+      "samples": 453,
+      "alignment": null
+    },
+    {
+      "is_final_audio_for_turn": true
+    },
+    {
+      "is_final": true
+    }
+  ]
+}

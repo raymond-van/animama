@@ -1,5 +1,4 @@
-import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { Navigate, createFileRoute } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -9,12 +8,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
 import {
-  useLocalRuntime,
-  type LocalOnboardingInput,
-} from "@web/app/local-runtime/LocalRuntimeProvider";
-import {
-  clearSetupDraft,
   readSetupDraft,
   SETUP_STEPS,
   writeSetupDraft,
@@ -26,8 +21,6 @@ import {
   DISPLAY_NAME_MAX_LENGTH,
   normalizeLocalDisplayName,
 } from "@/lib/user-profile/display-name";
-import { queryKeys } from "@/query/keys";
-import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useUserSettings } from "@/query/hooks/useUserSettings";
 import { useMergeUserPreferences } from "@/query/mutations/useUpdateUserSettings";
 import { Button } from "@/ui/components/button";
@@ -42,15 +35,10 @@ import {
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import type { DesktopCredentialsController } from "@/ui/settings/DesktopCredentialsPanel";
-import {
-  modelConfigurationErrorCode,
-  modelSettingsAvailability,
-} from "@/ui/settings/models/model-configuration-state";
 import { SetupAiStep } from "@/app/local-runtime/setup/SetupAiStep";
 import { SetupVoiceStep } from "@/app/local-runtime/setup/SetupVoiceStep";
 import {
   adjacentSetupStep,
-  onboardingInput,
   resolveSetupTtsProvider,
   SETUP_STEP_LABELS,
   setupStepPosition,
@@ -62,16 +50,10 @@ export const Route = createFileRoute("/setup")({
 });
 
 function LocalSetupRoute() {
-  const { state, completeOnboarding } = useLocalRuntime();
+  const { state } = useLocalRuntime();
   if (state.status !== "ready") return null;
   if (state.firstRunComplete) return <Navigate to="/" replace />;
-  return (
-    <LocalSetupForm
-      key={state.principalId}
-      ownerId={state.principalId}
-      completeOnboarding={completeOnboarding}
-    />
-  );
+  return <LocalSetupForm key={state.principalId} ownerId={state.principalId} />;
 }
 
 const STEP_HEADINGS: Record<SetupStep, string> = {
@@ -93,19 +75,13 @@ const STEP_PURPOSE: Record<SetupStep, string | null> = {
 type LeaveAction = "back" | "continue" | "skip" | "finish";
 
 /**
- * Three-step first run: **Welcome** (name and 18+ confirmation, the only
- * required answers) → **AI** → **Voice**. The draft holds the step and
+ * Three-step first run: **Welcome** (private name) → **AI** → **Voice**. The draft holds the step and
  * nonsecret choices; keys save in place through the key panels, and leaving
  * a step with an unsaved key asks to save or discard it first. Downloads are
- * backend-owned, so they keep running after Finish.
+ * backend-owned, so they keep running after Finish. Age confirmation follows
+ * the wizard, before opening the first Anima.
  */
-function LocalSetupForm({
-  ownerId,
-  completeOnboarding,
-}: {
-  ownerId: string;
-  completeOnboarding: (input: LocalOnboardingInput) => Promise<void>;
-}) {
+function LocalSetupForm({ ownerId }: { ownerId: string }) {
   const [draft, setDraft] = useState(() => readSetupDraft(ownerId));
   const updateDraft = useCallback(
     (change: Partial<SetupDraft>) =>
@@ -119,19 +95,16 @@ function LocalSetupForm({
       }),
     [ownerId],
   );
-  const { step, displayName, adultConfirmed } = draft;
+  const { step, displayName } = draft;
   const normalizedName = normalizeLocalDisplayName(displayName);
-  const welcomeDone = Boolean(normalizedName) && adultConfirmed;
+  const welcomeDone = Boolean(normalizedName);
 
-  const capabilities = useRuntimeCapabilities();
-  const { modelConfiguration } = modelSettingsAvailability(capabilities.data);
   const userSettings = useUserSettings();
   const savedSpeech = userSettings.data?.preferences?.speech as
     | Parameters<typeof resolveSetupTtsProvider>[1]
     | undefined;
   const ttsProvider = resolveSetupTtsProvider(draft, savedSpeech);
   const mergePreferences = useMergeUserPreferences();
-  const queryClient = useQueryClient();
 
   // The mounted step's key panel: unsaved edits and an in-flight save.
   const credentials = useRef<DesktopCredentialsController>(null);
@@ -141,7 +114,6 @@ function LocalSetupForm({
   const [promptSaving, setPromptSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [declinedAge, setDeclinedAge] = useState(false);
 
   // Focus each step's heading after navigation, not on first render.
   const heading = useRef<HTMLHeadingElement>(null);
@@ -164,7 +136,7 @@ function LocalSetupForm({
   );
 
   const finish = async (withVoice: boolean) => {
-    if (!normalizedName || !adultConfirmed) return goTo("welcome");
+    if (!normalizedName) return goTo("welcome");
     setSubmitting(true);
     setError(null);
     try {
@@ -178,27 +150,10 @@ function LocalSetupForm({
       setSubmitting(false);
       return;
     }
-    try {
-      await completeOnboarding(
-        onboardingInput(draft, normalizedName, modelConfiguration),
-      );
-      clearSetupDraft(ownerId);
-      // The server may have written the Chat default and repinned starters.
-      for (const queryKey of [
-        queryKeys.settings.all(ownerId),
-        queryKeys.modelConfiguration.all(ownerId),
-        queryKeys.modelProviders.all(ownerId),
-      ])
-        void queryClient.invalidateQueries({ queryKey });
-    } catch (cause) {
-      setError(
-        modelConfigurationErrorCode(cause) === "chat_model_unavailable"
-          ? "The chosen model can no longer be used. Go back to AI and choose another, or skip it."
-          : "Setup could not be saved. Your local runtime may have completed it already; try again safely.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    // This marks only the wizard as finished. The next route still blocks
+    // application content until the owner confirms their age explicitly.
+    updateDraft({ awaitingAgeConfirmation: true });
+    setSubmitting(false);
   };
 
   const perform = (action: LeaveAction) => {
@@ -247,7 +202,7 @@ function LocalSetupForm({
       setError("Enter a display name between 1 and 80 characters.");
       return;
     }
-    if (adultConfirmed) goTo("ai");
+    goTo("ai");
   };
 
   const busy = submitting || keyBusy;
@@ -256,6 +211,8 @@ function LocalSetupForm({
     onKeyPendingChange: setKeyPending,
     onKeyBusyChange: setKeyBusy,
   };
+
+  if (draft.awaitingAgeConfirmation) return <Navigate to="/" replace />;
 
   return (
     <main className="bg-background text-foreground flex min-h-screen items-start justify-center px-4 py-10 sm:items-center sm:px-6 sm:py-12">
@@ -279,20 +236,10 @@ function LocalSetupForm({
           <form onSubmit={handleWelcome} className="space-y-6">
             <WelcomeStep
               displayName={displayName}
-              adultConfirmed={adultConfirmed}
-              declinedAge={declinedAge}
               autoFocus={!navigated.current}
               onNameChange={(value) => {
                 updateDraft({ displayName: value });
                 setError(null);
-              }}
-              onAdultChange={(checked) => {
-                updateDraft({ adultConfirmed: checked });
-                setDeclinedAge(false);
-              }}
-              onDecline={() => {
-                updateDraft({ adultConfirmed: false });
-                setDeclinedAge(true);
               }}
             />
             <SetupError error={error} />
@@ -443,23 +390,15 @@ function SetupProgress({ step }: { step: SetupStep }) {
   );
 }
 
-/** The required Welcome answers: a display name and the 18+ confirmation. */
+/** The private display name is the only required wizard answer. */
 function WelcomeStep({
   displayName,
-  adultConfirmed,
-  declinedAge,
   autoFocus,
   onNameChange,
-  onAdultChange,
-  onDecline,
 }: {
   displayName: string;
-  adultConfirmed: boolean;
-  declinedAge: boolean;
   autoFocus: boolean;
   onNameChange: (value: string) => void;
-  onAdultChange: (checked: boolean) => void;
-  onDecline: () => void;
 }) {
   return (
     <>
@@ -481,48 +420,6 @@ function WelcomeStep({
           onChange={(event) => onNameChange(event.target.value)}
         />
       </div>
-      <section
-        aria-labelledby="setup-age-heading"
-        className="border-border space-y-3 rounded-2xl border p-4"
-      >
-        <h2 id="setup-age-heading" className="text-sm font-medium">
-          Before you start
-        </h2>
-        <p className="text-muted-foreground text-sm">
-          Animas are AI companions, not people. Animama&apos;s AI companions may
-          not be suitable for some minors, so you must be 18 or older to use
-          Animama.
-        </p>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="adult-confirmed"
-            checked={adultConfirmed}
-            onChange={(event) => onAdultChange(event.target.checked)}
-          />
-          I am 18 or older
-        </label>
-        <Link
-          to="/safety"
-          className="text-muted-foreground block text-xs underline underline-offset-2"
-        >
-          Safety and crisis protocol
-        </Link>
-        {declinedAge ? (
-          <p className="text-sm" role="status">
-            Animama is only for adults 18 and older, so setup can&apos;t
-            continue.
-          </p>
-        ) : (
-          <button
-            type="button"
-            className="text-muted-foreground text-xs underline underline-offset-2"
-            onClick={onDecline}
-          >
-            I&apos;m under 18
-          </button>
-        )}
-      </section>
     </>
   );
 }

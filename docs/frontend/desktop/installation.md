@@ -39,8 +39,8 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
 3. Let Animama prepare its private database. No local account, password or hosted
    Animama account is required. One internal installation owner is generated
    automatically and retained across restarts.
-4. Setup has three steps. **Welcome** asks what Animama should call you and
-   for the 18+ confirmation; a nonblank name is private personalization, not a
+4. Setup has three steps. **Welcome** asks what Animama should call you;
+   a nonblank name is private personalization, not a
    username or credential.
 5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI or
    Anthropic with your key, or another provider) or **Local** (a running
@@ -52,8 +52,8 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
 6. **Voice** offers Parakeet speech recognition downloads (CPU, and GPU
    acceleration) and the Text-to-Speech provider: built-in PocketTTS, on by
    default, or ElevenLabs with its key. Nothing downloads unless you choose it,
-   and downloads keep going after you finish. Choose **Finish** to
-   open Annie's chat. Later launches open the last Anima you visited, or the
+   and downloads keep going after you finish. Choose **Finish**, then confirm
+   that you are 18 or older in the short modal before Annie's chat opens. Later launches open the last Anima you visited, or the
    first available Anima if that Anima has been deleted.
 
 Fresh installations create Annie and Caitlyn. Starter defaults do not overwrite

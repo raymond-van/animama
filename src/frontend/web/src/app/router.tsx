@@ -1,7 +1,8 @@
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
+import { useAdmittedRouter } from "./admitted-router";
 import { useRuntimeAdmission } from "./runtime/RuntimeAdmissionProvider";
 import type { AppRouterContext } from "./router-context";
 import { AdmissionScreen } from "./runtime/AdmissionScreen";
@@ -22,6 +23,10 @@ export function createAppRouter(context: AppRouterContext) {
   });
 }
 
+function createSessionRouter(queryClient: QueryClient) {
+  return createAppRouter({ queryClient });
+}
+
 declare module "@tanstack/react-router" {
   interface Register {
     router: ReturnType<typeof createAppRouter>;
@@ -39,7 +44,12 @@ export function AppRouter() {
   const queryClient = useQueryClient();
   const capabilities =
     admission.status === "ready" ? admission.capabilities : undefined;
-  const router = useMemo(() => createAppRouter({ queryClient }), [queryClient]);
+  const router = useAdmittedRouter(
+    createSessionRouter,
+    queryClient,
+    // The file-error screen replaces the router; it need not exist meanwhile.
+    admission.status === "ready" && !appFileError,
+  );
   const isDesktopAuxiliaryWindow =
     platform.kind === "desktop" &&
     (platform.desktopBridge.windowRole === "pip" ||
@@ -76,6 +86,8 @@ export function AppRouter() {
     );
   }
 
+  // A ready admission always has its router; it is built during this render.
+  if (!router) return null;
   return (
     <RouterProvider
       router={router}

@@ -1,8 +1,8 @@
 /**
  * Stable speech error code (contracts/hosted-web.md): the owner's voice
- * allowance cannot cover this reply's provider speech. It arrives on a
- * `tts.session.error` or `tts.error` frame, and no provider audio was produced
- * for the reply.
+ * allowance cannot cover this reply's provider speech, and no provider audio
+ * was produced for it. ElevenLabs speech is realtime, so its decline arrives on
+ * a `tts.session.error` frame; a finalized provider's arrives on `tts.error`.
  */
 export const SPEECH_ALLOWANCE_EXHAUSTED = "speech_allowance_exhausted";
 

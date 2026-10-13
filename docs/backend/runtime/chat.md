@@ -120,11 +120,11 @@ The model catalog separates complete `native_tool_support` from
 `apply_patch` are activated by server policy and remain invalid as explicit
 request options.
 When TTS is enabled, `dispatch_options.tts` can carry explicit provider intent.
-For ElevenLabs, `model_id="eleven_v3"` selects backend-pushed finalized audio;
-`provider="gemini"` always does, with a Gemini TTS `model_id`. The optional
-`finalized_chunking` field accepts `"sentence"` or `"paragraph"` and applies
-only to finalized audio; omitted or unsupported combinations behave as
-`"sentence"`.
+ElevenLabs always speaks in realtime with `eleven_v4_turbo`;
+`provider="gemini"` selects backend-pushed finalized audio, with a Gemini TTS
+`model_id`. The optional `finalized_chunking` field accepts `"sentence"` or
+`"paragraph"` and applies only to finalized audio; omitted or unsupported
+combinations behave as `"sentence"`.
 
 ## Shared Model-Client Layer
 
@@ -325,6 +325,11 @@ Normal chat emits `response_format="main_structured_json"` and uses
 `user.response` frames. Those visible parts may arrive as sentence-level stream
 chunks with `is_delta=true`, increasing `part_index` values scoped to the
 response part, and `part_final=true` on the final chunk or final empty marker.
+A sentence ends at ASCII `.!?` followed by whitespace, except after common
+abbreviations, initials and list numbers. It also ends at Japanese or Chinese
+`。！？`, with any following marks and closing brackets or quotes. That end waits
+for the next character that is not a mark or closer, so a run streamed one mark
+at a time stays with its sentence (`domain/text_segmenter.py`).
 The hidden `emotional_tone` event is emitted only after both
 `emotional_tone` and `emotional_intensity` have been decoded, so request-local
 state receives the paired delivery metadata before speech chunks arrive. The
@@ -336,48 +341,46 @@ from the streamed chunks, the backend emits a full/correction frame with
 `is_delta=false` and `part_final=true`. The tone and intensity parts are
 backend-internal and filtered before `user.response` SSE reaches the browser.
 Missing or blank tone metadata falls back to `neutral`; values outside the
-allowlist are logged and ignored for Eleven v3 prefixing and durable emotion
-updates. Gruut tokenization and phonemization are attached to speakable `speech`
+allowlist are logged and ignored for Gemini's speaking style and durable
+emotion updates. Gruut tokenization and phonemization are attached to speakable `speech`
 text, not display-only text or tone metadata.
 
-When a run requests ElevenLabs `eleven_v3`, each main-structured `speech`
-segment is still prepared with gruut and exposed as sentence-level
-`user.response` metadata as soon as it is emitted. Empty `part_final=true`
-speech markers close the segment stream without adding audio text. If semantic
-deltas were unavailable, one complete non-delta `speech` fallback is queued; if
-a complete correction arrives after speech deltas have already been queued, it
-updates visible text only and is not re-spoken.
+When a run requests TTS, each main-structured `speech` segment is exposed as
+sentence-level `user.response` metadata as soon as it is emitted. Segments whose
+letters are all ASCII (English) are prepared with gruut; other segments, or any
+segment when gruut is unavailable, are spoken as written. Empty
+`part_final=true` speech markers close the segment stream without adding audio
+text. If semantic deltas were unavailable, one complete non-delta `speech`
+fallback is queued; if a complete correction arrives after speech deltas have
+already been queued, it updates visible text only and is not re-spoken.
 
-Finalized v3 TTS starts as soon as both the hidden `emotional_tone` and the
-first prepared speech segment are available. In default `"sentence"` chunking,
-each prepared speech segment becomes one upstream finalized TTS request and
-only the first request may receive the backend-only emotional prefix. In
-`"paragraph"` chunking, sentence-level SSE stays unchanged while backend audio
-accumulates segments by paragraph, flushing when a new paragraph starts, when a
-batch reaches four sentence segments, when it reaches about 600 visible
-characters, or when the speech stream closes. Paragraph batches are rebuilt
-from visible sentence text and re-prepared through gruut before ElevenLabs sees
-them, and every paragraph batch may receive the backend-only emotional prefix.
-Before each paragraph batch after the first, the backend inserts a 400 ms silent
-PCM `tts.audio` frame so adjacent paragraph utterances do not play back-to-back.
+ElevenLabs speaks these segments in realtime through the browser's
+`tts.session` socket. Gemini speech is finalized: the backend starts it as soon
+as both the hidden `emotional_tone` and the first speech segment are available,
+through the composition's `ChatTurnServices.gemini_speech` port, which the turn
+reads only when the run asks for Gemini; where the port is `None` the run gets
+no speech frames.
 
-Finalized v3 audio batches are streamed back as the existing `tts.audio` frames.
-The backend emits exactly one `tts.done` after the last batch completes. If
-segment setup or upstream audio streaming fails, the backend emits `tts.error`,
-stops v3 synthesis, skips `tts.done`, and still lets the chat run finish with
-`run.completed`. Eleven v3 requests omit `previous_text` and `next_text`
-because the live API rejects those continuity fields. The backend coalesces
-upstream PCM bytes into larger `tts.audio` frames before sending them over SSE
-so the frontend does not need to schedule many tiny audio buffers. The frontend
-`tts_text`, `tts_phonemized_text`, chat text, and avatar viseme inputs remain
-untagged, and no paragraph-specific fields are added to public SSE events.
+- **Sentence chunking**, the default, makes each prepared speech segment one
+  upstream request.
+- **Paragraph chunking** keeps sentence-level SSE unchanged while backend audio
+  accumulates segments by paragraph, flushing when a new paragraph starts, when
+  a batch reaches four sentence segments, when it reaches about 600 visible
+  characters, or when the speech stream closes. Paragraph batches are rebuilt
+  from visible sentence text; English batches are re-prepared through gruut.
+  Before each paragraph batch after the first, the backend inserts a 400 ms
+  silent PCM `tts.audio` frame so adjacent paragraph utterances do not play
+  back-to-back.
 
-Gemini speech runs through the same finalized flow, batching, pause frames and
-ordering, using the composition's `ChatTurnServices.gemini_speech` port, which
-the turn reads only when the run asks for Gemini; where the port is `None` the
-run gets no speech frames. Where Eleven v3 tags only the first sentence request
-(or each paragraph), every Gemini request carries the same speaking style built
-from the tone and level. Gemini frames and error codes name `gemini`. See
+Every Gemini request carries the same speaking style built from the tone and
+level. Audio batches stream back as `tts.audio` frames; the backend coalesces
+upstream PCM bytes into larger frames so the frontend does not need to schedule
+many tiny audio buffers, and emits exactly one `tts.done` after the last batch.
+If setup or upstream streaming fails, it emits `tts.error`, stops synthesis,
+skips `tts.done`, and still lets the chat run finish with `run.completed`. The
+frontend `tts_text`, `tts_phonemized_text`, chat text, and avatar viseme inputs
+carry no tone tag, and no paragraph-specific fields are added to public SSE
+events. Frames and error codes name `gemini`. See
 [voice and speech](../integrations/voice-and-speech.md#gemini-tts).
 
 `emotion.update` frames include the event ID, run ID, direct chat node ID, and
