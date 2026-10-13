@@ -11,8 +11,8 @@ fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
 published 2026-10-09 and updated with the before-Plan-2 decisions, the
-Plan 2 R9 additions, the owner's Plan 2 review and the Plan 3 R16 trim (read
-back at 2026-10-13T18:01:41Z). This file is a snapshot of that issue text; refresh it
+Plan 2 R9 additions, the owner's Plan 2 review, the Plan 3 R16 trim and the
+Plan 3 design decisions (read back at 2026-10-13T19:44:59Z). This file is a snapshot of that issue text; refresh it
 from the issue before resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
@@ -625,6 +625,22 @@ Decisions (owner, before Plan 2):
   the emotion backgrounds; Heart Burst plays smaller at the chest with fewer
   small hearts, and caring-3 drops its chest Heart Throb.
 
+- **Plan 3 design (owner, 2026-10-12 and 2026-10-13).** Both creators open in
+  Simple; a Simple | Advanced switch in the toolbar changes both panels, and
+  Advanced is today's panels. Particle controls are proportional by layer:
+  Amount keeps single-particle layers single, Size is particle size, Spread
+  scales the footprint, Speed is tempo, and the particle budget auto-fits up
+  to 512. The colour theme (Original, Rose, Gold, Mint, Sky, Violet, White)
+  recolours the textures and emitter colours together, saving recoloured
+  textures as the effect's own. Scene Simple edits each distinct colour and
+  the stickers, with one Speed control (R16 trim). Simple controls compute
+  from a reference that an Advanced edit resets; a reopened effect starts
+  from the effect as saved. Particle templates are the 16 Included effects
+  grouped by mechanic; Scene templates are the 24 backgrounds by family plus
+  the two focus presets; thumbnails are renders on Annie in per-kind
+  folders. `hearts-v1` is displayed as Heart Stream (ID and behaviour
+  unchanged).
+
 Open: none.
 
 ## Spec
@@ -638,10 +654,12 @@ Plan 1 (R1–R8):
 [particle-scene-effects-execplan.md](particle-scene-effects-execplan.md).
 Plan 2 (R9–R14):
 [particle-scene-effects-content-execplan.md](particle-scene-effects-content-execplan.md).
-Plan 3 (R15–R17) is written after Plan 2 merges.
+Plan 3 (R15–R17):
+[particle-scene-effects-creators-execplan.md](particle-scene-effects-creators-execplan.md).
 
 ## Delivery links
 
 Parent: [#297](https://github.com/raymond-van/animama/issues/297). Plan 1
-phases: #386–#394. Related:
+phases: #386–#394. Plan 2 phases: #443–#449, #466 (PR #463). Plan 3 phases:
+#488–#493. Related:
 [#298](https://github.com/raymond-van/animama/issues/298).

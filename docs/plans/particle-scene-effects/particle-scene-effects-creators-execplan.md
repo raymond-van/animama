@@ -2,12 +2,12 @@
 
 Source agreement: [#297](https://github.com/raymond-van/animama/issues/297)
 (snapshot: [particle-scene-effects-spec.md](particle-scene-effects-spec.md),
-matching the issue's requirement text at 2026-10-13T18:01:41Z, after the R16
-trim), requirements R15–R17 and the Constraints, with the owner's Plan 3
-design decisions of 2026-10-12 and 2026-10-13 (Decision Log). Preparation
-publishes the remaining decisions to #297.
-Authorized scope: planning only. The owner asked for this plan and its phase
-issues, then a stop for review (2026-10-12). No phase is authorized yet.
+matching the issue at 2026-10-13T19:44:59Z, with the R16 trim and the Plan 3
+design decisions published), requirements R15–R17 and the Constraints, with
+the owner's Plan 3 design decisions of 2026-10-12 and 2026-10-13 (Decision
+Log).
+Authorized scope: P1–P4 (owner, 2026-10-13, with every agent proposal
+accepted). P5 and P6 wait for the owner's go-ahead; gates G1 and G2 apply.
 Starting revision: `95a2db39` (`main` after Plan 2, #463).
 Branch: `feat/particle-scene-creators`, in a dedicated task worktree. One
 branch and one PR for this plan. The PR closes #297 and every phase issue.
@@ -125,7 +125,7 @@ Mint, Sky, Violet and White. The swatch list is an agent proposal.
   itself. A reopened effect shows its result with the controls back at 100 %
   and Original. Within a session, the control positions are part of the
   editor draft, so undo, redo and recovery restore them.
-- **Reference and rebase (agent proposal, pending plan review).** Simple
+- **Reference and rebase (accepted 2026-10-13).** Simple
   numeric controls and the colour theme compute from a reference: the effect
   as it was when a Simple control was first used after opening or after the
   last Advanced edit. This is exact, so moving a control back to 100 % or
@@ -195,12 +195,12 @@ Line numbers drift as work proceeds.
       decisions.
 - [x] Phase issues #488–#493 created as sub-issues of #297 with their
       dependencies (2026-10-12, read back).
-- [x] Paused by the owner after the plan and issues (2026-10-12). The
-      planning stack `p3creators` is stopped with its data kept. Resume with
-      the owner's plan review.
-- [ ] Owner review of the plan; phase authorization.
-- [ ] Preparation: decisions published to #297 and read back; spec snapshot
-      refreshed.
+- [x] Paused by the owner after the plan and issues (2026-10-12).
+- [x] Owner review of the plan: P1–P4 authorized and every agent proposal
+      accepted (2026-10-13).
+- [x] Preparation (2026-10-13): `main` (`7a25aa34`) merged into the branch;
+      decisions and Plan 3 links published to #297 and read back
+      (2026-10-13T19:44:59Z); spec snapshot refreshed.
 - [ ] P1 — Template catalogue and rendered thumbnails (R17). #488
 - [ ] P2 — Starting from a template (R17). #489
 - [ ] P3 — Simple mode and the Particle broad controls (R15). #490
@@ -267,7 +267,10 @@ Line numbers drift as work proceeds.
   - **REOPEN:** a reopened effect starts from the effect as saved, with the
     controls back at 100 % and Original.
   - **P-GROUP:** Particle templates are grouped by mechanic.
-- 2026-10-12, agent proposals, pending the owner's plan review:
+- 2026-10-13, owner: authorized P1–P4 and accepted every agent proposal
+  below (reference and rebase, Heart Stream, swatches, ranges and groups,
+  thumbnail folders and focus templates).
+- 2026-10-12, agent proposals (accepted 2026-10-13):
   - **Reference and rebase** (see Simple control behaviour). The alternative,
     multiplying current values step by step, lets rounded burst counts drift
     and cannot restore Original art exactly.
@@ -378,7 +381,7 @@ one open a draft with art.
    - the thumbnail folder README, `art-NOTICES.md`, the desktop
      `license-sources.json` entry and the attribution notice widened from
      Avatar FX to effect template thumbnails.
-6. **Heart Stream** (only if approved): the `hearts-v1` descriptor's name and
+6. **Heart Stream** (approved 2026-10-13): the `hearts-v1` descriptor's name and
    description, with the Included catalog and integrity tests.
 
 Checks:
