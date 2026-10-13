@@ -196,17 +196,15 @@ CSS styles, animation, embedded images and external references are rejected on
 Save.
 Focus Lines exposes render placement, procedural geometry, Avatar-face or
 normalized manual-box targeting, flicker animation and style controls.
-Selecting a built-in template updates the editable draft. The background
-templates, one per Scene family (Shoujo Bloom, Radiance, Festive Pop,
-Anticipation, Shock, Rage, Queasy and Gloom), take their family's Included
-emotion background's solid, pattern, gradient, rays or lines and flash, read
-at build time; they start without that effect's images. The focus templates
-are the bundled `dark` and `light-streak` presets. The picker offers the 24
-Included emotion backgrounds by family and the two Included focus presets,
-with rendered thumbnails; `/scene-effects/new?template=<stem>` starts a new,
-unsaved draft named after the chosen item. For now the draft takes the
-starting template of the background's family (or the focus preset), without
-the Included item's images.
+The picker offers the 24 Included emotion backgrounds by family and the two
+Included focus presets, with rendered thumbnails;
+`/scene-effects/new?template=<stem>` copies the chosen item's definition and
+every image into a new, unsaved Local draft with an unused name, recovered
+under `new:template:<stem>` with the shared continue-or-discard choice. The
+Setup panel's Starting template list offers the same templates for the current
+kind; choosing one starts the draft over from that item as one undoable step:
+it takes the item's kind, timing, behaviour, layers and images, and keeps the
+draft's name, description and sound.
 
 The portable `animama/scene-effect-editor/1` JSON contains logical image names
 and exact Sound sources only. It never contains Blob URLs, download URLs, or

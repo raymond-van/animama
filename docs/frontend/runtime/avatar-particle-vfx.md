@@ -128,8 +128,10 @@ Animama-owned authoring surface. New Particle Effects start from the Effects
 template picker (the sidebar Create menu's **Effects** item, the Create page's
 Particle FX card or `/effects/new`), which offers Start from scratch and the
 16 Included Particle Effects as templates. A template opens
-`/particle-effects/new?template=<stem>`; the creator does not load the
-template's settings yet and opens blank. The editor creates a direct Particle Effect
+`/particle-effects/new?template=<stem>`, which copies the Included effect's
+settings and every texture into a new, unsaved Local draft with an unused name
+(for example "Heart Burst 1"), recovered under `new:template:<stem>` with the
+shared continue-or-discard choice. The editor creates a direct Particle Effect
 document, selects its bounded resources, previews it in its isolated Canvas,
 and saves one editable Local entry.
 

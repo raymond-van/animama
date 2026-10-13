@@ -23,6 +23,7 @@ import {
   createSceneEffectHistorySnapshot,
   equalSceneEffectHistorySnapshots,
   sceneEffectHistoryEdit,
+  sceneEffectTemplateEdit,
 } from "@/ui/scene-effect-creator/sceneEffectCreatorBehavior";
 import {
   useCreatorDocumentHistory,
@@ -254,6 +255,87 @@ describe("creator document history", () => {
       expect(editor.getSnapshot().imageResources[0]?.file).toBe(file);
       editor.history.redo();
       expect(editor.getSnapshot().imageResources).toEqual([]);
+    });
+
+    it("applies a loaded template as one step whose undo restores the previous images", () => {
+      const editor = create();
+      const image = (name: string) => {
+        const file = new File([name], name, { type: "image/png" });
+        return {
+          resource: { logicalName: name, file, sha256: `${name}-hash` },
+          metadata: {
+            logicalName: name,
+            originalName: name,
+            contentType: file.type,
+            sizeBytes: file.size,
+            sha256: `${name}-hash`,
+          },
+        };
+      };
+      const sparkle = image("sparkle.png");
+      editor.update(
+        sceneEffectHistoryEdit({ type: "patch", patch: { name: "Mine" } }),
+      );
+      editor.update(
+        sceneEffectHistoryEdit(
+          {
+            type: "set-marquee-items",
+            items: [
+              {
+                id: "sparkle",
+                kind: "image",
+                label: "Sparkle",
+                image: sparkle.metadata,
+              },
+            ],
+          },
+          [sparkle.resource],
+        ),
+      );
+      const before = editor.getSnapshot();
+      const tile = image("bokeh-tile.png");
+      const templateDocument = createDefaultSceneEffectDocument();
+      templateDocument.name = "Emotion Love 1";
+      templateDocument.durationMs = null;
+      templateDocument.background.tile = {
+        ...templateDocument.background.tile,
+        enabled: true,
+        image: tile.metadata,
+      };
+
+      editor.update(
+        sceneEffectTemplateEdit({
+          document: templateDocument,
+          imageResources: [tile.resource],
+        }),
+      );
+
+      const applied = editor.getSnapshot();
+      expect(applied.document).toMatchObject({
+        name: "Mine",
+        durationMs: null,
+      });
+      expect(applied.document.background.tile.image).toEqual(tile.metadata);
+      expect(applied.document.background.marquee.items).toEqual([]);
+      expect(applied.imageResources.map((resource) => resource.file)).toEqual([
+        tile.resource.file,
+      ]);
+      editor.history.undo();
+      expect(editor.getSnapshot()).toEqual(before);
+      expect(editor.getSnapshot().imageResources[0]?.file).toBe(
+        sparkle.resource.file,
+      );
+      // The marquee edit is the step before: the template was one step.
+      editor.history.undo();
+      expect(editor.getSnapshot().document.background.marquee.items).toEqual(
+        [],
+      );
+      expect(editor.getSnapshot().document.name).toBe("Mine");
+      editor.history.redo();
+      editor.history.redo();
+      expect(editor.getSnapshot().imageResources[0]?.file).toBe(
+        tile.resource.file,
+      );
     });
 
     it("allows undoing an import and ignores value-equal edits", () => {

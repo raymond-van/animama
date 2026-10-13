@@ -8,8 +8,9 @@ semantics are in [three-quarks.md](three-quarks.md); playback in Actions is in
 
 In the app, new effects start from the Effects template picker (sidebar Create
 → **Effects**, then **Particle FX**), which offers Start from scratch and the
-Included Particle Effects as templates (a template does not yet load its
-settings; the creator opens blank). Use `/particle-effects/new` for a blank document and
+Included Particle Effects as templates (a template opens an unsaved Local copy
+of that effect, textures included, named for example "Heart Burst 1"). Use
+`/particle-effects/new` for a blank document and
 `/particle-effects/$particleEffectId/edit` for an existing catalog item. The edit
 parameter is the item ID, not the Quarks runtime ID or effect name. Use the creator
 Load picker or Library entry to obtain the correct item. The route owns an

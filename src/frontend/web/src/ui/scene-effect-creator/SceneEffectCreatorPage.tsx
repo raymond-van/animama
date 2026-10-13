@@ -1,7 +1,6 @@
 "use client";
 
 import { useProductApiClient } from "@animama/product-ui";
-import type { Client } from "@animama/runtime-contracts/sdk";
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
 
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
@@ -18,31 +17,30 @@ import {
   PlusIcon,
   SparklesIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
-import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
-import { createUniqueContentName } from "@/lib/content/uniqueContentName";
-import { previewSoundForCopy } from "@/lib/content/previewSound";
+import { previewCatalogItem } from "@/lib/content/catalogApi";
 import {
+  effectTemplateGroups,
   findSceneEffectTemplate,
-  type SceneEffectTemplateGroup,
 } from "@/lib/effects/effectTemplates";
 import type {
   PyContentPreview,
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
 import { Avatar } from "@/lib/avatar";
-import { fetchContentPreviewFile } from "@/lib/content/contentPreview";
-import { sha256File } from "@/lib/content/contentUploads";
-import { findLogicalResourceFile } from "@/lib/content/typedLogicalResources";
 import {
-  applySceneEffectTemplate,
   buildSceneEffectEditorExport,
   createDefaultSceneEffectDocument,
-  createSceneEffectDocumentFromDefinition,
   parseSceneEffectEditorExport,
-  SCENE_EFFECT_TEMPLATE_OPTIONS,
   sceneEffectEditorReducer,
   sceneEffectImageMetadata,
   defaultSceneScatter,
@@ -51,11 +49,9 @@ import {
   validateSceneEffectDocument,
   type SceneEffectEditorDocument,
   type SceneEffectEditorBackground,
-  type SceneEffectEditorImage,
   type SceneEffectEditorImageResource,
   type SceneEffectEditorMarqueeItem,
   type SceneEffectImageTarget,
-  type SceneEffectTemplateId,
 } from "@/lib/scene-vfx/editor";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { SCENE_EFFECT_LIMITS } from "@/lib/scene-vfx/limits";
@@ -110,7 +106,9 @@ import { Switch } from "@/ui/components/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
@@ -125,8 +123,13 @@ import {
   sceneEffectCreatorKeyboardAction,
   sceneEffectHistoryEdit,
   sceneEffectSnapshotFingerprint,
+  sceneEffectTemplateEdit,
   type SceneEffectHistorySnapshot,
 } from "./sceneEffectCreatorBehavior";
+import {
+  hydrateSceneEffect,
+  loadSceneEffectTemplate,
+} from "./sceneEffectCatalogDocument";
 import {
   ColorField,
   FlashInspector,
@@ -204,11 +207,19 @@ export function SceneEffectCreatorPage({
   const [imageUrls, setImageUrls] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
-  /** The template this draft started from, shown in Setup; null for Custom. */
-  const [startingTemplate, setStartingTemplate] =
-    useState<SceneEffectTemplateId | null>(() =>
-      templateId ? interimStartingTemplate(templateId) : null,
-    );
+  /**
+   * The picker template (an Included Scene Effect's stem) this draft started
+   * from or last applied in Setup; null for Custom.
+   */
+  const [startingTemplate, setStartingTemplate] = useState<string | null>(
+    templateId ?? null,
+  );
+  /** The template chosen in Setup while it loads, and why one failed. */
+  const [startingTemplateLoad, setStartingTemplateLoad] = useState<{
+    loading: string | null;
+    error: string | null;
+  }>({ loading: null, error: null });
+  const startingTemplateLoadRef = useRef<AbortController | null>(null);
   const [selectedLayer, setSelectedLayer] =
     useState<BackgroundLayer>("marquee");
   const [selectedModel, setSelectedModel] =
@@ -596,6 +607,51 @@ export function SceneEffectCreatorPage({
     [addImage, getSnapshot],
   );
 
+  useEffect(() => () => startingTemplateLoadRef.current?.abort(), []);
+
+  /**
+   * Start the draft over from the template chosen in Setup: its Included
+   * item is loaded with its images and applied as one undoable step (see
+   * `sceneEffectTemplateEdit`). Loading holds the image-busy state, so Save
+   * and image edits wait for it; a failure leaves the draft unchanged.
+   */
+  const applyStartingTemplate = useCallback(
+    async (id: string) => {
+      startingTemplateLoadRef.current?.abort();
+      const controller = new AbortController();
+      startingTemplateLoadRef.current = controller;
+      setStartingTemplateLoad({ loading: id, error: null });
+      setImageBusy(true);
+      try {
+        const template = await loadSceneEffectTemplate(
+          apiClient,
+          id,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        update(sceneEffectTemplateEdit(template));
+        setStartingTemplate(id);
+        setStartingTemplateLoad({ loading: null, error: null });
+        restartPreview();
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setStartingTemplateLoad({
+          loading: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "The template could not be opened.",
+        });
+      } finally {
+        if (startingTemplateLoadRef.current === controller) {
+          startingTemplateLoadRef.current = null;
+          setImageBusy(false);
+        }
+      }
+    },
+    [apiClient, restartPreview, update],
+  );
+
   const importDocument = useCallback(() => {
     try {
       const parsed = parseSceneEffectEditorExport(JSON.parse(importText));
@@ -632,6 +688,7 @@ export function SceneEffectCreatorPage({
     if (!(await contentSave.resetSession(next))) return;
     resetDocument(next.document, next.imageResources);
     setStartingTemplate(null);
+    setStartingTemplateLoad({ loading: null, error: null });
     setSelectedLayer("marquee");
     setImageBusy(false);
     setImageError(null);
@@ -878,7 +935,10 @@ export function SceneEffectCreatorPage({
           soundOptions={soundOptions}
           soundPending={soundQuery.isPending}
           startingTemplate={startingTemplate}
-          onStartingTemplate={setStartingTemplate}
+          startingTemplateBusy={imageBusy}
+          startingTemplateLoading={startingTemplateLoad.loading}
+          startingTemplateError={startingTemplateLoad.error}
+          onStartingTemplate={(id) => void applyStartingTemplate(id)}
           onSelectedLayer={setSelectedLayer}
           onDispatch={(action) => {
             dispatch(action);
@@ -1033,12 +1093,18 @@ export function SceneEffectCreatorPage({
   );
 }
 
+/** The Scene templates offered for each kind, by group, in picker order. */
+const STARTING_TEMPLATE_GROUPS = effectTemplateGroups("scene");
+
 function SceneSetupPanel({
   document,
   selectedLayer,
   soundOptions,
   soundPending,
   startingTemplate,
+  startingTemplateBusy,
+  startingTemplateLoading,
+  startingTemplateError,
   onStartingTemplate,
   onSelectedLayer,
   onDispatch,
@@ -1047,8 +1113,15 @@ function SceneSetupPanel({
   document: SceneEffectEditorDocument;
   selectedLayer: BackgroundLayer;
   onBackground: (patch: Partial<SceneEffectEditorBackground>) => void;
-  startingTemplate: SceneEffectTemplateId | null;
-  onStartingTemplate: (templateId: SceneEffectTemplateId) => void;
+  /** The picker template the draft started from, or null for Custom. */
+  startingTemplate: string | null;
+  /** A template or an image is loading, so no template can be chosen. */
+  startingTemplateBusy: boolean;
+  /** The template being loaded, if any. */
+  startingTemplateLoading: string | null;
+  startingTemplateError: string | null;
+  /** Load a template and apply it to the draft. */
+  onStartingTemplate: (templateId: string) => void;
   soundOptions: Array<{
     item_id: string;
     name: string;
@@ -1058,6 +1131,12 @@ function SceneSetupPanel({
   onSelectedLayer: (layer: BackgroundLayer) => void;
   onDispatch: React.Dispatch<Parameters<typeof sceneEffectEditorReducer>[1]>;
 }) {
+  const startingTemplateFieldId = useId();
+  // Backgrounds offer the emotion families; Focus Lines the focus presets.
+  const startingTemplateGroups = STARTING_TEMPLATE_GROUPS.filter(
+    (group) =>
+      (group.id === "focus-lines") === (document.kind === "focus_lines"),
+  );
   return (
     <FloatingPanel title="Scene Setup" bodyClassName="overflow-y-auto">
       <Tabs
@@ -1082,42 +1161,58 @@ function SceneSetupPanel({
         </TabsList>
       </Tabs>
       <div className="mt-3 space-y-3">
-        <Field label="Starting template">
+        <Field
+          label="Starting template"
+          htmlFor={startingTemplateFieldId}
+          invalid={Boolean(startingTemplateError)}
+        >
           <Select
             // The template shows while the document is still of its kind.
             value={
-              SCENE_EFFECT_TEMPLATE_OPTIONS.some(
-                (template) =>
-                  template.id === startingTemplate &&
-                  template.kind === document.kind,
+              startingTemplateGroups.some((group) =>
+                group.templates.some(
+                  (template) => template.id === startingTemplate,
+                ),
               )
                 ? (startingTemplate ?? "")
                 : ""
             }
-            onValueChange={(value) => {
-              onStartingTemplate(value as SceneEffectTemplateId);
-              onDispatch({
-                type: "replace",
-                document: applySceneEffectTemplate(
-                  document,
-                  value as SceneEffectTemplateId,
-                ),
-              });
-            }}
+            // Stays enabled while loading so keyboard focus returns to it;
+            // choosing again aborts the earlier load.
+            onValueChange={onStartingTemplate}
           >
-            <SelectTrigger size="sm" className="w-full text-xs">
+            <SelectTrigger
+              id={startingTemplateFieldId}
+              size="sm"
+              className="w-full text-xs"
+              aria-busy={startingTemplateBusy}
+            >
               <SelectValue placeholder="Custom" />
             </SelectTrigger>
             <SelectContent>
-              {SCENE_EFFECT_TEMPLATE_OPTIONS.filter(
-                (template) => template.kind === document.kind,
-              ).map((template) => (
-                <SelectItem key={template.id} value={template.id}>
-                  {template.label}
-                </SelectItem>
+              {startingTemplateGroups.map((group) => (
+                <SelectGroup key={group.id}>
+                  <SelectLabel>{group.label}</SelectLabel>
+                  {group.templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
+          <div aria-live="polite">
+            {startingTemplateLoading ? (
+              <p className="text-muted-foreground text-xs">
+                {`Loading ${findSceneEffectTemplate(startingTemplateLoading)?.name ?? "template"}…`}
+              </p>
+            ) : startingTemplateError ? (
+              <p role="alert" className="text-destructive text-xs">
+                {`The template could not be opened: ${startingTemplateError}`}
+              </p>
+            ) : null}
+          </div>
         </Field>
         {document.kind === "background_layers" ? (
           <div className="space-y-2">
@@ -2142,145 +2237,9 @@ function ScenePreviewActor({
   return sceneObject ? <primitive object={sceneObject} dispose={null} /> : null;
 }
 
-async function hydrateSceneEffect(
-  apiClient: Client,
-  args: {
-    itemId: string;
-    name: string;
-    description: string;
-    signal: AbortSignal;
-  },
-): Promise<{
-  document: SceneEffectEditorDocument;
-  images: SceneEffectEditorImageResource[];
-}> {
-  const preview = await previewCatalogItem(
-    apiClient,
-    args.itemId,
-    args.signal,
-    "scene_effect",
-  );
-  const metadata = object(preview.metadata);
-  const definition = metadata?.definition ?? object(metadata?.spec)?.definition;
-  const logicalFiles = object(metadata?.logical_resource_files) ?? {};
-  const imageMetadata = new Map<string, SceneEffectEditorImage>();
-  const resources: SceneEffectEditorImageResource[] = [];
-  for (const [logicalName, rawIdentity] of Object.entries(logicalFiles)) {
-    const identity = object(rawIdentity);
-    const file =
-      preview.files.find((candidate) => candidate.filename === logicalName) ??
-      findLogicalResourceFile(preview.files, identity ?? {});
-    if (!file)
-      throw new Error(`The content image ${logicalName} is unavailable.`);
-    const response = await fetchContentPreviewFile(preview, file, {
-      signal: args.signal,
-    });
-    if (!response.ok)
-      throw new Error(
-        `The content image ${logicalName} could not be downloaded.`,
-      );
-    const blob = await response.blob();
-    const imageFile = new File([blob], file.filename, {
-      type: file.media_type,
-    });
-    const sha256 =
-      file.sha256 || (await sha256File(imageFile, { signal: args.signal }));
-    imageMetadata.set(logicalName, {
-      logicalName,
-      originalName: file.filename,
-      contentType: file.media_type,
-      sizeBytes: file.size_bytes,
-      sha256,
-    });
-    resources.push({ logicalName, file: imageFile, sha256 });
-  }
-  return {
-    document: createSceneEffectDocumentFromDefinition({
-      name: args.name,
-      description: args.description,
-      definition,
-      images: imageMetadata,
-      sound: previewSoundForCopy(preview).sound,
-    }),
-    images: resources,
-  };
-}
-
 function soundSourceKey(source: PyExactContentSource | null): string {
   if (!source) return "none";
   return source.type === "builtin"
     ? `builtin:${source.content_id ?? ""}:${source.version ?? ""}`
     : `catalog:${source.catalog_item_id}`;
-}
-
-function object(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-/**
- * Interim (Plan 3 P1, until the creator loads the Included item with its
- * art): the code-drawn starting template a picker template opens with. A
- * background opens its family's template, a focus preset the bundled preset
- * of the same ID.
- */
-const INTERIM_FAMILY_TEMPLATES: Record<
-  Exclude<SceneEffectTemplateGroup, "focus-lines">,
-  SceneEffectTemplateId
-> = {
-  affection: "shoujo-bloom",
-  esteem: "radiance",
-  delight: "festive-pop",
-  drive: "anticipation",
-  alarm: "shock",
-  rejection: "rage",
-  revulsion: "queasy",
-  gloom: "gloom",
-};
-
-/** Interim: the starting template for a picker template ID, or null. */
-function interimStartingTemplate(
-  templateId: string,
-): SceneEffectTemplateId | null {
-  const template = findSceneEffectTemplate(templateId);
-  if (!template) return null;
-  const id =
-    template.group === "focus-lines"
-      ? template.id
-      : INTERIM_FAMILY_TEMPLATES[template.group];
-  return (
-    SCENE_EFFECT_TEMPLATE_OPTIONS.find((option) => option.id === id)?.id ?? null
-  );
-}
-
-/**
- * A new, unsaved Local draft from a picker template, named after it with a
- * name no catalog item uses. For now its layers come from the interim
- * starting template (see `interimStartingTemplate`), without the Included
- * effect's images.
- */
-async function loadSceneEffectTemplate(
-  apiClient: Client,
-  templateId: string,
-  signal: AbortSignal,
-): Promise<SceneEffectHistorySnapshot> {
-  const template = findSceneEffectTemplate(templateId);
-  const startingTemplate = interimStartingTemplate(templateId);
-  if (!template || !startingTemplate)
-    throw new Error("This Scene Effect template is unavailable.");
-  const items = await listCatalogItems(apiClient, "scene_effect", signal);
-  return {
-    document: {
-      ...applySceneEffectTemplate(
-        createDefaultSceneEffectDocument(),
-        startingTemplate,
-      ),
-      name: createUniqueContentName(
-        template.name,
-        items.map((item) => item.name),
-      ),
-    },
-    imageResources: [],
-  };
 }

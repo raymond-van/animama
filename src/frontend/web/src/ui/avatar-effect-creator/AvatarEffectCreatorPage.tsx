@@ -46,7 +46,7 @@ import {
   type AvatarVFXSnapshot,
 } from "@/lib/avatar/vfx/types";
 import { buildRuntimePrimitiveBindings } from "@/lib/avatar/vrmEditorInspection";
-import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
+import { previewCatalogItem } from "@/lib/content/catalogApi";
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import {
@@ -54,7 +54,7 @@ import {
   fetchContentPreviewFile,
 } from "@/lib/content/contentPreview";
 import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
-import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { findIncludedTemplateItem } from "@/lib/content/includedTemplateItem";
 import { previewSoundForCopy } from "@/lib/content/previewSound";
 import { avatarEffectTemplate } from "@/lib/effects/effectTemplates";
 import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
@@ -1503,20 +1503,15 @@ async function loadAvatarEffectTemplate(
 ): Promise<AvatarEffectHydration> {
   const template = avatarEffectTemplate(templateId);
   if (!template) throw new Error("This Avatar Effect template is unavailable.");
-  const items = await listCatalogItems(apiClient, "avatar_effect", signal);
-  const item = items.find(
-    (candidate) =>
-      candidate.source === "included" &&
-      candidate.logical_key === template.contentId,
+  const { item, draftName } = await findIncludedTemplateItem(
+    apiClient,
+    "avatar_effect",
+    template,
+    signal,
   );
-  if (!item)
-    throw new Error(`${template.name} is not available in this installation.`);
   return hydrateAvatarEffect(apiClient, {
     itemId: item.item_id,
-    name: createUniqueContentName(
-      item.name,
-      items.map((candidate) => candidate.name),
-    ),
+    name: draftName,
     description: item.description ?? "",
     signal,
   });

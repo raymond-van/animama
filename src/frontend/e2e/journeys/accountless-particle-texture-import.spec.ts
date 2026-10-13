@@ -10,7 +10,10 @@ import {
   reviewSharingExport,
   uploadSharingPackage,
 } from "../helpers/content-sharing";
-import { saveTrackedParticleEffect } from "../helpers/particle-content";
+import {
+  saveTrackedParticleEffect,
+  waitForStoredParticleDraft,
+} from "../helpers/particle-content";
 
 /**
  * Particle texture import (R1): refused files leave the draft unchanged; an
@@ -94,72 +97,6 @@ async function openAppearance(page: Page) {
   ).toBeVisible();
 }
 
-/** Recovery holds the named draft with the imported texture bytes. */
-async function waitForRecoveredTexture(
-  page: Page,
-  name: string,
-  reference: string,
-) {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(
-          async (expected) => {
-            const known = await indexedDB.databases();
-            if (
-              !known.some(
-                (entry) => entry.name === "animama-content-creator-recovery",
-              )
-            )
-              return false;
-            return new Promise<boolean>((resolve) => {
-              const opening = indexedDB.open(
-                "animama-content-creator-recovery",
-              );
-              opening.onerror = () => resolve(false);
-              opening.onsuccess = () => {
-                const db = opening.result;
-                if (!db.objectStoreNames.contains("particle-vfx")) {
-                  db.close();
-                  resolve(false);
-                  return;
-                }
-                const request = db
-                  .transaction("particle-vfx", "readonly")
-                  .objectStore("particle-vfx")
-                  .getAll();
-                request.onsuccess = () => {
-                  db.close();
-                  resolve(
-                    request.result.some(
-                      (record: {
-                        displayName?: string;
-                        textures?: unknown[];
-                      }) =>
-                        record.displayName === expected.name &&
-                        (record.textures ?? []).some(
-                          (texture) =>
-                            (texture as { reference?: string; blob?: Blob })
-                              .reference === expected.reference &&
-                            (texture as { blob?: Blob }).blob instanceof Blob,
-                        ),
-                    ),
-                  );
-                };
-                request.onerror = () => {
-                  db.close();
-                  resolve(false);
-                };
-              };
-            });
-          },
-          { name, reference },
-        ),
-      { message: "browser recovery stores the imported texture bytes" },
-    )
-    .toBe(true);
-}
-
 test("accountless Particle texture import survives recovery, Save, reopen and packages", async ({
   page,
   creatorContent,
@@ -218,7 +155,7 @@ test("accountless Particle texture import survives recovery, Save, reopen and pa
   });
 
   await test.step("draft recovery keeps the imported textures", async () => {
-    await waitForRecoveredTexture(page, name, "textures/sheet-4x4-1.png");
+    await waitForStoredParticleDraft(page, name, "textures/sheet-4x4-1.png");
     await page.reload();
     await openAppearance(page);
     await expect(textureCard(page, "glyph-1.png")).toBeVisible();

@@ -104,3 +104,73 @@ export async function saveTrackedParticleEffect(args: {
     await page.unroute(url, handler);
   }
 }
+
+/**
+ * Wait until browser recovery holds the named Particle draft together with
+ * the bytes of the texture `reference`, rather than guessing the autosave
+ * debounce.
+ */
+export async function waitForStoredParticleDraft(
+  page: Page,
+  name: string,
+  reference: string,
+) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          async (expected) => {
+            const known = await indexedDB.databases();
+            if (
+              !known.some(
+                (entry) => entry.name === "animama-content-creator-recovery",
+              )
+            )
+              return false;
+            return new Promise<boolean>((resolve) => {
+              const opening = indexedDB.open(
+                "animama-content-creator-recovery",
+              );
+              opening.onerror = () => resolve(false);
+              opening.onsuccess = () => {
+                const db = opening.result;
+                if (!db.objectStoreNames.contains("particle-vfx")) {
+                  db.close();
+                  resolve(false);
+                  return;
+                }
+                const request = db
+                  .transaction("particle-vfx", "readonly")
+                  .objectStore("particle-vfx")
+                  .getAll();
+                request.onsuccess = () => {
+                  db.close();
+                  resolve(
+                    request.result.some(
+                      (record: {
+                        displayName?: string;
+                        textures?: unknown[];
+                      }) =>
+                        record.displayName === expected.name &&
+                        (record.textures ?? []).some(
+                          (texture) =>
+                            (texture as { reference?: string; blob?: Blob })
+                              .reference === expected.reference &&
+                            (texture as { blob?: Blob }).blob instanceof Blob,
+                        ),
+                    ),
+                  );
+                };
+                request.onerror = () => {
+                  db.close();
+                  resolve(false);
+                };
+              };
+            });
+          },
+          { name, reference },
+        ),
+      { message: "browser recovery stores the draft and its texture bytes" },
+    )
+    .toBe(true);
+}

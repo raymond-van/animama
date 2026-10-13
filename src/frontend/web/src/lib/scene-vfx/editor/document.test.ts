@@ -23,7 +23,14 @@ import {
   uniqueSceneEffectImageName,
   validateSceneEffectDocument,
 } from ".";
-import { SCENE_EFFECT_TEMPLATE_OPTIONS } from "./defaults";
+
+/** A new document switched to Focus Lines (the bundled Dark preset). */
+function focusLinesDocument() {
+  return sceneEffectEditorReducer(createDefaultSceneEffectDocument(), {
+    type: "set-kind",
+    kind: "focus_lines",
+  });
+}
 
 const image = {
   logicalName: "sparkle.webp",
@@ -134,16 +141,48 @@ describe("Scene Effect editor document", () => {
     expect(validateSceneEffectDocument(document, [resource])).toEqual([]);
   });
 
-  it("keeps both variants while applying a Focus Lines template", () => {
-    const initial = createDefaultSceneEffectDocument();
-    initial.background.solid.color = "#123456";
-    const focused = applySceneEffectTemplate(initial, "dark");
+  it("applies a template's effect but keeps the draft's name, description and sound", () => {
+    const draft = createDefaultSceneEffectDocument();
+    draft.name = "My scene";
+    draft.description = "Mine";
+    draft.sound = {
+      alias: "on-apply",
+      label: "Bright Idea",
+      source: {
+        type: "builtin",
+        content_id: "sound_effect:bright-idea",
+        version: 3,
+      },
+    };
+    const love = includedScene("scene-vfx-emotion-love");
+    const template = createSceneEffectDocumentFromDefinition({
+      name: "Emotion Love 1",
+      description: love.description,
+      definition: love.definition,
+      images: includedImages(love),
+      sound: null,
+    });
 
-    expect(focused.kind).toBe("focus_lines");
-    expect(focused.dismissOnInput).toBe(false);
-    expect(focused.focus.lineCount).toBeGreaterThan(0);
-    expect(initial.background.solid.color).toBe("#123456");
-    expect(validateSceneEffectDocument(focused, [])).toEqual([]);
+    const applied = applySceneEffectTemplate(draft, template);
+
+    expect(applied).toEqual({
+      ...template,
+      name: "My scene",
+      description: "Mine",
+      sound: draft.sound,
+    });
+    expect(applied.durationMs).toBeNull();
+    expect(applied.background.scatters.length).toBeGreaterThan(0);
+    // The result is independent of the template it copied.
+    applied.background.solid.color = "#123456";
+    expect(template.background.solid.color).not.toBe("#123456");
+
+    const focus = applySceneEffectTemplate(template, focusLinesDocument());
+    expect(focus).toMatchObject({
+      kind: "focus_lines",
+      name: "Emotion Love 1",
+    });
+    expect(validateSceneEffectDocument(focus, [])).toEqual([]);
   });
 
   it("preserves marquee ordering through explicit editor actions", () => {
@@ -182,10 +221,7 @@ describe("Scene Effect editor document", () => {
   });
 
   it("preserves front-of-avatar placement in the isolated runtime entry", () => {
-    const document = applySceneEffectTemplate(
-      createDefaultSceneEffectDocument(),
-      "dark",
-    );
+    const document = focusLinesDocument();
     document.focus.renderPlacement = "front_of_avatar";
 
     expect(sceneEffectRuntimeEntry(document, new Map())).toMatchObject({
@@ -196,10 +232,7 @@ describe("Scene Effect editor document", () => {
   });
 
   it("rejects out-of-bounds manual targets and URL-shaped imported items", () => {
-    const focus = applySceneEffectTemplate(
-      createDefaultSceneEffectDocument(),
-      "dark",
-    );
+    const focus = focusLinesDocument();
     focus.focus.target = {
       kind: "manual_box",
       rect: { x: 0.9, y: 0.1, width: 0.2, height: 0.5 },
@@ -261,12 +294,13 @@ describe("Scene Effect editor document", () => {
   });
 
   it("hydrates an exact portable Focus Lines release", () => {
-    const source = applySceneEffectTemplate(
-      createDefaultSceneEffectDocument(),
-      "light-streak",
-    );
-    source.name = "Light Streak";
-    source.description = "Exact release";
+    const source = createSceneEffectDocumentFromDefinition({
+      name: "Light Streak",
+      description: "Exact release",
+      definition: includedScene("light-streak").definition,
+      images: new Map(),
+      sound: null,
+    });
 
     const hydrated = createSceneEffectDocumentFromDefinition({
       name: source.name,
@@ -313,11 +347,27 @@ const includedScene = (presetId: string) =>
   ) as {
     name: string;
     description: string;
+    files?: Array<{ path: string; role: string }>;
     definition: Record<string, unknown> & {
       gradient: unknown;
       screen: unknown;
     };
   };
+
+/** Image metadata for every file an Included Scene Effect registers. */
+const includedImages = (descriptor: ReturnType<typeof includedScene>) =>
+  new Map(
+    (descriptor.files ?? []).map(({ path }) => [
+      path,
+      {
+        logicalName: path,
+        originalName: path,
+        contentType: "image/png",
+        sizeBytes: 1024,
+        sha256: "0".repeat(64),
+      },
+    ]),
+  );
 
 it("hydrates a registered Included background with its image", () => {
   const descriptor = includedScene("scene-vfx-emotion-sadness");
@@ -355,66 +405,6 @@ it("hydrates a registered Included background with its image", () => {
     },
   ];
   expect(validateSceneEffectDocument(document, resources)).toEqual([]);
-});
-
-describe("Scene creator templates", () => {
-  it("offers a background per family and the two focus presets", () => {
-    expect(
-      SCENE_EFFECT_TEMPLATE_OPTIONS.map(({ id, label, kind }) => [
-        id,
-        label,
-        kind,
-      ]),
-    ).toEqual([
-      ["shoujo-bloom", "Shoujo Bloom", "background_layers"],
-      ["radiance", "Radiance", "background_layers"],
-      ["festive-pop", "Festive Pop", "background_layers"],
-      ["anticipation", "Anticipation", "background_layers"],
-      ["shock", "Shock", "background_layers"],
-      ["rage", "Rage", "background_layers"],
-      ["queasy", "Queasy", "background_layers"],
-      ["gloom", "Gloom", "background_layers"],
-      ["dark", "Dark Focus", "focus_lines"],
-      ["light-streak", "Light Streak", "focus_lines"],
-    ]);
-  });
-
-  it("starts a background from its family's Included background, without that effect's images", () => {
-    for (const { id } of SCENE_EFFECT_TEMPLATE_OPTIONS.filter(
-      (option) => option.kind === "background_layers",
-    )) {
-      const document = applySceneEffectTemplate(
-        createDefaultSceneEffectDocument(),
-        id,
-      );
-      expect(document.kind, id).toBe("background_layers");
-      expect(document.background.gradient.enabled, id).toBe(true);
-      expect(document.background.tile).toMatchObject({
-        enabled: false,
-        image: null,
-      });
-      expect(document.background.scatters, id).toEqual([]);
-      expect(document.background.marquee.items, id).toEqual([]);
-      expect(validateSceneEffectDocument(document, []), id).toEqual([]);
-    }
-    const sadness = includedScene("scene-vfx-emotion-sadness").definition;
-    const gloom = applySceneEffectTemplate(
-      createDefaultSceneEffectDocument(),
-      "gloom",
-    );
-    expect(gloom.background.gradient).toEqual(sadness.gradient);
-    expect(gloom.background.screen).toEqual(sadness.screen);
-  });
-
-  it("gives a focus template the default background", () => {
-    const focus = applySceneEffectTemplate(
-      createDefaultSceneEffectDocument(),
-      "light-streak",
-    );
-    expect(focus.background).toEqual(
-      createDefaultSceneEffectDocument().background,
-    );
-  });
 });
 
 describe("optional background layers (C1–C6)", () => {

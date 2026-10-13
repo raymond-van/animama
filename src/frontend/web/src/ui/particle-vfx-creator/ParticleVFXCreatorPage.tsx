@@ -3,7 +3,6 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { particleVFXValidationMessages } from "./particleVFXValidationMessages";
 
-import { createParticleVFXEditorDraftFromContent } from "@/lib/avatar/particle-vfx/editor/content";
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import {
   createParticleVFXEffectContainer,
@@ -37,11 +36,6 @@ import {
 import { toast } from "sonner";
 import * as THREE from "three";
 
-import { previewCatalogItem } from "@/lib/content/catalogApi";
-import {
-  fetchContentPreviewFile,
-  contentPreviewPrimaryFile,
-} from "@/lib/content/contentPreview";
 import { particleVFXRecoveryStore } from "@/lib/content/particleVFXRecovery";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
@@ -71,7 +65,6 @@ import {
   estimateParticleVFXParticles,
   extractEmbeddedParticleVFXTextures,
   importParticleVFXTextureFile,
-  loadParticleVFXTextureFiles,
   missingParticleVFXTextureReferences,
   parseParticleVFXEditorExportJsonForViewer,
   readParticleVFXCreatorDocument,
@@ -115,6 +108,7 @@ import {
   type ParticleVFXTransformAxisTriple,
 } from "@/lib/avatar/particle-vfx";
 import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
+import { findParticleEffectTemplate } from "@/lib/effects/effectTemplates";
 import { cn } from "@/lib/utils";
 import { useParticleEffect } from "@/query/hooks/useEffects";
 import {
@@ -123,6 +117,7 @@ import {
   CreatorField,
   CreatorFloatingPanel,
   CreatorImportDialog,
+  CreatorInlineError,
   CreatorJsonDialog,
   CreatorLeaveDialog,
   CreatorLoading,
@@ -173,12 +168,21 @@ import {
   JsonTreeNode,
   type JsonExpandMode,
 } from "@/ui/debug/vrm-editor/json-tree";
+import { CreatorTemplateDraftDialog } from "@/ui/content-creator/CreatorTemplateDraftDialog";
 import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import {
+  creatorTemplateRecoveryKey,
+  useCreatorTemplateStart,
+} from "@/ui/content-creator/useCreatorTemplateStart";
 import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
 import {
   equalParticleVFXDrafts,
   particleVFXDocumentFingerprint,
 } from "./particleVFXDocument";
+import {
+  loadParticleEffectTemplate,
+  loadParticleVFXCatalogDraft,
+} from "./particleVFXCatalogDraft";
 import { useParticleVFXSave } from "./useParticleVFXSave";
 import { EmitterCarriedTextures } from "./EmitterCarriedTextures";
 import { type ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
@@ -233,21 +237,34 @@ function saveStageLabel(stage: ReturnType<typeof useParticleVFXSave>["stage"]) {
   return "Save";
 }
 
-export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
+/**
+ * Particle Effect creator. `itemId` edits a saved item (an Included item is
+ * saved as a Local copy); `templateId` starts a new draft from an Included
+ * template (`/particle-effects/new?template=<id>`); with neither it starts
+ * blank. The template ID stays page state for the template's label; it is
+ * not saved with the effect.
+ */
+export function ParticleVFXCreatorPage({
+  itemId,
+  templateId,
+}: {
+  itemId?: string;
+  templateId?: string;
+}) {
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
   const apiClient = useProductApiClient();
   const existingQuery = useParticleEffect(itemId ?? null);
   const existing = existingQuery.data;
   const loadedItemRef = useRef(new ContentEditorHydration());
-  const initialDraftRef = useRef(createParticleVFXEditorDraftFromBlank());
+  const [blankDraft] = useState(createParticleVFXEditorDraftFromBlank);
   const {
     present: draft,
     history,
     update: updateDraft,
     reset: resetDraft,
   } = useCreatorDocumentHistory({
-    initialValue: initialDraftRef.current,
+    initialValue: blankDraft,
     equals: equalParticleVFXDrafts,
   });
   const { commit, replacePresent } = history;
@@ -258,9 +275,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const [loadState, setLoadState] = useState<{
     state: "loading" | "ready" | "error";
     message: string | null;
-  }>({ state: itemId ? "loading" : "ready", message: null });
+  }>({ state: itemId || templateId ? "loading" : "ready", message: null });
+  /** A template route's recovered draft, held until the user chooses. */
+  const [templateDraft, setTemplateDraft] =
+    useState<ParticleVFXEditorDraft | null>(null);
   const [importText, setImportText] = useState(
-    () => `${JSON.stringify(initialDraftRef.current.quarksJson, null, 2)}\n`,
+    () => `${JSON.stringify(blankDraft.quarksJson, null, 2)}\n`,
   );
   const [importError, setImportError] = useState<string | null>(null);
   const [previewRevision, setPreviewRevision] = useState(0);
@@ -350,30 +370,76 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     selectedModel,
     onSelectModel: setSelectedModel,
   });
+  const [blankFingerprint] = useState(() =>
+    particleVFXDocumentFingerprint(blankDraft),
+  );
+  /**
+   * The clean document's fingerprint: the blank draft, an owned item as
+   * loaded or last saved, or the template baseline that no draft equals.
+   */
+  const initialFingerprintRef = useRef(blankFingerprint);
   const markSavedDraft = useCallback(
     (savedDraft: ParticleVFXEditorDraft, savedItemId: string) => {
       loadedItemRef.current.preserve(savedItemId);
-      initialDraftRef.current = savedDraft;
+      initialFingerprintRef.current =
+        particleVFXDocumentFingerprint(savedDraft);
       replacePresent(savedDraft);
     },
     [replacePresent],
+  );
+  const onRestore = useCallback(
+    (recovered: ParticleVFXEditorDraft) => {
+      if (templateId) {
+        setTemplateDraft(recovered);
+        return;
+      }
+      hydrateDraft(recovered);
+    },
+    [hydrateDraft, templateId],
   );
   const currentFingerprint = useMemo(
     () => particleVFXDocumentFingerprint(draft),
     [draft],
   );
-  const isDirty =
-    currentFingerprint !==
-    particleVFXDocumentFingerprint(initialDraftRef.current);
+  const isDirty = currentFingerprint !== initialFingerprintRef.current;
   const contentSave = useParticleVFXSave({
     itemId,
+    recoveryKey: templateId
+      ? creatorTemplateRecoveryKey(templateId)
+      : undefined,
     snapshot: draft,
     dirty: isDirty,
     initialized: loadState.state === "ready",
     ready: loadState.state === "ready",
-    onRestore: hydrateDraft,
+    onRestore,
     onSaved: markSavedDraft,
   });
+  // The template loader must stay stable, or each render restarts the load.
+  const loadTemplateSeed = useCallback(
+    (id: string, signal: AbortSignal) =>
+      loadParticleEffectTemplate(apiClient, id, signal),
+    [apiClient],
+  );
+  const templateStart = useCreatorTemplateStart({
+    templateId,
+    loadSeed: loadTemplateSeed,
+    fingerprint: particleVFXDocumentFingerprint,
+    recoveryReady: contentSave.recoveryReady,
+    recoveredDraft: templateDraft,
+    resetSession: contentSave.resetSession,
+    install: hydrateDraft,
+    baselineRef: initialFingerprintRef,
+    setHydration: setLoadState,
+  });
+  const templateDraftDialog = (
+    <CreatorTemplateDraftDialog
+      start={templateStart}
+      contentLabel="Particle Effect"
+      templateName={
+        findParticleEffectTemplate(templateId)?.name ?? "a template"
+      }
+    />
+  );
   const unavailableMessage = creatorItemUnavailableMessage({
     itemId,
     label: "Particle Effect",
@@ -416,66 +482,33 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     if (!load) return;
     const controller = new AbortController();
     setLoadState({ state: "loading", message: "Loading Particle Effect…" });
-    void (async () => {
-      try {
-        const preview = await previewCatalogItem(
-          apiClient,
-          source.catalog_item_id,
-          controller.signal,
-          "particle_effect",
-        );
-        const manifest = contentPreviewPrimaryFile(preview, "manifest");
-        if (!manifest)
-          throw new Error("The Particle Effect manifest is missing.");
-        const response = await fetchContentPreviewFile(preview, manifest, {
-          signal: controller.signal,
-        });
-        if (!response.ok)
-          throw new Error("The Particle Effect could not be loaded.");
-        const payload: unknown = await response.json();
-        const textureFiles = await loadParticleVFXTextureFiles(
-          preview.files
-            // A Quarks image may name a file registered as an image too.
-            .filter(
-              (file) =>
-                (file.role === "texture" || file.role === "image") &&
-                file.logical_path,
-            )
-            .map((file) => ({
-              logicalPath: file.logical_path!,
-              download: async () => {
-                const download = await fetchContentPreviewFile(preview, file, {
-                  signal: controller.signal,
-                });
-                if (!download.ok)
-                  throw new Error(
-                    "A Particle Effect texture could not be loaded.",
-                  );
-                return download.blob();
-              },
-            })),
-        );
+    void loadParticleVFXCatalogDraft(apiClient, {
+      itemId: source.catalog_item_id,
+      name: existing.name,
+      description: existing.description ?? "",
+      signal: controller.signal,
+    }).then(
+      (loadedDraft) => {
         if (controller.signal.aborted) return;
         load.complete();
-        const loadedDraft = createParticleVFXEditorDraftFromContent(
-          payload,
-          existing,
-          textureFiles,
-        );
-        if (existing.origin === "owned") initialDraftRef.current = loadedDraft;
+        // An Included item stays dirty against the blank baseline, so it
+        // saves as a Local copy.
+        if (existing.origin === "owned")
+          initialFingerprintRef.current =
+            particleVFXDocumentFingerprint(loadedDraft);
         hydrateDraft(loadedDraft);
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setLoadState({
-            state: "error",
-            message:
-              error instanceof Error
-                ? error.message
-                : "The Particle Effect could not be loaded.",
-          });
-        }
-      }
-    })();
+      },
+      (error: unknown) => {
+        if (controller.signal.aborted) return;
+        setLoadState({
+          state: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "The Particle Effect could not be loaded.",
+        });
+      },
+    );
     return () => {
       controller.abort();
       load.cancel();
@@ -832,7 +865,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     }
 
     await runDiscard(async () => {
-      if (itemId) {
+      // A saved item or a template draft starts over on the plain `/new` route.
+      if (itemId || templateId) {
         if (!(await contentSave.discardChanges())) return false;
         if (userId)
           await particleVFXRecoveryStore.clear(userId, "new", {
@@ -848,7 +882,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
       const nextDraft = createParticleVFXEditorDraftFromBlank();
       if (!(await contentSave.resetSession(nextDraft))) return false;
-      initialDraftRef.current = nextDraft;
+      initialFingerprintRef.current = particleVFXDocumentFingerprint(nextDraft);
       hydrateDraft(nextDraft);
       setEmitterQuery("");
       setPreviewPlaying(true);
@@ -866,6 +900,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     itemId,
     navigate,
     runDiscard,
+    templateId,
     userId,
   ]);
 
@@ -901,12 +936,19 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         message={unavailableMessage}
       />
     );
-  // Never show the blank starter document in place of the saved item.
-  if (itemId && loadState.state === "loading")
+  // Never show the blank starter document in place of the saved item or
+  // the template.
+  if ((itemId || templateId) && loadState.state === "loading")
     return (
-      <CreatorLoading
-        message={loadState.message ?? "Loading Particle Effect…"}
-      />
+      <>
+        <CreatorLoading
+          message={
+            loadState.message ??
+            (templateId ? "Loading template…" : "Loading Particle Effect…")
+          }
+        />
+        {templateDraftDialog}
+      </>
     );
 
   return (
@@ -1444,9 +1486,17 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       }
       overlays={
         <>
+          {loadState.state === "error" ? (
+            <CreatorInlineError
+              message={
+                loadState.message ?? "The Particle Effect could not be loaded."
+              }
+            />
+          ) : null}
           {contentSave.error ||
           contentSave.recoveryWarning ||
-          contentSave.recovered ||
+          // A template route asks about its draft in a dialog instead.
+          (contentSave.recovered && !templateId) ||
           contentSave.notices.length > 0 ||
           contentSave.isBusy ? (
             <CreatorSaveNotice
@@ -1482,10 +1532,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                         Retry Save
                       </Button>
                     ) : null}
-                    <CreatorDiscardRecoveryButton
-                      disabled={discardPending}
-                      onDiscard={() => void runDiscard(discardRecoveredDraft)}
-                    />
+                    {templateId ? null : (
+                      <CreatorDiscardRecoveryButton
+                        disabled={discardPending}
+                        onDiscard={() => void runDiscard(discardRecoveredDraft)}
+                      />
+                    )}
                   </div>
                 ) : null
               }
@@ -1521,6 +1573,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             guard={leaveGuard}
             contentLabel="Particle Effect"
           />
+          {templateDraftDialog}
         </>
       }
     />

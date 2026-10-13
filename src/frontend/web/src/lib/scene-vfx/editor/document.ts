@@ -12,7 +12,6 @@ import type { SceneVFXEntry } from "@/lib/scene-vfx/types";
 import {
   createDefaultSceneEffectDocument,
   defaultSceneOptionalLayers,
-  sceneEffectTemplate,
 } from "./defaults";
 import {
   SCENE_EFFECT_EDITOR_SCHEMA,
@@ -23,7 +22,6 @@ import {
   type SceneEffectEditorImageResource,
   type SceneEffectEditorMarqueeItem,
   type SceneEffectEditorSound,
-  type SceneEffectTemplateId,
   type SceneEffectValidationIssue,
 } from "./types";
 
@@ -127,18 +125,22 @@ export function normalizeSceneEffectDocument(
   };
 }
 
+/**
+ * Start a document over from a template (an Included effect opened as a
+ * document): the template's kind, timing, behaviour, layers and focus lines
+ * replace the document's, which keeps its own name, description and sound.
+ * The template's images are the caller's to carry with the result.
+ */
 export function applySceneEffectTemplate(
   document: SceneEffectEditorDocument,
-  templateId: SceneEffectTemplateId,
+  template: SceneEffectEditorDocument,
 ): SceneEffectEditorDocument {
-  const template = sceneEffectTemplate(templateId);
-  return {
-    ...document,
-    kind: template.kind,
-    dismissOnInput: template.kind === "background_layers",
-    background: template.background,
-    focus: template.focus,
-  };
+  return cloneSceneEffectDocument({
+    ...template,
+    name: document.name,
+    description: document.description,
+    sound: document.sound,
+  });
 }
 
 /** The extension a Scene image keeps: its own, so name and bytes agree. */

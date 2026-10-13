@@ -203,7 +203,8 @@ Line numbers drift as work proceeds.
       (2026-10-13T19:44:59Z); spec snapshot refreshed.
 - [x] P1 — Template catalogue and rendered thumbnails (R17). #488 — review
       passed at round 2 (2026-10-13); gate G1 (thumbnail sheet) pending.
-- [ ] P2 — Starting from a template (R17). #489
+- [x] P2 — Starting from a template (R17). #489 — review passed at round 1
+      (2026-10-13).
 - [ ] P3 — Simple mode and the Particle broad controls (R15). #490
 - [ ] P4 — Particle colour theme (R15). #491
 - [ ] P5 — Scene Simple mode (R16). #492
@@ -570,11 +571,100 @@ its Included source except for its name. The journey passes.
 
 #### P2 record
 
-Not started.
+Starting source and issue: `4e9ab2d8`, #489.
+
+- **Shared lookup:** `lib/content/includedTemplateItem.ts`
+  (`findIncludedTemplateItem`: the Included item by content ID, with an unused
+  draft name). The Avatar, Particle and Scene loaders all use it.
+- **Particle:**
+  - The edit route's loader moved to `particleVFXCatalogDraft.ts`
+    (`loadParticleVFXCatalogDraft`), which the edit route and
+    `loadParticleEffectTemplate` share.
+  - The page adopts `useCreatorTemplateStart`: recovery key
+    `new:template:<id>`, the continue-or-discard dialog, and "Loading
+    template…" with an inline error.
+  - `initialFingerprintRef` replaces `initialDraftRef`, with the template
+    baseline for template drafts.
+  - On template routes, a recovered draft is held for the dialog, and New
+    goes to plain `/particle-effects/new`.
+  - The template ID stays in page state for P3's label.
+- **Scene:**
+  - `hydrateSceneEffect` moved to `sceneEffectCatalogDocument.ts` with
+    `loadSceneEffectTemplate`, which loads the Included item and its images,
+    focus presets included.
+  - The Starting template select lists the catalogue in groups for the
+    current kind. Choosing one starts the draft over from that item as one
+    undoable step that carries the image Files (`sceneEffectTemplateEdit`):
+    it takes the kind, timing, behaviour, layers and images, and keeps the
+    name, description and sound.
+  - Loading holds the image-busy state; a failure leaves the draft unchanged.
+- **Removed:** the P1 interim shim, `SCENE_EFFECT_TEMPLATE_OPTIONS`,
+  `sceneEffectTemplate`, `templateBackground`, the eight descriptor imports and
+  the template-ID types. The bundled focus presets stay for their other users.
+- **Tests:**
+  - every Particle template loads all its textures, and every Scene template
+    all its images, and validates;
+  - unique names and the recovery key;
+  - the Particle page's template flow;
+  - Scene template application and undo of its images.
+  The template journey now covers Heart Burst's emitters and textures, Emotion
+  Love's layers and art, a Starting template with Undo, and a Heart Burst
+  draft that recovers, saves and reopens with its art.
+
+Checks:
+
+- implementer: focused vitest 767 passed; `pnpm web:test` exit 0 (4362
+  passed, 1 skipped; node suites pass); `pnpm check`, `pnpm web:lint`,
+  `pnpm prettier:check`, `pnpm e2e:check` exit 0;
+- journeys on the task stack:
+  - `accountless-effect-template-picker` 4 passed;
+  - `accountless-particle-texture-import` 2 passed;
+  - `accountless-scene-layers` 2 passed;
+  - `accountless-creator-discard` 8 passed, 3 failed: the Gesture cases,
+    whose Save stays disabled. They fail the same way at `4e9ab2d8` without
+    P2, so they are recorded for the P6 full run on a built stack.
+- reviewer: vitest 98 files, 637 passed, plus a recovery round-trip of all
+  42 template drafts (same fingerprint);
+- coordinator, after the revisions: `pnpm check` and `pnpm web:lint` exit 0,
+  `pnpm prettier:check` pass, vitest `src/ui/scene-effect-creator
+  src/lib/scene-vfx` 128 passed, `accountless-effect-template-picker` 4
+  passed.
+- Browser at 1440 × 900:
+  - Emotion Love from the picker opened with its art; it saved as "Emotion
+    Love 1" and reopened with its petals, sparkles and tile.
+  - Sparkle Hearts opened with its 15 emitters and textures, and Dark as a
+    focus draft.
+  - Choosing a Starting template by keyboard kept focus on the select through
+    the load.
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, working tree on `4e9ab2d8`): **pass**, no Required
+findings. The reviewer traced every Particle entry path (blank, owned and
+Included Library items, import, template, recovery, Save, New) against HEAD.
+Optional findings:
+
+- **P2-R1-F1:** the Starting template select was disabled while loading, so a
+  keyboard choice could drop focus to the page; the status paragraph appeared
+  with its text, so some screen readers would not announce it.
+- **P2-R1-F2:** `scene-vfx.md` said a Starting template keeps the draft's
+  timing.
+- **P2-R1-F3:** the draft keeps its description, so a route-started draft
+  that then takes another template keeps the first template's description.
+- **P2-R1-F4:** the select's template is page state, so after Undo it still
+  names the undone template (pre-existing).
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** the select stays enabled (`aria-busy` while loading;
+  choosing again aborts the earlier load), and the messages sit in a
+  persistent `aria-live` region. Verified by keyboard in the browser.
+- **F2 accepted:** the doc says the template's kind, timing, behaviour,
+  layers and images are taken.
+- **F3 kept (agent decision):** name, description and sound are the user's
+  fields and are never overwritten by a template.
+- **F4 deferred to P5:** the Scene Simple label must follow the document, so
+  P5 derives it there rather than from page state.
 
 ### P3 — Simple mode and the Particle broad controls (R15). #490
 

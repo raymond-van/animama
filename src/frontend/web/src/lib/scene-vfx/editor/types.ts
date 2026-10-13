@@ -165,21 +165,3 @@ export type SceneEffectEditorExport = {
   schema: typeof SCENE_EFFECT_EDITOR_SCHEMA;
   document: SceneEffectEditorDocument;
 };
-
-/** A background template, one per Scene background family. */
-export type SceneEffectBackgroundTemplateId =
-  | "shoujo-bloom"
-  | "radiance"
-  | "festive-pop"
-  | "anticipation"
-  | "shock"
-  | "rage"
-  | "queasy"
-  | "gloom";
-
-/** A focus-line template: the bundled focus presets. */
-export type SceneEffectFocusTemplateId = "dark" | "light-streak";
-
-export type SceneEffectTemplateId =
-  | SceneEffectBackgroundTemplateId
-  | SceneEffectFocusTemplateId;

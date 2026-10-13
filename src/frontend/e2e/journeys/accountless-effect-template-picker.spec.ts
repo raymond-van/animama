@@ -5,12 +5,18 @@ import {
   effectTemplatePicker,
   waitForStoredDraft,
 } from "../helpers/creator-surfaces";
+import {
+  saveTrackedParticleEffect,
+  waitForStoredParticleDraft,
+} from "../helpers/particle-content";
 import { ReadOnlyJourneyGuard } from "../helpers/preview-network";
 
 /**
  * The Effects template picker: every entry point opens it, Back and close
- * behave, templates seed new unsaved drafts and Start from scratch opens each
- * blank creator. Nothing is saved, so the journey makes no content mutations.
+ * behave, templates seed new unsaved drafts with the Included effect's
+ * settings and art, and Start from scratch opens each blank creator. The
+ * picker journeys save nothing; the last journey saves a template draft as
+ * a Local item and reopens it.
  */
 
 const KIND_CARDS = ["Particle FX", "Avatar FX", "Scene FX"] as const;
@@ -80,6 +86,52 @@ async function expectTemplateThumbnails(
       { message: "every template thumbnail loads", timeout: 20_000 },
     )
     .toBe(true);
+}
+
+/** Heart Burst's own textures, as its Included folder carries them. */
+const HEART_BURST_TEXTURES = [
+  "glossy-heart.png",
+  "heart-glow.png",
+  "heart-ring.png",
+  "glint-star.png",
+];
+
+/** Expect the Particle creator to show Heart Burst's layers and textures. */
+async function expectHeartBurstArt(page: Page): Promise<void> {
+  await expect(
+    page
+      .getByRole("region", { name: "Emitters", exact: true })
+      .getByText("6 emitters", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+  const textures = page.getByRole("region", { name: "This effect's textures" });
+  for (const texture of HEART_BURST_TEXTURES)
+    await expect(
+      textures.getByRole("button", {
+        name: new RegExp(`^${texture.replace(".", "\\.")} `),
+      }),
+    ).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "is missing" }),
+  ).toHaveCount(0);
+}
+
+/** A layer card in the Scene Setup panel, by its title. */
+function sceneLayerCard(page: Page, title: string): Locator {
+  return page.getByRole("button", { name: new RegExp(`^${title} `) });
+}
+
+/** Whether the preview draws scatter items, each from the draft's own image. */
+function scatterDrawsOwnImages(page: Page): Promise<boolean> {
+  return page
+    .locator('[data-scene-vfx-layer="scatter"] [data-scene-vfx-item-id]')
+    .evaluateAll(
+      (items) =>
+        items.length > 0 &&
+        items.every((item) =>
+          (item as HTMLElement).style.backgroundImage.includes("blob:"),
+        ),
+    );
 }
 
 /** Leave a dirty creator through its blocker, discarding the draft. */
@@ -312,7 +364,96 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
       await discardToLibrary(page);
     });
 
-    await test.step("A Scene template opens a seeded, unsaved draft", async () => {
+    await test.step("A Particle template opens with its layers and textures", async () => {
+      const picker = await openKindFromRoute(page, "Particle FX");
+      await picker
+        .getByRole("link", { name: "Heart Burst", exact: true })
+        .click();
+      await expect(picker).toBeHidden();
+      await expect(page).toHaveURL(
+        /\/particle-effects\/new\?template=heart-burst$/,
+      );
+      await expect(
+        page.locator('[data-testid="particle-vfx-creator-canvas"]:visible'),
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(
+        page.getByRole("textbox", { name: "Particle FX name", exact: true }),
+      ).toHaveValue(/^Heart Burst(?: \d+)?$/);
+      await expectHeartBurstArt(page);
+      await expect(
+        page.getByRole("button", { name: "Unsaved", exact: true }),
+      ).toBeVisible();
+      await animamaEvidence.attachBuffer(
+        "particle-template-draft.png",
+        await page.screenshot(),
+        "image/png",
+      );
+      await discardToLibrary(page);
+    });
+
+    await test.step("A Scene background template opens with its layers and images", async () => {
+      const picker = await openKindFromRoute(page, "Scene FX");
+      await picker
+        .getByRole("link", { name: "Emotion Love", exact: true })
+        .click();
+      await expect(page).toHaveURL(
+        /\/scene-effects\/new\?template=scene-vfx-emotion-love$/,
+      );
+      await expect(
+        page.locator('[data-testid="scene-effect-creator-canvas"]:visible'),
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(
+        page.getByRole("textbox", { name: "Scene FX name", exact: true }),
+      ).toHaveValue(/^Emotion Love(?: \d+)?$/);
+      await expect(sceneLayerCard(page, "Scatter 1")).toContainText("1 items");
+      await expect(sceneLayerCard(page, "Scatter 2")).toContainText("1 items");
+      await expect(sceneLayerCard(page, "Tile")).toContainText(
+        "bokeh-tile.png",
+      );
+      await expect
+        .poll(() => scatterDrawsOwnImages(page), {
+          message: "the scatter stickers draw from the draft's images",
+        })
+        .toBe(true);
+      await expect(
+        page.getByRole("button", { name: "Unsaved", exact: true }),
+      ).toBeVisible();
+      await animamaEvidence.attachBuffer(
+        "scene-template-draft.png",
+        await page.screenshot({ animations: "allow" }),
+        "image/png",
+      );
+    });
+
+    await test.step("A Starting template replaces the layers and art in one undoable step", async () => {
+      const startingTemplate = page.getByRole("combobox", {
+        name: "Starting template",
+        exact: true,
+      });
+      await expect(startingTemplate).toHaveText("Emotion Love");
+      await startingTemplate.click();
+      await page
+        .getByRole("option", { name: "Emotion Joy", exact: true })
+        .click();
+      await expect(startingTemplate).toHaveText("Emotion Joy");
+      await expect(sceneLayerCard(page, "Scatter 2")).toContainText("3 items");
+      await expect(sceneLayerCard(page, "Tile")).toContainText("No image");
+      await expect.poll(() => scatterDrawsOwnImages(page)).toBe(true);
+      // The draft keeps its own name.
+      await expect(
+        page.getByRole("textbox", { name: "Scene FX name", exact: true }),
+      ).toHaveValue(/^Emotion Love(?: \d+)?$/);
+
+      await page.getByRole("button", { name: /^Undo ·/ }).click();
+      await expect(sceneLayerCard(page, "Scatter 2")).toContainText("1 items");
+      await expect(sceneLayerCard(page, "Tile")).toContainText(
+        "bokeh-tile.png",
+      );
+      await expect.poll(() => scatterDrawsOwnImages(page)).toBe(true);
+      await discardToLibrary(page);
+    });
+
+    await test.step("A Scene focus template opens a seeded, unsaved draft", async () => {
       const picker = await openKindFromRoute(page, "Scene FX");
       await picker
         .getByRole("link", { name: "Focus Lines Dark", exact: true })
@@ -362,4 +503,70 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
       await guard.dispose();
     }
   }
+});
+
+test("accountless Particle template draft recovers, saves as a Local item and reopens with its art", async ({
+  page,
+  creatorContent,
+  animamaEvidence,
+}) => {
+  test.setTimeout(240_000);
+  const runId = process.env.ANIMAMA_E2E_RUN_ID;
+  if (!runId)
+    throw new Error("The isolated E2E runner environment is required.");
+  const name = `particle-template-${runId}`;
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const nameField = page.getByRole("textbox", {
+    name: "Particle FX name",
+    exact: true,
+  });
+
+  await test.step("a renamed template draft is offered again after reload", async () => {
+    await page.goto("/particle-effects/new?template=heart-burst");
+    await expect(nameField).toHaveValue(/^Heart Burst(?: \d+)?$/, {
+      timeout: 30_000,
+    });
+    await nameField.fill(name);
+    await waitForStoredParticleDraft(page, name, "textures/glossy-heart.png");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    const choice = page.getByRole("dialog", {
+      name: "Continue your unsaved draft?",
+      exact: true,
+    });
+    await expect(choice).toBeVisible({ timeout: 30_000 });
+    await choice
+      .getByRole("button", { name: "Continue draft", exact: true })
+      .click();
+    await expect(nameField).toHaveValue(name);
+    await expectHeartBurstArt(page);
+  });
+
+  // Save sends no catalog item ID, so the Included item is never updated.
+  const saved = await test.step("save as a new Local item", () =>
+    saveTrackedParticleEffect({ page, content: creatorContent, name }));
+  expect(saved.texturePaths.sort()).toEqual(
+    HEART_BURST_TEXTURES.map((texture) => `textures/${texture}`).sort(),
+  );
+
+  await test.step("reopen the saved item with its art", async () => {
+    await page.goto(`/particle-effects/${saved.itemId}/edit`);
+    await expect(nameField).toHaveValue(name, { timeout: 30_000 });
+    await expectHeartBurstArt(page);
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeVisible();
+    await animamaEvidence.attachBuffer(
+      "particle-template-reopened.png",
+      await page.screenshot(),
+      "image/png",
+    );
+  });
+
+  await creatorContent.cleanupOwnedContent();
+  await creatorContent.assertLocalCatalogUnchanged(
+    catalogBefore,
+    animamaEvidence,
+    "particle-template-save",
+  );
 });

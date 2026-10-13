@@ -1,6 +1,7 @@
 import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
 import {
   addSceneEffectImage,
+  applySceneEffectTemplate,
   canonicalSceneEffectImageName,
   createDefaultSceneEffectDocument,
   inspectSceneEffectImage,
@@ -59,6 +60,20 @@ export function sceneEffectHistoryEdit(
   return (snapshot) => ({
     document: sceneEffectEditorReducer(snapshot.document, action),
     imageResources: imageResources ?? snapshot.imageResources,
+  });
+}
+
+/**
+ * One undoable edit that starts the draft over from a loaded template (see
+ * `applySceneEffectTemplate`). The step carries the template's image Files,
+ * so undo restores the previous images with the previous layers.
+ */
+export function sceneEffectTemplateEdit(
+  template: SceneEffectHistorySnapshot,
+): (snapshot: SceneEffectHistorySnapshot) => SceneEffectHistorySnapshot {
+  return (snapshot) => ({
+    document: applySceneEffectTemplate(snapshot.document, template.document),
+    imageResources: template.imageResources,
   });
 }
 

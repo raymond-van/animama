@@ -1,30 +1,13 @@
 import { getSceneFocusLinesVFXPresetById } from "@/lib/scene-vfx/presets";
 import type {
-  SceneBackgroundFlashLayer,
-  SceneBackgroundGradientLayer,
   SceneBackgroundLinesScreen,
-  SceneBackgroundMarqueeLayer,
-  SceneBackgroundPatternLayer,
   SceneBackgroundRaysScreen,
-  SceneBackgroundScreenLayer,
-  SceneBackgroundSolidLayer,
 } from "@/lib/scene-vfx/types";
-import affectionLove from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-love/scene-vfx-emotion-love.json";
-import alarmFear from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-fear/scene-vfx-emotion-fear.json";
-import delightJoy from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-joy/scene-vfx-emotion-joy.json";
-import driveOptimism from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-optimism/scene-vfx-emotion-optimism.json";
-import esteemConfidence from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-confidence/scene-vfx-emotion-confidence.json";
-import gloomSadness from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-sadness/scene-vfx-emotion-sadness.json";
-import rejectionAnger from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-anger/scene-vfx-emotion-anger.json";
-import revulsionDisgust from "../../../../../../../content/included/vfx/scene/scene-vfx-emotion-disgust/scene-vfx-emotion-disgust.json";
 import type {
-  SceneEffectBackgroundTemplateId,
   SceneEffectEditorBackground,
   SceneEffectEditorDocument,
   SceneEffectEditorFocus,
   SceneEffectEditorScatter,
-  SceneEffectFocusTemplateId,
-  SceneEffectTemplateId,
 } from "./types";
 import { SCENE_EFFECT_EDITOR_SCHEMA } from "./types";
 
@@ -33,77 +16,6 @@ export const DEFAULT_SCENE_SOLID_COLOR = "#faf9f5";
 
 /** Default Anima-theme primary blue used by the Scene pattern layer. */
 export const DEFAULT_SCENE_PATTERN_COLOR = "#87ceeb";
-
-/** The layers of an Included background a template takes: those drawn in code. */
-type IncludedSceneBackgroundDefinition = {
-  solid: SceneBackgroundSolidLayer;
-  pattern: SceneBackgroundPatternLayer;
-  marquee: Omit<SceneBackgroundMarqueeLayer, "items">;
-  gradient?: SceneBackgroundGradientLayer;
-  screen?: SceneBackgroundScreenLayer;
-  flash?: SceneBackgroundFlashLayer;
-};
-
-const definition = (descriptor: { definition: unknown }) =>
-  descriptor.definition as IncludedSceneBackgroundDefinition;
-
-/**
- * Each background template's source: one Included emotion background per
- * Scene family, read at build time, so a template follows its Included effect.
- */
-const BACKGROUND_TEMPLATE_SOURCES: Record<
-  SceneEffectBackgroundTemplateId,
-  IncludedSceneBackgroundDefinition
-> = {
-  "shoujo-bloom": definition(affectionLove),
-  radiance: definition(esteemConfidence),
-  "festive-pop": definition(delightJoy),
-  anticipation: definition(driveOptimism),
-  shock: definition(alarmFear),
-  rage: definition(rejectionAnger),
-  queasy: definition(revulsionDisgust),
-  gloom: definition(gloomSadness),
-};
-
-export const SCENE_EFFECT_TEMPLATE_OPTIONS: Array<{
-  id: SceneEffectTemplateId;
-  label: string;
-  kind: "background_layers" | "focus_lines";
-}> = [
-  { id: "shoujo-bloom", label: "Shoujo Bloom", kind: "background_layers" },
-  { id: "radiance", label: "Radiance", kind: "background_layers" },
-  { id: "festive-pop", label: "Festive Pop", kind: "background_layers" },
-  { id: "anticipation", label: "Anticipation", kind: "background_layers" },
-  { id: "shock", label: "Shock", kind: "background_layers" },
-  { id: "rage", label: "Rage", kind: "background_layers" },
-  { id: "queasy", label: "Queasy", kind: "background_layers" },
-  { id: "gloom", label: "Gloom", kind: "background_layers" },
-  { id: "dark", label: "Dark Focus", kind: "focus_lines" },
-  { id: "light-streak", label: "Light Streak", kind: "focus_lines" },
-];
-
-function isFocusTemplate(
-  templateId: SceneEffectTemplateId,
-): templateId is SceneEffectFocusTemplateId {
-  return templateId === "dark" || templateId === "light-streak";
-}
-
-/** Clone a template into a private, independently editable draft. */
-export function sceneEffectTemplate(
-  templateId: SceneEffectTemplateId,
-): Pick<SceneEffectEditorDocument, "kind" | "background" | "focus"> {
-  return isFocusTemplate(templateId)
-    ? {
-        kind: "focus_lines",
-        background: emptyBackground(),
-        focus: defaultFocus(templateId),
-      }
-    : {
-        kind: "background_layers",
-        background: templateBackground(templateId),
-        focus: defaultFocus("dark"),
-      };
-}
 
 export function createDefaultSceneEffectDocument(): SceneEffectEditorDocument {
   return {
@@ -116,7 +28,7 @@ export function createDefaultSceneEffectDocument(): SceneEffectEditorDocument {
     dismissOnInput: true,
     sound: null,
     background: emptyBackground(),
-    focus: defaultFocus("dark"),
+    focus: defaultFocus(),
   };
 }
 
@@ -242,31 +154,9 @@ function emptyBackground(): SceneEffectEditorBackground {
   };
 }
 
-/**
- * A background template: its Included background's solid, pattern, gradient,
- * rays or lines and flash. The tile, scatter and marquee art belong to the
- * Included effect, so a template starts without images.
- */
-function templateBackground(
-  templateId: SceneEffectBackgroundTemplateId,
-): SceneEffectEditorBackground {
-  const source = structuredClone(BACKGROUND_TEMPLATE_SOURCES[templateId]);
-  const optional = defaultSceneOptionalLayers();
-  return {
-    ...optional,
-    solid: source.solid,
-    pattern: source.pattern,
-    marquee: { ...source.marquee, items: [] },
-    gradient: source.gradient ?? optional.gradient,
-    screen: source.screen ?? optional.screen,
-    flash: source.flash ?? optional.flash,
-  };
-}
-
-function defaultFocus(
-  templateId: SceneEffectFocusTemplateId,
-): SceneEffectEditorFocus {
-  const entry = getSceneFocusLinesVFXPresetById(templateId);
+/** Focus lines start as the bundled Dark focus preset. */
+function defaultFocus(): SceneEffectEditorFocus {
+  const entry = getSceneFocusLinesVFXPresetById("dark");
   return {
     renderPlacement: entry.renderPlacement,
     lineCount: entry.lineCount,

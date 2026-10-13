@@ -6,9 +6,9 @@ import { ContentPreviewExclusiveCanvasGate } from "@/ui/content-preview/ContentP
 import { ParticleVFXCreatorPage } from "@/ui/particle-vfx-creator/ParticleVFXCreatorPage";
 
 /**
- * `/particle-effects/new[?template=<id>]`: a new Particle Effect. The page is
- * keyed by template, so choosing another template starts a separate draft.
- * The creator does not load the template's settings yet; it opens blank.
+ * `/particle-effects/new[?template=<id>]`: a new Particle Effect, blank or
+ * seeded from an Included template. The page is keyed by template, so
+ * choosing another template starts a separate draft.
  */
 export const Route = createFileRoute("/_app/particle-effects/new")({
   validateSearch: parseParticleEffectTemplateSearch,
@@ -24,7 +24,10 @@ function NewParticleEffectRoute() {
       contentClassName="h-full max-w-none gap-0 px-0 py-0 md:px-0 lg:px-0"
     >
       <ContentPreviewExclusiveCanvasGate ownerId="particle-effect-creator:new">
-        <ParticleVFXCreatorPage key={`new:${template ?? ""}`} />
+        <ParticleVFXCreatorPage
+          key={`new:${template ?? ""}`}
+          templateId={template}
+        />
       </ContentPreviewExclusiveCanvasGate>
     </AppShellPage>
   );
