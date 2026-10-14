@@ -1177,6 +1177,49 @@ Not started.
 
 ## Final integration review
 
+### P1–P4 subset review (2026-10-13)
+
+The owner authorized P1–P4 only, so this review covers that subset and its
+integration. P5 and P6 need their own final integration review.
+
+#### Final Integration Review #1 Findings
+
+Round 1 (`sdlc-reviewer`, `402ab662` against `7a25aa34`): **pass**, no
+Required findings. The reviewer traced a template draft through Simple, the
+theme, recovery `/5`, Save and reopen. It also checked:
+
+- that shared components (toolbar, slider, radio group, template lookup,
+  anchor labels) do not regress the Avatar and Scene creators;
+- that the Scene creator is coherent without Simple mode;
+- docs, licences (42 records) and tooling;
+- hygiene: no TODOs, debug output or stray files.
+
+Optional:
+
+- **FI-R1-F1:** two stale Idempotence lines (recovery `/4`, port 8300).
+- **FI-R1-F2:** a P1–P4 PR must close only #488–#491 and state that R15 and
+  R17 acceptance waits for P6 and G1/G2.
+- **FI-R1-F3:** "Use in…" is icon-only at 1280–1535 px in every creator (the
+  accepted P3-R2 revision), so the Avatar FX toolbar changes slightly.
+- **FI-R1-F4:** the Particle "From template" label is route state, so it
+  stays after Import replaces the draft.
+- **FI-R1-F5:** recovery `/4` existed only on this branch.
+- **FI-R1-F6:** three barrel exports have no outside users.
+
+#### Final Integration Review #1 Revisions
+
+- **F1, F6 accepted:** fixed.
+- **F2 accepted:** the PR is this plan's single PR, opened after P4 for
+  review. It closes #488–#491 only and says R15 and R17 acceptance waits for
+  P5, P6 and G1/G2; P5 and P6 continue on the same branch and PR.
+- **F3 accepted:** stated in the PR and for G2.
+- **F4 deferred to P5:** P5 derives the Scene label from the document, and
+  will move the Particle label to the same rule so both creators match.
+- **F5 kept:** reading `/4` costs about six lines and protects this branch's
+  development installs.
+
+### Whole plan
+
 One full `sdlc-reviewer` review of `origin/main...HEAD`, with at most two
 repair rounds. It covers:
 
@@ -1208,15 +1251,15 @@ disabled).
   folders keep each kind's stale-file removal from touching the others.
 - **Template drafts** are new Local drafts. Discarding one never changes the
   Included item.
-- **Recovery formats:** `/4` (Particle) and `/2` (Scene) read their
-  predecessors. A record from a newer build is ignored with the existing
+- **Recovery formats:** Particle `/5` (P4) reads `/4`, `/3` and `/2`; Scene
+  `/2` (P5) will read `/1`. A record from a newer build is ignored with the existing
   notice.
 - **User content:** Simple adds no saved field. Effects saved with Simple
   adjustments are ordinary effects, and existing Local effects open in Simple
   at 100 %.
 - **Database:** no schema change is expected. If one is needed, update the
   ORM and `alembic/versions/0001_baseline.sql` directly.
-- **Stacks:** `p3creators` (development, port 8300) and `p3e2e` (built, for
+- **Stacks:** `p3creators` (development, base port 8700) and `p3e2e` (built, for
   the full journeys) are task-owned. Stop each after its last use and keep its
   data unless a purge is needed.
 

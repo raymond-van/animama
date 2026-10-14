@@ -67,9 +67,7 @@ export {
   PARTICLE_VFX_SIMPLE_STEP,
   applyParticleVFXSimpleControls,
   countParticleVFXMultiParticleLayers,
-  equalParticleVFXSimpleFactors,
   equalParticleVFXSimpleSettings,
-  isNeutralParticleVFXSimpleFactors,
   isNeutralParticleVFXSimpleState,
   particleVFXColourThemeId,
   particleVFXSimpleControlBounds,
@@ -79,7 +77,6 @@ export {
   setParticleVFXSimpleControl,
   type ParticleVFXColourThemeResult,
   type ParticleVFXSimpleBounds,
-  type ParticleVFXSimpleLimit,
   type ParticleVFXTextureCodec,
 } from "./simpleControls";
 export {
