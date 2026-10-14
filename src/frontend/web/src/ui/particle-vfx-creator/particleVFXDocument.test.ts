@@ -6,6 +6,7 @@ import {
   setParticleVFXSimpleControl,
   updateParticleVFXEditorCatalogDraft,
 } from "@/lib/avatar/particle-vfx";
+import { themedParticleDraft } from "@/test/particle-colour-theme";
 import {
   equalParticleVFXDrafts,
   particleVFXDocumentFingerprint,
@@ -137,5 +138,33 @@ describe("Simple controls in the Particle document", () => {
 
     expect(unchanged.simple).toBe(scaled.simple);
     expect(rebaseParticleVFXSimpleControls(scaled, scaled)).toBe(scaled);
+  });
+
+  it("makes a colour theme an undo step and an Advanced colour edit a rebase to Original", async () => {
+    const { draft, themed } = await themedParticleDraft("sky");
+    expect(equalParticleVFXDrafts(themed, draft)).toBe(false);
+    expect(
+      equalParticleVFXDrafts(themed, (await themedParticleDraft("sky")).themed),
+    ).toBe(true);
+    // Another theme is another step.
+    expect(
+      equalParticleVFXDrafts(
+        themed,
+        (await themedParticleDraft("white")).themed,
+      ),
+    ).toBe(false);
+
+    const copy = "textures/glyph-1-sky.png";
+    const recoloured = rebaseParticleVFXSimpleControls(
+      themed,
+      applyParticleVFXEmitterPatch(themed, themed.emitters[0]!.path, {
+        startColor: { r: 0.2, g: 0.4, b: 0.9 },
+      }),
+    );
+    // Simple shows Original again; the edited effect keeps the theme's copy
+    // as its own texture.
+    expect(recoloured.simple).toBeNull();
+    expect(recoloured.emitters[0]!.textureUrl).toBe(copy);
+    expect(recoloured.textureFiles[copy]).toBe(themed.textureFiles[copy]);
   });
 });

@@ -2,8 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createParticleVFXEditorDraftFromBlank,
+  setParticleVFXColourTheme,
   setParticleVFXSimpleControl,
 } from "@/lib/avatar/particle-vfx";
+import {
+  fakeParticleTextureCodec,
+  themedParticleDraft,
+} from "@/test/particle-colour-theme";
 import type { CatalogSaveInput } from "@/lib/content/catalogApi";
 import type { PyContentItem } from "@/lib/content/catalogTypes";
 import type { CreatorRecoveryStore } from "@/lib/content/creatorRecoveryStore";
@@ -346,5 +351,35 @@ describe("effect Save adapters", () => {
     const back = setParticleVFXSimpleControl(scaled, "amount", 100);
     expect(back.simple).not.toBeNull();
     expect(record(back).simple).toBeNull();
+  });
+
+  it("recovers a colour theme with its copies and the reference's originals, so Original still works", async () => {
+    const { draft, themed } = await themedParticleDraft("sky");
+    const record = particleVFXSaveAdapter.toRecovery({
+      userId: "owner",
+      documentKey: "new",
+      itemId: undefined,
+      session,
+      snapshot: themed,
+      updatedAt: "2026-10-13T00:00:00.000Z",
+    });
+    expect(record.textures.map(({ reference }) => reference).sort()).toEqual([
+      "textures/glyph-1-sky.png",
+      "textures/glyph-1.png",
+    ]);
+    expect(record.simple?.theme).toEqual(themed.simple?.theme);
+
+    const restored = particleVFXSaveAdapter.fromRecovery(record).snapshot;
+    expect(restored.simple?.theme?.id).toBe("sky");
+    expect(restored.quarksJson).toEqual(themed.quarksJson);
+    const original = await setParticleVFXColourTheme(restored, "original", {
+      codec: fakeParticleTextureCodec,
+      loadTexture: async () => null,
+    });
+    if (!original.ok) throw new Error(original.message);
+    expect(original.draft.quarksJson).toEqual(draft.quarksJson);
+    expect(original.draft.textureFiles["textures/glyph-1.png"]?.sha256).toBe(
+      draft.textureFiles["textures/glyph-1.png"]?.sha256,
+    );
   });
 });

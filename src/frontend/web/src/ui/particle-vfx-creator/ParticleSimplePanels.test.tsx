@@ -69,6 +69,22 @@ const reference: ParticleVFXSimpleReference = {
   catalog: blank.catalog,
   quarksJson: blank.quarksJson,
 };
+/** The colour theme at Original with nothing pending. */
+const themeProps = {
+  colourTheme: "original",
+  themeStatus: { pending: null, error: null },
+  onColourTheme: () => undefined,
+} as const;
+
+function swatches(): HTMLElement[] {
+  return [...container!.querySelectorAll<HTMLElement>('[role="radio"]')];
+}
+
+function swatch(name: string): HTMLElement {
+  const found = swatches().find((radio) => radio.textContent === name);
+  if (!found) throw new Error(`No ${name} swatch`);
+  return found;
+}
 
 describe("Particle Simple panels", () => {
   let frames: FrameRequestCallback[];
@@ -128,6 +144,7 @@ describe("Particle Simple panels", () => {
         onAdjustStart={onAdjustStart}
         onAdjust={onAdjust}
         onAdjustEnd={vi.fn()}
+        {...themeProps}
       />,
     );
     for (const [name, value] of [
@@ -162,6 +179,7 @@ describe("Particle Simple panels", () => {
           factors = { ...factors, [control]: value };
         }}
         onAdjustEnd={() => calls.push("end")}
+        {...themeProps}
       />
     );
     const view = render(panel());
@@ -237,6 +255,7 @@ describe("Particle Simple panels", () => {
         onAdjustStart={vi.fn()}
         onAdjust={vi.fn()}
         onAdjustEnd={vi.fn()}
+        {...themeProps}
       />,
     );
     expect(slider("Amount").hasAttribute("data-disabled")).toBe(true);
@@ -258,5 +277,75 @@ describe("Particle Simple panels", () => {
         .split(" ")
         .map((id) => document.getElementById(id)?.textContent),
     ).toEqual(["How big every particle is"]);
+  });
+
+  it("offers the colour theme as a labelled radio group of swatches", async () => {
+    const onColourTheme = vi.fn();
+    const panel = (
+      colourTheme: "original" | "sky",
+      themeStatus: { pending: "gold" | null; error: string | null },
+    ) => (
+      <ParticleSimpleAdjustPanel
+        reference={reference}
+        factors={PARTICLE_VFX_SIMPLE_NEUTRAL}
+        onAdjustStart={vi.fn()}
+        onAdjust={vi.fn()}
+        onAdjustEnd={vi.fn()}
+        colourTheme={colourTheme}
+        themeStatus={themeStatus}
+        onColourTheme={onColourTheme}
+      />
+    );
+    const view = render(panel("sky", { pending: null, error: null }));
+
+    const group = container!.querySelector<HTMLElement>('[role="radiogroup"]')!;
+    expect(
+      document.getElementById(group.getAttribute("aria-labelledby")!)
+        ?.textContent,
+    ).toBe("Colour theme");
+    expect(swatches().map((radio) => radio.textContent)).toEqual([
+      "Original",
+      "Rose",
+      "Gold",
+      "Mint",
+      "Sky",
+      "Violet",
+      "White",
+    ]);
+    // The chosen swatch is marked for assistive technology.
+    expect(
+      swatches().map((radio) => radio.getAttribute("aria-checked")),
+    ).toEqual(["false", "false", "false", "false", "true", "false", "false"]);
+    // Arrow keys move to the next swatch and choose it (Radix moves focus
+    // on the next task).
+    act(() => swatch("Sky").focus());
+    press(swatch("Sky"), "ArrowRight");
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(document.activeElement).toBe(swatch("Violet"));
+    expect(onColourTheme).toHaveBeenLastCalledWith("violet");
+    act(() => swatch("Original").click());
+    expect(onColourTheme).toHaveBeenLastCalledWith("original");
+
+    // While a theme is applied: the choice shows, the work is announced and
+    // the sliders wait; the swatches stay usable.
+    view.rerender(panel("sky", { pending: "gold", error: null }));
+    expect(swatch("Gold").getAttribute("aria-checked")).toBe("true");
+    expect(group.getAttribute("aria-busy")).toBe("true");
+    expect(container!.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      "Recolouring the art…",
+    );
+    expect(slider("Size").hasAttribute("data-disabled")).toBe(true);
+    expect(swatch("Mint").hasAttribute("disabled")).toBe(false);
+
+    view.rerender(
+      panel("sky", { pending: null, error: "This effect shows no colour." }),
+    );
+    expect(container!.querySelector('[role="alert"]')?.textContent).toBe(
+      "This effect shows no colour.",
+    );
+    expect(container!.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      "",
+    );
+    expect(slider("Size").hasAttribute("data-disabled")).toBe(false);
   });
 });

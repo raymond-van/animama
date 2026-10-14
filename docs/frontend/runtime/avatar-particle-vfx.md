@@ -107,7 +107,9 @@ A creator draft autosaves to browser recovery with its textures, up to
 37 MiB (5 MiB of JSON plus the 32 MiB texture total). A larger draft is not
 recovered; when only the localStorage fallback is available, a draft of up
 to 1 MiB of JSON restores without its textures and the creator asks for them
-again.
+again. While a colour theme is chosen, recovery holds the original textures
+as well as their recoloured copies, so a very texture-heavy effect can pass
+the bound and show the "too large for browser crash recovery" warning.
 
 The editor texture picker is driven by
 `web/src/lib/avatar/particle-vfx/editor/textureManifest.ts`. Each manifest
@@ -182,20 +184,32 @@ scales the whole effect while keeping its layers' relationships:
   lifetimes, cycles, burst times and playback durations ÷ k).
 - **Spread** scales emitter offsets, shape sizes, speeds, forces and noise
   without resizing particles; Avatar-fitted rectangles keep fitting.
+- **Colour theme** (Original, Rose, Gold, Mint, Sky, Violet, White) rotates
+  the hue of every emitter colour and every texture that is not near grey by
+  one step that moves the effect's dominant hue onto the swatch's; White
+  desaturates. Recoloured textures become the effect's own PNGs
+  (`<texture>-<theme>.png`, made in a worker and checked against the texture
+  limits); `editor/colourTheme.ts` documents the target hues and the
+  dominant-hue measure. PNGs are recoloured without a canvas
+  (`editor/pngCodec.ts`), so the edge colour bled into transparent pixels
+  follows the art. Other textures (JPEG, WebP, and interlaced, 16-bit or
+  inconsistent PNGs) go through a canvas: faint pixels are quantized and the
+  edges are bled again.
 
 `editor/simpleControls.ts` lists how each three.quarks field is treated. Each
 control is a percentage (Amount 25–400 %, the others 25–300 %) of a reference:
 the effect when Simple was first used after opening or after the last edit
-made elsewhere, so 100 % restores it exactly. A control stops, and says why,
+made elsewhere, so 100 % and Original restore it exactly. A control stops, and says why,
 where the estimate would pass 512 particles or a duration 30 seconds; the
 declared budget rises with the estimate up to 512, never below the
 reference's. The scaled values are in
 the effect, so Advanced shows them. An Advanced edit makes the edited effect
-the new reference (Simple returns to 100 %); renaming does not. A slider drag
-is one undo step. Recovery (`animama/particle-effect-recovery/4`) keeps the
-reference and positions; Save stores only the scaled effect. After Save the
-controls return to 100 %: the saved effect is the new starting point, as it
-is when reopened.
+the new reference (Simple returns to 100 % and Original); renaming does not.
+A slider drag, and a theme, is one undo step. Recovery
+(`animama/particle-effect-recovery/5`) keeps the reference, positions and
+theme with the reference's own textures; Save stores only the resulting
+effect. After Save the controls return to 100 % and Original: the saved
+effect is the new starting point, as it is when reopened.
 
 **Advanced** is the full authoring view. Its left panel separates emitter
 selection from whole-effect defaults. Name lives in the header; internal IDs,

@@ -4,6 +4,7 @@ import {
   createParticleVFXEditorDraftFromBlank,
   setParticleVFXSimpleControl,
 } from "@/lib/avatar/particle-vfx";
+import { themedParticleDraft } from "@/test/particle-colour-theme";
 import { creatorRecoveryKey } from "./creatorRecoveryStore";
 import {
   PARTICLE_VFX_RECOVERY_SCHEMA,
@@ -230,6 +231,51 @@ describe("Particle Effect recovery", () => {
       record(PARTICLE_VFX_RECOVERY_SCHEMA, {
         reference: { catalog: draft.catalog, quarksJson: draft.quarksJson },
         factors: { amount: 900, size: 100, speed: 100, spread: 100 },
+      }),
+    );
+    expect(
+      (await particleVFXRecoveryStore.load("user-a", "new"))?.simple,
+    ).toBeNull();
+  });
+
+  it("keeps a colour theme; a version 4 draft restores at Original, an unreadable theme at 100 %", async () => {
+    const { themed } = await themedParticleDraft("gold");
+    const key = `anima.particleVfxCreator.recovery.v1:${creatorRecoveryKey("user-a", "new")}`;
+    const record = (schema: string, simple: unknown) =>
+      JSON.stringify({
+        schema,
+        userId: "user-a",
+        documentKey: "new",
+        source: null,
+        operationId: "operation-a",
+        fileOperationIds: [],
+        displayName: "Themed",
+        catalog: themed.catalog,
+        quarksJson: themed.quarksJson,
+        textures: [],
+        simple,
+        updatedAt: "2026-10-13T12:00:00.000Z",
+      });
+
+    values.set(key, record(PARTICLE_VFX_RECOVERY_SCHEMA, themed.simple));
+    expect(
+      (await particleVFXRecoveryStore.load("user-a", "new"))?.simple,
+    ).toEqual(themed.simple);
+
+    const withoutTheme = {
+      reference: themed.simple!.reference,
+      factors: themed.simple!.factors,
+    };
+    values.set(key, record("animama/particle-effect-recovery/4", withoutTheme));
+    expect(
+      (await particleVFXRecoveryStore.load("user-a", "new"))?.simple,
+    ).toEqual({ ...withoutTheme, theme: null });
+
+    values.set(
+      key,
+      record(PARTICLE_VFX_RECOVERY_SCHEMA, {
+        ...themed.simple,
+        theme: { id: "teal", transform: { kind: "rotate", degrees: 5 } },
       }),
     );
     expect(

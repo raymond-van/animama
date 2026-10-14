@@ -7,6 +7,7 @@ import {
   setParticleVFXSimpleControl,
   updateParticleVFXEditorCatalogDraft,
 } from "@/lib/avatar/particle-vfx";
+import { themedParticleDraft } from "@/test/particle-colour-theme";
 import {
   buildParticleVFXContentPackage,
   ParticleVFXContentPackageError,
@@ -121,6 +122,27 @@ describe("Particle VFX editable content package", () => {
     );
     // The saved draft is the effect as saved, with Simple back at 100 %.
     expect(built.normalizedDraft.simple).toBeNull();
+  });
+
+  it("packages a colour theme's recoloured textures as the effect's own, not the originals", async () => {
+    const { themed } = await themedParticleDraft("sky");
+    const built = await buildParticleVFXContentPackage({
+      draft: updateParticleVFXEditorCatalogDraft(themed, { label: "Sky" }),
+      resources: [],
+    });
+
+    expect(built.textures.map((texture) => texture.packageReference)).toEqual([
+      "textures/glyph-1-sky.png",
+    ]);
+    expect(await built.textures[0]!.file.arrayBuffer()).toEqual(
+      await themed.textureFiles["textures/glyph-1-sky.png"]!.blob.arrayBuffer(),
+    );
+    expect(JSON.stringify(built.authoringManifest)).not.toMatch(/theme/i);
+    // The saved draft reopens as that effect, at Original.
+    expect(built.normalizedDraft.simple).toBeNull();
+    expect(Object.keys(built.normalizedDraft.textureFiles)).toEqual([
+      "textures/glyph-1-sky.png",
+    ]);
   });
 
   it("normalizes canonical WebP names and keeps them stable on re-save", async () => {

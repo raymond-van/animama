@@ -1,16 +1,18 @@
 /**
  * Simple mode's broad Particle controls (decision P-MAP): Amount, Size, Speed
  * and Spread each scale the whole effect while keeping the relationships
- * between its emitters (layers).
+ * between its emitters (layers). The colour theme (decision P-COLOUR,
+ * `colourTheme.ts`) recolours it.
  *
  * The controls are percentages of a reference: the effect as it was when a
  * Simple control was first used after opening, or after the last edit made
  * anywhere else (an Advanced edit makes the edited effect the new reference;
- * the page does this at its draft-update boundary). The scaled effect is
- * always recomputed from the reference, so every control back at 100 %
- * restores it byte for byte and rounded burst counts never drift. The
- * reference and percentages live on the draft (`draft.simple`), so undo, redo
- * and recovery restore them; Save writes only the scaled effect.
+ * the page does this at its draft-update boundary). The scaled and themed
+ * effect is always recomputed from the reference, so every control back at
+ * 100 % and Original restores it byte for byte and rounded burst counts
+ * never drift. The reference, percentages and theme live on the draft
+ * (`draft.simple`), so undo, redo and recovery restore them; Save writes only
+ * the resulting effect.
  *
  * Fields, for three.quarks 0.17.1. `a`, `s`, `k` and `p` are Amount, Size,
  * Speed and Spread as fractions (150 % is 1.5). Speed is tempo: the same
@@ -56,6 +58,17 @@
  * and at most one particle from all its bursts: a hero, halo, ring or flash.
  */
 import { normalizeParticleVFXShapeAutoFit } from "../autoFit";
+import type {
+  ParticleVFXColourTransform,
+  ParticleVFXTextureSample,
+} from "./colourPixels";
+import {
+  applyParticleVFXSimpleTheme,
+  isIdentityParticleVFXColourTransform,
+  isParticleVFXThemeColouredTexture,
+  particleVFXThemeTransform,
+  particleVFXThemedTextureReference,
+} from "./colourTheme";
 import {
   PARTICLE_VFX_MAX_DURATION_SECONDS,
   PARTICLE_VFX_MAX_PARTICLES,
@@ -67,19 +80,30 @@ import {
 import { cloneJsonObject, readJsonArrayObjects, readJsonObject } from "./json";
 import { roundEditorNumber } from "./numbers";
 import { estimateParticleVFXParticles } from "./particleEstimate";
+import {
+  particleVFXTextureLimitMessage,
+  particleVFXTextureReferences,
+  readParticleVFXTextureFile,
+} from "./textureFiles";
 import type {
   JsonObject,
+  ParticleVFXColourThemeId,
   ParticleVFXEditorDraft,
-  ParticleVFXSimpleControl,
-  ParticleVFXSimpleFactors,
-  ParticleVFXSimpleReference,
-} from "./types";
-
-export type {
+  ParticleVFXEditorTextureFile,
   ParticleVFXSimpleControl,
   ParticleVFXSimpleFactors,
   ParticleVFXSimpleReference,
   ParticleVFXSimpleState,
+  ParticleVFXSimpleTheme,
+} from "./types";
+
+export type {
+  ParticleVFXColourThemeId,
+  ParticleVFXSimpleControl,
+  ParticleVFXSimpleFactors,
+  ParticleVFXSimpleReference,
+  ParticleVFXSimpleState,
+  ParticleVFXSimpleTheme,
 } from "./types";
 
 /** The four controls, in the order Simple shows them. */
@@ -154,35 +178,256 @@ export function isNeutralParticleVFXSimpleFactors(
   return equalParticleVFXSimpleFactors(factors, PARTICLE_VFX_SIMPLE_NEUTRAL);
 }
 
+/** The draft's colour theme swatch; a draft without one is Original. */
+export function particleVFXColourThemeId(
+  draft: Pick<ParticleVFXEditorDraft, "simple">,
+): ParticleVFXColourThemeId {
+  return draft.simple?.theme?.id ?? "original";
+}
+
 /**
- * Move one control on a draft and write the scaled effect into it. The first
- * use captures the draft's effect as the reference; later uses scale that
- * same reference. `percent` snaps to the 5 % grid within the control's range;
- * callers keep it within `particleVFXSimpleControlBounds`.
+ * Whether two Simple states leave the reference the same way: the same
+ * control positions and the same theme with the same step. (Their copies'
+ * bytes count in the document fingerprint.)
+ */
+export function equalParticleVFXSimpleSettings(
+  left: Pick<ParticleVFXEditorDraft, "simple">,
+  right: Pick<ParticleVFXEditorDraft, "simple">,
+): boolean {
+  const leftTheme = left.simple?.theme ?? null;
+  const rightTheme = right.simple?.theme ?? null;
+  return (
+    equalParticleVFXSimpleFactors(
+      particleVFXSimpleFactors(left),
+      particleVFXSimpleFactors(right),
+    ) &&
+    leftTheme?.id === rightTheme?.id &&
+    JSON.stringify(leftTheme?.transform) ===
+      JSON.stringify(rightTheme?.transform)
+  );
+}
+
+/** Whether a Simple state changes nothing: 100 % everywhere and Original. */
+export function isNeutralParticleVFXSimpleState(
+  state: ParticleVFXSimpleState | null,
+): boolean {
+  return (
+    !state || (isNeutralParticleVFXSimpleFactors(state.factors) && !state.theme)
+  );
+}
+
+/** The effect as it is now: the reference a first Simple use captures. */
+function captureParticleVFXSimpleReference(
+  draft: ParticleVFXEditorDraft,
+): ParticleVFXSimpleReference {
+  return {
+    catalog: structuredClone(draft.catalog),
+    quarksJson: cloneJsonObject(draft.quarksJson),
+  };
+}
+
+/**
+ * The draft with `state` written into it: the reference scaled by its
+ * factors and recoloured by its theme. Simple never names the effect, so
+ * the draft keeps any name given since the reference.
+ */
+function withParticleVFXSimpleState(
+  draft: ParticleVFXEditorDraft,
+  state: ParticleVFXSimpleState,
+  textureFiles: ParticleVFXEditorDraft["textureFiles"] = draft.textureFiles,
+): ParticleVFXEditorDraft {
+  const effect = applyParticleVFXSimpleControls(state.reference, state.factors);
+  applyParticleVFXSimpleTheme(effect.quarksJson, state.theme);
+  effect.catalog.label = draft.catalog.label;
+  return {
+    ...replaceParticleVFXEditorEffect({ ...draft, textureFiles }, effect),
+    simple: state,
+  };
+}
+
+/**
+ * Move one control on a draft and write the scaled effect into it, keeping
+ * its colour theme. The first use captures the draft's effect as the
+ * reference; later uses scale that same reference. `percent` snaps to the
+ * 5 % grid within the control's range; callers keep it within
+ * `particleVFXSimpleControlBounds`.
  */
 export function setParticleVFXSimpleControl(
   draft: ParticleVFXEditorDraft,
   control: ParticleVFXSimpleControl,
   percent: number,
 ): ParticleVFXEditorDraft {
-  const reference = draft.simple?.reference ?? {
-    catalog: structuredClone(draft.catalog),
-    quarksJson: cloneJsonObject(draft.quarksJson),
-  };
   const range = PARTICLE_VFX_SIMPLE_RANGES[control];
   const snapped =
     Math.round(percent / PARTICLE_VFX_SIMPLE_STEP) * PARTICLE_VFX_SIMPLE_STEP;
-  const factors = {
-    ...particleVFXSimpleFactors(draft),
-    [control]: Math.min(range.max, Math.max(range.min, snapped)),
-  };
-  const effect = applyParticleVFXSimpleControls(reference, factors);
-  // Simple never names the effect: it keeps any name given since the reference.
-  effect.catalog.label = draft.catalog.label;
-  return {
-    ...replaceParticleVFXEditorEffect(draft, effect),
-    simple: { reference, factors },
-  };
+  return withParticleVFXSimpleState(draft, {
+    reference:
+      draft.simple?.reference ?? captureParticleVFXSimpleReference(draft),
+    factors: {
+      ...particleVFXSimpleFactors(draft),
+      [control]: Math.min(range.max, Math.max(range.min, snapped)),
+    },
+    theme: draft.simple?.theme ?? null,
+  });
+}
+
+/**
+ * Decoding and encoding for the colour theme: in a worker where the browser
+ * allows, otherwise on the main thread (`particleTextureCodec.ts`).
+ */
+export type ParticleVFXTextureCodec = {
+  /** The texture scaled to at most 128 px on its longer side, as RGBA. */
+  sample: (blob: Blob) => Promise<ParticleVFXTextureSample>;
+  /** The texture with every pixel recoloured by `transform`, as a PNG. */
+  recolour: (
+    blob: Blob,
+    transform: ParticleVFXColourTransform,
+  ) => Promise<Blob>;
+};
+
+export type ParticleVFXColourThemeResult =
+  | { ok: true; draft: ParticleVFXEditorDraft }
+  | { ok: false; message: string };
+
+function basename(reference: string): string {
+  return reference.split("/").at(-1) ?? reference;
+}
+
+/**
+ * Choose a colour theme swatch (decision P-COLOUR) and write the recoloured
+ * effect into the draft, as one edit; Original is the reference again.
+ *
+ * The step is measured on the reference (`particleVFXThemeTransform`): it
+ * moves the effect's dominant hue onto the swatch's target hue, and White
+ * desaturates instead. Every emitter colour takes the step, and so does every
+ * texture of the reference that is not near grey: it is decoded, recoloured
+ * and encoded as a PNG through `codec`, checked against the texture limits,
+ * and added as the effect's own file under a deterministic name
+ * (`particleVFXThemedTextureReference`); built-in textures are fetched
+ * through `loadTexture` (null when unavailable). The reference's own
+ * textures stay in the draft, so Original restores them exactly; the copies
+ * an earlier theme added are dropped. The Amount, Size, Speed and Spread
+ * positions are kept.
+ *
+ * A failure (decoding, encoding, a limit, or an effect showing no colour for
+ * a colour theme to move) returns why and leaves the draft as it was. An
+ * aborted `signal` rejects with its reason.
+ */
+export async function setParticleVFXColourTheme(
+  draft: ParticleVFXEditorDraft,
+  themeId: ParticleVFXColourThemeId,
+  {
+    codec,
+    loadTexture,
+    signal,
+  }: {
+    codec: ParticleVFXTextureCodec;
+    loadTexture: (reference: string) => Promise<Blob | null>;
+    signal?: AbortSignal;
+  },
+): Promise<ParticleVFXColourThemeResult> {
+  if (themeId === particleVFXColourThemeId(draft)) return { ok: true, draft };
+  const reference =
+    draft.simple?.reference ?? captureParticleVFXSimpleReference(draft);
+  const factors = particleVFXSimpleFactors(draft);
+  // The earlier theme's copies go; the reference's own textures stay.
+  const earlierCopies = new Set(
+    Object.values(draft.simple?.theme?.textures ?? {}),
+  );
+  const kept = Object.fromEntries(
+    Object.entries(draft.textureFiles).filter(
+      ([path]) => !earlierCopies.has(path),
+    ),
+  );
+  if (themeId === "original")
+    return {
+      ok: true,
+      draft: withParticleVFXSimpleState(
+        draft,
+        { reference, factors, theme: null },
+        kept,
+      ),
+    };
+
+  const references = particleVFXTextureReferences(reference.quarksJson);
+  const sources = new Map<
+    string,
+    { blob: Blob; sample: ParticleVFXTextureSample }
+  >();
+  for (const path of references) {
+    signal?.throwIfAborted();
+    const blob = kept[path]?.blob ?? (await loadTexture(path));
+    if (!blob) continue;
+    try {
+      sources.set(path, { blob, sample: await codec.sample(blob) });
+    } catch (error) {
+      signal?.throwIfAborted();
+      return { ok: false, message: textureFailure(path, "read", error) };
+    }
+  }
+  const transform = particleVFXThemeTransform(
+    themeId,
+    reference.quarksJson,
+    new Map([...sources].map(([path, { sample }]) => [path, sample])),
+  );
+  if (!transform)
+    return {
+      ok: false,
+      message: "This effect shows no colour for a theme to change.",
+    };
+
+  const textures: Record<string, string> = {};
+  const copies: Record<string, ParticleVFXEditorTextureFile> = {};
+  const taken = new Set([...Object.keys(kept), ...references]);
+  if (!isIdentityParticleVFXColourTransform(transform))
+    for (const [path, { blob, sample }] of sources) {
+      // Near-grey art shows the emitter colours, which the theme changes.
+      if (!isParticleVFXThemeColouredTexture(sample)) continue;
+      signal?.throwIfAborted();
+      let recoloured: Blob;
+      try {
+        recoloured = await codec.recolour(blob, transform);
+      } catch (error) {
+        signal?.throwIfAborted();
+        return {
+          ok: false,
+          message: textureFailure(path, "recoloured", error),
+        };
+      }
+      const read = await readParticleVFXTextureFile(recoloured);
+      if (!read.ok)
+        return {
+          ok: false,
+          message: `${basename(path)} could not be recoloured: ${read.message}`,
+        };
+      const copy = particleVFXThemedTextureReference(path, themeId, taken);
+      taken.add(copy);
+      textures[path] = copy;
+      copies[copy] = read.file;
+    }
+  signal?.throwIfAborted();
+
+  const theme: ParticleVFXSimpleTheme = { id: themeId, transform, textures };
+  const next = withParticleVFXSimpleState(
+    draft,
+    { reference, factors, theme },
+    { ...kept, ...copies },
+  );
+  const limit = particleVFXTextureLimitMessage(next);
+  return limit ? { ok: false, message: limit } : { ok: true, draft: next };
+}
+
+/** Why one texture stopped a theme, naming the texture. */
+function textureFailure(
+  path: string,
+  failed: "read" | "recoloured",
+  error: unknown,
+): string {
+  const reason =
+    error instanceof Error && error.message
+      ? error.message
+      : "The image could not be decoded.";
+  return `${basename(path)} could not be ${failed}: ${reason}`;
 }
 
 /**

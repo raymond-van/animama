@@ -2,6 +2,12 @@ import type { Locator, Page } from "playwright/test";
 
 import { expect, test } from "../fixtures/animama";
 import {
+  commitSharingPackage,
+  downloadSharingPackage,
+  reviewSharingExport,
+  uploadSharingPackage,
+} from "../helpers/content-sharing";
+import {
   chooseCreatorMode,
   effectTemplatePicker,
   waitForStoredDraft,
@@ -186,6 +192,89 @@ async function dragSlider(
   );
   await page.mouse.up();
 }
+
+/** The colour theme swatch `name` in Simple's Adjust panel. */
+function themeSwatch(page: Page, name: string): Locator {
+  return page
+    .getByRole("radiogroup", { name: "Colour theme", exact: true })
+    .getByRole("radio", { name, exact: true });
+}
+
+/** Choose a colour theme in Simple and wait until it is applied. */
+async function chooseTheme(page: Page, name: string): Promise<void> {
+  await chooseCreatorMode(page, "Simple");
+  await themeSwatch(page, name).click();
+  await expect(themeSwatch(page, name)).toHaveAttribute("aria-checked", "true");
+  await expect(
+    page.getByRole("radiogroup", { name: "Colour theme", exact: true }),
+  ).toHaveAttribute("aria-busy", "false");
+}
+
+/** Hue (degrees) of a `#rrggbb` colour, or null when it is grey. */
+function hexHue(hex: string): number | null {
+  const [r, g, b] = [1, 3, 5].map(
+    (offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255,
+  ) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const chroma = max - Math.min(r, g, b);
+  if (chroma < 0.02) return null;
+  const sextant =
+    max === r
+      ? ((((g - b) / chroma) % 6) + 6) % 6
+      : max === g
+        ? (b - r) / chroma + 2
+        : (r - g) / chroma + 4;
+  return sextant * 60;
+}
+
+function hueDistance(from: number, to: number): number {
+  return Math.abs(((to - from + 540) % 360) - 180);
+}
+
+/**
+ * Expect Heart Burst's art in `theme` (Advanced): the halo's Color Over Life
+ * hues near the theme's, and the hero heart drawing the matching texture.
+ */
+async function expectHeartBurstTheme(
+  page: Page,
+  theme: { hue: number; heart: string },
+): Promise<void> {
+  await chooseCreatorMode(page, "Advanced");
+  await page
+    .getByRole("region", { name: "Emitters", exact: true })
+    .getByRole("button")
+    .filter({ hasText: "heart-halo" })
+    .click();
+  await page.getByRole("tab", { name: "Appearance", exact: true }).click();
+  const hues = (
+    await page
+      .locator('input[type="color"]')
+      .evaluateAll((inputs) =>
+        inputs.map((input) => (input as HTMLInputElement).value),
+      )
+  ).flatMap((hex) => {
+    const hue = hexHue(hex);
+    return hue === null ? [] : [hue];
+  });
+  expect(hues.length).toBeGreaterThan(0);
+  for (const hue of hues) expect(hueDistance(hue, theme.hue)).toBeLessThan(40);
+  await page
+    .getByRole("region", { name: "Emitters", exact: true })
+    .getByRole("button")
+    .filter({ hasText: "heart-hero" })
+    .click();
+  await expect(
+    page
+      .getByRole("region", { name: "This effect's textures" })
+      .getByRole("button", {
+        name: new RegExp(`^${theme.heart.replace(".", "\\.")} `),
+      }),
+  ).toHaveClass(/border-primary/);
+}
+
+/** Heart Burst as authored (pink) and in Sky, with its recoloured copies. */
+const HEART_BURST_ORIGINAL = { hue: 327, heart: "glossy-heart.png" };
+const HEART_BURST_SKY = { hue: 200, heart: "glossy-heart-sky.png" };
 
 /** A layer card in the Scene Setup panel, by its title. */
 function sceneLayerCard(page: Page, title: string): Locator {
@@ -681,5 +770,145 @@ test("accountless Particle template draft adjusts in Simple, recovers, saves as 
     catalogBefore,
     animamaEvidence,
     "particle-template-save",
+  );
+});
+
+test("accountless Particle colour theme recolours a template's art, recovers, saves and packages its own textures", async ({
+  page,
+  creatorContent,
+  animamaEvidence,
+}, testInfo) => {
+  test.setTimeout(300_000);
+  const runId = process.env.ANIMAMA_E2E_RUN_ID;
+  if (!runId)
+    throw new Error("The isolated E2E runner environment is required.");
+  const name = `particle-theme-${runId}`;
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const nameField = page.getByRole("textbox", {
+    name: "Particle FX name",
+    exact: true,
+  });
+
+  await test.step("Sky recolours the art and the colours as one undo step", async () => {
+    await page.goto("/particle-effects/new?template=heart-burst");
+    await expect(nameField).toHaveValue(/^Heart Burst(?: \d+)?$/, {
+      timeout: 30_000,
+    });
+    await expect(themeSwatch(page, "Original")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await chooseTheme(page, "Sky");
+    await animamaEvidence.attachBuffer(
+      "particle-theme-sky.png",
+      await page.screenshot(),
+      "image/png",
+    );
+    await expectHeartBurstTheme(page, HEART_BURST_SKY);
+
+    await page.getByRole("button", { name: /^Undo ·/ }).click();
+    await expectHeartBurstTheme(page, HEART_BURST_ORIGINAL);
+    await chooseCreatorMode(page, "Simple");
+    await expect(themeSwatch(page, "Original")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await page.getByRole("button", { name: /^Redo ·/ }).click();
+    await expect(themeSwatch(page, "Sky")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expectHeartBurstTheme(page, HEART_BURST_SKY);
+  });
+
+  await test.step("recovery keeps the theme with the original textures, so Original still works", async () => {
+    await nameField.fill(name);
+    await waitForStoredParticleDraft(
+      page,
+      name,
+      "textures/glossy-heart-sky.png",
+    );
+    await waitForStoredParticleDraft(page, name, "textures/glossy-heart.png");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.reload();
+    const choice = page.getByRole("dialog", {
+      name: "Continue your unsaved draft?",
+      exact: true,
+    });
+    await expect(choice).toBeVisible({ timeout: 30_000 });
+    await choice
+      .getByRole("button", { name: "Continue draft", exact: true })
+      .click();
+    await expect(nameField).toHaveValue(name);
+    await expect(themeSwatch(page, "Sky")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await chooseTheme(page, "Original");
+    await expectHeartBurstTheme(page, HEART_BURST_ORIGINAL);
+    await chooseTheme(page, "Sky");
+    await expectHeartBurstTheme(page, HEART_BURST_SKY);
+  });
+
+  const saved =
+    await test.step("save the themed effect as a new Local item", () =>
+      saveTrackedParticleEffect({ page, content: creatorContent, name }));
+  expect(saved.texturePaths.sort()).toEqual(
+    HEART_BURST_TEXTURES.map(
+      (texture) => `textures/${texture.replace(".png", "-sky.png")}`,
+    ).sort(),
+  );
+
+  await test.step("reopen it at Original, with its recoloured textures as its own", async () => {
+    await page.goto(`/particle-effects/${saved.itemId}/edit`);
+    await expect(nameField).toHaveValue(name, { timeout: 30_000 });
+    await expect(themeSwatch(page, "Original")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expectHeartBurstTheme(page, HEART_BURST_SKY);
+    await expect(
+      page.getByRole("button", { name: "Saved", exact: true }),
+    ).toBeVisible();
+    await animamaEvidence.attachBuffer(
+      "particle-theme-reopened.png",
+      await page.screenshot(),
+      "image/png",
+    );
+  });
+
+  await test.step("a Portable package round trip keeps the recoloured textures", async () => {
+    await page.goto("/library");
+    await page.getByRole("button", { name: "Export", exact: true }).click();
+    await page
+      .getByRole("textbox", { name: "Search content", exact: true })
+      .fill(name);
+    await page.getByRole("checkbox", { name, exact: true }).check();
+    await reviewSharingExport(page);
+    const archive = await downloadSharingPackage(
+      page,
+      testInfo,
+      page.getByRole("button", { name: "Download package", exact: true }),
+    );
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Import", exact: true }).click();
+    const review = await uploadSharingPackage(page, archive);
+    expect(review.items.map((item) => item.name)).toEqual([`${name}-2`]);
+    const [imported] = await commitSharingPackage({
+      page,
+      content: creatorContent,
+      review,
+      journeyKey: `particle-theme-import-${runId}`,
+    });
+    await page.goto(`/particle-effects/${imported!.itemId}/edit`);
+    await expect(nameField).toHaveValue(`${name}-2`, { timeout: 30_000 });
+    await expectHeartBurstTheme(page, HEART_BURST_SKY);
+  });
+
+  await creatorContent.cleanupOwnedContent();
+  await creatorContent.assertLocalCatalogUnchanged(
+    catalogBefore,
+    animamaEvidence,
+    "particle-theme",
   );
 });

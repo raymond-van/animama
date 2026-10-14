@@ -19,8 +19,8 @@ exclusive preview Canvas and uses the shared creator shell and toolbar.
 The toolbar provides document name, New, Load, JSON Import/export, Undo/Redo,
 validation feedback, the Simple | Advanced switch, and Save. Every opened
 effect starts in **Simple**: the left panel shows its template or name, where
-it plays and its layer count; the right panel has Amount, Size, Speed and
-Spread (below). Switch to **Advanced** to author emitters: its left panel
+it plays and its layer count; the right panel has Amount, Size, Speed,
+Spread and the Colour theme swatches (below). Switch to **Advanced** to author emitters: its left panel
 manages emitters and whole-effect settings, and its right Inspector operates
 on the selected emitter. Selecting a lane in Preview Timeline also selects that
 emitter.
@@ -36,10 +36,16 @@ sizes. Each stops, with a note, before the estimate passes 512 particles or a
 duration 30 seconds; the declared budget rises with the estimate (up to 512,
 never below the reference's). The values
 are written into the effect, so Advanced shows them; any Advanced edit resets
-Simple to 100 % of the edited effect (renaming does not). Recovery keeps the
-positions; Save returns them to 100 % of the saved effect, as reopening does.
+Simple to 100 % and Original of the edited effect (renaming does not).
+Recovery keeps the positions and theme; Save returns them to 100 % and
+Original of the saved effect, as reopening does.
 Field-by-field rules are in
-`editor/simpleControls.ts`. Use Simple for whole-effect tuning and Advanced
+`editor/simpleControls.ts`. A **Colour theme** swatch (Rose, Gold, Mint, Sky,
+Violet; White desaturates) rotates every emitter colour and every texture
+that is not near grey by the step that puts the effect's dominant hue on the
+swatch's (`editor/colourTheme.ts`); the recoloured PNGs are saved as the
+effect's own `textures/<texture>-<theme>.png`, and Original restores the
+reference exactly. Use Simple for whole-effect tuning and Advanced
 for per-emitter authoring; automation that uses emitter or texture controls
 must switch to Advanced first, as `effects save` does.
 
@@ -204,7 +210,8 @@ it does not change an Anima's loadout by itself.
 - UI and isolated renderer: `src/frontend/web/src/ui/particle-vfx-creator/ParticleVFXCreatorPage.tsx`.
 - Draft/patch behavior: `src/frontend/web/src/lib/avatar/particle-vfx/editor/draft.ts`.
 - Simple controls: `src/frontend/web/src/lib/avatar/particle-vfx/editor/simpleControls.ts`
-  and `src/frontend/web/src/ui/particle-vfx-creator/ParticleSimplePanels.tsx`.
+  (and `colourTheme.ts` for the colour theme) and
+  `src/frontend/web/src/ui/particle-vfx-creator/ParticleSimplePanels.tsx`.
 - Texture defaults: `src/frontend/web/src/lib/avatar/particle-vfx/editor/textureManifest.ts`
   and `textures.ts` in that directory.
 - Save rules: `src/frontend/web/src/lib/avatar/particle-vfx/editor/contentReadiness.ts`

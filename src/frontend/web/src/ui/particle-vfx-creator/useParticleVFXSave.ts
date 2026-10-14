@@ -2,8 +2,8 @@
 
 import {
   createParticleVFXEditorDraftFromImport,
-  isNeutralParticleVFXSimpleFactors,
-  referencedParticleVFXTextureFiles,
+  isNeutralParticleVFXSimpleState,
+  retainedParticleVFXTextureFiles,
   type ParticleVFXEditorDraft,
 } from "@/lib/avatar/particle-vfx";
 import { buildParticleVFXContentPackage } from "@/lib/content/particleVFXContentPackage";
@@ -24,9 +24,10 @@ const MANIFEST_PATH = "particle.json";
 /**
  * Particle Effect package, recovery record and routes for the shared Save.
  * Packaging may adjust the effect; those notices are reviewed before the
- * next Save continues. The package holds the effect only: Simple mode's
- * reference and control positions are kept by recovery, not saved, and the
- * saved draft returns Simple to 100 %.
+ * next Save continues. The package holds the effect only, with any
+ * recoloured textures as its own files: Simple mode's reference, control
+ * positions and colour theme are kept by recovery, not saved, and the saved
+ * draft returns Simple to 100 % and Original.
  */
 export const particleVFXSaveAdapter: CreatorSaveAdapter<
   ParticleVFXEditorDraft,
@@ -106,15 +107,16 @@ export const particleVFXSaveAdapter: CreatorSaveAdapter<
     displayName: snapshot.catalog.label,
     catalog: snapshot.catalog,
     quarksJson: snapshot.quarksJson,
-    textures: Object.entries(referencedParticleVFXTextureFiles(snapshot)).map(
+    // The reference's textures too, so a colour theme's Original still has
+    // its originals after a reload.
+    textures: Object.entries(retainedParticleVFXTextureFiles(snapshot)).map(
       ([reference, file]) => ({ reference, ...file }),
     ),
-    // At 100 % the reference is the effect itself, so it need not be kept.
-    simple:
-      snapshot.simple &&
-      !isNeutralParticleVFXSimpleFactors(snapshot.simple.factors)
-        ? snapshot.simple
-        : null,
+    // At 100 % and Original the reference is the effect itself, so it need
+    // not be kept.
+    simple: isNeutralParticleVFXSimpleState(snapshot.simple)
+      ? null
+      : snapshot.simple,
     updatedAt,
   }),
   // A record the current editor cannot import throws and is discarded. A

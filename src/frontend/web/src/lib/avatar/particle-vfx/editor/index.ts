@@ -49,6 +49,7 @@ export {
   missingParticleVFXTextureReferences,
   readParticleVFXTextureFile,
   referencedParticleVFXTextureFiles,
+  retainedParticleVFXTextureFiles,
   supplyParticleVFXTextureFile,
 } from "./textureFiles";
 export type { ParticleVFXTextureResult } from "./textureFiles";
@@ -67,14 +68,28 @@ export {
   applyParticleVFXSimpleControls,
   countParticleVFXMultiParticleLayers,
   equalParticleVFXSimpleFactors,
+  equalParticleVFXSimpleSettings,
   isNeutralParticleVFXSimpleFactors,
+  isNeutralParticleVFXSimpleState,
+  particleVFXColourThemeId,
   particleVFXSimpleControlBounds,
   particleVFXSimpleFactors,
   renameParticleVFXEditorDraft,
+  setParticleVFXColourTheme,
   setParticleVFXSimpleControl,
+  type ParticleVFXColourThemeResult,
   type ParticleVFXSimpleBounds,
   type ParticleVFXSimpleLimit,
+  type ParticleVFXTextureCodec,
 } from "./simpleControls";
+export {
+  PARTICLE_VFX_COLOUR_THEMES,
+  isParticleVFXColourThemeId,
+} from "./colourTheme";
+export type {
+  ParticleVFXColourTransform,
+  ParticleVFXTextureSample,
+} from "./colourPixels";
 export type { ParticleVFXContentReadinessOptions } from "./contentReadiness";
 export { PARTICLE_VFX_ANCHORS, PARTICLE_VFX_PRELOAD_TIERS } from "../types";
 export type {
@@ -117,8 +132,10 @@ export type {
   ParticleVFXEditorValueRange,
   ParticleVFXEmitterDraft,
   ParticleVFXEmitterPatch,
+  ParticleVFXColourThemeId,
   ParticleVFXSimpleControl,
   ParticleVFXSimpleFactors,
   ParticleVFXSimpleReference,
   ParticleVFXSimpleState,
+  ParticleVFXSimpleTheme,
 } from "./types";

@@ -44,6 +44,28 @@ vi.mock("@/ui/content-creator/useContentCreatorModelPreview", () => ({
 vi.mock("@/ui/avatar-preview/AvatarPreviewSurface", () => ({
   AvatarPreviewSurface: () => null,
 }));
+// No canvas here: textures sample as red and recolour to fake PNGs.
+const codec = vi.hoisted(() => ({ failNext: false }));
+vi.mock("@/lib/avatar/particle-vfx/editor/particleTextureCodec", async () => {
+  const { fakeParticlePng, fakeParticleTextureCodec } =
+    await import("@/test/particle-colour-theme");
+  return {
+    createParticleVFXTextureCodec: () => ({
+      ...fakeParticleTextureCodec,
+      recolour: async (
+        ...args: Parameters<typeof fakeParticleTextureCodec.recolour>
+      ) => {
+        if (codec.failNext) {
+          codec.failNext = false;
+          throw new Error("The image could not be encoded.");
+        }
+        return fakeParticleTextureCodec.recolour(...args);
+      },
+      dispose: () => undefined,
+    }),
+    fetchBuiltInParticleVFXTexture: async () => fakeParticlePng(1),
+  };
+});
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -124,6 +146,28 @@ function typeInto(label: string, value: string) {
   });
 }
 
+function swatch(name: string): HTMLElement {
+  const found = [
+    ...container!.querySelectorAll<HTMLElement>('[role="radio"]'),
+  ].find((element) => element.textContent === name);
+  if (!found) throw new Error(`No ${name} swatch`);
+  return found;
+}
+
+/** Choose a swatch and let its recolouring finish. */
+async function chooseSwatch(name: string) {
+  await act(async () => {
+    swatch(name).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+function redo() {
+  const button = query<HTMLButtonElement>('button[aria-label^="Redo"]');
+  if (!button) throw new Error("No Redo button");
+  act(() => button.click());
+}
+
 function headings(): string[] {
   return [...container!.querySelectorAll("h2")].map(
     (heading) => heading.textContent ?? "",
@@ -195,5 +239,41 @@ describe("Particle Effect creator Simple mode", () => {
     // Undo restores the Simple position with the effect it belongs to.
     undo();
     expect(slider("Speed").getAttribute("aria-valuetext")).toBe("105 %");
+  });
+
+  it("applies a colour theme as one step that Undo and an Advanced edit return to Original", async () => {
+    render();
+    expect(swatch("Original").getAttribute("aria-checked")).toBe("true");
+
+    await chooseSwatch("Sky");
+    expect(swatch("Sky").getAttribute("aria-checked")).toBe("true");
+    chooseMode("Advanced");
+    // The emitter now draws the recoloured copy, the effect's own file.
+    expect(container!.textContent).toContain("soft-dot-sky.png");
+    chooseMode("Simple");
+
+    undo();
+    expect(swatch("Original").getAttribute("aria-checked")).toBe("true");
+    redo();
+    expect(swatch("Sky").getAttribute("aria-checked")).toBe("true");
+
+    chooseMode("Advanced");
+    typeInto("Effect playback duration (s)", "2");
+    chooseMode("Simple");
+    expect(swatch("Original").getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("says why a theme failed and leaves the effect as it was", async () => {
+    render();
+    codec.failNext = true;
+    await chooseSwatch("Gold");
+
+    expect(container!.querySelector('[role="alert"]')?.textContent).toBe(
+      "soft-dot.png could not be recoloured: The image could not be encoded.",
+    );
+    expect(swatch("Original").getAttribute("aria-checked")).toBe("true");
+    expect(
+      query<HTMLButtonElement>('button[aria-label^="Undo"]')?.disabled,
+    ).toBe(true);
   });
 });

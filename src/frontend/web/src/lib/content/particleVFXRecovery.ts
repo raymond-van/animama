@@ -2,7 +2,9 @@ import type {
   ParticleVFXEditorCatalogDraft,
   ParticleVFXEditorTextureFile,
   ParticleVFXSimpleState,
+  ParticleVFXSimpleTheme,
 } from "@/lib/avatar/particle-vfx";
+import { isParticleVFXColourThemeId } from "@/lib/avatar/particle-vfx/editor/colourTheme";
 import {
   PARTICLE_VFX_SIMPLE_CONTROLS,
   PARTICLE_VFX_SIMPLE_RANGES,
@@ -16,12 +18,16 @@ import {
 } from "./creatorRecoveryStore";
 
 export const PARTICLE_VFX_RECOVERY_SCHEMA =
-  "animama/particle-effect-recovery/4";
+  "animama/particle-effect-recovery/5";
 /**
- * Earlier records still restore: version 3 without Simple state (its
- * controls at 100 %), version 2 also without texture files.
+ * Earlier records still restore: version 4 without a colour theme
+ * (Original), version 3 without Simple state (its controls at 100 %),
+ * version 2 also without texture files.
  */
+const PARTICLE_VFX_RECOVERY_SIMPLE_WITHOUT_THEME =
+  "animama/particle-effect-recovery/4";
 const PARTICLE_VFX_RECOVERY_EARLIER_SCHEMAS = new Set([
+  PARTICLE_VFX_RECOVERY_SIMPLE_WITHOUT_THEME,
   "animama/particle-effect-recovery/3",
   "animama/particle-effect-recovery/2",
 ]);
@@ -31,7 +37,10 @@ export const PARTICLE_VFX_RECOVERY_MAX_BYTES =
   MAX_RECOVERY_JSON_BYTES + PARTICLE_TEXTURE_LIMITS.totalBytes;
 const LOCAL_STORAGE_FALLBACK_MAX_BYTES = 1024 * 1024;
 
-/** One texture the draft uses, with its bytes. */
+/**
+ * One texture the draft uses, with its bytes: the effect's, and Simple's
+ * reference's (a colour theme's originals), so Original still works.
+ */
 export type ParticleVFXRecoveryTexture = ParticleVFXEditorTextureFile & {
   reference: string;
 };
@@ -51,7 +60,8 @@ export type ParticleVFXRecovery = {
   textures: readonly ParticleVFXRecoveryTexture[];
   /**
    * Simple mode's reference (settings and Quarks JSON only; its textures are
-   * the draft's) and control positions, or null at 100 %.
+   * among `textures`), control positions and colour theme, or null at 100 %
+   * and Original.
    */
   simple: ParticleVFXSimpleState | null;
   updatedAt: string;
@@ -122,14 +132,58 @@ function parseTextures(value: unknown): ParticleVFXRecoveryTexture[] {
   });
 }
 
-/** Simple state from a record; anything unreadable restores at 100 %. */
-function parseSimpleState(value: unknown): ParticleVFXSimpleState | null {
+/**
+ * A colour theme from a record: `undefined` when it is unreadable. A theme
+ * names its swatch, its transform and, for each recoloured texture, its copy.
+ */
+function parseSimpleTheme(
+  value: unknown,
+): ParticleVFXSimpleTheme | null | undefined {
+  if (value === null) return null;
+  const theme = recoveryRecordObject(value);
+  const recorded = recoveryRecordObject(theme?.transform);
+  const textures = recoveryRecordObject(theme?.textures);
+  const transform: ParticleVFXSimpleTheme["transform"] | null =
+    recorded?.kind === "desaturate"
+      ? { kind: "desaturate" }
+      : recorded?.kind === "rotate" &&
+          typeof recorded.degrees === "number" &&
+          Number.isFinite(recorded.degrees)
+        ? { kind: "rotate", degrees: recorded.degrees }
+        : null;
+  if (
+    !theme ||
+    !isParticleVFXColourThemeId(theme.id) ||
+    theme.id === "original" ||
+    !transform ||
+    !textures ||
+    !Object.values(textures).every((path) => typeof path === "string")
+  )
+    return undefined;
+  return {
+    id: theme.id,
+    transform,
+    textures: textures as Record<string, string>,
+  };
+}
+
+/**
+ * Simple state from a record; anything unreadable restores at 100 % and
+ * Original (the recorded effect becomes the next reference). Records before
+ * version 5 have no theme.
+ */
+function parseSimpleState(
+  value: unknown,
+  withTheme: boolean,
+): ParticleVFXSimpleState | null {
   const simple = recoveryRecordObject(value);
   const reference = recoveryRecordObject(simple?.reference);
   const factors = recoveryRecordObject(simple?.factors);
+  const theme = withTheme ? parseSimpleTheme(simple?.theme ?? null) : null;
   if (
     !reference ||
     !factors ||
+    theme === undefined ||
     !recoveryRecordObject(reference.catalog) ||
     !recoveryRecordObject(reference.quarksJson) ||
     !PARTICLE_VFX_SIMPLE_CONTROLS.every((control) => {
@@ -152,6 +206,7 @@ function parseSimpleState(value: unknown): ParticleVFXSimpleState | null {
         factors[control] as number,
       ]),
     ) as ParticleVFXSimpleState["factors"],
+    theme,
   };
 }
 
@@ -190,8 +245,12 @@ function parseParticleVFXRecovery(
     quarksJson: record.quarksJson as JsonObject,
     textures: parseTextures(record.textures),
     simple:
-      record.schema === PARTICLE_VFX_RECOVERY_SCHEMA
-        ? parseSimpleState(record.simple)
+      record.schema === PARTICLE_VFX_RECOVERY_SCHEMA ||
+      record.schema === PARTICLE_VFX_RECOVERY_SIMPLE_WITHOUT_THEME
+        ? parseSimpleState(
+            record.simple,
+            record.schema === PARTICLE_VFX_RECOVERY_SCHEMA,
+          )
         : null,
     updatedAt: record.updatedAt,
   };

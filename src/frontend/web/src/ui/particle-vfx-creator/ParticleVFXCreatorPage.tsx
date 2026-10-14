@@ -66,6 +66,7 @@ import {
   extractEmbeddedParticleVFXTextures,
   importParticleVFXTextureFile,
   missingParticleVFXTextureReferences,
+  particleVFXColourThemeId,
   particleVFXSimpleFactors,
   renameParticleVFXEditorDraft,
   parseParticleVFXEditorExportJsonForViewer,
@@ -75,10 +76,12 @@ import {
   removeParticleVFXEditorEmitter,
   resolveParticleVFXCreatorPreviewPlacement,
   resolveParticleVFXEditorPreviewJson,
+  setParticleVFXColourTheme,
   setParticleVFXSimpleControl,
   supplyParticleVFXTextureFile,
   updateParticleVFXEditorCatalogDraft,
   validateParticleVFXContentReadiness,
+  type ParticleVFXColourThemeId,
   type ParticleVFXEditorBlending,
   type ParticleVFXEditorCatalogDraft,
   type ParticleVFXEditorColor,
@@ -112,6 +115,10 @@ import {
   type ParticleVFXTransform,
   type ParticleVFXTransformAxisTriple,
 } from "@/lib/avatar/particle-vfx";
+import {
+  createParticleVFXTextureCodec,
+  fetchBuiltInParticleVFXTexture,
+} from "@/lib/avatar/particle-vfx/editor/particleTextureCodec";
 import { HUMANOID_ANCHOR_LABELS } from "@/lib/avatar/humanoidAnchors";
 import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { findParticleEffectTemplate } from "@/lib/effects/effectTemplates";
@@ -191,6 +198,7 @@ import {
 import {
   ParticleSimpleAdjustPanel,
   ParticleSimpleEffectPanel,
+  type ParticleSimpleThemeStatus,
 } from "./ParticleSimplePanels";
 import {
   loadParticleEffectTemplate,
@@ -280,6 +288,7 @@ export function ParticleVFXCreatorPage({
     history,
     update: updateDocument,
     reset: resetDraft,
+    getSnapshot,
   } = useCreatorDocumentHistory({
     initialValue: blankDraft,
     equals: equalParticleVFXDrafts,
@@ -310,6 +319,70 @@ export function ParticleVFXCreatorPage({
       ),
     [updateDocument],
   );
+  const [themeStatus, setThemeStatus] = useState<ParticleSimpleThemeStatus>({
+    pending: null,
+    error: null,
+  });
+  const themeRequestRef = useRef<AbortController | null>(null);
+  const textureCodecRef = useRef<ReturnType<
+    typeof createParticleVFXTextureCodec
+  > | null>(null);
+  useEffect(
+    () => () => {
+      themeRequestRef.current?.abort();
+      textureCodecRef.current?.dispose();
+    },
+    [],
+  );
+  /**
+   * Choose a colour theme swatch: the textures are recoloured (in a worker
+   * where possible) and the result is one undoable step. Save, history, New,
+   * Import and the sliders wait meanwhile; choosing again replaces a pending
+   * choice. A failure, or an edit made meanwhile, leaves the draft as it is
+   * and says why.
+   */
+  const chooseColourTheme = useCallback(
+    async (themeId: ParticleVFXColourThemeId) => {
+      themeRequestRef.current?.abort();
+      const controller = new AbortController();
+      themeRequestRef.current = controller;
+      setThemeStatus({ pending: themeId, error: null });
+      const start = getSnapshot();
+      let error: string | null = null;
+      try {
+        const result = await setParticleVFXColourTheme(start, themeId, {
+          codec: (textureCodecRef.current ??= createParticleVFXTextureCodec()),
+          loadTexture: fetchBuiltInParticleVFXTexture,
+          signal: controller.signal,
+        });
+        if (!result.ok) error = result.message;
+        else {
+          let applied = false;
+          updateDocument((current) => {
+            if (current !== start) return current;
+            applied = true;
+            return result.draft;
+          });
+          if (!applied)
+            error =
+              "The effect changed while it was being recoloured. Choose the theme again.";
+        }
+      } catch (caught) {
+        error =
+          caught instanceof Error
+            ? caught.message
+            : "The colour theme could not be applied.";
+      } finally {
+        // A newer choice owns the status now.
+        if (themeRequestRef.current === controller) {
+          themeRequestRef.current = null;
+          setThemeStatus({ pending: null, error });
+        }
+      }
+    },
+    [getSnapshot, updateDocument],
+  );
+  const themeBusy = themeStatus.pending !== null;
   const [mode, setMode] = useState<CreatorMode>("simple");
   const [activeEmitterPath, setActiveEmitterPath] = useState<string | null>(
     null,
@@ -401,6 +474,10 @@ export function ParticleVFXCreatorPage({
   const hydrateDraft = useCallback(
     (nextDraft: ParticleVFXEditorDraft) => {
       resetDraft(nextDraft);
+      // A theme still being applied belonged to the document being replaced.
+      themeRequestRef.current?.abort();
+      themeRequestRef.current = null;
+      setThemeStatus({ pending: null, error: null });
       // Every opened effect (loaded, recovered, templated or new) starts in Simple.
       setMode("simple");
       setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
@@ -455,7 +532,8 @@ export function ParticleVFXCreatorPage({
     snapshot: draft,
     dirty: isDirty,
     initialized: loadState.state === "ready",
-    ready: loadState.state === "ready",
+    // Save waits for a colour theme being applied.
+    ready: loadState.state === "ready" && !themeBusy,
     onRestore,
     onSaved: markSavedDraft,
   });
@@ -1025,6 +1103,7 @@ export function ParticleVFXCreatorPage({
           historyDisabled={
             contentSave.isBusy ||
             discardPending ||
+            themeBusy ||
             !contentSave.recoveryReady ||
             loadState.state === "loading"
           }
@@ -1040,7 +1119,9 @@ export function ParticleVFXCreatorPage({
           documentName={draft?.catalog.label ?? ""}
           documentNameInputRef={documentNameInputRef}
           documentNameInvalid={contentSave.errorField === "name"}
-          documentNameDisabled={!draft || contentSave.isBusy || discardPending}
+          documentNameDisabled={
+            !draft || contentSave.isBusy || discardPending || themeBusy
+          }
           onDocumentNameChange={(label) => {
             contentSave.clearSaveErrorField("name");
             // Naming is not an Advanced edit: Simple keeps its positions.
@@ -1064,8 +1145,8 @@ export function ParticleVFXCreatorPage({
           onImport={() => setImportDialogOpen(true)}
           onJson={() => setJsonViewerOpen(true)}
           onSave={() => void contentSave.save()}
-          newDisabled={contentSave.isBusy || discardPending}
-          importDisabled={contentSave.isBusy || discardPending}
+          newDisabled={contentSave.isBusy || discardPending || themeBusy}
+          importDisabled={contentSave.isBusy || discardPending || themeBusy}
           jsonDisabled={!exportBundle}
           saveDisabled={!contentSave.canSave || discardPending}
           saveBusy={contentSave.isBusy}
@@ -1435,9 +1516,12 @@ export function ParticleVFXCreatorPage({
           <ParticleSimpleAdjustPanel
             reference={simpleReference}
             factors={simpleFactors}
+            colourTheme={particleVFXColourThemeId(draft)}
+            themeStatus={themeStatus}
             onAdjustStart={beginGroup}
             onAdjust={adjustSimpleControl}
             onAdjustEnd={endGroup}
+            onColourTheme={(theme) => void chooseColourTheme(theme)}
           />
         ) : (
           <EmitterAuthoringTabs

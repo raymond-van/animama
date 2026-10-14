@@ -41,4 +41,26 @@ const RadioGroupItem = React.forwardRef<
 });
 RadioGroupItem.displayName = RadioGroupPrimitive.Item.displayName;
 
-export { RadioGroup, RadioGroupItem };
+/**
+ * A radio item that draws its own content (a swatch, a tile) instead of the
+ * default circle, keeping the group's arrow keys and checked state. Style the
+ * checked look with `data-[state=checked]:` (or `group-data-[state=checked]:`).
+ */
+const RadioGroupOption = React.forwardRef<
+  React.ElementRef<typeof RadioGroupPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Item>
+>(({ className, ...props }, ref) => {
+  return (
+    <RadioGroupPrimitive.Item
+      ref={ref}
+      className={cn(
+        "ring-offset-background focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        className,
+      )}
+      {...props}
+    />
+  );
+});
+RadioGroupOption.displayName = "RadioGroupOption";
+
+export { RadioGroup, RadioGroupItem, RadioGroupOption };

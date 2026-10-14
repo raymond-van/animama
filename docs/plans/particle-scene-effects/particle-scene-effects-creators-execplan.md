@@ -207,8 +207,10 @@ Line numbers drift as work proceeds.
       (2026-10-13).
 - [x] P3 — Simple mode and the Particle broad controls (R15). #490 —
       review budget spent at round 3 with one layout blocker; fixed and
-      measured by the coordinator, awaiting the owner's go-ahead for P4.
-- [ ] P4 — Particle colour theme (R15). #491
+      measured by the coordinator; the owner accepted it (2026-10-13).
+      Commit `c69f2cef`.
+- [x] P4 — Particle colour theme (R15). #491 — review passed at round 2
+      (2026-10-13).
 - [ ] P5 — Scene Simple mode (R16). #492
 - [ ] P6 — Journeys, documentation and acceptance (R15–R17). #493
 - [ ] Final integration review; PR.
@@ -241,6 +243,8 @@ Line numbers drift as work proceeds.
 
 ## Decision Log
 
+- 2026-10-13, owner: accepted the coordinator-measured fix for P3-R3-F1
+  (review budget spent) and authorized continuing to P4.
 - 2026-10-13, owner (**S-TRIM**): trim P5. Scene Simple keeps Art, Colours
   and Speed; Direction and Density stay in Advanced only. This supersedes
   S-DIR. Rationale (agent recommendation): the Scene creator's Advanced
@@ -952,11 +956,127 @@ Completion: the colour theme part of R15 is demonstrated and tested.
 
 #### P4 record
 
-Not started.
+Starting source and issue: `c69f2cef`, #491.
+
+- **Colour model** (pure):
+  - `colourPixels.ts`: HSL hue rotation that keeps each pixel's largest and
+    smallest channel, so lightness and chroma are exact; White desaturates.
+    Every pixel is recoloured, including alpha-0 ones (their stored edge
+    colour).
+  - `colourTheme.ts`: targets are Rose 340°, Gold 45°, Mint 150°, Sky 200°
+    and Violet 275°. The dominant hue is a chroma×alpha weighted histogram of
+    sampled texture pixels times each emitter's mean tint. The step is
+    corrected by measuring the themed result, so every Included effect lands
+    within 1.11° of each target. Emitter colour keys rotate by the same step.
+    Copies are named `textures/<stem>-<theme>.png`.
+- **Textures:**
+  - Textures with an alpha-weighted mean chroma under 5 % are left as they
+    are (7 of the 53 Included).
+  - `pngCodec.ts` decodes 8-bit PNGs to straight RGBA and encodes them with
+    `DecompressionStream`/`CompressionStream` and no canvas, so the colour
+    stored in transparent pixels survives. JPEG, WebP and other PNGs decode
+    through a canvas and then have their edges re-bled.
+  - The work runs in `workers/particle-texture-worker.ts`, with a
+    main-thread fallback and a per-Blob cache; built-in textures are cached
+    by path.
+  - Each copy passes the texture checks before it is added. The largest
+    copy is 489 KiB and the largest effect total 837 KiB.
+- **Simple state:** `simple.theme` (id, transform, reference-to-copy map),
+  composed after P3's factors. Original restores the reference's own files
+  and colours exactly. An Advanced edit rebases to Original and keeps the
+  copies as the effect's own files. History equality compares the theme.
+- **Recovery** `/5` keeps the reference's original textures and the copies
+  (resolving P3 review O9) and reads `/4` at Original. Save packages only the
+  copies and reopens at Original.
+- **UI:** a "Colour theme" radio group (`RadioGroupOption` added to
+  `ui/components/radio-group.tsx`), with swatches in the Appearance-settings
+  swatch style, an `aria-live` status and an alert on failure.
+  - While a theme applies, Save, Undo/Redo, New, Import, rename and the
+    sliders wait.
+  - Choosing again cancels the pending theme; a stale result is dropped.
+  - Loading a document or unmounting cancels it and disposes the codec.
+- **Docs:** creator sections of `avatar-particle-vfx.md` and the skill's
+  `creator.md`, including the recovery-size note.
+
+Checks:
+
+- final: focused vitest 673 passed (twice); `pnpm web:test` exit 0 (4560
+  passed, 1 skipped; node 89/4/13; browser 119); `pnpm check`,
+  `pnpm web:lint`, `pnpm prettier:check`, `pnpm e2e:check`, `pnpm build`
+  exit 0;
+- effect-save stack test: 1 passed;
+- journeys:
+  - `accountless-effect-template-picker` 5 passed, including the theme
+    journey: Heart Burst → Sky, Advanced shows the copies, Undo/Redo,
+    recovery, Save with exactly the four `-sky` files, reopen, Portable
+    export and import;
+  - `accountless-particle-texture-import` 2 passed.
+- In Chromium on the stack the Sky copies keep every coloured transparent
+  pixel.
+- Renders in `.animama-drafts/plan3/p4/` (ignored): Heart Burst, Rage Aura
+  and Rain Cloud in Sky and Gold recolour cleanly.
+  - The fixed Heart Burst Sky rim matches the original's light edge.
+  - Gold Rage Aura shows a few yellow-green shaded flame edges (HSL keeps
+    lightness, not perceived brightness).
+  - Adjust-panel screenshots at 1440 and 900 px, light and dark.
+- Cost: a whole theme takes 0–313 ms per Included effect, behind the busy
+  state.
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, working tree on `c69f2cef`), blocked:
+
+- **P4-R1-F1 (Required):** the canvas round trip dropped the edge colour
+  stored in transparent pixels and quantized faint ones. Recoloured copies
+  would regain dark fringes at lower mipmaps: a simulated 52–83 % edge
+  brightness on `glossy-heart` and `glossy-cloud`.
+- Optional:
+  - F2: the 2° claim was tested for Sky only;
+  - F3: P3's wall-clock bounds test flaked under load;
+  - F4: float noise in emitted colours;
+  - F5: duplicated stem and built-in helpers;
+  - F6: built-in textures missed the codec cache;
+  - F7: docs on the recovery bound while a theme is active.
+- Verified sound: Original restore, composition with P3, rebase, limits
+  before adding copies, decode only of checked files, async cancellation,
+  blocking while applying, recovery `/5`, Save contents and accessibility.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:**
+  - the JS PNG codec, so transparent colour survives, plus a canvas
+    fallback with re-bleed;
+  - every pixel recoloured;
+  - tests on the real codec: all 91 Included Particle PNGs decode
+    byte-identical to libvips, the round trip is lossless, and transparent
+    colour moves with the art;
+  - a re-render diff confirms the rim.
+- **F2–F7 accepted and applied** (F3: warm-up and fastest of 8).
+
+#### Code Review #2 Findings
+
+Round 2 (repair round 1, targeted): **pass**. F1–F7 verified. The reviewer
+probed the decoder's safety on untrusted PNGs: chunk bounds, the pixel limit
+checked before allocation, and an inflate bound applied while streaming (a
+1 GiB bomb refused in 2 ms in Node; 4 MiB bombs refused in Chromium without a
+crash). It also covered filter and palette validation, and errors reaching
+the "draft unchanged" message path. All 91 Included PNGs re-encode to valid
+PNGs with identical alpha. Non-blocking:
+
+- **P4-R2-F1:** a PNG with trailing or surplus image data, which browsers
+  read, was refused with no canvas fallback.
+- **P4-R2-F2:** CRCs are not checked (harmless; zlib's Adler-32 guards the
+  data).
+- **P4-R2-F3:** the runtime doc named only JPEG and WebP as canvas formats.
+
+#### Code Review #2 Revisions
+
+- **F1 accepted (test-first):** a PNG the decoder finds inconsistent
+  (`ParticleVFXCorruptPng`) falls back to the canvas, with edges re-bled; an
+  oversized one stays refused. Codec tests: 30 passed.
+- **F2 kept:** the copy is written with correct CRCs.
+- **F3 accepted:** the doc lists the canvas formats.
+- Repair rounds used: 1 of 2.
 
 ### P5 — Scene Simple mode (R16). #492
 

@@ -31,6 +31,13 @@ export type ParticleVFXTextureResult =
 const BUILT_IN_REFERENCES = new Set(
   PARTICLE_VFX_EDITOR_TEXTURES.map((texture) => texture.relativeUrl),
 );
+
+/** Whether a package-relative path names a built-in creator texture. */
+export function isBuiltInParticleVFXTextureReference(
+  reference: string,
+): boolean {
+  return BUILT_IN_REFERENCES.has(reference);
+}
 const MIB = 1024 * 1024;
 
 /** Every distinct image path the effect's Quarks JSON uses, in order. */
@@ -47,8 +54,34 @@ export function particleVFXTextureReferences(quarksJson: JsonObject): string[] {
 export function referencedParticleVFXTextureFiles(
   draft: ParticleVFXEditorDraft,
 ): Record<string, ParticleVFXEditorTextureFile> {
+  return pickTextureFiles(
+    draft,
+    particleVFXTextureReferences(draft.quarksJson),
+  );
+}
+
+/**
+ * Texture files the effect or Simple mode's reference uses. Browser recovery
+ * keeps these, so a colour theme's Original still has the reference's own
+ * textures after a reload.
+ */
+export function retainedParticleVFXTextureFiles(
+  draft: ParticleVFXEditorDraft,
+): Record<string, ParticleVFXEditorTextureFile> {
+  return pickTextureFiles(draft, [
+    ...particleVFXTextureReferences(draft.quarksJson),
+    ...(draft.simple
+      ? particleVFXTextureReferences(draft.simple.reference.quarksJson)
+      : []),
+  ]);
+}
+
+function pickTextureFiles(
+  draft: ParticleVFXEditorDraft,
+  references: readonly string[],
+): Record<string, ParticleVFXEditorTextureFile> {
   return Object.fromEntries(
-    particleVFXTextureReferences(draft.quarksJson).flatMap((reference) => {
+    references.flatMap((reference) => {
       const file = draft.textureFiles[reference];
       return file ? [[reference, file]] : [];
     }),
@@ -141,7 +174,9 @@ export async function readParticleVFXTextureFile(
 }
 
 /** Why the effect's textures exceed the per-effect limits, if they do. */
-function textureLimitMessage(draft: ParticleVFXEditorDraft): string | null {
+export function particleVFXTextureLimitMessage(
+  draft: ParticleVFXEditorDraft,
+): string | null {
   const references = particleVFXTextureReferences(draft.quarksJson);
   if (references.length > PARTICLE_TEXTURE_LIMITS.count)
     return `A Particle Effect can use at most ${PARTICLE_TEXTURE_LIMITS.count} textures.`;
@@ -165,7 +200,11 @@ function withTextureFile(
   };
 }
 
-function safeStem(fileName: string): string {
+/**
+ * A file name's stem as texture paths use it: lowercase letters, digits and
+ * hyphens, at most 60 characters, `texture` when nothing is left.
+ */
+export function particleVFXTextureStem(fileName: string): string {
   return (
     (fileName.split(/[\\/]/).at(-1) ?? "")
       .replace(/\.[^.]*$/, "")
@@ -184,7 +223,10 @@ function safeStem(fileName: string): string {
 function nextTextureReference(stem: string, used: Set<string>): string {
   for (let index = 1; ; index += 1) {
     const reference = `textures/${stem}-${index}.png`;
-    if (!used.has(reference) && !BUILT_IN_REFERENCES.has(reference)) {
+    if (
+      !used.has(reference) &&
+      !isBuiltInParticleVFXTextureReference(reference)
+    ) {
       used.add(reference);
       return reference;
     }
@@ -212,13 +254,16 @@ export function importParticleVFXTextureFile(
   fileName: string,
   file: ParticleVFXEditorTextureFile,
 ): ParticleVFXTextureResult {
-  const reference = uniqueTextureReference(draft, safeStem(fileName));
+  const reference = uniqueTextureReference(
+    draft,
+    particleVFXTextureStem(fileName),
+  );
   const next = applyParticleVFXEmitterPatch(
     withTextureFile(draft, reference, file),
     emitterPath,
     { textureReference: reference },
   );
-  const message = textureLimitMessage(next);
+  const message = particleVFXTextureLimitMessage(next);
   return message
     ? { ok: false, message }
     : { ok: true, draft: next, reference };
@@ -231,7 +276,7 @@ export function supplyParticleVFXTextureFile(
   file: ParticleVFXEditorTextureFile,
 ): ParticleVFXTextureResult {
   const next = withTextureFile(draft, reference, file);
-  const message = textureLimitMessage(next);
+  const message = particleVFXTextureLimitMessage(next);
   return message
     ? { ok: false, message }
     : { ok: true, draft: next, reference };

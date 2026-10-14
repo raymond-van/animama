@@ -6,6 +6,7 @@ import type {
   ParticleVFXTransform,
   ParticleVFXTransformAxisTriple,
 } from "../types";
+import type { ParticleVFXColourTransform } from "./colourPixels";
 
 export type JsonObject = Record<string, unknown>;
 export type JsonArray = unknown[];
@@ -445,14 +446,38 @@ export type ParticleVFXSimpleReference = {
   quarksJson: JsonObject;
 };
 
+/** One of Simple mode's colour theme swatches; see `colourTheme.ts`. */
+export type ParticleVFXColourThemeId =
+  | "original"
+  | "rose"
+  | "gold"
+  | "mint"
+  | "sky"
+  | "violet"
+  | "white";
+
+/**
+ * A colour theme applied to the reference: the transform every emitter
+ * colour and every recoloured texture got, and the copy each recoloured
+ * texture of the reference is replaced with. Near-grey textures have no copy.
+ */
+export type ParticleVFXSimpleTheme = {
+  id: Exclude<ParticleVFXColourThemeId, "original">;
+  transform: ParticleVFXColourTransform;
+  /** Reference image path → its recoloured copy's path (both `textures/…`). */
+  textures: Readonly<Record<string, string>>;
+};
+
 /**
  * Simple mode's state on a draft: the reference the controls scale (the
  * effect when a Simple control was first used after opening or after the
- * last other edit) and where each control is. See `simpleControls.ts`.
+ * last other edit), where each control is, and the colour theme (null is
+ * Original). See `simpleControls.ts`.
  */
 export type ParticleVFXSimpleState = {
   reference: ParticleVFXSimpleReference;
   factors: ParticleVFXSimpleFactors;
+  theme: ParticleVFXSimpleTheme | null;
 };
 
 export type ParticleVFXEditorDraft = {
@@ -464,14 +489,17 @@ export type ParticleVFXEditorDraft = {
   emitters: ParticleVFXEmitterDraft[];
   /**
    * Texture bytes by the package-relative path the Quarks images use
-   * (`textures/<file>`). A reference is never reused for different bytes, so
-   * undo and redo restore the right texture by restoring the JSON.
+   * (`textures/<file>`). It may also hold textures only Simple's reference
+   * uses (the originals of a colour theme's copies). A draft never uses one
+   * path for two different images; undo and redo restore the table with the
+   * JSON.
    */
   textureFiles: Readonly<Record<string, ParticleVFXEditorTextureFile>>;
   /**
-   * Simple mode's reference and control positions; null is every control at
-   * 100 %. Undo, redo and recovery keep it; Save and the unsaved-changes
-   * check ignore it, because the scaled values are already in the effect.
+   * Simple mode's reference, control positions and colour theme; null is
+   * every control at 100 % and Original. Undo, redo and recovery keep it;
+   * Save and the unsaved-changes check ignore it, because the scaled and
+   * recoloured values are already in the effect.
    */
   simple: ParticleVFXSimpleState | null;
 };
