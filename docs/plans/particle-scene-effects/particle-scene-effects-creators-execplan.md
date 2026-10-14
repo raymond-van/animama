@@ -213,7 +213,9 @@ Line numbers drift as work proceeds.
       (2026-10-13).
 - [ ] P5 — Scene Simple mode (R16). #492
 - [ ] P6 — Journeys, documentation and acceptance (R15–R17). #493
-- [ ] Final integration review; PR.
+- [x] P1–P4 subset integration review passed (2026-10-13); PR #529 opened
+      for the plan, closing #488–#491. P5 and P6 continue in it.
+- [ ] Final integration review of the whole plan.
 - [ ] Gates G1 (thumbnails) and G2 (walkthrough); merge approval.
 
 ## Surprises & Discoveries
