@@ -1,5 +1,6 @@
 import * as THREE from "three";
 
+import type { Avatar } from "@/lib/avatar";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import type { SceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
 
@@ -28,11 +29,12 @@ import {
  * Particle and Scene Effects and its sounds start when chat would start
  * them. A looping clip is stopped (with its fade) after one pass, and a
  * talking-scoped one after the request's talking time, as chat stops it
- * when the reply ends. Frames advance in fixed 60 Hz steps, so a reel is the same on every
- * run whatever the capture speed. Sounds are not played here: each one a
- * clip event plays is reported with its time, and Node mixes them into the
- * video's audio. A label panel in the top-left corner names the item, its
- * effects (lit while active) and their sounds (lit while playing).
+ * when the reply ends. Frames advance in fixed 60 Hz steps, so a reel is the
+ * same on every run whatever the capture speed. Sounds are not played here:
+ * each one a clip event plays is reported with its time, and Node mixes them
+ * into the video's audio. A label panel in the top-left corner names the
+ * item, its effects (lit while active) and their sounds (lit while playing),
+ * and shows the Avatar's live expression weights.
  */
 
 /** One effect the item's clip can start, as the label lists it. */
@@ -157,13 +159,43 @@ const LABEL_CSS = `
 .reel-sound.is-playing { color: #7ee0ff; }
 .reel-row:has(.reel-sound.is-playing) { opacity: 1; }
 .reel-none { font-size: calc(var(--u) * 20); opacity: 0.55; }
+.reel-expressions {
+  /* Takes the panel's width without widening it as the values change. */
+  width: 0;
+  min-width: 100%;
+  margin-top: calc(var(--u) * 14);
+}
+.reel-expressions-title {
+  font-size: calc(var(--u) * 15);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.reel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 6);
+  margin-top: calc(var(--u) * 6);
+  font-size: calc(var(--u) * 18);
+  font-variant-numeric: tabular-nums;
+}
+.reel-chip {
+  padding: calc(var(--u) * 2) calc(var(--u) * 8);
+  border-radius: calc(var(--u) * 6);
+  white-space: nowrap;
+}
 `;
 
-/** The corner label: the item, its effects and their sounds. */
+/** Weights below this are not listed (they show as 0.00). */
+const EXPRESSION_MIN_WEIGHT = 0.005;
+
+/** The corner label: the item, its effects, their sounds and expressions. */
 class LabelPanel {
   readonly element = document.createElement("div");
   private effects: { alias: string; row: HTMLElement }[] = [];
   private sounds: { cueId: string; element: HTMLElement }[] = [];
+  private chips = document.createElement("div");
 
   constructor(host: HTMLElement, height: number) {
     const style = document.createElement("style");
@@ -212,26 +244,59 @@ class LabelPanel {
       rows.append(row("", "Sound event", cueId));
     if (rows.childElementCount === 0)
       rows.append(text("reel-none", "No effects"));
+    const expressions = document.createElement("div");
+    expressions.className = "reel-expressions";
+    this.chips = document.createElement("div");
+    this.chips.className = "reel-chips";
+    expressions.append(
+      text("reel-expressions-title", "Expressions"),
+      this.chips,
+    );
     this.element.replaceChildren(
       text("reel-kicker", label.kicker),
       text("reel-title", label.title),
       ...(label.detail ? [text("reel-detail", label.detail)] : []),
       rows,
+      expressions,
     );
   }
 
-  /** Light the effects that are active and the sounds that are playing. */
-  update(activeAliases: Set<string>, playingCues: Set<string>): void {
+  /**
+   * Light the effects that are active and the sounds that are playing, and
+   * list each expression's weight, in the Avatar's expression order. A chip's
+   * fill shows its weight.
+   */
+  update(
+    activeAliases: Set<string>,
+    playingCues: Set<string>,
+    expressions: [name: string, weight: number][],
+  ): void {
     for (const { alias, row } of this.effects)
       row.classList.toggle("is-active", activeAliases.has(alias));
     for (const { cueId, element } of this.sounds)
       element.classList.toggle("is-playing", playingCues.has(cueId));
+    const chips = expressions.map(([name, weight]) => {
+      const chip = document.createElement("span");
+      chip.className = "reel-chip";
+      chip.textContent = `${name} ${weight.toFixed(2)}`;
+      const filled = `${(weight * 100).toFixed(1)}%`;
+      chip.style.background = `linear-gradient(to right, rgba(255, 209, 102, 0.38) ${filled}, rgba(245, 245, 247, 0.1) ${filled})`;
+      return chip;
+    });
+    if (chips.length === 0) {
+      const none = document.createElement("span");
+      none.className = "reel-none";
+      none.textContent = "None";
+      chips.push(none);
+    }
+    this.chips.replaceChildren(...chips);
   }
 
   clear(): void {
     this.element.replaceChildren();
     this.effects = [];
     this.sounds = [];
+    this.chips = document.createElement("div");
   }
 }
 
@@ -293,6 +358,14 @@ function closeReelItem(): void {
   stage.review.bands.clearScenes();
   stage.review.bands.setAvatar(null);
   stage.label.clear();
+}
+
+/** The Avatar's current non-zero expression weights, in its expression order. */
+function expressionWeights(avatar: Avatar): [string, number][] {
+  return avatar
+    .getAvailableExpressions()
+    .map((name): [string, number] => [name, avatar.getExpressionValue(name)])
+    .filter(([, weight]) => weight >= EXPRESSION_MIN_WEIGHT);
 }
 
 /**
@@ -392,7 +465,11 @@ async function reelFrame(time: number): Promise<ReelFrame> {
     if (session.time >= sound.time && session.time < end)
       playing.add(sound.cueId);
   }
-  stage.label.update(new Set(diagnostics.activeEffectIds), playing);
+  stage.label.update(
+    new Set(diagnostics.activeEffectIds),
+    playing,
+    expressionWeights(session.avatar),
+  );
 
   const idle =
     current.startedAt !== null &&

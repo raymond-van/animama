@@ -37,7 +37,8 @@ import {
  * or the named sources, plays one at a time through the Avatar's own clip
  * player on the review stage (`effect-render/`): the chat's lighting, camera
  * preset and Scene layers, with its Avatar, Particle and Scene Effects. A
- * corner label names the item and its effects, lighting each while active.
+ * corner label names the item and its effects, lighting each while active,
+ * and lists the Avatar's live expression weights.
  * Frames advance in fixed steps and are captured from a headless browser, so
  * the reel does not depend on capture speed. The sounds clip events play are
  * mixed into the audio afterwards from local sound files (by default the
@@ -94,7 +95,8 @@ const USAGE = [
   "sources: a Gesture or Reaction folder, .meta.json, clip .json or",
   "library:[gesture/|reaction/][included/|local/]<stem|content_id|name>.",
   "Each plays once (a loop for one pass) with its effects and sounds, under a",
-  "corner label naming it and its effects. The video has a chapter per item.",
+  "corner label naming it, its effects and its live expression weights. The",
+  "video has a chapter per item.",
   "Reactions are talking-scoped: each is held for --talk seconds, then stopped.",
   "",
   "Options:",
