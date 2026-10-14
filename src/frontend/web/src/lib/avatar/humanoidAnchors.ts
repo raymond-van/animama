@@ -22,6 +22,21 @@ export const HUMANOID_ANCHORS = [
 
 export type HumanoidAnchor = (typeof HUMANOID_ANCHORS)[number];
 
+/** Each body point's name in the creators ("Plays at", "Body point"). */
+export const HUMANOID_ANCHOR_LABELS: Readonly<Record<HumanoidAnchor, string>> =
+  {
+    root: "Feet (whole avatar)",
+    hips: "Hips",
+    spine: "Waist",
+    chest: "Chest",
+    neck: "Neck",
+    head: "Head",
+    leftHand: "Left hand",
+    rightHand: "Right hand",
+    leftFoot: "Left foot",
+    rightFoot: "Right foot",
+  };
+
 /**
  * Normalized bones tried for each anchor, in order. Optional VRM bones (for
  * example `upperChest`) may be absent, so each anchor falls back to the

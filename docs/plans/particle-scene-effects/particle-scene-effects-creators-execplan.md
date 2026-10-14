@@ -205,7 +205,9 @@ Line numbers drift as work proceeds.
       passed at round 2 (2026-10-13); gate G1 (thumbnail sheet) pending.
 - [x] P2 — Starting from a template (R17). #489 — review passed at round 1
       (2026-10-13).
-- [ ] P3 — Simple mode and the Particle broad controls (R15). #490
+- [x] P3 — Simple mode and the Particle broad controls (R15). #490 —
+      review budget spent at round 3 with one layout blocker; fixed and
+      measured by the coordinator, awaiting the owner's go-ahead for P4.
 - [ ] P4 — Particle colour theme (R15). #491
 - [ ] P5 — Scene Simple mode (R16). #492
 - [ ] P6 — Journeys, documentation and acceptance (R15–R17). #493
@@ -731,11 +733,174 @@ tested, and `effects save` still saves and reopens a Particle folder.
 
 #### P3 record
 
-Not started.
+Starting source and issue: `d9450f96`, #490.
+
+- **Pure layer:** `editor/simpleControls.ts` (with tests over the 16 Included
+  effects and synthetic cases). `draft.simple = { reference: { catalog,
+  quarksJson }, factors } | null`; factors are integer percentages on a 5 %
+  grid, and null means 100 %. The scaled effect is always recomputed from the
+  reference, so 100 % restores it byte for byte. The root object is scaled
+  when it is itself an emitter (imported single-emitter JSON). The
+  field-by-field treatment is in the module's JSDoc. For example:
+  - Amount: `emissionOverTime` × a·k; burst counts × a, rounded and at least 1;
+    single-particle layers (rates 0, burst counts summing to ≤ 1) are
+    untouched;
+  - Size and Spread: `startSpeed` × k·p; Size scales `startSize`;
+  - Speed: forces × k²·p; lifetimes, cycles and burst timing ÷ k;
+  - stretched billboards: `speedFactor` ÷ k·p;
+  - budget: `maxParticles` = min(512, max(reference, estimate)).
+- **Bounds:** Amount and Speed are scanned on the 5 % grid against the
+  512-particle and 30 s limits, with a note naming the limit. Size and Spread
+  never change a limited field, so they get the full range. Bounds are frozen
+  during a drag. Amount is disabled when every layer is a single particle.
+- **History, recovery, Save:** history snapshots carry `simple`. History
+  equality also compares the factors; the Save and dirty fingerprint does
+  not. Any non-Simple edit that changes the effect rebases, at the page's
+  `updateDraft`/`commit` boundary. Recovery is `/4` (reads `/3` and `/2` at
+  100 %). Save emits only the scaled effect, and the saved draft starts at
+  100 %.
+- **UI:** `CreatorModeSwitch` (`Tabs`) in a new `CreatorToolbar`
+  `modeControl` slot; compact below 2xl so a saved effect's name still fits
+  beside "Use in…" at 1440 px. `ParticleSimplePanels` (Effect: template or
+  name, Plays at, Layers; Adjust: four labelled `Slider`s with percentage
+  values and `aria-describedby` notes). One undo step per pointer drag, with
+  rAF-throttled updates. The narrow-width tabs follow the mode
+  (Effect/Adjust, Emitters/Inspector). Shared `HUMANOID_ANCHOR_LABELS`.
+- **Agent decisions:**
+  - renaming keeps the Simple positions;
+  - New, Import and every load open in Simple;
+  - Save returns the controls to 100 % of the saved effect, including
+    within the session, because Save normalizes the effect.
+- **Tooling and journeys:** `effects save` switches to Advanced and waits for
+  the Emitters panel. The texture-import and template journeys switch modes.
+  The template journey covers the Simple flow: Amount 200 % doubles only
+  multi-particle layers, one Undo, Redo, recovery at 200 %, then Save and
+  reopen at 100 % with the saved values.
+- **Docs:** the creator section of `avatar-particle-vfx.md` and the skill's
+  `creator.md`.
+
+Checks:
+
+- implementer, final source: focused vitest 710 passed; `pnpm web:test`
+  exit 0 earlier in the phase (4491 passed, 1 skipped; browser suites 119);
+  `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm e2e:check`
+  exit 0;
+- `ANIMAMA_EFFECT_SAVE_STACK=1 node --test scripts/effect-save.stack.test.mjs`:
+  1 passed;
+- journeys on the task stack:
+  - `accountless-effect-template-picker` 4 passed;
+  - `accountless-particle-texture-import` 2 passed;
+  - `accountless-vfx-layout` 6 passed;
+  - `accountless-creator-discard` 8 passed, with the 3 known Gesture failures;
+  - `accountless-journeys` 5 passed, 1 failed: the chat test expects a mock
+    reply and the development stack answers with a real model; this is
+    unrelated.
+- Browser: screenshots in `.animama-drafts/plan3/p3/` (ignored):
+  - Heart Burst in Simple and Advanced at 1440 and 900 px, light and dark;
+  - Fireworks Show checked at 1440 × 900: adjust in Simple, inspect in
+    Advanced, undo and redo, rename, Save, reopen at 100 % with the saved
+    values, and recovery after reload.
+- Coordinator: a drag of Amount and Spread on Heart Burst, where one Undo
+  reverted one drag, and the toolbar fit of a saved effect at 1440 px. Two
+  Local test items, "Emotion Love 1" and "Fireworks Show 1", remain on the
+  task stack.
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, working tree on `d9450f96`), blocked. Field
+treatments were checked against three.quarks 0.17.1, and the rebase boundary,
+history, recovery `/4`, Save exclusion and mode switch were verified.
+
+- **P3-R1-F1 (Required):** an emitter that is the Quarks root object was
+  never scaled. Size and Amount did nothing, and Speed broke readiness.
+- **P3-R1-F2 (Required):** slider bounds (up to 14 ms) were recomputed every
+  animation frame during a drag.
+- **P3-R1-F3 (Required, evidence):** the browser checks were not reported.
+- Optional:
+  - O1: Save resets Simple within the session;
+  - O2: record the agent decisions;
+  - O3: `effect-save.mjs` did not wait after switching mode;
+  - O4: an unused `disabled` prop;
+  - O5: the notes are not linked to the sliders;
+  - O6: recovery holds a second copy of the effect while Simple is not at
+    100 % (fine at Included sizes, 44 KB at most);
+  - O7: renaming rebuilt the reference each keystroke;
+  - O8: the skill text misstated the budget;
+  - O9: a forward note for P4: recovery must keep the reference's original
+    textures.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** the root emitter is scaled, test-first.
+- **F2 accepted:** bounds are memoized on the reference and the drag-start
+  factors; Size and Spread are not scanned. Tests count the searches.
+- **F3 accepted:** the evidence is listed in the record above.
+- **O1, O2 accepted:** recorded as agent decisions; the docs say Save
+  returns the controls to 100 %.
+- **O3, O4, O5, O7, O8 accepted.**
+- **O6 kept:** the second copy is small at Included sizes and well under the
+  bound.
+- **O9 taken into P4.**
+
+#### Code Review #2 Findings
+
+Round 2 (repair round 1, targeted): F1 and F2 resolved; F3's evidence is
+valid, though one Fireworks screenshot predates the compact switch.
+
+- **P3-R2-F1 (Required):** the reviewer measured a saved effect's name box
+  (with the mode switch and "Use in…" in the toolbar, sidebar open) at 26 px
+  at 1024 and 18 px at 1280, against 187 and 158 px without the switch; at
+  1366 it showed one word.
+- Non-blocking: the first drag after opening, an Advanced edit or Save runs
+  one bounds search mid-drag (once per drag, unchanged values); renaming
+  before any Simple use searches once per keystroke (cheap).
+
+#### Code Review #2 Revisions
+
+- **F1 accepted:** "Use in…" shows its label only at 2xl, like New and
+  Library, and gains `aria-label`, because it had no accessible name whenever
+  the label was hidden. When a toolbar has a mode switch, its type label is
+  icon-only below 2xl, with the text still announced; the Avatar Effect
+  creator is unchanged. Measured name widths on the saved "Fireworks Show 1":
+  113 px at 1024, 147 at 1280 (fits), 233 at 1366 and 234 at 1440.
+  Rechecks:
+  - `pnpm check` and `pnpm web:lint` exit 0; `pnpm prettier:check` passes;
+  - vitest over the four creator folders: 185 passed;
+  - journeys: `accountless-effect-template-picker` 4,
+    `accountless-particle-texture-import` 2 and `accountless-vfx-layout` 6
+    passed.
+- Non-blocking notes kept: each costs at most one search per drag or
+  keystroke.
+
+#### Code Review #3 Findings
+
+Round 3 (repair round 2, the last allowed): **blocked**. P3-R2-F1 is fixed at
+1024, 1280, 1366 and 1440, but:
+
+- **P3-R3-F1 (Required):** at exactly 1536 (2xl) every label returns at once
+  and the name box drops to 111 px ("Fireworks Sh…"). It is 175 px at 1600
+  and fits from 1680.
+- Non-blocking: 1024 still truncates at 113 px (acceptable as the narrowest
+  desktop); `not-sr-only` overrode `truncate` at 2xl; the icon-only "Use in…"
+  had no tooltip.
+
+The reviewer verified accessible names at every width, that the header does
+not overflow, and that the Avatar FX toolbar is unchanged.
+
+#### Code Review #3 Revisions
+
+- **F1 accepted:** with a mode switch, the type label is icon-only at every
+  width (text kept for assistive technology). The coordinator measured with
+  the reviewer's scripts: the saved "Fireworks Show 1" name box is 113 px at
+  1024, 147 at 1280, 233 at 1366, 234 at 1440 and 1535, 198 at 1536 (fits),
+  and 234 at 1600, 1680 and 1920. New Avatar FX stays at 266 px everywhere.
+- **Tooltip accepted:** "Use in…" has `title`.
+- Rechecks: `pnpm check` and `pnpm web:lint` exit 0; Prettier passes on the
+  changed files; vitest `src/ui/content-creator src/ui/particle-vfx-creator`
+  114 passed.
+- **The review budget is spent.** This fix is verified by measurement, not by
+  an independent review. Progress to P4 waits for the owner's go-ahead
+  (SDLC bounded review).
 
 ### P4 — Particle colour theme (R15). #491
 

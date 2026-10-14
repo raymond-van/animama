@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createParticleVFXEditorDraftFromBlank } from "@/lib/avatar/particle-vfx";
+import {
+  createParticleVFXEditorDraftFromBlank,
+  setParticleVFXSimpleControl,
+} from "@/lib/avatar/particle-vfx";
 import type { CatalogSaveInput } from "@/lib/content/catalogApi";
 import type { PyContentItem } from "@/lib/content/catalogTypes";
 import type { CreatorRecoveryStore } from "@/lib/content/creatorRecoveryStore";
@@ -316,5 +319,32 @@ describe("effect Save adapters", () => {
       field: "name",
     });
     expect(particleVFXSaveAdapter.validateName?.("Hearts")).toBeNull();
+  });
+
+  it("recovers a Particle draft's Simple controls, and stores none at 100 %", () => {
+    const record = (
+      snapshot: ReturnType<typeof createParticleVFXEditorDraftFromBlank>,
+    ) =>
+      particleVFXSaveAdapter.toRecovery({
+        userId: "owner",
+        documentKey: "new",
+        itemId: undefined,
+        session,
+        snapshot,
+        updatedAt: "2026-10-13T00:00:00.000Z",
+      });
+    const scaled = setParticleVFXSimpleControl(
+      createParticleVFXEditorDraftFromBlank(),
+      "amount",
+      200,
+    );
+
+    const restored = particleVFXSaveAdapter.fromRecovery(record(scaled));
+    expect(restored.snapshot.simple).toEqual(scaled.simple);
+    expect(restored.snapshot.quarksJson).toEqual(scaled.quarksJson);
+
+    const back = setParticleVFXSimpleControl(scaled, "amount", 100);
+    expect(back.simple).not.toBeNull();
+    expect(record(back).simple).toBeNull();
   });
 });

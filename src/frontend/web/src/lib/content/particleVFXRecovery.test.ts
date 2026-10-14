@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createParticleVFXEditorDraftFromBlank } from "@/lib/avatar/particle-vfx";
+import {
+  createParticleVFXEditorDraftFromBlank,
+  setParticleVFXSimpleControl,
+} from "@/lib/avatar/particle-vfx";
 import { creatorRecoveryKey } from "./creatorRecoveryStore";
 import {
   PARTICLE_VFX_RECOVERY_SCHEMA,
@@ -37,6 +40,7 @@ describe("Particle Effect recovery", () => {
       catalog: draft.catalog,
       quarksJson: draft.quarksJson,
       textures: [],
+      simple: null,
       updatedAt: "2026-08-09T12:00:00.000Z",
     });
 
@@ -79,6 +83,7 @@ describe("Particle Effect recovery", () => {
       catalog: draft.catalog,
       quarksJson: draft.quarksJson,
       textures: [],
+      simple: null,
       updatedAt: "2026-08-09T12:00:00.000Z",
     });
 
@@ -108,6 +113,7 @@ describe("Particle Effect recovery", () => {
           height: 8,
         },
       ],
+      simple: null,
       updatedAt: "2026-10-09T12:00:00.000Z",
     } as const;
 
@@ -142,6 +148,92 @@ describe("Particle Effect recovery", () => {
       schema: PARTICLE_VFX_RECOVERY_SCHEMA,
       operationId: "operation-old",
       textures: [],
+      simple: null,
     });
+  });
+
+  it("keeps Simple's reference and control positions", async () => {
+    const draft = setParticleVFXSimpleControl(
+      setParticleVFXSimpleControl(
+        createParticleVFXEditorDraftFromBlank(),
+        "amount",
+        200,
+      ),
+      "speed",
+      150,
+    );
+    await particleVFXRecoveryStore.save({
+      schema: PARTICLE_VFX_RECOVERY_SCHEMA,
+      userId: "user-a",
+      documentKey: "new",
+      source: null,
+      operationId: "operation-a",
+      fileOperationIds: [],
+      displayName: draft.catalog.label,
+      catalog: draft.catalog,
+      quarksJson: draft.quarksJson,
+      textures: [],
+      simple: draft.simple,
+      updatedAt: "2026-10-13T12:00:00.000Z",
+    });
+
+    const loaded = await particleVFXRecoveryStore.load("user-a", "new");
+    expect(loaded?.simple).toEqual(draft.simple);
+    expect(loaded?.simple?.factors).toEqual({
+      amount: 200,
+      size: 100,
+      speed: 150,
+      spread: 100,
+    });
+  });
+
+  it("restores a version 3 draft, or unreadable Simple state, at 100 %", async () => {
+    const draft = createParticleVFXEditorDraftFromBlank();
+    const record = (schema: string, simple: unknown) =>
+      JSON.stringify({
+        schema,
+        userId: "user-a",
+        documentKey: "new",
+        source: null,
+        operationId: "operation-old",
+        fileOperationIds: [],
+        displayName: "Old draft",
+        catalog: draft.catalog,
+        quarksJson: draft.quarksJson,
+        textures: [],
+        simple,
+        updatedAt: "2026-10-09T12:00:00.000Z",
+      });
+    const key = `anima.particleVfxCreator.recovery.v1:${creatorRecoveryKey("user-a", "new")}`;
+
+    values.set(key, record("animama/particle-effect-recovery/3", undefined));
+    expect(await particleVFXRecoveryStore.load("user-a", "new")).toMatchObject({
+      schema: PARTICLE_VFX_RECOVERY_SCHEMA,
+      simple: null,
+    });
+
+    values.set(
+      key,
+      record(PARTICLE_VFX_RECOVERY_SCHEMA, {
+        reference: { catalog: draft.catalog, quarksJson: draft.quarksJson },
+        factors: { amount: "lots", size: 100, speed: 100, spread: 100 },
+      }),
+    );
+    expect(await particleVFXRecoveryStore.load("user-a", "new")).toMatchObject({
+      operationId: "operation-old",
+      simple: null,
+    });
+
+    // Positions outside a control's range are not Simple's either.
+    values.set(
+      key,
+      record(PARTICLE_VFX_RECOVERY_SCHEMA, {
+        reference: { catalog: draft.catalog, quarksJson: draft.quarksJson },
+        factors: { amount: 900, size: 100, speed: 100, spread: 100 },
+      }),
+    );
+    expect(
+      (await particleVFXRecoveryStore.load("user-a", "new"))?.simple,
+    ).toBeNull();
   });
 });

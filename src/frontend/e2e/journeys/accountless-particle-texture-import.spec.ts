@@ -10,6 +10,7 @@ import {
   reviewSharingExport,
   uploadSharingPackage,
 } from "../helpers/content-sharing";
+import { chooseCreatorMode } from "../helpers/creator-surfaces";
 import {
   saveTrackedParticleEffect,
   waitForStoredParticleDraft,
@@ -90,7 +91,9 @@ function textureCard(page: Page, fileName: string) {
     .getByRole("button", { name: new RegExp(fileName.replace(".", "\\.")) });
 }
 
+/** Open the selected emitter's Appearance tab; the creator opens in Simple. */
 async function openAppearance(page: Page) {
+  await chooseCreatorMode(page, "Advanced");
   await page.getByRole("tab", { name: "Appearance", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "This effect's textures" }),

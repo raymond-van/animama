@@ -59,6 +59,22 @@ export {
   validateParticleVFXContentReadiness,
 } from "./contentReadiness";
 export { estimateParticleVFXParticles } from "./particleEstimate";
+export {
+  PARTICLE_VFX_SIMPLE_CONTROLS,
+  PARTICLE_VFX_SIMPLE_NEUTRAL,
+  PARTICLE_VFX_SIMPLE_RANGES,
+  PARTICLE_VFX_SIMPLE_STEP,
+  applyParticleVFXSimpleControls,
+  countParticleVFXMultiParticleLayers,
+  equalParticleVFXSimpleFactors,
+  isNeutralParticleVFXSimpleFactors,
+  particleVFXSimpleControlBounds,
+  particleVFXSimpleFactors,
+  renameParticleVFXEditorDraft,
+  setParticleVFXSimpleControl,
+  type ParticleVFXSimpleBounds,
+  type ParticleVFXSimpleLimit,
+} from "./simpleControls";
 export type { ParticleVFXContentReadinessOptions } from "./contentReadiness";
 export { PARTICLE_VFX_ANCHORS, PARTICLE_VFX_PRELOAD_TIERS } from "../types";
 export type {
@@ -101,4 +117,8 @@ export type {
   ParticleVFXEditorValueRange,
   ParticleVFXEmitterDraft,
   ParticleVFXEmitterPatch,
+  ParticleVFXSimpleControl,
+  ParticleVFXSimpleFactors,
+  ParticleVFXSimpleReference,
+  ParticleVFXSimpleState,
 } from "./types";

@@ -39,10 +39,12 @@ export function CreatorEffectHandoffActions({
         <Button
           type="button"
           variant="outline"
+          aria-label="Use in…"
+          title="Use in…"
           className="bg-background dark:bg-background dark:hover:bg-accent h-11 rounded-xl shadow-sm"
         >
           <WandSparklesIcon />
-          <span className="hidden xl:inline">Use in…</span>
+          <span className="hidden 2xl:inline">Use in…</span>
           <ChevronDownIcon className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>

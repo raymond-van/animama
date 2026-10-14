@@ -17,9 +17,31 @@ Load picker or Library entry to obtain the correct item. The route owns an
 exclusive preview Canvas and uses the shared creator shell and toolbar.
 
 The toolbar provides document name, New, Load, JSON Import/export, Undo/Redo,
-validation feedback, and Save. The left panel manages emitters and whole-effect
-settings. The right Inspector operates on the selected emitter. Selecting a lane
-in Preview Timeline also selects that emitter.
+validation feedback, the Simple | Advanced switch, and Save. Every opened
+effect starts in **Simple**: the left panel shows its template or name, where
+it plays and its layer count; the right panel has Amount, Size, Speed and
+Spread (below). Switch to **Advanced** to author emitters: its left panel
+manages emitters and whole-effect settings, and its right Inspector operates
+on the selected emitter. Selecting a lane in Preview Timeline also selects that
+emitter.
+
+**Simple controls** scale the whole effect from a reference (the effect when
+Simple was first used after opening or after the last Advanced edit), so
+100 % restores it exactly. Amount scales the per-second and per-metre rates
+and every burst's count (single-particle layers stay single); Size scales
+start sizes; Speed is tempo
+(speeds × k, forces × k², lifetimes, cycles, burst times and durations ÷ k);
+Spread scales offsets, shape sizes, speeds, forces and noise but not particle
+sizes. Each stops, with a note, before the estimate passes 512 particles or a
+duration 30 seconds; the declared budget rises with the estimate (up to 512,
+never below the reference's). The values
+are written into the effect, so Advanced shows them; any Advanced edit resets
+Simple to 100 % of the edited effect (renaming does not). Recovery keeps the
+positions; Save returns them to 100 % of the saved effect, as reopening does.
+Field-by-field rules are in
+`editor/simpleControls.ts`. Use Simple for whole-effect tuning and Advanced
+for per-emitter authoring; automation that uses emitter or texture controls
+must switch to Advanced first, as `effects save` does.
 
 Add starts another emitter; Duplicate copies the selected emitter; Remove cannot
 remove the last one through the UI. Rename the selected emitter in the Inspector
@@ -27,6 +49,8 @@ header. Applying Pop, Aura, Smoke Fade, Speed Streak, or Sparkle Burst replaces
 settings on that emitter; these are authoring presets, not separate saved effects.
 
 ## Control map
+
+Advanced's panels:
 
 | Area | Controls and scope |
 | --- | --- |
@@ -66,7 +90,7 @@ making overrides to those fields, or recheck them afterward. For example, Spark
 Pop 6×5 has 30 cells but 26 authored frames, so its range is 0–25. Fire 8×8 and
 Flame 16×4 have 64 frames with range 0–63.
 
-**Imported textures.** The Inspector's Appearance tab lists *This effect's
+**Imported textures.** In Advanced, the Inspector's Appearance tab lists *This effect's
 textures*: PNGs the effect carries itself. **Import PNG texture** adds one as
 `textures/<name>-N.png` and assigns it to the active emitter; any listed
 texture can be assigned to the active emitter by clicking it. A texture the
@@ -151,7 +175,7 @@ Remote, absolute, data, Blob, encoded, or traversal references are not portable
 Save inputs. The general editor validator's softer warnings do not override the
 package rules.
 
-The left-panel particle estimate is the one Save enforces (and `effects check`
+Advanced's left-panel particle estimate is the one Save enforces (and `effects check`
 reports): each emitter's maximum rate over its duration plus all its burst
 entries, with a looping emitter counted over the longest emitter's duration.
 It is not a measured live count or a complete motion/lifetime model. Do not
@@ -179,6 +203,8 @@ it does not change an Anima's loadout by itself.
 
 - UI and isolated renderer: `src/frontend/web/src/ui/particle-vfx-creator/ParticleVFXCreatorPage.tsx`.
 - Draft/patch behavior: `src/frontend/web/src/lib/avatar/particle-vfx/editor/draft.ts`.
+- Simple controls: `src/frontend/web/src/lib/avatar/particle-vfx/editor/simpleControls.ts`
+  and `src/frontend/web/src/ui/particle-vfx-creator/ParticleSimplePanels.tsx`.
 - Texture defaults: `src/frontend/web/src/lib/avatar/particle-vfx/editor/textureManifest.ts`
   and `textures.ts` in that directory.
 - Save rules: `src/frontend/web/src/lib/avatar/particle-vfx/editor/contentReadiness.ts`

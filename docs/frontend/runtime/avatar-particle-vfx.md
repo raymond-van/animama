@@ -168,9 +168,38 @@ carries; a creator document replaces them, so its textures that are neither
 embedded nor built in show as missing until their files are chosen. `effects
 save` imports this document ([effect tools](avatar-vfx.md#9-effect-tools)).
 
-The left panel separates emitter selection from whole-effect defaults. Name lives
-in the header; internal IDs, resource JSON and clip-event snippets are available
-in the export dialog. Existing descriptions are retained without a main-editor
+The creator opens every effect (blank, Library item, template, import or
+recovery) in **Simple** mode; the toolbar's Simple | Advanced switch changes
+the panels, and the narrow layout's panel tabs follow it. The mode is view
+state, neither undoable nor saved. Simple's left panel shows the effect's
+template (or its name), where it plays and its layer count. Its right panel
+scales the whole effect while keeping its layers' relationships:
+
+- **Amount** scales emission rates and every burst's count, rounded; a
+  single-particle layer (a hero, halo, ring or flash) stays single.
+- **Size** scales start sizes.
+- **Speed** is tempo: the same paths k times faster (speeds × k, forces × k²,
+  lifetimes, cycles, burst times and playback durations ÷ k).
+- **Spread** scales emitter offsets, shape sizes, speeds, forces and noise
+  without resizing particles; Avatar-fitted rectangles keep fitting.
+
+`editor/simpleControls.ts` lists how each three.quarks field is treated. Each
+control is a percentage (Amount 25–400 %, the others 25–300 %) of a reference:
+the effect when Simple was first used after opening or after the last edit
+made elsewhere, so 100 % restores it exactly. A control stops, and says why,
+where the estimate would pass 512 particles or a duration 30 seconds; the
+declared budget rises with the estimate up to 512, never below the
+reference's. The scaled values are in
+the effect, so Advanced shows them. An Advanced edit makes the edited effect
+the new reference (Simple returns to 100 %); renaming does not. A slider drag
+is one undo step. Recovery (`animama/particle-effect-recovery/4`) keeps the
+reference and positions; Save stores only the scaled effect. After Save the
+controls return to 100 %: the saved effect is the new starting point, as it
+is when reopened.
+
+**Advanced** is the full authoring view. Its left panel separates emitter
+selection from whole-effect defaults. Name lives in the header; internal IDs,
+resource JSON and clip-event snippets are available in the export dialog. Existing descriptions are retained without a main-editor
 field. Preload and performance limits remain available under Advanced settings.
 The header validation indicator opens issues that need attention and stays hidden
 when there are none.

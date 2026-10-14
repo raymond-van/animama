@@ -73,6 +73,8 @@ type CreatorToolbarProps = {
   saveBusy: boolean;
   saveLabel: string;
   libraryLabel?: string;
+  /** The creator's Simple | Advanced switch (`CreatorModeSwitch`), before the domain actions. */
+  modeControl?: ReactNode;
   domainActions?: ReactNode;
   /** Interactive catalog status participates in layout beside document actions. */
   contentHealth?: ReactNode;
@@ -106,6 +108,7 @@ export function CreatorToolbar({
   saveBusy,
   saveLabel,
   libraryLabel = "Library",
+  modeControl,
   domainActions,
   contentHealth,
 }: CreatorToolbarProps) {
@@ -125,7 +128,11 @@ export function CreatorToolbar({
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto] lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3">
         <div className="border-border/70 bg-background col-start-1 row-start-1 flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm lg:h-12 [&_svg]:size-4 [&_svg]:shrink-0">
           {typeIcon}
-          <span className="truncate">{typeLabel}</span>
+          {/* A mode switch needs the room the type label takes, so with one
+              the type shows as its icon; the text stays for assistive tech. */}
+          <span className={cn("truncate", modeControl && "sr-only")}>
+            {typeLabel}
+          </span>
         </div>
         <Button
           type="button"
@@ -304,6 +311,7 @@ export function CreatorToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="col-start-3 row-start-1 flex h-11 items-center gap-1.5 lg:col-start-6 lg:h-12">
+          {modeControl}
           {domainActions}
           <Button
             type="button"

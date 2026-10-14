@@ -430,6 +430,31 @@ export type ParticleVFXEditorTextureFile = {
   height: number;
 };
 
+/** One of Simple mode's broad Particle controls. */
+export type ParticleVFXSimpleControl = "amount" | "size" | "speed" | "spread";
+
+/**
+ * Simple mode's control positions, as percentages of the reference: 100
+ * leaves a control's fields as the reference has them.
+ */
+export type ParticleVFXSimpleFactors = Record<ParticleVFXSimpleControl, number>;
+
+/** The effect a Simple control scales: its settings and its Quarks JSON. */
+export type ParticleVFXSimpleReference = {
+  catalog: ParticleVFXEditorCatalogDraft;
+  quarksJson: JsonObject;
+};
+
+/**
+ * Simple mode's state on a draft: the reference the controls scale (the
+ * effect when a Simple control was first used after opening or after the
+ * last other edit) and where each control is. See `simpleControls.ts`.
+ */
+export type ParticleVFXSimpleState = {
+  reference: ParticleVFXSimpleReference;
+  factors: ParticleVFXSimpleFactors;
+};
+
 export type ParticleVFXEditorDraft = {
   source: "catalog" | "imported" | "new";
   sourceEffectId: string | null;
@@ -443,6 +468,12 @@ export type ParticleVFXEditorDraft = {
    * undo and redo restore the right texture by restoring the JSON.
    */
   textureFiles: Readonly<Record<string, ParticleVFXEditorTextureFile>>;
+  /**
+   * Simple mode's reference and control positions; null is every control at
+   * 100 %. Undo, redo and recovery keep it; Save and the unsaved-changes
+   * check ignore it, because the scaled values are already in the effect.
+   */
+  simple: ParticleVFXSimpleState | null;
 };
 
 export type ParticleVFXEditorValidationIssue = {

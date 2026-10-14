@@ -16,8 +16,12 @@ export const PARTICLE_VFX_MAX_EMITTERS = 16;
 const MAX_RESOURCES = 64;
 const MAX_NODES = 128;
 const MAX_TEXTURES = 16;
-const MAX_DURATION_SECONDS = 30;
-const MAX_PARTICLES = 512;
+/** Longest maximum duration a private Particle Effect may declare. */
+export const PARTICLE_VFX_MAX_DURATION_SECONDS = 30;
+/** Most particles a private Particle Effect may declare or be estimated at. */
+export const PARTICLE_VFX_MAX_PARTICLES = 512;
+const MAX_DURATION_SECONDS = PARTICLE_VFX_MAX_DURATION_SECONDS;
+const MAX_PARTICLES = PARTICLE_VFX_MAX_PARTICLES;
 const RUNTIME_ID_PATTERN = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/;
 
 export type ParticleVFXContentReadinessOptions = {

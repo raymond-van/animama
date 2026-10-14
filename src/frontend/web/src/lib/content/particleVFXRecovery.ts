@@ -1,7 +1,12 @@
 import type {
   ParticleVFXEditorCatalogDraft,
   ParticleVFXEditorTextureFile,
+  ParticleVFXSimpleState,
 } from "@/lib/avatar/particle-vfx";
+import {
+  PARTICLE_VFX_SIMPLE_CONTROLS,
+  PARTICLE_VFX_SIMPLE_RANGES,
+} from "@/lib/avatar/particle-vfx/editor/simpleControls";
 import type { JsonObject } from "@/lib/avatar/particle-vfx/editor/types";
 import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import {
@@ -11,9 +16,15 @@ import {
 } from "./creatorRecoveryStore";
 
 export const PARTICLE_VFX_RECOVERY_SCHEMA =
-  "animama/particle-effect-recovery/3";
-/** Records written before drafts carried texture files; they restore without them. */
-const PARTICLE_VFX_RECOVERY_SCHEMA_V2 = "animama/particle-effect-recovery/2";
+  "animama/particle-effect-recovery/4";
+/**
+ * Earlier records still restore: version 3 without Simple state (its
+ * controls at 100 %), version 2 also without texture files.
+ */
+const PARTICLE_VFX_RECOVERY_EARLIER_SCHEMAS = new Set([
+  "animama/particle-effect-recovery/3",
+  "animama/particle-effect-recovery/2",
+]);
 const MAX_RECOVERY_JSON_BYTES = 5 * 1024 * 1024;
 /** The JSON plus every texture an effect may carry. */
 export const PARTICLE_VFX_RECOVERY_MAX_BYTES =
@@ -38,6 +49,11 @@ export type ParticleVFXRecovery = {
   catalog: ParticleVFXEditorCatalogDraft;
   quarksJson: JsonObject;
   textures: readonly ParticleVFXRecoveryTexture[];
+  /**
+   * Simple mode's reference (settings and Quarks JSON only; its textures are
+   * the draft's) and control positions, or null at 100 %.
+   */
+  simple: ParticleVFXSimpleState | null;
   updatedAt: string;
 };
 
@@ -106,6 +122,39 @@ function parseTextures(value: unknown): ParticleVFXRecoveryTexture[] {
   });
 }
 
+/** Simple state from a record; anything unreadable restores at 100 %. */
+function parseSimpleState(value: unknown): ParticleVFXSimpleState | null {
+  const simple = recoveryRecordObject(value);
+  const reference = recoveryRecordObject(simple?.reference);
+  const factors = recoveryRecordObject(simple?.factors);
+  if (
+    !reference ||
+    !factors ||
+    !recoveryRecordObject(reference.catalog) ||
+    !recoveryRecordObject(reference.quarksJson) ||
+    !PARTICLE_VFX_SIMPLE_CONTROLS.every((control) => {
+      const value = factors[control];
+      const range = PARTICLE_VFX_SIMPLE_RANGES[control];
+      return (
+        typeof value === "number" && value >= range.min && value <= range.max
+      );
+    })
+  )
+    return null;
+  return {
+    reference: {
+      catalog: reference.catalog as ParticleVFXEditorCatalogDraft,
+      quarksJson: reference.quarksJson as JsonObject,
+    },
+    factors: Object.fromEntries(
+      PARTICLE_VFX_SIMPLE_CONTROLS.map((control) => [
+        control,
+        factors[control] as number,
+      ]),
+    ) as ParticleVFXSimpleState["factors"],
+  };
+}
+
 function parseParticleVFXRecovery(
   value: unknown,
   identity: { userId: string; documentKey: string },
@@ -114,7 +163,7 @@ function parseParticleVFXRecovery(
   if (
     !record ||
     (record.schema !== PARTICLE_VFX_RECOVERY_SCHEMA &&
-      record.schema !== PARTICLE_VFX_RECOVERY_SCHEMA_V2) ||
+      !PARTICLE_VFX_RECOVERY_EARLIER_SCHEMAS.has(String(record.schema))) ||
     record.userId !== identity.userId ||
     record.documentKey !== identity.documentKey ||
     typeof record.operationId !== "string" ||
@@ -140,6 +189,10 @@ function parseParticleVFXRecovery(
     catalog: record.catalog as ParticleVFXEditorCatalogDraft,
     quarksJson: record.quarksJson as JsonObject,
     textures: parseTextures(record.textures),
+    simple:
+      record.schema === PARTICLE_VFX_RECOVERY_SCHEMA
+        ? parseSimpleState(record.simple)
+        : null,
     updatedAt: record.updatedAt,
   };
 }

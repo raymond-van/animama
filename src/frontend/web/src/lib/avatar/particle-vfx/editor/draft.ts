@@ -440,6 +440,8 @@ export function cloneParticleVFXEditorDraft(
     quarksJson: cloneJsonObject(draft.quarksJson),
     // Entries are immutable; a changed table is always a new object.
     textureFiles: draft.textureFiles,
+    // Never changed in place: a Simple control replaces the whole state.
+    simple: draft.simple,
     emitters: draft.emitters.map((emitter) => ({
       ...emitter,
       localPosition: { ...emitter.localPosition },
@@ -506,6 +508,23 @@ function createParticleVFXEditorDraft(args: {
     quarksJson,
     emitters: [],
     textureFiles: args.textureFiles ?? {},
+    simple: null,
+  });
+}
+
+/**
+ * The draft with its settings and Quarks JSON replaced by `effect` (copies
+ * the draft now owns) and its emitters read again. Its source, textures and
+ * Simple state stay.
+ */
+export function replaceParticleVFXEditorEffect(
+  draft: ParticleVFXEditorDraft,
+  effect: Pick<ParticleVFXEditorDraft, "catalog" | "quarksJson">,
+): ParticleVFXEditorDraft {
+  return refreshParticleVFXEditorDraft({
+    ...draft,
+    catalog: effect.catalog,
+    quarksJson: effect.quarksJson,
   });
 }
 

@@ -2,6 +2,7 @@
 
 import {
   createParticleVFXEditorDraftFromImport,
+  isNeutralParticleVFXSimpleFactors,
   referencedParticleVFXTextureFiles,
   type ParticleVFXEditorDraft,
 } from "@/lib/avatar/particle-vfx";
@@ -23,7 +24,9 @@ const MANIFEST_PATH = "particle.json";
 /**
  * Particle Effect package, recovery record and routes for the shared Save.
  * Packaging may adjust the effect; those notices are reviewed before the
- * next Save continues.
+ * next Save continues. The package holds the effect only: Simple mode's
+ * reference and control positions are kept by recovery, not saved, and the
+ * saved draft returns Simple to 100 %.
  */
 export const particleVFXSaveAdapter: CreatorSaveAdapter<
   ParticleVFXEditorDraft,
@@ -106,18 +109,27 @@ export const particleVFXSaveAdapter: CreatorSaveAdapter<
     textures: Object.entries(referencedParticleVFXTextureFiles(snapshot)).map(
       ([reference, file]) => ({ reference, ...file }),
     ),
+    // At 100 % the reference is the effect itself, so it need not be kept.
+    simple:
+      snapshot.simple &&
+      !isNeutralParticleVFXSimpleFactors(snapshot.simple.factors)
+        ? snapshot.simple
+        : null,
     updatedAt,
   }),
   // A record the current editor cannot import throws and is discarded. A
   // texture whose bytes were not kept shows as missing until it is chosen.
   fromRecovery: (record) => ({
-    snapshot: createParticleVFXEditorDraftFromImport(
-      record.quarksJson,
-      record.catalog,
-      Object.fromEntries(
-        record.textures.map(({ reference, ...file }) => [reference, file]),
+    snapshot: {
+      ...createParticleVFXEditorDraftFromImport(
+        record.quarksJson,
+        record.catalog,
+        Object.fromEntries(
+          record.textures.map(({ reference, ...file }) => [reference, file]),
+        ),
       ),
-    ),
+      simple: record.simple,
+    },
     operationId: record.operationId,
   }),
   editRoute: (itemId) => ({

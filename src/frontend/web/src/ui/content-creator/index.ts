@@ -12,6 +12,7 @@ export { CreatorFloatingPanel } from "./CreatorFloatingPanel";
 export { CreatorImportDialog } from "./CreatorImportDialog";
 export { CreatorJsonDialog } from "./CreatorJsonDialog";
 export { CreatorLeaveDialog } from "./CreatorLeaveDialog";
+export { CreatorModeSwitch, type CreatorMode } from "./CreatorModeSwitch";
 export { CreatorInlineError, CreatorLoading } from "./CreatorStatus";
 export { CreatorNumberField } from "./CreatorNumberField";
 export { CreatorUnavailableState } from "./CreatorPageState";

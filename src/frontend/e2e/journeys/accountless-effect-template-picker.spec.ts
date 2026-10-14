@@ -2,6 +2,7 @@ import type { Locator, Page } from "playwright/test";
 
 import { expect, test } from "../fixtures/animama";
 import {
+  chooseCreatorMode,
   effectTemplatePicker,
   waitForStoredDraft,
 } from "../helpers/creator-surfaces";
@@ -98,6 +99,7 @@ const HEART_BURST_TEXTURES = [
 
 /** Expect the Particle creator to show Heart Burst's layers and textures. */
 async function expectHeartBurstArt(page: Page): Promise<void> {
+  await chooseCreatorMode(page, "Advanced");
   await expect(
     page
       .getByRole("region", { name: "Emitters", exact: true })
@@ -114,6 +116,75 @@ async function expectHeartBurstArt(page: Page): Promise<void> {
   await expect(
     page.getByRole("alert").filter({ hasText: "is missing" }),
   ).toHaveCount(0);
+}
+
+/**
+ * Heart Burst's layers as the Emitters list summarises their emission: three
+ * single-particle layers (Amount leaves them single) and three it scales.
+ */
+const HEART_BURST_EMISSION = [
+  ["heart-halo", "Point · 0/s · burst 1", "Point · 0/s · burst 1"],
+  ["pop-ring", "Point · 0/s · burst 1", "Point · 0/s · burst 1"],
+  ["heart-hero", "Point · 0/s · burst 1", "Point · 0/s · burst 1"],
+  ["small-hearts", "Sphere · 0/s · burst 7", "Sphere · 0/s · burst 14"],
+  ["twinkles", "Sphere · 7/s", "Sphere · 14/s"],
+  ["burst-sparkles", "Sphere · 0/s · burst 12", "Sphere · 0/s · burst 24"],
+] as const;
+
+/** Expect Heart Burst's emission at Amount 100 % or 200 %, in Advanced. */
+async function expectHeartBurstEmission(
+  page: Page,
+  amount: 100 | 200,
+): Promise<void> {
+  await chooseCreatorMode(page, "Advanced");
+  const emitters = page.getByRole("region", { name: "Emitters", exact: true });
+  for (const [name, original, doubled] of HEART_BURST_EMISSION) {
+    const emitter = emitters.getByRole("button").filter({ hasText: name });
+    await expect(emitter).toHaveCount(1);
+    await expect(emitter).toContainText(amount === 100 ? original : doubled);
+  }
+}
+
+/** Expect the Particle creator in Simple, showing `label` and Amount. */
+async function expectParticleSimple(
+  page: Page,
+  { label, amount }: { label: RegExp; amount: string },
+): Promise<void> {
+  await expect(
+    page
+      .getByRole("tablist", { name: "Creator mode", exact: true })
+      .getByRole("tab", { name: "Simple", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("region", { name: "Effect", exact: true }),
+  ).toContainText(label);
+  await expect(
+    page.getByRole("slider", { name: "Amount", exact: true }),
+  ).toHaveAttribute("aria-valuetext", amount);
+}
+
+/** Drag a Simple slider to `percent` in one pointer gesture. */
+async function dragSlider(
+  page: Page,
+  name: string,
+  percent: number,
+): Promise<void> {
+  const thumb = page.getByRole("slider", { name, exact: true });
+  const track = thumb.locator("xpath=ancestor::*[@data-slot='slider'][1]");
+  const [min, max] = await Promise.all([
+    thumb.getAttribute("aria-valuemin").then(Number),
+    thumb.getAttribute("aria-valuemax").then(Number),
+  ]);
+  const from = (await thumb.boundingBox())!;
+  const area = (await track.boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    area.x + (area.width * (percent - min)) / (max - min),
+    area.y + area.height / 2,
+    { steps: 12 },
+  );
+  await page.mouse.up();
 }
 
 /** A layer card in the Scene Setup panel, by its title. */
@@ -379,6 +450,10 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
       await expect(
         page.getByRole("textbox", { name: "Particle FX name", exact: true }),
       ).toHaveValue(/^Heart Burst(?: \d+)?$/);
+      await expectParticleSimple(page, {
+        label: /From template\s*Heart Burst/,
+        amount: "100 %",
+      });
       await expectHeartBurstArt(page);
       await expect(
         page.getByRole("button", { name: "Unsaved", exact: true }),
@@ -505,7 +580,7 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
   }
 });
 
-test("accountless Particle template draft recovers, saves as a Local item and reopens with its art", async ({
+test("accountless Particle template draft adjusts in Simple, recovers, saves as a Local item and reopens with its art", async ({
   page,
   creatorContent,
   animamaEvidence,
@@ -521,11 +596,38 @@ test("accountless Particle template draft recovers, saves as a Local item and re
     exact: true,
   });
 
-  await test.step("a renamed template draft is offered again after reload", async () => {
+  await test.step("Simple Amount scales the multi-particle layers as one undo step", async () => {
     await page.goto("/particle-effects/new?template=heart-burst");
     await expect(nameField).toHaveValue(/^Heart Burst(?: \d+)?$/, {
       timeout: 30_000,
     });
+    await expectParticleSimple(page, {
+      label: /From template\s*Heart Burst/,
+      amount: "100 %",
+    });
+    await dragSlider(page, "Amount", 200);
+    await expect(
+      page.getByRole("slider", { name: "Amount", exact: true }),
+    ).toHaveAttribute("aria-valuetext", "200 %");
+    await animamaEvidence.attachBuffer(
+      "particle-simple-amount-200.png",
+      await page.screenshot(),
+      "image/png",
+    );
+    await expectHeartBurstEmission(page, 200);
+    // The whole drag is one step.
+    await page.getByRole("button", { name: /^Undo ·/ }).click();
+    await expectHeartBurstEmission(page, 100);
+    await page.getByRole("button", { name: /^Redo ·/ }).click();
+    await expectHeartBurstEmission(page, 200);
+    await chooseCreatorMode(page, "Simple");
+    await expect(
+      page.getByRole("slider", { name: "Amount", exact: true }),
+    ).toHaveAttribute("aria-valuetext", "200 %");
+  });
+
+  await test.step("a renamed template draft is offered again after reload", async () => {
+    // Naming keeps the Simple positions.
     await nameField.fill(name);
     await waitForStoredParticleDraft(page, name, "textures/glossy-heart.png");
     page.once("dialog", (dialog) => dialog.accept());
@@ -539,7 +641,13 @@ test("accountless Particle template draft recovers, saves as a Local item and re
       .getByRole("button", { name: "Continue draft", exact: true })
       .click();
     await expect(nameField).toHaveValue(name);
+    // Recovery keeps Simple's positions with the scaled effect.
+    await expectParticleSimple(page, {
+      label: /From template\s*Heart Burst/,
+      amount: "200 %",
+    });
     await expectHeartBurstArt(page);
+    await expectHeartBurstEmission(page, 200);
   });
 
   // Save sends no catalog item ID, so the Included item is never updated.
@@ -549,10 +657,15 @@ test("accountless Particle template draft recovers, saves as a Local item and re
     HEART_BURST_TEXTURES.map((texture) => `textures/${texture}`).sort(),
   );
 
-  await test.step("reopen the saved item with its art", async () => {
+  await test.step("reopen the saved item with its art and Simple at 100 %", async () => {
     await page.goto(`/particle-effects/${saved.itemId}/edit`);
     await expect(nameField).toHaveValue(name, { timeout: 30_000 });
+    await expectParticleSimple(page, {
+      label: new RegExp(`Effect\\s*${name}`),
+      amount: "100 %",
+    });
     await expectHeartBurstArt(page);
+    await expectHeartBurstEmission(page, 200);
     await expect(
       page.getByRole("button", { name: "Saved", exact: true }),
     ).toBeVisible();

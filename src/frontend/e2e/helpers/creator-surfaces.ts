@@ -209,6 +209,22 @@ export async function waitForStoredDraft(
     .toBe(true);
 }
 
+/**
+ * Switch a creator between Simple and Advanced with its toolbar switch.
+ * Creators open in Simple; the emitter, layer and texture panels are in
+ * Advanced.
+ */
+export async function chooseCreatorMode(
+  page: Page,
+  mode: "Simple" | "Advanced",
+): Promise<void> {
+  const tab = page
+    .getByRole("tablist", { name: "Creator mode", exact: true })
+    .getByRole("tab", { name: mode, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+}
+
 /** The Effects template picker dialog, opened by any effect entry point. */
 export function effectTemplatePicker(page: Page): Locator {
   return page.getByTestId("effect-template-picker");

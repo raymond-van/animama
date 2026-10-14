@@ -8,8 +8,11 @@ import { cn } from "@/lib/utils";
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
-    /** Accessible labels and value text belong on the focusable thumb. */
-    thumbProps?: Pick<React.AriaAttributes, "aria-label" | "aria-valuetext">;
+    /** Accessible labels, value text and descriptions belong on the focusable thumb. */
+    thumbProps?: Pick<
+      React.AriaAttributes,
+      "aria-label" | "aria-valuetext" | "aria-describedby"
+    >;
   }
 >(({ className, thumbProps, ...props }, ref) => (
   <SliderPrimitive.Root

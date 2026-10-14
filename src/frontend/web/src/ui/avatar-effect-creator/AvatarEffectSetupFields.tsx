@@ -12,6 +12,10 @@ import {
   type AvatarEffectEditorImageResources,
   type AvatarEffectEditorImageSlot,
 } from "@/lib/avatar/vfx/editor";
+import {
+  HUMANOID_ANCHOR_LABELS,
+  HUMANOID_ANCHORS,
+} from "@/lib/avatar/humanoidAnchors";
 import { AVATAR_VFX_TARGET_ROLES } from "@/lib/avatar/vfx/types";
 import { cn } from "@/lib/utils";
 import {
@@ -58,18 +62,9 @@ export const FACE_PART_NAMES: Record<
   eyelash: "Eyelashes",
 };
 
-const BODY_POINTS = [
-  ["root", "Feet (whole avatar)"],
-  ["hips", "Hips"],
-  ["spine", "Waist"],
-  ["chest", "Chest"],
-  ["neck", "Neck"],
-  ["head", "Head"],
-  ["leftHand", "Left hand"],
-  ["rightHand", "Right hand"],
-  ["leftFoot", "Left foot"],
-  ["rightFoot", "Right foot"],
-] as const;
+const BODY_POINTS = HUMANOID_ANCHORS.map(
+  (anchor) => [anchor, HUMANOID_ANCHOR_LABELS[anchor]] as const,
+);
 
 const LANDMARKS = [
   ["eyes", "Eyes"],

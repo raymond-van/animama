@@ -66,6 +66,8 @@ import {
   extractEmbeddedParticleVFXTextures,
   importParticleVFXTextureFile,
   missingParticleVFXTextureReferences,
+  particleVFXSimpleFactors,
+  renameParticleVFXEditorDraft,
   parseParticleVFXEditorExportJsonForViewer,
   readParticleVFXCreatorDocument,
   parseParticleVFXEditorJson,
@@ -73,6 +75,7 @@ import {
   removeParticleVFXEditorEmitter,
   resolveParticleVFXCreatorPreviewPlacement,
   resolveParticleVFXEditorPreviewJson,
+  setParticleVFXSimpleControl,
   supplyParticleVFXTextureFile,
   updateParticleVFXEditorCatalogDraft,
   validateParticleVFXContentReadiness,
@@ -101,12 +104,15 @@ import {
   type ParticleVFXEditorValueRange,
   type ParticleVFXEmitterDraft,
   type ParticleVFXEmitterPatch,
+  type ParticleVFXSimpleControl,
+  type ParticleVFXSimpleReference,
   type ParticleVFXAnchor,
   type ParticleVFXPreloadTier,
   type ParticleVFXShapeAutoFit,
   type ParticleVFXTransform,
   type ParticleVFXTransformAxisTriple,
 } from "@/lib/avatar/particle-vfx";
+import { HUMANOID_ANCHOR_LABELS } from "@/lib/avatar/humanoidAnchors";
 import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { findParticleEffectTemplate } from "@/lib/effects/effectTemplates";
 import { cn } from "@/lib/utils";
@@ -121,6 +127,7 @@ import {
   CreatorJsonDialog,
   CreatorLeaveDialog,
   CreatorLoading,
+  CreatorModeSwitch,
   CreatorNumberField as NumberField,
   CreatorPreviewBar,
   CreatorDiscardRecoveryButton,
@@ -131,6 +138,7 @@ import {
   CreatorWorkspaceShell,
   creatorItemUnavailableMessage,
   isCreatorItemOpenable,
+  type CreatorMode,
 } from "@/ui/content-creator";
 import {
   CreatorTimelineLane,
@@ -178,7 +186,12 @@ import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocume
 import {
   equalParticleVFXDrafts,
   particleVFXDocumentFingerprint,
+  rebaseParticleVFXSimpleControls,
 } from "./particleVFXDocument";
+import {
+  ParticleSimpleAdjustPanel,
+  ParticleSimpleEffectPanel,
+} from "./ParticleSimplePanels";
 import {
   loadParticleEffectTemplate,
   loadParticleVFXCatalogDraft,
@@ -241,8 +254,12 @@ function saveStageLabel(stage: ReturnType<typeof useParticleVFXSave>["stage"]) {
  * Particle Effect creator. `itemId` edits a saved item (an Included item is
  * saved as a Local copy); `templateId` starts a new draft from an Included
  * template (`/particle-effects/new?template=<id>`); with neither it starts
- * blank. The template ID stays page state for the template's label; it is
+ * blank. The template ID stays page state for Simple's template label; it is
  * not saved with the effect.
+ *
+ * Every opened effect starts in Simple mode (the effect and its broad
+ * controls); Advanced shows the full emitter panels. The mode is page state,
+ * not undoable or saved.
  */
 export function ParticleVFXCreatorPage({
   itemId,
@@ -261,13 +278,39 @@ export function ParticleVFXCreatorPage({
   const {
     present: draft,
     history,
-    update: updateDraft,
+    update: updateDocument,
     reset: resetDraft,
   } = useCreatorDocumentHistory({
     initialValue: blankDraft,
     equals: equalParticleVFXDrafts,
   });
-  const { commit, replacePresent } = history;
+  const { replacePresent, beginGroup, endGroup } = history;
+  /**
+   * The one boundary for edits that do not come from a Simple control: an
+   * edit that changes the effect makes it Simple's new reference, so Simple
+   * returns to 100 % (see `rebaseParticleVFXSimpleControls`). Undo, redo and
+   * loading restore whole snapshots and bypass it.
+   */
+  const updateDraft = useCallback(
+    (updater: (current: ParticleVFXEditorDraft) => ParticleVFXEditorDraft) =>
+      updateDocument((current) =>
+        rebaseParticleVFXSimpleControls(current, updater(current)),
+      ),
+    [updateDocument],
+  );
+  const commit = useCallback(
+    (next: ParticleVFXEditorDraft) => updateDraft(() => next),
+    [updateDraft],
+  );
+  /** Move one Simple control; the scaled effect is written into the draft. */
+  const adjustSimpleControl = useCallback(
+    (control: ParticleVFXSimpleControl, percent: number) =>
+      updateDocument((current) =>
+        setParticleVFXSimpleControl(current, control, percent),
+      ),
+    [updateDocument],
+  );
+  const [mode, setMode] = useState<CreatorMode>("simple");
   const [activeEmitterPath, setActiveEmitterPath] = useState<string | null>(
     null,
   );
@@ -358,6 +401,8 @@ export function ParticleVFXCreatorPage({
   const hydrateDraft = useCallback(
     (nextDraft: ParticleVFXEditorDraft) => {
       resetDraft(nextDraft);
+      // Every opened effect (loaded, recovered, templated or new) starts in Simple.
+      setMode("simple");
       setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
       setImportText(`${JSON.stringify(nextDraft.quarksJson, null, 2)}\n`);
       setImportError(null);
@@ -648,6 +693,20 @@ export function ParticleVFXCreatorPage({
     0.05,
     draft?.catalog.defaultDurationSec ?? 1.2,
   );
+  // Simple scales its captured reference, or the effect as it is now.
+  const simpleState = draft.simple;
+  const simpleReference = useMemo<ParticleVFXSimpleReference>(
+    () =>
+      simpleState?.reference ?? {
+        catalog: draft.catalog,
+        quarksJson: draft.quarksJson,
+      },
+    [draft.catalog, draft.quarksJson, simpleState],
+  );
+  const simpleFactors = useMemo(
+    () => particleVFXSimpleFactors({ simple: simpleState }),
+    [simpleState],
+  );
 
   const togglePreviewPlayback = useCallback(
     () => setPreviewPlaying((current) => !current),
@@ -842,6 +901,7 @@ export function ParticleVFXCreatorPage({
       { ...carried, ...embedded.textureFiles },
     );
     commit(nextDraft);
+    setMode("simple");
     setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
     setImportError(null);
     setTextureError(
@@ -954,8 +1014,8 @@ export function ParticleVFXCreatorPage({
   return (
     <CreatorWorkspaceShell
       busy={contentSave.isBusy || discardPending}
-      leftPanelLabel="Emitters"
-      rightPanelLabel="Inspector"
+      leftPanelLabel={mode === "simple" ? "Effect" : "Emitters"}
+      rightPanelLabel={mode === "simple" ? "Adjust" : "Inspector"}
       leftPanelWidth={340}
       rightPanelWidth={392}
       bottomChromeHeight={152}
@@ -983,7 +1043,10 @@ export function ParticleVFXCreatorPage({
           documentNameDisabled={!draft || contentSave.isBusy || discardPending}
           onDocumentNameChange={(label) => {
             contentSave.clearSaveErrorField("name");
-            patchCatalog({ label });
+            // Naming is not an Advanced edit: Simple keeps its positions.
+            updateDocument((current) =>
+              renameParticleVFXEditorDraft(current, label),
+            );
           }}
           status={
             contentSave.error
@@ -1013,6 +1076,9 @@ export function ParticleVFXCreatorPage({
                 ? "Retry Save"
                 : "Save"
           }
+          modeControl={
+            <CreatorModeSwitch value={mode} onValueChange={setMode} />
+          }
           domainActions={
             <CreatorEffectHandoffActions
               itemId={
@@ -1026,225 +1092,238 @@ export function ParticleVFXCreatorPage({
         />
       }
       leftPanel={
-        <CreatorFloatingPanel
-          title="Emitters"
-          summary={`${draft?.emitters.length ?? 0} emitter${(draft?.emitters.length ?? 0) === 1 ? "" : "s"}`}
-          bodyClassName="p-0"
-        >
-          <section className="border-border border-b p-3">
-            <div className="relative">
-              <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-              <Input
-                value={emitterQuery}
-                onChange={(event) => setEmitterQuery(event.target.value)}
-                placeholder="Search emitters"
-                aria-label="Search emitters"
-                className="pl-9"
-              />
-            </div>
-            <div className="mt-3 space-y-2">
-              {filteredEmitters.map((emitter) => (
-                <button
-                  key={emitter.path}
+        mode === "simple" ? (
+          <ParticleSimpleEffectPanel
+            templateName={findParticleEffectTemplate(templateId)?.name ?? null}
+            effectName={draft.catalog.label}
+            anchorLabel={HUMANOID_ANCHOR_LABELS[draft.catalog.defaultAnchor]}
+            layerCount={draft.emitters.length}
+          />
+        ) : (
+          <CreatorFloatingPanel
+            title="Emitters"
+            summary={`${draft?.emitters.length ?? 0} emitter${(draft?.emitters.length ?? 0) === 1 ? "" : "s"}`}
+            bodyClassName="p-0"
+          >
+            <section className="border-border border-b p-3">
+              <div className="relative">
+                <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                <Input
+                  value={emitterQuery}
+                  onChange={(event) => setEmitterQuery(event.target.value)}
+                  placeholder="Search emitters"
+                  aria-label="Search emitters"
+                  className="pl-9"
+                />
+              </div>
+              <div className="mt-3 space-y-2">
+                {filteredEmitters.map((emitter) => (
+                  <button
+                    key={emitter.path}
+                    type="button"
+                    className={cn(
+                      "border-border/70 flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                      emitter.path === activeEmitterPath
+                        ? "border-primary/30 bg-primary/10"
+                        : "bg-background/70 hover:bg-muted/70",
+                    )}
+                    onClick={() => setActiveEmitterPath(emitter.path)}
+                  >
+                    <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+                      <SparklesIcon className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {emitter.name}
+                      </span>
+                      <span className="text-muted-foreground block truncate text-xs">
+                        {emitterSummary(emitter)}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+                {filteredEmitters.length === 0 ? (
+                  <p className="text-muted-foreground py-3 text-center text-xs">
+                    No emitters match this search.
+                  </p>
+                ) : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
                   type="button"
-                  className={cn(
-                    "border-border/70 flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
-                    emitter.path === activeEmitterPath
-                      ? "border-primary/30 bg-primary/10"
-                      : "bg-background/70 hover:bg-muted/70",
-                  )}
-                  onClick={() => setActiveEmitterPath(emitter.path)}
+                  size="sm"
+                  variant="outline"
+                  onClick={addEmitter}
+                  disabled={!draft}
                 >
-                  <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
-                    <SparklesIcon className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {emitter.name}
-                    </span>
-                    <span className="text-muted-foreground block truncate text-xs">
-                      {emitterSummary(emitter)}
-                    </span>
-                  </span>
-                </button>
-              ))}
-              {filteredEmitters.length === 0 ? (
-                <p className="text-muted-foreground py-3 text-center text-xs">
-                  No emitters match this search.
-                </p>
-              ) : null}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={addEmitter}
-                disabled={!draft}
-              >
-                <PlusIcon /> Add
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={duplicateEmitter}
-                disabled={!activeEmitter}
-                aria-label="Duplicate selected emitter"
-              >
-                <CopyIcon /> Duplicate
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="outline"
-                onClick={removeEmitter}
-                disabled={!activeEmitter || (draft?.emitters.length ?? 0) <= 1}
-                aria-label="Remove selected emitter"
-                title="Remove selected emitter"
-              >
-                <Trash2Icon />
-              </Button>
-            </div>
-          </section>
+                  <PlusIcon /> Add
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={duplicateEmitter}
+                  disabled={!activeEmitter}
+                  aria-label="Duplicate selected emitter"
+                >
+                  <CopyIcon /> Duplicate
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={removeEmitter}
+                  disabled={
+                    !activeEmitter || (draft?.emitters.length ?? 0) <= 1
+                  }
+                  aria-label="Remove selected emitter"
+                  title="Remove selected emitter"
+                >
+                  <Trash2Icon />
+                </Button>
+              </div>
+            </section>
 
-          <section className="border-border border-b p-3">
-            <h2 className="text-sm font-semibold">Settings</h2>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {Number.isFinite(estimatedParticles)
-                ? `Estimated at once: up to ${estimatedParticles} particles`
-                : "Estimated at once: cannot be estimated (an emission, lifetime, burst or duration value is unsupported)"}
-            </p>
-            <div className="mt-3 space-y-3">
-              <SelectField
-                label="Default anchor"
-                value={draft?.catalog.defaultAnchor ?? "head"}
-                values={PARTICLE_VFX_ANCHORS}
-                onChange={(value) => patchCatalog({ defaultAnchor: value })}
-                disabled={!draft}
-              />
-              <NumberField
-                label="Effect playback duration (s)"
-                value={draft?.catalog.defaultDurationSec ?? 0}
-                min={0.05}
-                step={0.05}
-                onChange={(value) =>
-                  patchCatalog({ defaultDurationSec: value })
-                }
-                disabled={!draft}
-              />
-              <CatalogShapeAutoFitControls
-                shapeAutoFit={draft?.catalog.shapeAutoFit}
-                rectangleEmitters={
-                  draft?.emitters.filter(
-                    (emitter) => emitter.shape.type === "rectangle",
-                  ) ?? []
-                }
-                disabled={!draft}
-                onChange={(shapeAutoFit) => patchCatalog({ shapeAutoFit })}
-              />
-            </div>
-          </section>
-
-          <section className="border-border border-b p-3">
-            <h2 className="text-xs font-semibold tracking-wide uppercase">
-              Transform
-            </h2>
-            <TransformControls
-              transform={
-                draft?.catalog.defaultTransform ??
-                createDefaultParticleVFXTransform()
-              }
-              disabled={!draft}
-              onChange={(transform) =>
-                patchCatalog({ defaultTransform: transform })
-              }
-            />
-          </section>
-
-          <details className="border-border border-b p-3">
-            <summary className="cursor-pointer text-sm font-semibold">
-              Advanced settings
-            </summary>
-            <div className="mt-3 space-y-3">
-              <SelectField
-                label="Preload"
-                value={draft?.catalog.preloadTier ?? "none"}
-                values={PARTICLE_VFX_PRELOAD_TIERS}
-                onChange={(value) =>
-                  patchCatalog({ preloadTier: value as ParticleVFXPreloadTier })
-                }
-                disabled={!draft}
-              />
-              <p className="text-muted-foreground text-xs">
-                Performance limits apply to the whole effect. Enabling looping
-                here permits individual emitters to repeat their cycles.
+            <section className="border-border border-b p-3">
+              <h2 className="text-sm font-semibold">Settings</h2>
+              <p className="text-muted-foreground mt-1 text-xs">
+                {Number.isFinite(estimatedParticles)
+                  ? `Estimated at once: up to ${estimatedParticles} particles`
+                  : "Estimated at once: cannot be estimated (an emission, lifetime, burst or duration value is unsupported)"}
               </p>
-              <NumberField
-                label="Maximum playback duration (s)"
-                value={draft?.catalog.performanceBudget.maxDurationSec ?? 0}
-                min={0.05}
-                step={0.05}
-                onChange={(value) =>
-                  draft &&
-                  patchCatalog({
-                    performanceBudget: {
-                      ...draft.catalog.performanceBudget,
-                      maxDurationSec: value,
-                    },
-                  })
+              <div className="mt-3 space-y-3">
+                <SelectField
+                  label="Default anchor"
+                  value={draft?.catalog.defaultAnchor ?? "head"}
+                  values={PARTICLE_VFX_ANCHORS}
+                  onChange={(value) => patchCatalog({ defaultAnchor: value })}
+                  disabled={!draft}
+                />
+                <NumberField
+                  label="Effect playback duration (s)"
+                  value={draft?.catalog.defaultDurationSec ?? 0}
+                  min={0.05}
+                  step={0.05}
+                  onChange={(value) =>
+                    patchCatalog({ defaultDurationSec: value })
+                  }
+                  disabled={!draft}
+                />
+                <CatalogShapeAutoFitControls
+                  shapeAutoFit={draft?.catalog.shapeAutoFit}
+                  rectangleEmitters={
+                    draft?.emitters.filter(
+                      (emitter) => emitter.shape.type === "rectangle",
+                    ) ?? []
+                  }
+                  disabled={!draft}
+                  onChange={(shapeAutoFit) => patchCatalog({ shapeAutoFit })}
+                />
+              </div>
+            </section>
+
+            <section className="border-border border-b p-3">
+              <h2 className="text-xs font-semibold tracking-wide uppercase">
+                Transform
+              </h2>
+              <TransformControls
+                transform={
+                  draft?.catalog.defaultTransform ??
+                  createDefaultParticleVFXTransform()
                 }
                 disabled={!draft}
-              />
-              <NumberField
-                label="Maximum total particles"
-                value={draft?.catalog.performanceBudget.maxParticles ?? 0}
-                min={1}
-                step={1}
-                onChange={(value) =>
-                  draft &&
-                  patchCatalog({
-                    performanceBudget: {
-                      ...draft.catalog.performanceBudget,
-                      maxParticles: Math.round(value),
-                    },
-                  })
+                onChange={(transform) =>
+                  patchCatalog({ defaultTransform: transform })
                 }
-                disabled={!draft}
               />
-              <CheckboxField
-                label="Allow emitter looping"
-                checked={
-                  draft?.catalog.performanceBudget.loopingAllowed ?? false
-                }
-                onChange={(value) =>
-                  draft &&
-                  patchCatalog({
-                    performanceBudget: {
-                      ...draft.catalog.performanceBudget,
-                      loopingAllowed: value,
-                    },
-                  })
-                }
-                disabled={!draft}
-              />
-              <CheckboxField
-                label="Allow simultaneous effects"
-                checked={draft?.catalog.performanceBudget.canCoexist ?? true}
-                onChange={(value) =>
-                  draft &&
-                  patchCatalog({
-                    performanceBudget: {
-                      ...draft.catalog.performanceBudget,
-                      canCoexist: value,
-                    },
-                  })
-                }
-                disabled={!draft}
-              />
-            </div>
-          </details>
-        </CreatorFloatingPanel>
+            </section>
+
+            <details className="border-border border-b p-3">
+              <summary className="cursor-pointer text-sm font-semibold">
+                Advanced settings
+              </summary>
+              <div className="mt-3 space-y-3">
+                <SelectField
+                  label="Preload"
+                  value={draft?.catalog.preloadTier ?? "none"}
+                  values={PARTICLE_VFX_PRELOAD_TIERS}
+                  onChange={(value) =>
+                    patchCatalog({
+                      preloadTier: value as ParticleVFXPreloadTier,
+                    })
+                  }
+                  disabled={!draft}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Performance limits apply to the whole effect. Enabling looping
+                  here permits individual emitters to repeat their cycles.
+                </p>
+                <NumberField
+                  label="Maximum playback duration (s)"
+                  value={draft?.catalog.performanceBudget.maxDurationSec ?? 0}
+                  min={0.05}
+                  step={0.05}
+                  onChange={(value) =>
+                    draft &&
+                    patchCatalog({
+                      performanceBudget: {
+                        ...draft.catalog.performanceBudget,
+                        maxDurationSec: value,
+                      },
+                    })
+                  }
+                  disabled={!draft}
+                />
+                <NumberField
+                  label="Maximum total particles"
+                  value={draft?.catalog.performanceBudget.maxParticles ?? 0}
+                  min={1}
+                  step={1}
+                  onChange={(value) =>
+                    draft &&
+                    patchCatalog({
+                      performanceBudget: {
+                        ...draft.catalog.performanceBudget,
+                        maxParticles: Math.round(value),
+                      },
+                    })
+                  }
+                  disabled={!draft}
+                />
+                <CheckboxField
+                  label="Allow emitter looping"
+                  checked={
+                    draft?.catalog.performanceBudget.loopingAllowed ?? false
+                  }
+                  onChange={(value) =>
+                    draft &&
+                    patchCatalog({
+                      performanceBudget: {
+                        ...draft.catalog.performanceBudget,
+                        loopingAllowed: value,
+                      },
+                    })
+                  }
+                  disabled={!draft}
+                />
+                <CheckboxField
+                  label="Allow simultaneous effects"
+                  checked={draft?.catalog.performanceBudget.canCoexist ?? true}
+                  onChange={(value) =>
+                    draft &&
+                    patchCatalog({
+                      performanceBudget: {
+                        ...draft.catalog.performanceBudget,
+                        canCoexist: value,
+                      },
+                    })
+                  }
+                  disabled={!draft}
+                />
+              </div>
+            </details>
+          </CreatorFloatingPanel>
+        )
       }
       canvas={
         <div
@@ -1352,25 +1431,35 @@ export function ParticleVFXCreatorPage({
         </div>
       }
       rightPanel={
-        <EmitterAuthoringTabs
-          draft={draft}
-          activeEmitter={activeEmitter}
-          activeEmitterPath={activeEmitterPath}
-          onSelectEmitter={setActiveEmitterPath}
-          onPatch={(patch) =>
-            activeEmitter && patchEmitter(activeEmitter.path, patch)
-          }
-          textures={{
-            files: draft.textureFiles,
-            urls: textureUrls,
-            missing: missingTextureReferences,
-            error: textureError,
-            busy: textureBusy,
-            onImport: (file) =>
-              activeEmitter && importTexture(activeEmitter.path, file),
-            onSupply: supplyTexture,
-          }}
-        />
+        mode === "simple" ? (
+          <ParticleSimpleAdjustPanel
+            reference={simpleReference}
+            factors={simpleFactors}
+            onAdjustStart={beginGroup}
+            onAdjust={adjustSimpleControl}
+            onAdjustEnd={endGroup}
+          />
+        ) : (
+          <EmitterAuthoringTabs
+            draft={draft}
+            activeEmitter={activeEmitter}
+            activeEmitterPath={activeEmitterPath}
+            onSelectEmitter={setActiveEmitterPath}
+            onPatch={(patch) =>
+              activeEmitter && patchEmitter(activeEmitter.path, patch)
+            }
+            textures={{
+              files: draft.textureFiles,
+              urls: textureUrls,
+              missing: missingTextureReferences,
+              error: textureError,
+              busy: textureBusy,
+              onImport: (file) =>
+                activeEmitter && importTexture(activeEmitter.path, file),
+              onSupply: supplyTexture,
+            }}
+          />
+        )
       }
       canvasControls={
         <CreatorCanvasControls

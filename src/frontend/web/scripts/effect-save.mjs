@@ -472,7 +472,8 @@ export function canonical(value) {
 /**
  * Choose the source's images in the open creator after its document was
  * imported: an Avatar Effect's art inputs; each Particle texture the
- * creator reports missing (`job.chosen`; it asks per emitter, by file name);
+ * creator reports missing (`job.chosen`; it asks per emitter, by file name,
+ * in its Advanced mode);
  * each Scene image through the Tile layer's input, which fills a missing
  * image of the same name wherever the Scene shows it.
  */
@@ -489,6 +490,12 @@ async function chooseImages(page, { effect, chosen = [] }) {
     return;
   }
   if (kind === "particle") {
+    // The creator opens in Simple; the texture inputs are in Advanced.
+    await page
+      .getByRole("tablist", { name: "Creator mode", exact: true })
+      .getByRole("tab", { name: "Advanced", exact: true })
+      .click();
+    await page.getByRole("region", { name: "Emitters", exact: true }).waitFor();
     const files = new Map(chosen.map(({ fileName, file }) => [fileName, file]));
     const supplied = new Set();
     const emitters = page.getByRole("button", { name: /^Select emitter / });

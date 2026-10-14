@@ -4,6 +4,7 @@ import {
   addParticleVFXEditorEmitter,
   applyParticleVFXEmitterPatch,
   createParticleVFXEditorDraftFromBlank,
+  setParticleVFXSimpleControl,
   updateParticleVFXEditorCatalogDraft,
 } from "@/lib/avatar/particle-vfx";
 import {
@@ -91,6 +92,35 @@ describe("Particle VFX editable content package", () => {
     });
     expect(manifest.images[0]?.url).toBe("textures/soft-dot.png");
     expect(JSON.stringify(draft.quarksJson)).toBe(before);
+  });
+
+  it("packages the effect Simple scaled, without Simple's reference or positions", async () => {
+    const draft = setParticleVFXSimpleControl(namedDraft(), "size", 200);
+    const fetcher = vi.fn(
+      async () =>
+        new Response(PNG, { headers: { "content-type": "image/png" } }),
+    );
+
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [],
+      fetcher,
+    });
+    const manifestText = await built.manifestFile.text();
+    const manifest = JSON.parse(manifestText) as {
+      object: { children: { ps: { startSize: unknown } }[] };
+    };
+
+    expect(manifest.object.children[0]?.ps.startSize).toEqual(
+      (draft.quarksJson.object as typeof manifest.object).children[0]?.ps
+        .startSize,
+    );
+    expect(manifestText).not.toContain("reference");
+    expect(JSON.stringify(built.authoringManifest)).not.toMatch(
+      /simple|factors|reference/i,
+    );
+    // The saved draft is the effect as saved, with Simple back at 100 %.
+    expect(built.normalizedDraft.simple).toBeNull();
   });
 
   it("normalizes canonical WebP names and keeps them stable on re-save", async () => {
