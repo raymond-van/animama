@@ -659,6 +659,22 @@ from `src/frontend/web`:
   Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
   and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+- `pnpm -s animation:reel --gestures|--reactions [<source>...] --out <file.mp4>`
+  records a 1920×1080, 30 fps video of every Included Gesture or Reaction (by
+  emotion, then intensity), or the named sources, one at a time on Annie
+  (`--avatar caitlyn` for Caitlyn). Each clip plays through the Avatar's own
+  clip player with its Avatar, Particle and Scene Effects and its sounds. A
+  corner label names the item and its effects, lighting each while it is
+  active and each sound while it plays; the video has a chapter per item. A
+  loop plays one pass, and a talking-scoped Reaction is held for `--talk`
+  seconds (default 3, at least until its timed effects end) as chat holds it
+  while the Anima speaks. Sounds come from local `sound_effect` sidecars, by
+  default the private [comedy sound pack](../../backend/operations/comedy-sound-pack.md)
+  under `build-inputs/wow-comedy-sfx`; a worktree passes the primary
+  checkout's copy with `--sounds`, and without one the reel is silent. A reel
+  with pack sounds contains licensed audio, so keep it out of Git and public
+  channels. Requires `ffmpeg` with libx264. Frames render on the GPU on macOS
+  (about real time) and with SwiftShader elsewhere.
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
   the Gesture creator in a headless browser, revising an existing Local
   Gesture with the same Selector ID.

@@ -15,6 +15,11 @@ export type EffectSource = {
   imageUrl: string;
   /** Served `art.otherEyeImage`, when the definition names one. */
   otherImageUrl: string | null;
+  /**
+   * The sound cue a clip event plays when it applies the effect (the content
+   * id its `soundAlias` dependency names), or null for a silent effect.
+   */
+  soundCueId?: string | null;
 };
 
 /**
@@ -35,5 +40,6 @@ export function effectSourceEntry(
     ...(effect.otherImageUrl
       ? { otherEyeAssetPath: effect.otherImageUrl }
       : {}),
+    ...(effect.soundCueId ? { sound: { onApply: effect.soundCueId } } : {}),
   });
 }

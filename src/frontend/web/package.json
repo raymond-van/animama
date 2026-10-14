@@ -7,6 +7,7 @@
     "routes:generate": "node scripts/generate-routes.mjs",
     "animation": "node scripts/animation.mjs",
     "animation:render": "node scripts/animation-render.mjs",
+    "animation:reel": "node scripts/animation-reel.mjs",
     "effects:render": "node scripts/effect-render.mjs",
     "effects:thumbnails": "node scripts/effect-thumbnails.mjs",
     "effects:bench": "node scripts/effect-bench.mjs",
@@ -28,7 +29,7 @@
     "prettier:check": "prettier --ignore-path ../.prettierignore --check '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
     "check:source": "pnpm --dir .. poses:check && tsc -b",
     "test:source": "pnpm test:source:unit && node --test --test-concurrency=1 scripts/*.browser.test.mjs",
-    "test:source:unit": "node --test ../scripts/generate-pose-catalog.test.mjs scripts/effect-render-sources.test.mjs scripts/effect-assets.test.mjs scripts/effects.test.mjs scripts/animation-preview-media.test.mjs && node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && node --test scripts/animation-save.test.mjs scripts/animation-promote.test.mjs && vitest run",
+    "test:source:unit": "node --test ../scripts/generate-pose-catalog.test.mjs scripts/effect-render-sources.test.mjs scripts/effect-assets.test.mjs scripts/effects.test.mjs scripts/animation-preview-media.test.mjs scripts/animation-reel.test.mjs && node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && node --test scripts/animation-save.test.mjs scripts/animation-promote.test.mjs && vitest run",
     "build:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build",
     "build:hosted:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build --mode hosted --config vite.hosted.config.ts"
   },

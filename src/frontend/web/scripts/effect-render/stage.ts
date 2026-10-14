@@ -4,12 +4,14 @@ import type { Avatar } from "@/lib/avatar";
 import {
   DEFAULT_SCENE_LIGHTS,
   buildSceneCameraPreset,
+  type SceneCameraPreset,
 } from "@/ui/main/canvas/sceneCameraPresets";
 
 /*
  * Stage and effect parsing shared by the review renderer (`render.ts`), the
- * frame-cost benchmark (`../effect-bench/bench.ts`) and the headed preview
- * (`../animation-preview/preview.ts`).
+ * frame-cost benchmark (`../effect-bench/bench.ts`), the headed preview
+ * (`../animation-preview/preview.ts`) and the Action reel recorder
+ * (`../animation-reel/reel.ts`).
  */
 
 export {
@@ -32,7 +34,15 @@ export type Framing = {
 
 /** The chat's Portrait camera preset for `avatar` in its current pose. */
 export function chatPortraitFraming(avatar: Avatar): Framing {
-  const { position, orbitTarget, fov } = buildSceneCameraPreset("portrait", {
+  return chatCameraFraming(avatar, "portrait");
+}
+
+/** A chat camera preset for `avatar` in its current pose. */
+export function chatCameraFraming(
+  avatar: Avatar,
+  preset: SceneCameraPreset,
+): Framing {
+  const { position, orbitTarget, fov } = buildSceneCameraPreset(preset, {
     avatar,
   }).settings;
   return {
