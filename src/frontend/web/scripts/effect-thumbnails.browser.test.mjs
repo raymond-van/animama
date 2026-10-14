@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { diffImages, renderEffectThumbnails } from "./effect-render.mjs";
+import {
+  EffectRenderFailure,
+  diffImages,
+  renderEffectThumbnails,
+} from "./effect-render.mjs";
 import {
   EffectSourceError,
   INCLUDED_CONTENT_ROOT,
@@ -89,6 +93,59 @@ test("poses Annie with the job's clip in a thumbnail batch", async () => {
     assert.ok(
       difference.differingShare > 0.05,
       `posed and rest thumbnails differ in only ${difference.differingPixels} pixels`,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Mind Blown Burst's template plays it from the Mind Blown Gesture's event
+// (1.01 s), so its time is the clip's: before the event nothing shows.
+test("plays a fromEvent template's effect from its Gesture's event", async () => {
+  const [template] = selectTemplates(["mind_blown_burst"]);
+  assert.equal(template.thumbnail?.fromEvent, true);
+  const job = await thumbnailJob(template);
+  assert.deepEqual(job.clipMedia.replaced, ["mind_blown_burst"]);
+  assert.deepEqual(
+    job.clipMedia.avatarEffects.map(({ alias, effect }) => [
+      alias,
+      effect.stem,
+    ]),
+    [["mind_blown_burst", "mind_blown_burst"]],
+  );
+  assert.ok(
+    job.clip.events.every(
+      (event) => event.kind === "sfx" || event.effectId === "mind_blown_burst",
+    ),
+  );
+
+  for (const thumbnail of [
+    { fromEvent: true },
+    { fromEvent: true, clip: "fist-bump" },
+  ])
+    await assert.rejects(
+      thumbnailJob({ ...template, thumbnail }),
+      EffectSourceError,
+      JSON.stringify(thumbnail),
+    );
+
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-thumbs-"));
+  try {
+    const [played] = await renderEffectThumbnails({
+      jobs: [{ ...job, outFile: path.join(dir, "played.webp") }],
+      size: 256,
+    });
+    assert.deepEqual(played.failures, []);
+    assert.deepEqual(played.avatars[0].activeEffectIds, ["mind_blown_burst"]);
+
+    await assert.rejects(
+      renderEffectThumbnails({
+        jobs: [{ ...job, time: 0.5, outFile: path.join(dir, "early.webp") }],
+        size: 256,
+      }),
+      (error) =>
+        error instanceof EffectRenderFailure &&
+        /mind_blown_burst is not active/.test(error.results[0].failures[0]),
     );
   } finally {
     await rm(dir, { recursive: true, force: true });

@@ -16,6 +16,8 @@ import {
   resolveClipSource,
   resolveDependencies,
   resolveEffectSource,
+  resolveStandIn,
+  thumbnailClip,
 } from "./effect-render-sources.mjs";
 
 /**
@@ -24,11 +26,15 @@ import {
  *
  *   pnpm -s effects:render <source...>|--all-included --out <file.png|dir>
  *   pnpm -s effects:render <source> --thumbnail <out.webp>
+ *   pnpm -s effects:render <source> --with-clip <gesture> --replace-effect <alias|ref> --out <file.png>
  *   pnpm -s effects:render --diff <a.png> <b.png> [--out diff.png]
  *
  * A source is an effect folder, a descriptor `.json`, or
  * `library:[avatar-effect/|particle-effect/|scene-effect/][included/|local/]<stem|content_id|name>`
- * (an Avatar Effect when no kind is named). The page mounts real `Avatar`s,
+ * (an Avatar Effect when no kind is named). With `--replace-effect`, the one
+ * source stands in for the named dependency of the `--with-clip` Gesture or
+ * Reaction: the clip's events play it at their own times, each with its own
+ * override, instead of applying it at 0. The page mounts real `Avatar`s,
  * applies Avatar Effects and plays Particle Effects through the runtime
  * paths, and draws Scene Effects in DOM bands around the canvas as the chat
  * does; see `effect-render/render.ts`. Node captures each tile from the page.
@@ -90,11 +96,21 @@ export class EffectRenderFailure extends Error {
   }
 }
 
-/** Failures for one Avatar's diagnostics after applying `expected` effects. */
-function avatarFailures(avatar, expected = 1) {
+/**
+ * Failures for one Avatar's diagnostics after applying `expected` effects.
+ * Effects a clip's events play in place of a dependency (`standIns`, by
+ * alias) are not applied; each must instead have been active at a rendered
+ * time.
+ */
+function avatarFailures(avatar, expected = 1, standIns = []) {
   const failures = avatar.warnings.map(
     (warning) => `${avatar.id} warning: ${truncate(warning)}`,
   );
+  for (const alias of standIns)
+    if (!avatar.activeEffectIds.includes(alias))
+      failures.push(
+        `${avatar.id}: ${alias} is not active at any rendered time; choose times after its events start`,
+      );
   if (expected === 0) return failures;
   if (!avatar.applied || avatar.activeEffectIds.length === 0)
     failures.push(`${avatar.id} has no active effect`);
@@ -407,9 +423,12 @@ export async function composeSheet({ avatars, times, views, tile }) {
  * Particle or Scene Effects. With `together`, all sources are applied at
  * once on a single sheet (stem `a+b+c`), to check that they coexist. A
  * `clip` with `clipMedia` plays its effect events as chat would; with no
- * sources it is rendered on its own (`clipStem`). Every sheet is attempted
- * and written even when it fails, then `EffectRenderFailure` is thrown if any
- * failed.
+ * sources it is rendered on its own (`clipStem`). When `clipMedia.replaced`
+ * names aliases, the one source stands in for those dependencies
+ * (`resolveDependencies`' `replacement`): it is not applied at 0 but played
+ * by the clip's events, and must be active at one of the `times`. Every
+ * sheet is attempted and written even when it fails, then
+ * `EffectRenderFailure` is thrown if any failed.
  */
 export async function renderEffectSheets({
   effects,
@@ -425,6 +444,11 @@ export async function renderEffectSheets({
   localContent = null,
   onResult,
 }) {
+  const standIns = clipMedia?.replaced ?? [];
+  if (standIns.length && (effects.length !== 1 || together))
+    throw new EffectSourceError(
+      "A source that stands in for a clip dependency is rendered on its own.",
+    );
   const results = await withRendererPage(
     { localContent, extraRoots: await sourceRoots(effects, clipMedia) },
     async ({ page, fsUrl, imageUrl }) => {
@@ -447,7 +471,11 @@ export async function renderEffectSheets({
         try {
           const captured = await captureStage(page, {
             request: {
-              ...(await pageSources(group, { fsUrl, imageUrl })),
+              // A stand-in reaches the page only as the clip's media.
+              ...(await pageSources(standIns.length ? [] : group, {
+                fsUrl,
+                imageUrl,
+              })),
               tile,
               expression,
               clip,
@@ -463,7 +491,11 @@ export async function renderEffectSheets({
             ({ frames: _frames, ...avatar }) => avatar,
           );
           result.failures = result.avatars.flatMap((avatar) =>
-            avatarFailures(avatar, group.length),
+            avatarFailures(
+              avatar,
+              standIns.length ? 0 : group.length,
+              standIns,
+            ),
           );
           result.outFile = outFileFor(group.length === 1 ? group[0] : { stem });
           await mkdir(path.dirname(result.outFile), { recursive: true });
@@ -494,7 +526,9 @@ export async function renderEffectSheets({
 
 /**
  * Render and write one thumbnail on an open renderer page. The file is written
- * even when the render reports failures, so it can be inspected.
+ * even when the render reports failures, so it can be inspected. With
+ * `clipMedia` (resolved with a `replacement` for `effect`), the effect is not
+ * applied at 0: the clip's events play it, so `time` is the clip's time.
  */
 async function writeThumbnailOnPage(
   { page, fsUrl, imageUrl },
@@ -505,14 +539,16 @@ async function writeThumbnailOnPage(
     size,
     expression,
     clip,
+    clipMedia = null,
     framingScale = 1,
     framingDrop = 0,
   },
 ) {
+  const standIns = clipMedia?.replaced ?? [];
   const rendered = await page.evaluate(
     (request) => window.renderEffectThumbnail(request),
     {
-      effects: [await pageEffect(effect, imageUrl)],
+      effects: standIns.length ? [] : [await pageEffect(effect, imageUrl)],
       avatar: {
         id: THUMBNAIL_AVATAR,
         url: avatarFileUrl(fsUrl, THUMBNAIL_AVATAR),
@@ -521,6 +557,7 @@ async function writeThumbnailOnPage(
       size,
       expression,
       clip,
+      clipMedia: await pageClipMedia(clipMedia, { fsUrl, imageUrl }),
       framingScale,
       framingDrop,
     },
@@ -531,11 +568,16 @@ async function writeThumbnailOnPage(
     stem: effect.stem,
     outFile,
     avatars: rendered.avatars,
-    failures: rendered.avatars.flatMap(avatarFailures),
+    failures: rendered.avatars.flatMap((avatar) =>
+      avatarFailures(avatar, standIns.length ? 0 : 1, standIns),
+    ),
   };
 }
 
-/** Render a square WebP Library thumbnail of one effect on Annie. */
+/**
+ * Render a square WebP Library thumbnail of one effect on Annie. `clipMedia`
+ * plays the effect from the clip's events (see `writeThumbnailOnPage`).
+ */
 export async function renderEffectThumbnail({
   effect,
   outFile,
@@ -543,6 +585,7 @@ export async function renderEffectThumbnail({
   size = 512,
   expression = null,
   clip = null,
+  clipMedia = null,
   localContent = null,
 }) {
   const result = await withRendererPage({ localContent }, (context) =>
@@ -553,6 +596,7 @@ export async function renderEffectThumbnail({
       size,
       expression,
       clip,
+      clipMedia,
     }),
   );
   if (result.failures.length) throw new EffectRenderFailure([result]);
@@ -562,10 +606,12 @@ export async function renderEffectThumbnail({
 /**
  * Render several thumbnails on one renderer page (one Vite server and browser
  * for the whole batch). `jobs` are
- * `{ effect, outFile, framingScale?, framingDrop?, time?, clip? }`: `time`
- * overrides the batch's, and `clip` (parsed Gesture clip JSON) poses the
- * Avatar, sampled at the same time after applying as `--with-clip`. Every job is attempted;
- * `EffectRenderFailure` is thrown afterwards if any failed.
+ * `{ effect, outFile, framingScale?, framingDrop?, time?, clip?, clipMedia? }`:
+ * `time` overrides the batch's. `clip` (parsed Gesture clip JSON) poses the
+ * Avatar, sampled at the same time after applying as `--with-clip`; with
+ * `clipMedia` the clip plays and its events play the effect, as
+ * `--with-clip … --replace-effect` does, so `time` is the clip's time. Every
+ * job is attempted; `EffectRenderFailure` is thrown afterwards if any failed.
  */
 export async function renderEffectThumbnails({
   jobs,
@@ -582,6 +628,7 @@ export async function renderEffectThumbnails({
       framingDrop,
       time: jobTime,
       clip,
+      clipMedia,
     } of jobs) {
       let result;
       try {
@@ -592,6 +639,7 @@ export async function renderEffectThumbnails({
           size,
           expression: null,
           clip: clip ?? null,
+          clipMedia: clipMedia ?? null,
           framingScale,
           framingDrop,
         });
@@ -697,6 +745,11 @@ const USAGE = [
   "  --with-clip <path|library:[reaction/]...>  play a Gesture or Reaction clip at the",
   "                          same times; its effect events play as in chat, and a",
   "                          clip with effects can be rendered without sources",
+  "  --replace-effect <alias|ref>  the one source stands in for this dependency of",
+  "                          the --with-clip clip: its events play the source at",
+  "                          their times with their overrides, instead of applying",
+  "                          it at 0 (a --thumbnail plays only that dependency,",
+  "                          without the override, as the Library shows it)",
   "  --together              apply every source at once on one sheet (<a+b+c>.png)",
   "  --local-content <dir>   content root for library:local/... (e.g. content/local)",
   "  --size 512              thumbnail edge in pixels (256-2048), Annie only",
@@ -713,6 +766,7 @@ const VALUE_OPTIONS = new Set([
   "--views",
   "--expression",
   "--with-clip",
+  "--replace-effect",
   "--local-content",
   "--thumbnail",
   "--size",
@@ -835,6 +889,38 @@ async function main(argv) {
       ? await resolveClipSource(values["--with-clip"], sourceOptions)
       : null;
     const clip = clipSource?.clip ?? null;
+    const replaceKey = values["--replace-effect"] ?? null;
+    if (replaceKey) {
+      if (!clipSource?.dependencies.length)
+        throw new EffectSourceError(
+          "--replace-effect needs a --with-clip Gesture or Reaction with dependencies (a Library item or its folder).",
+        );
+      if (
+        positional.length !== 1 ||
+        flags.has("--all-included") ||
+        flags.has("--together")
+      )
+        throw new EffectSourceError(
+          "--replace-effect stands one source in for one dependency.",
+        );
+    }
+    /**
+     * Clip media with `source` standing in for the `--replace-effect`
+     * dependency (`only`: that dependency alone), after reporting when the
+     * clip's events play it.
+     */
+    const standInMedia = async (source, { only = false } = {}) => {
+      const { media, times } = await resolveStandIn(clipSource, {
+        key: replaceKey,
+        source,
+        localContent,
+        only,
+      });
+      console.log(
+        `${source.stem} stands in for ${media.replaced.join(", ")}, starting at ${times.map((time) => `${time.toFixed(2)} s`).join(", ")}.`,
+      );
+      return media;
+    };
 
     if (values["--thumbnail"]) {
       if (positional.length !== 1 || flags.has("--all-included"))
@@ -846,13 +932,18 @@ async function main(argv) {
       if (!Number.isInteger(size) || size < 256 || size > 2048)
         throw new EffectSourceError("--size must be an integer 256-2048.");
       const outFile = resolveOut(values["--thumbnail"]);
+      const effect = await resolveEffectSource(positional[0], sourceOptions);
+      const clipMedia = replaceKey
+        ? await standInMedia(effect, { only: true })
+        : null;
       await renderEffectThumbnail({
-        effect: await resolveEffectSource(positional[0], sourceOptions),
+        effect,
         outFile,
         time: times[0],
         size,
         expression,
-        clip,
+        clip: clipMedia ? thumbnailClip(clip, clipMedia.replaced) : clip,
+        clipMedia,
         localContent,
       });
       console.log(`Wrote ${outFile}`);
@@ -870,9 +961,11 @@ async function main(argv) {
     ];
     for (const spec of positional)
       effects.push(await resolveAnyEffectSource(spec, sourceOptions));
-    const clipMedia = clipSource?.dependencies.length
-      ? await resolveDependencies(clipSource.dependencies, { localContent })
-      : null;
+    const clipMedia = replaceKey
+      ? await standInMedia(effects[0])
+      : clipSource?.dependencies.length
+        ? await resolveDependencies(clipSource.dependencies, { localContent })
+        : null;
     for (const notice of clipMedia?.notices ?? [])
       console.log(`Warning: ${notice}`);
     const effectEvents = (clip?.events ?? []).filter((event) =>

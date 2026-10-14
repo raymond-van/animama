@@ -30,7 +30,11 @@ frame at rest, or that is placed for that pose: the clip is sampled at `time`
 with the effect applied at 0, as `effects:render --with-clip` does (for example
 `idea_bulb_fingertip` with `have-an-idea` at 3 s). Because `time` is also the
 effect's age, pick a moment where the pose shows the art and the effect is
-visible (a looping effect at the start of a cycle). Renders are deterministic, so unchanged inputs
+visible (a looping effect at the start of a cycle). With `fromEvent: true`,
+the clip plays and its events start the effect (with the effect's own
+definition, not the events' overrides), so `time` is the clip's time and the
+pose matches the moment the effect appears in chat (for example
+`mind_blown_burst` with `mind-blown` at 1.8 s, 0.79 s after its event). Renders are deterministic, so unchanged inputs
 reproduce the same pixels. Review the images before committing them.
 
 ## Provenance and terms

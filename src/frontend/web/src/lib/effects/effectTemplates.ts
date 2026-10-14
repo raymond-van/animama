@@ -77,9 +77,18 @@ export type AvatarEffectTemplate = {
    * 1 s. `clip` names an Included Gesture (its folder stem) that poses Annie,
    * for art attached to a hand that hangs out of frame at rest or placed for
    * that Gesture's pose: the clip is sampled at `time` with the effect
-   * applied at 0, as `effects:render --with-clip` does.
+   * applied at 0, as `effects:render --with-clip` does. With `fromEvent`, the
+   * clip plays instead and its events that play this effect start it (with
+   * the effect's own definition, not the event's override), as
+   * `--replace-effect` does; `time` is then the clip's time, not the
+   * effect's age.
    */
-  thumbnail?: { framing?: "wide" | "body"; time?: number; clip?: string };
+  thumbnail?: {
+    framing?: "wide" | "body";
+    time?: number;
+    clip?: string;
+    fromEvent?: boolean;
+  };
 };
 
 function included(
@@ -191,8 +200,9 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("mind_blown_burst", "Mind Blown Burst", "around-head", {
     framing: "wide",
     clip: "mind-blown",
-    // Before its flipbook breaks the poof up, at 1 s.
-    time: 0.95,
+    // Its event starts at 1.01 s; the poof is whole until it breaks up 1 s on.
+    fromEvent: true,
+    time: 1.8,
   }),
   included("music_notes", "Music Notes", "around-head", {
     framing: "wide",

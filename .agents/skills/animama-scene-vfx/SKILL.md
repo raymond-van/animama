@@ -80,7 +80,8 @@ its record sourced (`source ../../../.animama-stack.env`).
    that spaces items best. Use
    `--with-clip library:reaction/<name>` to see it with a Reaction; a
    Reaction that plays its own Scene of the same kind replaces yours, so pick
-   one without, or judge that in step 7. Read the
+   one without, add `--replace-effect <alias>` to play yours in place of
+   that Scene from its event, or judge that in step 7. Read the
    sheets yourself and revise until it reads as the brief and the face stays
    clear. Then start the live preview for the owner: `pnpm -s
    animation:preview <folder>` (a held Scene re-applies every 4 s and a Scene

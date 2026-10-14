@@ -4,8 +4,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { EffectRenderFailure, renderEffectSheets } from "./effect-render.mjs";
 import {
+  EffectRenderFailure,
+  diffImages,
+  renderEffectSheets,
+} from "./effect-render.mjs";
+import {
+  EffectSourceError,
   INCLUDED_CONTENT_ROOT,
   resolveAnyEffectSource,
   resolveClipSource,
@@ -210,6 +215,86 @@ test("renders every effect kind together and a Reaction's effects", async () => 
     assert.ok(
       png.equals(await readFile(path.join(dir, "sadness-3-again.png"))),
       "a second render of the Reaction differs",
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// A copy of Impact Burst standing in for Fist Bump's dependency plays only
+// from the Gesture's event (0.6 s), with the event's override: the sheet
+// matches the Gesture's own render, where applying the copy at 0 would also
+// show it at its default placement.
+test("plays a source standing in for a Gesture dependency from its event", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-stand-in-"));
+  try {
+    const draftFolder = path.join(dir, "impact_burst_draft");
+    await cp(
+      path.join(INCLUDED_CONTENT_ROOT, "vfx/avatar/impact_burst"),
+      draftFolder,
+      { recursive: true },
+    );
+    const draft = await resolveAnyEffectSource(draftFolder);
+    const gesture = await resolveClipSource("library:fist-bump");
+    const standInMedia = await resolveDependencies(gesture.dependencies, {
+      replacement: { key: "impact_burst", source: draft },
+    });
+    const render = (options) =>
+      renderEffectSheets({
+        clip: gesture.clip,
+        views: ["front"],
+        tile: { width: 96, height: 120 },
+        ...options,
+      });
+
+    const [standIn] = await render({
+      effects: [draft],
+      clipMedia: standInMedia,
+      times: [0.3, 0.8],
+      outFileFor: () => path.join(dir, "stand-in.png"),
+    });
+    assert.deepEqual(standIn.failures, []);
+    for (const avatar of standIn.avatars)
+      assert.deepEqual(avatar.activeEffectIds, ["impact_burst"], avatar.id);
+
+    await render({
+      effects: [],
+      clipMedia: await resolveDependencies(gesture.dependencies),
+      times: [0.3, 0.8],
+      outFileFor: () => path.join(dir, "own.png"),
+    });
+    const difference = await diffImages(
+      path.join(dir, "stand-in.png"),
+      path.join(dir, "own.png"),
+    );
+    // Two renders of the playing Gesture alone can already differ by a hair
+    // pixel (Annie, before the event); the copy also applied at 0 adds 128.
+    assert.ok(
+      difference.differingPixels <= 2,
+      `stand-in and own renders differ in ${difference.differingPixels} pixels`,
+    );
+
+    // Rendered only before its event, the stand-in never shows.
+    await assert.rejects(
+      render({
+        effects: [draft],
+        clipMedia: standInMedia,
+        times: [0.3],
+        outFileFor: () => path.join(dir, "early.png"),
+      }),
+      (error) =>
+        error instanceof EffectRenderFailure &&
+        /impact_burst is not active at any rendered time/.test(error.message),
+    );
+    await assert.rejects(
+      render({
+        effects: [draft, draft],
+        together: true,
+        clipMedia: standInMedia,
+        times: [0.8],
+        outFileFor: () => path.join(dir, "together.png"),
+      }),
+      EffectSourceError,
     );
   } finally {
     await rm(dir, { recursive: true, force: true });

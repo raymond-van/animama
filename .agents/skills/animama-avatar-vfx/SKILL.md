@@ -71,7 +71,9 @@ its record sourced (`source ../../../.animama-stack.env`).
    overshoot held 4 s: `--times 0.06,0.14,0.3,1.5,4`). The ¾ view looks from
    the Avatar's right, so art on its left side turns away there; judge it in
    the front and face views. Use `--with-clip library:<gesture>` when it must follow
-   motion and `--together` with the effects it will share a Reaction with.
+   motion (with `--replace-effect <alias>` when revising an effect that
+   Gesture already plays) and `--together` with the effects it will share a
+   Reaction with.
    Read the sheets yourself and revise until the effect reads as the brief.
    Then start the live preview for the owner:
    `pnpm -s animation:preview <folder>` (`--duration <s>` for an effect held
@@ -126,11 +128,13 @@ promotion with `"mode": "replace"`.
    Reaction, `once` for a beat (its last frame holds until the event ends).
 4. Check and render with `--times` spread across the frames, one in the
    middle of each (`(k + 0.5) / fps` s for frame `k`), plus a late time for
-   a held effect. `--with-clip library:<gesture>` plays the Gesture's own
-   (Included) effect, not the draft; to see the draft in a Gesture, copy
-   the Gesture's folder, point its dependency at a copy of the draft, and
-   render with `--with-clip <copied folder> --local-content <root>`. Then
-   start the live preview for the owner (step 5).
+   a held effect. To see the draft in a Gesture that uses the effect, add
+   `--with-clip library:<gesture> --replace-effect <alias|ref>`: the draft
+   stands in for that dependency and plays from the Gesture's events with
+   their overrides, so `--times` are seconds from the Gesture's start (the
+   run prints when the events start). Without it, the Gesture plays its own
+   (Included) effect beside the draft applied at 0. Then start the live
+   preview for the owner (step 5).
 5. Save it as Local content (step 6). Replacing the Included effect is a
    promotion with `"mode": "replace"`, only with the owner's approval
    (step 9); its Gestures and Reactions pick up the sheet.

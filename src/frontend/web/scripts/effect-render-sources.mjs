@@ -673,26 +673,47 @@ export async function loadAnyEffectDescriptor(descriptorPath, descriptor) {
   };
 }
 
+/** The dependency content type each effect source kind can stand in for. */
+const SOURCE_KIND_CONTENT_TYPES = {
+  avatar: "avatar_effect",
+  particle: "particle_effect",
+  scene: "scene_effect",
+};
+
+/** Whether a clip dependency is the one `key` names, by alias or content id. */
+function dependencyMatches(dependency, key) {
+  return dependency?.alias === key || dependency?.ref === key;
+}
+
 /**
  * Resolve a clip's typed dependencies to the effects its events play, by
  * alias. A dependency that cannot be resolved becomes a notice, so one bad
  * item does not stop the others.
+ *
+ * `replacement` (`{ key, source }`) makes an effect source stand in for the
+ * dependencies `key` names (alias or ref): the clip's events then play the
+ * source at their own times, each with its own override, as they would play
+ * the dependency. `media.replaced` lists the aliases it stands in for. A key
+ * that names no dependency, or one of another kind, throws
+ * `EffectSourceError`.
  */
 export async function resolveDependencies(
   dependencies,
-  { localContent = null } = {},
+  { localContent = null, replacement = null } = {},
 ) {
   const media = {
     avatarEffects: [],
     particleEffects: [],
     sceneEffects: [],
     notices: [],
+    replaced: [],
   };
   const notice = (text) => {
     if (!media.notices.includes(text)) media.notices.push(text);
   };
   const options = { localContent, onSkip: notice };
-  for (const dependency of Array.isArray(dependencies) ? dependencies : []) {
+  const listed = Array.isArray(dependencies) ? dependencies : [];
+  for (const dependency of listed) {
     const alias = dependency?.alias;
     const ref = dependency?.ref;
     if (typeof alias !== "string" || typeof ref !== "string") continue;
@@ -700,6 +721,21 @@ export async function resolveDependencies(
       dependency.config && typeof dependency.config === "object"
         ? dependency.config
         : {};
+    if (replacement && dependencyMatches(dependency, replacement.key)) {
+      const { source } = replacement;
+      const expected = SOURCE_KIND_CONTENT_TYPES[source.kind ?? "avatar"];
+      if (dependency.content_type !== expected)
+        throw new EffectSourceError(
+          `${source.stem} (${expected}) cannot stand in for ${alias} (${dependency.content_type}).`,
+        );
+      if (expected === "avatar_effect")
+        media.avatarEffects.push({ alias, effect: source });
+      else if (expected === "particle_effect")
+        media.particleEffects.push({ alias, particle: source, config });
+      else media.sceneEffects.push({ alias, scene: source });
+      media.replaced.push(alias);
+      continue;
+    }
     try {
       if (dependency.content_type === "avatar_effect")
         media.avatarEffects.push({
@@ -722,7 +758,85 @@ export async function resolveDependencies(
       notice(`${alias} (${ref}) does not play: ${error.message}`);
     }
   }
+  if (replacement && media.replaced.length === 0) {
+    const names = listed
+      .filter((dependency) => typeof dependency?.alias === "string")
+      .map(({ alias, ref }) => `${alias} (${ref})`);
+    throw new EffectSourceError(
+      `No clip dependency is named "${replacement.key}"; ${names.length ? `name one of ${names.join(", ")}` : "the clip has no dependencies"}.`,
+    );
+  }
   return media;
+}
+
+/**
+ * The times at which a clip's effect events start the effects named by
+ * `aliases`, ascending (an `avatar_vfx` or `particle_vfx` event names its
+ * alias in `effectId`, a `scene_vfx` event in `presetId`).
+ */
+export function effectEventTimes(clip, aliases) {
+  const times = (Array.isArray(clip?.events) ? clip.events : [])
+    .filter(
+      (event) =>
+        (["avatar_vfx", "particle_vfx"].includes(event?.kind) &&
+          aliases.includes(event.effectId)) ||
+        (event?.kind === "scene_vfx" && aliases.includes(event.presetId)),
+    )
+    .map((event) => event.time)
+    .filter((time) => Number.isFinite(time));
+  return [...new Set(times)].sort((a, b) => a - b);
+}
+
+/**
+ * Clip media in which `source` stands in for the dependencies of `clip` (a
+ * resolved clip source) that `key` names, with the times their events start
+ * it. With `only`, the clip's other dependencies are left out, as a
+ * thumbnail of the source shows it alone. Throws `EffectSourceError` when
+ * `key` names no dependency of the source's kind or no event plays it.
+ */
+export async function resolveStandIn(
+  clip,
+  { key, source, localContent = null, only = false },
+) {
+  const media = await resolveDependencies(
+    only
+      ? clip.dependencies.filter((dependency) =>
+          dependencyMatches(dependency, key),
+        )
+      : clip.dependencies,
+    { localContent, replacement: { key, source } },
+  );
+  const times = effectEventTimes(clip.clip, media.replaced);
+  if (!times.length)
+    throw new EffectSourceError(
+      `The clip has no event that plays ${media.replaced.join(", ")}.`,
+    );
+  return { media, times };
+}
+
+/**
+ * A copy of `clip` for a thumbnail of the effects `aliases` name: its other
+ * effect events are dropped, so the thumbnail shows that effect alone, and
+ * the remaining events lose their override, since a Library thumbnail shows
+ * the effect's own definition. The events keep their times and fades.
+ */
+export function thumbnailClip(clip, aliases) {
+  const plays = (event) =>
+    ["avatar_vfx", "particle_vfx"].includes(event?.kind)
+      ? aliases.includes(event.effectId)
+      : event?.kind === "scene_vfx"
+        ? aliases.includes(event.presetId)
+        : null;
+  const events = [];
+  for (const event of Array.isArray(clip?.events) ? clip.events : []) {
+    const played = plays(event);
+    if (played === false) continue;
+    if (played && event.override !== undefined) {
+      const { override: _override, ...rest } = event;
+      events.push(rest);
+    } else events.push(event);
+  }
+  return { ...clip, events };
 }
 
 /**

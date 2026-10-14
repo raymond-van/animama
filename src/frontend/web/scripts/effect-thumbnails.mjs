@@ -11,6 +11,8 @@ import {
   EffectSourceError,
   resolveClipSource,
   resolveEffectSource,
+  resolveStandIn,
+  thumbnailClip,
 } from "./effect-render-sources.mjs";
 
 /**
@@ -26,7 +28,8 @@ import {
  * template; live expression;
  * 1 s after applying unless the template names another time; posed by the
  * template's Included Gesture `clip`, sampled at that time, when it names
- * one) into `src/assets/effect-templates/<id>.webp`. A full run also removes
+ * one, or with `fromEvent` played by that clip from its own events, the time
+ * then being the clip's) into `src/assets/effect-templates/<id>.webp`. A full run also removes
  * thumbnails whose template no longer exists. Renders are deterministic, so
  * unchanged effects reproduce identical files.
  */
@@ -65,21 +68,39 @@ export function selectTemplates(ids) {
 /**
  * Resolve one template into a `renderEffectThumbnails` job: its Included
  * effect and, when `thumbnail.clip` names an Included Gesture by folder stem,
- * that Gesture's clip. An unknown effect or Gesture throws
+ * that Gesture's clip. With `thumbnail.fromEvent`, the job also carries the
+ * clip media in which the effect stands in for the Gesture's dependency on
+ * it, and a clip that plays only that effect. An unknown effect or Gesture,
+ * or a `fromEvent` Gesture with no event that plays the effect, throws
  * `EffectSourceError`.
  */
 export async function thumbnailJob(template) {
   const sourceOptions = { cwd: webRoot, localContent: null };
-  const { framing, time, clip } = template.thumbnail ?? {};
+  const { framing, time, clip, fromEvent } = template.thumbnail ?? {};
+  const effect = await resolveEffectSource(
+    `library:included/${template.contentId}`,
+    sourceOptions,
+  );
+  if (fromEvent && !clip)
+    throw new EffectSourceError(
+      `Template ${template.id}: fromEvent needs a thumbnail clip.`,
+    );
+  const clipSource = clip
+    ? await resolveClipSource(`library:included/${clip}`, sourceOptions)
+    : null;
+  let clipMedia = null;
+  if (fromEvent)
+    ({ media: clipMedia } = await resolveStandIn(clipSource, {
+      key: template.contentId,
+      source: effect,
+      only: true,
+    }));
   return {
-    effect: await resolveEffectSource(
-      `library:included/${template.contentId}`,
-      sourceOptions,
-    ),
-    clip: clip
-      ? (await resolveClipSource(`library:included/${clip}`, sourceOptions))
-          .clip
-      : null,
+    effect,
+    clip: clipMedia
+      ? thumbnailClip(clipSource.clip, clipMedia.replaced)
+      : (clipSource?.clip ?? null),
+    clipMedia,
     outFile: path.join(THUMBNAIL_DIR, `${template.id}.webp`),
     framingScale: 1,
     ...FRAMINGS[framing],

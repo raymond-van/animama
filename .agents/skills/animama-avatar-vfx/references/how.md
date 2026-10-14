@@ -236,8 +236,11 @@ From `src/frontend/web`, with no running stack:
 - `pnpm -s effects:render <folder|descriptor.json|library:<name>> --out <png>`
   renders contact sheets on both Included Avatars (front, ¾ and face at several
   times). `--with-clip library:<gesture>` checks that body, sticker and silhouette
-  art follows motion; `--together` combines sources. It exits 1 on a controller
-  warning, such as a missing face part.
+  art follows motion; add `--replace-effect <alias|ref>` to play the source in
+  place of that Gesture's dependency, from its events and with their
+  overrides. `--together` combines sources. It exits 1 on a controller
+  warning, such as a missing face part, or when a replacing source is not
+  active at any `--times`.
 - `pnpm -s animation:preview <effect folder | library:avatar-effect/<name>>`
   plays the effect live on both Avatars in the browser, with camera presets,
   scrubbing and review notes; `--duration <s>` applies it for a set time. Keep a

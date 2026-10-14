@@ -78,6 +78,11 @@ type ThumbnailRequest = {
   effects: EffectSource[];
   expression: string | null;
   clip: unknown;
+  /**
+   * The effects the clip's events play, or null to sample the clip as a pose
+   * with `effects` applied at 0.
+   */
+  clipMedia: PageClipMedia | null;
   avatar: { id: string; url: string };
   time: number;
   size: number;
@@ -536,7 +541,11 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Library thumbnail: the portrait capture's head framing, live expression. */
+/**
+ * Library thumbnail: the portrait capture's head framing, live expression.
+ * With `clipMedia`, the clip plays and its events start their effects, so
+ * `time` is the clip's time.
+ */
 async function renderThumbnail(
   request: ThumbnailRequest,
 ): Promise<{ dataUrl: string; avatars: AvatarDiagnostics[] }> {
@@ -547,7 +556,7 @@ async function renderThumbnail(
       request.avatar.url,
       camera,
       renderer.domElement,
-      { ...request, clipMedia: null },
+      request,
     );
     const { avatar } = session;
     scene.add(avatar.scene!);

@@ -663,6 +663,14 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
   bare clip `.json` has no dependencies, so its effect events are skipped
   with a warning), and
   `--together` applies every source on one sheet.
+- `--replace-effect <alias|ref>` (with one source and a `--with-clip` Library
+  item or folder) makes the source stand in for that clip dependency: it is
+  not applied at 0, and the clip's events play it at their own times with
+  their own overrides, as they would play the dependency. The run prints the
+  event times and fails when the source is not active at any `--times`. A
+  source can replace only a dependency of its own kind. With `--thumbnail`,
+  only that dependency's events play, without their overrides, as the Library
+  shows the effect.
 - The run exits 1 when an effect leaves a controller warning or no active
   effect.
 - `--all-included` renders every Included Avatar Effect. `--thumbnail`
@@ -682,7 +690,10 @@ hand, which hangs out of frame in the rest pose, set `thumbnail.clip` to an
 Included Gesture's folder stem with wide framing: Annie is posed by that
 Gesture sampled at the thumbnail time, with the effect applied at 0, as
 `--with-clip` does (for example `idea_bulb_fingertip` uses `have-an-idea` at
-3 s). Run it after changing the
+3 s). With `thumbnail.fromEvent`, the Gesture plays instead and its events
+that play the effect start it, with the effect's own definition rather than
+the events' overrides, so `time` is the Gesture's time (for example
+`mind_blown_burst` at 1.8 s, 0.79 s after its event). Run it after changing the
 template list or an Included effect it uses, review the images, and keep that
 folder's README provenance current.
 

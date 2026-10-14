@@ -78,7 +78,9 @@ its record sourced (`source ../../../.animama-stack.env`).
    Renders use a fixed random seed, so a sheet repeats exactly. Use
    `--with-clip library:<gesture>` (or `library:reaction/<name>`) when it must
    follow motion or sit among a Reaction's other effects (its own Avatar,
-   Particle and Scene Effects play too), and `--together` with other effect folders. Judge it against the
+   Particle and Scene Effects play too; `--replace-effect <alias>` plays yours
+   in place of one of its Particle Effects, from its events), and
+   `--together` with other effect folders. Judge it against the
    Scene backgrounds of the Reactions it suits: a pale effect can vanish on a
    pale Scene. Read the
    sheets yourself and revise until the effect reads as the brief. Then start

@@ -14,6 +14,8 @@ import { after, before, test } from "node:test";
 import {
   INCLUDED_CONTENT_ROOT,
   INCLUDED_EFFECT_ROOT,
+  EffectSourceError,
+  effectEventTimes,
   effectSourceFiles,
   effectSourceVersion,
   listIncludedEffects,
@@ -24,6 +26,8 @@ import {
   resolveEffectRef,
   resolveEffectSource,
   resolveParticleRef,
+  resolveStandIn,
+  thumbnailClip,
 } from "./effect-render-sources.mjs";
 import { MAX_TIME_SEC, parseTimes } from "./effect-render.mjs";
 
@@ -453,6 +457,109 @@ test("resolves a Reaction clip and every kind of effect it depends on", async ()
     [["scene-vfx-emotion-joy", "scene-vfx-emotion-joy"]],
   );
   assert.deepEqual(media.notices, []);
+});
+
+test("stands a source in for a clip dependency named by alias or ref", async () => {
+  const reaction = await resolveClipSource("library:reaction/joy-3");
+  const blush = await resolveAnyEffectSource("library:blush");
+  const byAlias = await resolveDependencies(reaction.dependencies, {
+    replacement: { key: "star3", source: blush },
+  });
+  assert.deepEqual(byAlias.replaced, ["star3"]);
+  assert.deepEqual(
+    byAlias.avatarEffects.map(({ alias, effect }) => [alias, effect.stem]),
+    [["star3", "blush"]],
+  );
+  // The other dependencies still resolve, so the clip plays as in chat.
+  assert.equal(byAlias.particleEffects.length, 2);
+  assert.equal(byAlias.sceneEffects.length, 1);
+
+  const starBurst = await resolveAnyEffectSource(
+    "library:particle-effect/star-burst",
+  );
+  const confetti = reaction.dependencies.find(
+    (dependency) => dependency.alias === "confetti",
+  );
+  const byRef = await resolveDependencies(reaction.dependencies, {
+    replacement: { key: confetti.ref, source: starBurst },
+  });
+  assert.deepEqual(byRef.replaced, ["confetti"]);
+  const standIn = byRef.particleEffects.find(
+    ({ alias }) => alias === "confetti",
+  );
+  assert.equal(standIn.particle.stem, "star-burst");
+  // The dependency's config still applies over the stand-in's defaults.
+  assert.deepEqual(standIn.config, confetti.config ?? {});
+
+  await assert.rejects(
+    resolveDependencies(reaction.dependencies, {
+      replacement: { key: "confetti", source: blush },
+    }),
+    (error) =>
+      error instanceof EffectSourceError &&
+      /blush \(avatar_effect\) cannot stand in for confetti \(particle_effect\)/.test(
+        error.message,
+      ),
+  );
+  await assert.rejects(
+    resolveDependencies(reaction.dependencies, {
+      replacement: { key: "no-such-effect", source: blush },
+    }),
+    (error) =>
+      error instanceof EffectSourceError &&
+      /No clip dependency is named "no-such-effect"; name one of .*star3 \(builtin:avatar-effect:star3\)/.test(
+        error.message,
+      ),
+  );
+});
+
+test("stands a source in only for a dependency a clip event plays", async () => {
+  const gesture = await resolveClipSource("library:fist-bump");
+  const draft = await resolveAnyEffectSource("library:blush");
+  const { media, times } = await resolveStandIn(gesture, {
+    key: "impact_burst",
+    source: draft,
+    only: true,
+  });
+  assert.deepEqual(media.replaced, ["impact_burst"]);
+  assert.deepEqual(times, [0.6]);
+  await assert.rejects(
+    resolveStandIn(
+      { ...gesture, clip: { ...gesture.clip, events: [] } },
+      { key: "impact_burst", source: draft },
+    ),
+    /The clip has no event that plays impact_burst/,
+  );
+});
+
+test("finds when a clip plays an effect and keeps only it for a thumbnail", () => {
+  const override = { motion: { kind: "pulse" } };
+  const clip = {
+    id: "clip",
+    events: [
+      { id: "a2", time: 1.5, kind: "avatar_vfx", effectId: "a", override },
+      { id: "a1", time: 0.6, kind: "avatar_vfx", effectId: "a" },
+      { id: "b", time: 0.2, kind: "avatar_vfx", effectId: "b" },
+      { id: "p", time: 0.4, kind: "particle_vfx", effectId: "p" },
+      { id: "s", time: 0.3, kind: "scene_vfx", presetId: "s" },
+      { id: "sound", time: 0.6, kind: "sfx", cueId: "pop" },
+    ],
+  };
+  assert.deepEqual(effectEventTimes(clip, ["a"]), [0.6, 1.5]);
+  assert.deepEqual(effectEventTimes(clip, ["p", "s"]), [0.3, 0.4]);
+  assert.deepEqual(effectEventTimes(clip, ["missing"]), []);
+  assert.deepEqual(effectEventTimes({}, ["a"]), []);
+
+  const kept = thumbnailClip(clip, ["a"]);
+  assert.deepEqual(
+    kept.events.map((event) => event.id),
+    ["a2", "a1", "sound"],
+  );
+  // A thumbnail shows the effect's own definition.
+  assert.equal("override" in kept.events[0], false);
+  assert.equal(kept.id, "clip");
+  // The input clip is not changed.
+  assert.deepEqual(clip.events[0].override, override);
 });
 
 test("parses --times as bounded ascending seconds", () => {
