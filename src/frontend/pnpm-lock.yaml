@@ -207,9 +207,6 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
-      '@mochiya/three-liltoon':
-        specifier: 0.1.5
-        version: 0.1.5(@pixiv/three-vrm@3.5.2(three@0.182.0))(three@0.182.0)
       '@noble/hashes':
         specifier: 2.2.0
         version: 2.2.0
@@ -382,6 +379,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.2.1(jiti@2.7.0))
+      '@mochiya/three-liltoon':
+        specifier: 0.1.5
+        version: 0.1.5(@pixiv/three-vrm@3.5.2(three@0.182.0))(three@0.182.0)
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.2.4
@@ -3280,7 +3280,6 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
-    deprecated: this version has critical issues, please update to the latest version
 
   abbrev@4.0.0:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}

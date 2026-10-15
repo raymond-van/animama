@@ -1,7 +1,5 @@
-import type {
-  GLTFLoader,
-  GLTFParser,
-} from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
+import type { GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { getActiveAvatarShader } from "./avatarShader";
 import { vroidLookFor, type ToonLook } from "./vroidPalette";
@@ -58,13 +56,19 @@ function patchMaterials(parser: GLTFParser): void {
 }
 
 /**
- * Register before `VRMLoaderPlugin` so the active shader's MToon parameters
- * are in place when three-vrm reads the materials. The shader is read per
- * parse, so a cached loader follows later switches.
+ * Patch the active shader's MToon parameters into `plugin`'s glTF before
+ * three-vrm builds any material. The patch runs right after the VRM 0.x
+ * compat step, which is where VRM 0.x files gain `VRMC_materials_mtoon`. The
+ * shader is read per parse, so a cached loader follows later switches.
  */
-export function registerAvatarShaderGltfPatch(loader: GLTFLoader): void {
-  loader.register((parser) => {
-    patchMaterials(parser);
-    return { name: "ANIMAMA_avatar_shader_patch" };
-  });
+export function withAvatarShaderPatch(
+  plugin: VRMLoaderPlugin,
+): VRMLoaderPlugin {
+  const v0Compat = plugin.materialsV0CompatPlugin;
+  const convertV0Materials = v0Compat.beforeRoot.bind(v0Compat);
+  v0Compat.beforeRoot = async () => {
+    await convertV0Materials();
+    patchMaterials(plugin.parser);
+  };
+  return plugin;
 }

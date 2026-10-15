@@ -1,10 +1,12 @@
 import { create } from "zustand";
 
+import { DEBUG_ENABLED } from "@/platform/env";
+
 /*
  * Development-only switch between experimental Avatar toon shaders. Production
- * builds always use three-vrm's MToon. The Vite dev server reads the choice
- * stored by the debug panel; review renderers (which serve with
- * `__ANIMAMA_DEV_BUILD__` false) opt in through a window override.
+ * builds always use three-vrm's MToon. The choice stored by the debug panel is
+ * read only while that panel is enabled, so it can always be switched back;
+ * review renderers opt in through a window override.
  */
 
 export const AVATAR_SHADER_IDS = ["mtoon", "mtoon-tuned", "liltoon"] as const;
@@ -29,7 +31,7 @@ function readInitialShader(): AvatarShaderId {
   if (!import.meta.env.DEV || typeof window === "undefined") return "mtoon";
   const override = (window as AvatarShaderWindow).__animamaAvatarShaderOverride;
   if (isAvatarShaderId(override)) return override;
-  if (!__ANIMAMA_DEV_BUILD__) return "mtoon";
+  if (!DEBUG_ENABLED) return "mtoon";
   try {
     const stored = window.localStorage.getItem(AVATAR_SHADER_STORAGE_KEY);
     return isAvatarShaderId(stored) ? stored : "mtoon";

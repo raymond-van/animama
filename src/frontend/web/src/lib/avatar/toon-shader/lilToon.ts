@@ -109,6 +109,9 @@ function toLilToon(source: MToonLike): LilToonMaterial {
 export function convertVrmToLilToon(vrm: VRM): void {
   const converted = new Map<THREE.Material, LilToonMaterial>();
   const convert = (material: THREE.Material) => {
+    // An MToon outline clone (should the glTF patch have missed one) stays
+    // MToon: converted, it would draw a second copy of the surface.
+    if ((material as { isOutline?: boolean }).isOutline) return material;
     let next = converted.get(material);
     if (!next) {
       next = toLilToon(material as MToonLike);

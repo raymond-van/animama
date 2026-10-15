@@ -1417,14 +1417,17 @@ These controls are runtime-only tuning tools. They do not persist procedural par
 ### Experimental Avatar shaders
 
 The **Avatar shader** section of the Anima debug panel (development build with
-`VITE_ENABLE_DEBUG_PANEL=true`) switches every Avatar between three-vrm's MToon
-(the default), MToon with retuned shading, outlines and rim, and three-liltoon
+`VITE_ENABLE_DEBUG_PANEL=true`) switches Avatars between three-vrm's MToon (the
+default), MToon with retuned shading, outlines and rim, and three-liltoon
 materials. The choice is stored in this browser only
-(`animama.debug.avatarShader`) and reloads the live Avatar; production builds
-always use MToon. Code lives in `src/frontend/web/src/lib/avatar/toon-shader/`:
+(`animama.debug.avatarShader`) and read only while the panel is enabled.
+Switching reloads the chat Avatar; other canvases use the new shader on their
+next load. Production builds always use MToon and contain no lilToon code.
+Code lives in `src/frontend/web/src/lib/avatar/toon-shader/`:
 
-- A glTF plugin registered before `VRMLoaderPlugin` rewrites MToon parameters
-  for the tuned variant, and removes MToon outline geometry for lilToon.
+- `withAvatarShaderPatch` rewrites MToon parameters in the glTF after
+  three-vrm's VRM 0.x conversion and before materials are built: retuned values
+  for the tuned variant, and no MToon outline geometry for lilToon.
 - After load, the lilToon variant replaces each MToon material with a
   `LilToonMaterial` that applies the chat canvas's ACES tone mapping itself.
   Canvases mount `AvatarShaderRendering` for lilToon's outline pass.
@@ -1432,11 +1435,11 @@ always use MToon. Code lives in `src/frontend/web/src/lib/avatar/toon-shader/`:
   (`_SKIN`, `_CLOTH`, `_HAIR`) and were tuned on the Annie preset, so other
   models can look off.
 
-lilToon limits: it lights with only the first directional light, VRM
-expressions that bind material colours stop applying, and silhouette effects
-need a larger depth bias, so their edges can differ by a pixel.
-`pnpm -s effects:render ... --avatar-shader liltoon` renders review sheets with
-a variant.
+lilToon limits: it lights with only the first directional light, its outline
+pass skips the ACES curve, VRM expressions that bind material colours or
+texture transforms stop applying, and silhouette effects need a larger depth
+bias, so their edges can differ by a pixel. `pnpm -s effects:render ...
+--avatar-shader liltoon` renders review sheets with a variant.
 
 ## 6) Dispatch lifecycle -> avatar behavior
 
