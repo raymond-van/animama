@@ -219,6 +219,15 @@ Supported anchors are `root`, `hips`, `spine`, `chest`, `neck`, `head`,
 avatar-local meters. `transform.depthOffset` is avatar-local Z: positive means
 in front of the avatar and negative means behind.
 
+Avatar-local means the Avatar frame: the Avatar scene's axes with +X toward the
+Avatar's left, +Y up and +Z forward, for VRM 0 and VRM 1 alike. three-vrm turns
+VRM 0 scenes half about Y, so the controller turns its particle root back
+(`alignParticleVFXRootToAvatar` in `lib/avatar/particle-vfx/runtime.ts`), and
+anchor positions and auto-fit bounds are measured in the same frame. Effects,
+emitter directions and offsets therefore look the same on both Included
+Avatars. three.quarks writes particle positions in world space, so the batch
+renderer keeps an identity world matrix wherever it is parented.
+
 If `duration`, `anchor`, `transform`, or `followAnchor` are omitted, the runtime
 uses the catalog defaults and follows the anchor. Requested durations are capped
 by each catalog entry's performance budget. `envelope` and
