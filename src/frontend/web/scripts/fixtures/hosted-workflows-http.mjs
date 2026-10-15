@@ -54,6 +54,9 @@ const json = (response, data, status = 200) => {
 };
 const error = (response, code, status) =>
   json(response, { detail: { code } }, status);
+const locales = new Set(["en", "ja", "ko", "zh-Hans", "zh-Hant"]);
+const visitorCookie = (locale) =>
+  `fixture_locale=${locale ?? ""}; Path=/; SameSite=Lax; Max-Age=${locale === null ? 0 : 31536000}`;
 async function body(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
@@ -108,12 +111,54 @@ function ownerState(label) {
 }
 
 /** Independent HTTP authority fixture. Unknown routes fail; owner identity comes only from its cookie. */
-export async function createHostedWorkflowHttp({ workletSource } = {}) {
+export async function createHostedWorkflowHttp({
+  workletSource,
+  localeAuthority = false,
+} = {}) {
   const sessions = new Map(),
     owners = new Map(),
     calls = [],
     settingsReads = new Map(),
-    heldSettingsReads = new Set();
+    heldSettingsReads = new Set(),
+    contextReads = new Map(),
+    localeWrites = new Map(),
+    contextFailures = new Map(),
+    heldResponses = new Set();
+  /** Capture the reply before waiting, so tests can release genuinely stale authority. */
+  const hold = (queue, owner) => {
+    let start, release, complete;
+    const started = new Promise((resolve) => {
+      start = resolve;
+    });
+    const wait = new Promise((resolve) => {
+      release = resolve;
+    });
+    const completed = new Promise((resolve) => {
+      complete = resolve;
+    });
+    const held = {
+      start,
+      wait,
+      complete,
+      release: () => {
+        heldResponses.delete(held);
+        release();
+      },
+    };
+    heldResponses.add(held);
+    if (!queue.has(owner)) queue.set(owner, []);
+    queue.get(owner).push(held);
+    return { started, completed, release: held.release };
+  };
+  const ownerFor = (owner) => {
+    const state = owners.get(owner);
+    if (!state) throw new Error("Unknown fixture owner");
+    return state;
+  };
+  const settingsFor = (state) =>
+    localeAuthority
+      ? { ...state.settings, locale: state.localePreference ?? null }
+      : state.settings;
   let origin,
     workletAvailable = false;
   const voiceConnections = [];
@@ -146,16 +191,45 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
       response.writeHead(200, { "content-type": "text/javascript" });
       return response.end(workletSource);
     }
-    if (url.pathname === "/v1/hosted/runtime-context")
-      return json(response, {
+    if (url.pathname === "/v1/hosted/runtime-context") {
+      const snapshot = {
         schema_version: 1,
-        state: session ? "active" : "unauthenticated",
+        state: session
+          ? (state.admissionState ?? "active")
+          : localeAuthority
+            ? "session_required"
+            : "unauthenticated",
         user_id: session?.owner ?? null,
         csrf_token: session?.csrf ?? null,
         recovery_session_id: session?.recovery ?? null,
         capabilities: hostedCapabilities,
         account_url: `${origin}/central-account`,
-      });
+        ...(localeAuthority
+          ? {
+              locale: {
+                preference: state?.localePreference ?? null,
+                // Deliberately retain malformed fixture hints: the emitted app must
+                // reject noncanonical inputs independently of this authority.
+                visitor:
+                  /(?:^|; )fixture_locale=([^;]*)/.exec(
+                    request.headers.cookie ?? "",
+                  )?.[1] || null,
+              },
+            }
+          : {}),
+      };
+      const failure = contextFailures.get(session?.owner ?? null);
+      const held = contextReads.get(session?.owner ?? null)?.shift();
+      held?.start();
+      if (held) await held.wait;
+      try {
+        return failure
+          ? error(response, "locale_authority_unavailable", 503)
+          : json(response, snapshot);
+      } finally {
+        held?.complete();
+      }
+    }
     if (url.pathname === "/api/cloud/auth/login") {
       if (request.method !== "POST" || request.headers.origin !== origin)
         return error(response, "origin_required", 403);
@@ -193,7 +267,7 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
       ) {
         const key = path.includes("users") ? "settings" : "animaSettings";
         if (key === "settings" && method === "GET") {
-          const snapshot = structuredClone(state.settings);
+          const snapshot = structuredClone(settingsFor(state));
           const failed = state.settingsReadFailure;
           const held = settingsReads.get(session.owner)?.shift();
           held?.start();
@@ -202,6 +276,54 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
             return failed
               ? error(response, "fixture_settings_read_failed", 503)
               : json(response, snapshot);
+          } finally {
+            held?.complete();
+          }
+        }
+        if (
+          key === "settings" &&
+          localeAuthority &&
+          ["PATCH", "POST", "DELETE"].includes(method)
+        ) {
+          const input = method === "DELETE" ? {} : await body(request);
+          call.body = structuredClone(input);
+          const explicitLocale =
+            method === "DELETE" || Object.hasOwn(input, "locale");
+          const locale = method === "DELETE" ? null : input.locale;
+          if (explicitLocale && locale !== null && !locales.has(locale))
+            return error(response, "invalid_locale", 422);
+          const outcome = explicitLocale ? state.nextLocaleOutcome : null;
+          if (explicitLocale) state.nextLocaleOutcome = null;
+          if (
+            ["locale_conflict", "locale_authority_unavailable"].includes(
+              outcome,
+            )
+          )
+            return error(
+              response,
+              outcome,
+              outcome === "locale_conflict" ? 409 : 503,
+            );
+          if (explicitLocale) state.localePreference = locale;
+          if (!outcome) {
+            if (method === "DELETE") state.settings = { preferences: {} };
+            else Object.assign(state.settings, input);
+          }
+          const snapshot = structuredClone(settingsFor(state));
+          const held = explicitLocale
+            ? localeWrites.get(session.owner)?.shift()
+            : null;
+          held?.start();
+          if (held) await held.wait;
+          try {
+            if (outcome === "lost_response") return response.destroy();
+            if (outcome === "locale_save_outcome_unknown")
+              return error(response, outcome, 503);
+            if (explicitLocale)
+              response.setHeader("set-cookie", visitorCookie(locale));
+            if (outcome === "locale_saved_settings_failed")
+              return error(response, outcome, 409);
+            return json(response, snapshot);
           } finally {
             held?.complete();
           }
@@ -865,6 +987,33 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
     url: `http://127.0.0.1:${server.address().port}`,
     calls,
     voiceConnections,
+    setLocalePreference: (owner, locale) => {
+      ownerFor(owner).localePreference = locale;
+    },
+    setAdmissionState: (owner, value) => {
+      ownerFor(owner).admissionState = value;
+    },
+    setNextLocaleOutcome: (owner, value) => {
+      if (
+        ![
+          "locale_conflict",
+          "locale_authority_unavailable",
+          "locale_save_outcome_unknown",
+          "locale_saved_settings_failed",
+          "lost_response",
+        ].includes(value)
+      )
+        throw new Error("Unknown locale outcome");
+      ownerFor(owner).nextLocaleOutcome = value;
+    },
+    setContextFailure: (owner, failed) => {
+      contextFailures.set(owner, failed);
+    },
+    holdContextRead: (owner = null) => hold(contextReads, owner),
+    holdLocaleWrite: (owner) => {
+      ownerFor(owner);
+      return hold(localeWrites, owner);
+    },
     setWorkletAvailable: (value) => {
       workletAvailable = value;
     },
@@ -910,6 +1059,7 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
     },
     close: () => {
       for (const held of heldSettingsReads) held.release();
+      for (const held of heldResponses) held.release();
       return new Promise((resolve) => {
         server.closeAllConnections();
         server.close(resolve);

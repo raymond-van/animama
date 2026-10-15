@@ -1,6 +1,6 @@
 # Supply hosted locale preferences through public composition contracts
 
-Status: **Approved; Phase 1 complete, Phase 2 next.**
+Status: **Approved; Phase 1 complete, Phase 2 in progress.**
 Source agreement: [#576](https://github.com/raymond-van/animama/issues/576), accepted
 revision `hosted-locale-contract-2026-10-15-r1`; [spec snapshot](hosted-locale-contract-spec.md)
 captured 2026-10-15T19:23:50Z. The issue remains authoritative.
@@ -31,7 +31,12 @@ Account storage, cookies, email, consumer migration and publication are outside 
 
 The recorded task worktree/branch was reused and clean at implementation start.
 Frozen host dependencies and tracked LFS assets are ready; both optional speech
-sets verify from the existing shared store. No task stack exists yet.
+sets verify from the existing shared store. The isolated built stack
+`animama-hosted-locale-e2e` serves `http://animama-hosted-locale-e2e.localhost:8640`
+from Phase 1 product source with fixture-only Phase 2 edits. Deterministic model
+clients are enabled; no optional profiles. Only the app publishes a loopback port;
+PostgreSQL is private. Bootstrap is ready, 479 catalog entries are indexed and
+creation options have no diagnostics. Fast browser journeys are running.
 
 ## Surprises & Discoveries
 
@@ -252,7 +257,11 @@ chunks only. Reviewers ran no duplicate suites. Phase 1 is complete.
 ### Phase 2: Prove the immutable emitted application
 
 Issue: [#578](https://github.com/raymond-van/animama/issues/578). Requirements: H1–H6 artifact acceptance.
-Start: completed Phase 1 candidate, record full SHA before execution. Depends on #577.
+Start: completed Phase 1 commit `854c6853fc526561534cea75037f59da8fd8b3a0`. Depends on #577.
+The independent fixture changes are in progress; production source is unchanged.
+A clean candidate checkpoint commit is required before the exact-source producer
+can build it. Such a checkpoint will not mark this phase complete before its
+artifact/browser checks and independent review pass.
 
 1. Extend independent Python/npm and emitted-app fixtures under
    `scripts/repository-boundary/consumers/`. Serve locale inputs from the public fixture;
@@ -286,11 +295,22 @@ actual local/browser results and actual hosted Validation scope separately.
 
 #### Code Review #1 Findings
 
-Not run; review emitted behavior, fixtures, versions and compatibility.
+Initial independent source review passed against `854c6853` plus the frozen
+Python, npm and emitted-app fixture changes, including all new files. No required
+findings. Review covered installed exports, opt-in authority, captured delayed
+responses, distinct partial/unknown outcomes and retained upgrade/rollback/Pocket
+checks. Independent syntax and whitespace checks passed. Installed-artifact
+execution and rendered inspection remain pending; this source review permits
+the clean producer checkpoint but does not complete the phase.
 
 #### Code Review #1 Revisions
 
-Not started. One initial review and at most two repair rounds; retain counts on resumption.
+No revisions required; repair rounds used: 0 of 2. Eight focused Node cases
+passed, including fixture red-to-green coverage. The Python source smoke mounted
+144 shared routes, exercised seven intent events and imported zero forbidden
+local modules; Ruff and formatting passed. All 27 package producer unit tests
+passed. These checks do not substitute for the pending installed consumer run.
+The added npm type/resolution probe will compile and run in that isolated install.
 
 ## Final integration review
 

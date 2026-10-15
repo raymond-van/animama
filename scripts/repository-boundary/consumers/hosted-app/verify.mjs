@@ -6,6 +6,7 @@ import path from "node:path";
 import { createApplicationServer } from "./server.mjs";
 import { observeBrowser } from "./measurements.mjs";
 import { STEP_TIMEOUT_MS, exerciseClipCompatibility } from "./clips.mjs";
+import { exerciseLocales, exerciseLocaleAudioContinuity } from "./locales.mjs";
 
 // Wall time of each journey phase in run order, from when this script starts.
 const phases = [];
@@ -74,6 +75,7 @@ if (previous)
     );
 const server = await createApplicationServer(apps, {
     vrmFile: path.join(candidate.directory, "catalog-seed/included", avatar),
+    localeAuthority: true,
 });
 const browserArgs = [
     "--use-gl=angle",
@@ -508,6 +510,12 @@ try {
         "The candidate page creates the candidate's worker",
     );
     check("cold-voice-pcm", candidate);
+    const localeAudioContinuity = await exerciseLocaleAudioContinuity(
+        page,
+        server,
+        "artifact-owner",
+    );
+    check("locale-live-audio-continuity", candidate);
     endPhase("cold-voice");
     await signOut("artifact-owner");
     await checkpoint("sign-out-cleanup", candidate);
@@ -635,6 +643,13 @@ try {
         check("rollback-entry", previous);
         endPhase("rollback-entry");
     }
+    const localeCompatibility = await exerciseLocales(
+        browser,
+        server,
+        candidate,
+    );
+    check("hosted-locale-contract", candidate);
+    endPhase("hosted-locales");
     const clipCompatibility = await exerciseClipCompatibility(
         browser,
         server,
@@ -660,6 +675,8 @@ try {
         installation_calls: 0,
         provider_calls: 0,
         clip_compatibility: clipCompatibility,
+        locale_compatibility: localeCompatibility,
+        locale_audio_continuity: localeAudioContinuity,
         physical_capture_or_heard_audio: false,
         browser: {
             version: observation.browserVersion,

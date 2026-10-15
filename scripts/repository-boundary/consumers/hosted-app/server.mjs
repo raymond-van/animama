@@ -41,7 +41,10 @@ export function applicationRoute(raw) {
     );
 }
 
-export async function createApplicationServer(applications, { vrmFile } = {}) {
+export async function createApplicationServer(
+    applications,
+    { vrmFile, localeAuthority = false } = {},
+) {
     let selected = applications[0];
     const inventory = new Map();
     for (const app of applications)
@@ -54,7 +57,7 @@ export async function createApplicationServer(applications, { vrmFile } = {}) {
         }
     const { createHostedWorkflowHttp } =
         await import("./hosted-workflows-http.mjs");
-    const api = await createHostedWorkflowHttp();
+    const api = await createHostedWorkflowHttp({ localeAuthority });
     const clips = createClipApi(json, applications[0].directory);
     const sessions = new Map(),
         calls = [];
@@ -336,6 +339,12 @@ export async function createApplicationServer(applications, { vrmFile } = {}) {
         origin,
         calls,
         apiCalls: api.calls,
+        setLocalePreference: api.setLocalePreference,
+        setAdmissionState: api.setAdmissionState,
+        setNextLocaleOutcome: api.setNextLocaleOutcome,
+        setContextFailure: api.setContextFailure,
+        holdContextRead: api.holdContextRead,
+        holdLocaleWrite: api.holdLocaleWrite,
         clipRecords: clips.records,
         initializeClipFixtures: clips.initialize,
         select: (app) => {
