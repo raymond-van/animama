@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { getI18n } from "react-i18next";
+import { toast, Toaster } from "sonner";
+import enErrors from "@/locales/en/errors.json";
+import jaErrors from "@/locales/ja/errors.json";
 import type { HostedLocaleInput } from "@animama/runtime-contracts/locale";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageSelect } from "./LanguageSetting";
@@ -26,7 +30,15 @@ vi.mock("@/app/runtime/RuntimeAdmissionProvider", () => ({
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const cleanup: (() => void)[] = [];
-afterEach(() => cleanup.splice(0).forEach((fn) => fn()));
+afterEach(async () => {
+  await act(async () => {
+    toast.dismiss();
+  });
+  cleanup.splice(0).forEach((fn) => fn());
+  await act(async () => {
+    await getI18n().changeLanguage("en");
+  });
+});
 
 async function picker(input: HostedLocaleInput) {
   mocks.hosted = input;
@@ -37,7 +49,14 @@ async function picker(input: HostedLocaleInput) {
     act(() => root.unmount());
     element.remove();
   });
-  await act(async () => root.render(<LanguageSelect />));
+  await act(async () =>
+    root.render(
+      <>
+        <LanguageSelect />
+        <Toaster duration={Infinity} />
+      </>,
+    ),
+  );
   const trigger = element.querySelector<HTMLElement>('[role="combobox"]')!;
   await act(async () => {
     trigger.dispatchEvent(
@@ -146,4 +165,39 @@ describe("language picker explicit selection", () => {
     expect(mocks.update).not.toHaveBeenCalled();
     expect(document.querySelector('[role="listbox"]')).not.toBeNull();
   });
+});
+
+describe("language save error toast", () => {
+  it.each([
+    "locale_conflict",
+    "locale_authority_unavailable",
+    "locale_save_outcome_unknown",
+    "locale_saved_settings_failed",
+  ] as const)(
+    "keeps an already visible %s truthful when the active catalog changes",
+    async (code) => {
+      mocks.update.mockRejectedValueOnce({ detail: { code } });
+      const { options } = await picker({ preference: "en", visitor: "en" });
+      await activate(options.find((option) => option.lang === "ja")!, "Enter");
+      // The save response can arrive before asynchronous Japanese catalogs load.
+      const message = () =>
+        document.querySelector<HTMLElement>(
+          '[data-sonner-toast][data-type="error"] [data-title]',
+        );
+      await vi.waitFor(() =>
+        expect(message()?.textContent).toBe(enErrors.settings[code]),
+      );
+      const visibleToast = message();
+      await act(async () => {
+        await getI18n().changeLanguage("ja");
+      });
+      await vi.waitFor(() =>
+        expect(message()?.textContent).toBe(jaErrors.settings[code]),
+      );
+      expect(message()).toBe(visibleToast);
+      expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+        body: { locale: "ja" },
+      });
+    },
+  );
 });

@@ -733,6 +733,7 @@ try {
                 errors,
                 consoleErrors,
                 http_calls: server.calls,
+                authority_calls: server.apiCalls,
                 measurements,
                 phase_seconds: phases,
                 body: await page.locator("body").innerText(),

@@ -69,12 +69,10 @@ const waitLocale = (page, locale) =>
 const delay = (milliseconds) =>
     new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-/** Real browser focus/visibility transitions exercise the composition refresh subscription. */
+/** Headless Chromium keeps tabs focused; deliver the standard event to the real app listener. */
 export async function focusLocalePage(page) {
-    const other = await page.context().newPage();
-    await other.bringToFront();
     await page.bringToFront();
-    await other.close();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 }
 
 async function visitor(context, origin, value) {
@@ -149,9 +147,11 @@ const localeWrites = (server, owner) =>
             call.method === "PATCH" &&
             Object.hasOwn(call.body ?? {}, "locale"),
     );
+// Autosizing also renders a readonly measurement textarea, which is not the composer.
+const composer = (page) => page.locator("textarea:not([readonly])").first();
 async function ready(page, locale) {
     await waitLocale(page, locale);
-    await page.locator("textarea").first().waitFor();
+    await composer(page).waitFor();
 }
 
 /** All locale checks are isolated from the existing English and real-audio journeys. */
@@ -170,7 +170,11 @@ export async function exerciseLocales(
     const identity = sourceIdentity(candidate);
     const capture = async (page, name) => {
         const file = path.join(evidenceDir, `${name}.png`);
-        await page.screenshot({ path: file, fullPage: true });
+        await page.screenshot({
+            path: file,
+            fullPage: true,
+            animations: "disabled",
+        });
         screenshots.push({
             name,
             file: path.basename(file),
@@ -222,7 +226,10 @@ export async function exerciseLocales(
         }
         return { context, page };
     };
-    const record = (name, extra = {}) => checks.push({ name, ...extra });
+    const record = (name, extra = {}) => {
+        checks.push({ name, ...extra });
+        console.log(JSON.stringify({ locale_check: name, ...extra }));
+    };
     try {
         for (const locale of Object.keys(localeText)) {
             const { context, page } = await contextFor();
@@ -318,7 +325,7 @@ export async function exerciseLocales(
                 await waitLocale(page, "ko");
                 await page
                     .getByRole("heading", {
-                        name: "런타임을 사용할 수 없습니다",
+                        name: "런타임을 사용할 수 없음",
                         exact: true,
                     })
                     .waitFor();
@@ -367,7 +374,7 @@ export async function exerciseLocales(
                 await visitor(context, server.origin, "ja");
                 await page.goto(server.origin + "/fixture-anima");
                 await ready(page, "ja");
-                const draft = page.locator("textarea").first();
+                const draft = composer(page);
                 await draft.fill("Unsent locale continuity draft");
                 const input = await draft.elementHandle();
                 const route = page.url();
@@ -440,6 +447,13 @@ export async function exerciseLocales(
                     .getByRole("button")
                     .filter({ hasText: `${owner} account` })
                     .click();
+                // Admission closes immediately; the remote logout still has to finish.
+                const signedOut = page.waitForResponse(
+                    (response) =>
+                        new URL(response.url()).pathname ===
+                            "/api/cloud/auth/logout" &&
+                        response.request().method() === "POST",
+                );
                 await page
                     .getByRole("menuitem", {
                         name: localeText.ja.signOut,
@@ -452,6 +466,9 @@ export async function exerciseLocales(
                         exact: true,
                     })
                     .waitFor();
+                assert.equal((await signedOut).status(), 200);
+                await (await signedOut).finished();
+                await page.waitForLoadState("networkidle");
                 await visitor(context, server.origin, "ko");
                 await focusLocalePage(page);
                 await page
@@ -477,7 +494,9 @@ export async function exerciseLocales(
             const { context, page } = await contextFor();
             const owner = "locale-creator";
             try {
-                await admit(context, server, owner);
+                // Locale-only runs have no VRM fixture; an empty roster keeps
+                // the editor valid without selecting an Anima with no Avatar.
+                await admit(context, server, owner, false);
                 server.setLocalePreference(owner, "en");
                 await page.goto(server.origin + "/particle-effects/new");
                 const name = page.getByRole("textbox", {
@@ -553,17 +572,17 @@ export async function exerciseLocales(
             ],
             [
                 "locale_save_outcome_unknown",
-                /We could not confirm whether your language was saved\.|言語が保存されたか確認できません/,
+                /言語が保存されたか確認できません/,
                 "ja",
             ],
             [
                 "lost_response",
-                /We could not confirm whether your language was saved\.|言語が保存されたか確認できません/,
+                /言語が保存されたか確認できません/,
                 "ja",
             ],
             [
                 "locale_saved_settings_failed",
-                /Your language was saved, but other settings could not be saved\.|言語は保存されましたが/,
+                /言語は保存されましたが/,
                 "ja",
             ],
         ]) {
@@ -578,9 +597,9 @@ export async function exerciseLocales(
                 server.setNextLocaleOutcome(owner, outcome);
                 await settings(page, owner, "en");
                 await choose(page, "en", "ja");
-                // The acknowledgement may precede or follow the new catalog load.
-                await page.getByText(message).waitFor();
+                // The already-visible outcome must follow the settled active locale.
                 await waitLocale(page, resolved);
+                await page.getByText(message).waitFor();
                 await capture(page, `error-${outcome}`);
                 assert.equal(
                     localeWrites(server, owner).length,
@@ -615,6 +634,8 @@ export async function exerciseLocales(
             errors,
             external_requests: externalRequests,
             real_audio_continuity: false,
+            focus_delivery:
+                "standard-focus-event-to-app-listener-in-headless-browser",
             physical_capture_or_heard_audio: false,
         };
         const file = path.join(evidenceDir, "locale-receipt.json");
@@ -675,6 +696,8 @@ export async function exerciseLocaleAudioContinuity(page, server, owner) {
         status: "PASS",
         real_pocket_pcm_precondition: true,
         same_live_resources: true,
+        focus_delivery:
+            "standard-focus-event-to-app-listener-in-headless-browser",
         workers: before.workers.length,
         audio_contexts: before.audio.length,
         worklets: before.worklets.length,

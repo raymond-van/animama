@@ -36,7 +36,9 @@ sets verify from the existing shared store. The isolated built stack
 from Phase 1 product source with fixture-only Phase 2 edits. Deterministic model
 clients are enabled; no optional profiles. Only the app publishes a loopback port;
 PostgreSQL is private. Bootstrap is ready, 479 catalog entries are indexed and
-creation options have no diagnostics. Fast browser journeys are running.
+creation options have no diagnostics. Fast browser journeys passed all 38 cases
+in eight minutes; the owned content ledger has no unresolved operations. Evidence
+is retained under `.animama-e2e/runs/run-1015164439/` in the task checkout.
 
 ## Surprises & Discoveries
 
@@ -311,6 +313,55 @@ passed, including fixture red-to-green coverage. The Python source smoke mounted
 local modules; Ruff and formatting passed. All 27 package producer unit tests
 passed. These checks do not substitute for the pending installed consumer run.
 The added npm type/resolution probe will compile and run in that isolated install.
+
+#### Artifact run and repair round 1
+
+Clean checkpoint `c173bc281670c44211532cfc06b0a342c230e5de` built successfully
+and passed package compatibility comparison against the verified `dca4af86`
+predecessor. Its isolated npm install, types, build and browser checks passed.
+The whole-application run reached real Avatar/Pocket PCM/worklet acceptance,
+then stopped at the locale focus step: switching headless tabs did not deliver
+a focus event. No full validation receipt was emitted for this incomplete run.
+
+The fixture repair delivers a standard focus event to the real app listener and
+labels that delivery explicitly. It also uses the current Korean unavailable
+copy, excludes the composer's readonly measurement mirror, waits for the sign-out
+response before refreshing, uses the valid empty-roster creator fixture, and
+disables finite screenshot animations. Product source is unchanged. Controlled
+execution of the existing immutable app passed 23 locale checks with 17 renders,
+no page errors and no external requests. Eight focused Node cases and all 25
+workflow browser regressions passed. Independent targeted source review passed;
+repair rounds used: 1 of 2. These controlled checks do not replace the pending
+new exact-source build and full audio/upgrade/rollback validation.
+
+The controlled receipt SHA-256 is
+`9fceb7bc2a9c4fdca5c2346c72dba3c73a375df24781b53f19225eefaf5225e5`.
+Desktop/narrow admission renders for all five languages and the retained creator
+draft were visually inspected.
+
+#### Code Review #2 Findings and Revisions
+
+The fixture repair passed its targeted recheck. Rendered inspection then exposed
+P2-LOC-R2 (P2, H2/H5): a partial/unknown-save toast can remain English after the
+page switches to Japanese. The save handler translates a plain string before
+asynchronous catalog loading finishes; the emitted assertion's English-or-Japanese
+alternative masked this race. Independent targeted analysis confirmed the defect.
+This is a new Phase 2 emitted-integration finding, not a reopening of the resolved
+Phase 1 findings. Repair round 2 of 2 retains the stable error in reactive toast
+content and requires the resolved language in emitted assertions. Four real
+Sonner regressions first failed with stale English, then all 15 focused picker
+and error-helper cases passed. The retained App Settings browser regression,
+web type check, scoped ESLint/Prettier, script syntax and diff checks passed.
+Picker event guards are unchanged.
+
+#### Code Review #3 Findings and Revisions
+
+Independent P2-LOC-R2-only review passed: the toast retains structured error
+information and updates its wording without changing save behavior or outcome
+semantics. Strict emitted assertions no longer accept the stale language. The
+reviewer verified red/green and browser evidence and found no caused regression.
+Phase 2 has used both repair rounds. The fresh exact-source artifact run remains
+pending; a source-review pass alone does not establish runtime acceptance.
 
 ## Final integration review
 

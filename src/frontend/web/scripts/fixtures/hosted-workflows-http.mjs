@@ -174,6 +174,7 @@ export async function createHostedWorkflowHttp({
       session && request.headers["x-animama-csrf"] === session.csrf,
     );
     calls.push({
+      started_at: new Date().toISOString(),
       path: url.pathname,
       method: request.method,
       owner: session?.owner ?? null,
@@ -184,6 +185,7 @@ export async function createHostedWorkflowHttp({
     const call = calls.at(-1);
     response.on("finish", () => {
       call.status = response.statusCode;
+      call.completed_at = new Date().toISOString();
     });
     if (url.pathname === "/tts/audio/pcm-processor.worklet.js") {
       if (!workletAvailable)
@@ -219,6 +221,8 @@ export async function createHostedWorkflowHttp({
           : {}),
       };
       const failure = contextFailures.get(session?.owner ?? null);
+      call.context_state = snapshot.state;
+      if (localeAuthority) call.locale = structuredClone(snapshot.locale);
       const held = contextReads.get(session?.owner ?? null)?.shift();
       held?.start();
       if (held) await held.wait;

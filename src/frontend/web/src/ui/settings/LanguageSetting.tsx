@@ -26,10 +26,21 @@ import {
   apiErrorLine,
   apiErrorText,
   readApiError,
+  type ApiErrorInfo,
 } from "@/lib/errors/apiError";
 
 /** Select value standing for "follow the OS or browser language". */
 const SYSTEM_LOCALE = "system";
+
+/** Keep an already-visible save outcome current when an asynchronous locale change settles. */
+function LanguageSaveError({ info }: { info: ApiErrorInfo }) {
+  const { t } = useTranslation(["settings", "errors"]);
+  return (
+    <>
+      {apiErrorLine(apiErrorText(info, "settings", t("language.saveFailed")))}
+    </>
+  );
+}
 
 /** Radix suppresses unchanged values; an explicit re-selection can still update the visitor choice. */
 function LanguageOption({
@@ -101,15 +112,7 @@ export function LanguageSelect({
       : localeNativeName(locale);
   const save = (locale: (typeof SUPPORTED_LOCALES)[number] | null) => {
     void updateUserSettings({ body: { locale } }).catch((error: unknown) =>
-      toast.error(
-        apiErrorLine(
-          apiErrorText(
-            readApiError(error),
-            "settings",
-            t("language.saveFailed"),
-          ),
-        ),
-      ),
+      toast.error(<LanguageSaveError info={readApiError(error)} />),
     );
   };
   const reselect = (locale: (typeof SUPPORTED_LOCALES)[number] | null) =>
