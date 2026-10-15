@@ -1,6 +1,6 @@
 # Supply hosted locale preferences through public composition contracts
 
-Status: **Approved; Phase 1 complete, Phase 2 in progress.**
+Status: **Implementation, validation and final integration review complete; owner acceptance pending.**
 Source agreement: [#576](https://github.com/raymond-van/animama/issues/576), accepted
 revision `hosted-locale-contract-2026-10-15-r1`; [spec snapshot](hosted-locale-contract-spec.md)
 captured 2026-10-15T19:23:50Z. The issue remains authoritative.
@@ -26,8 +26,9 @@ Account storage, cookies, email, consumer migration and publication are outside 
 - [x] Inspect startup, locale synchronization, settings writes and artifact contracts.
 - [x] 2026-10-15: owner approved both ExecPlans for implementation; no merge/deploy.
 - [x] Phase 1: [#577](https://github.com/raymond-van/animama/issues/577), completed from planning commit `d630533df9d2ec7cf3db27a764b67a651bf5d4d9`; contracts and app behavior, checks and bounded review passed.
-- [ ] Phase 2: [#578](https://github.com/raymond-van/animama/issues/578), immutable artifacts and independent consumers; depends on #577.
-- [ ] Final integration review, owner acceptance and exact-candidate merge approval.
+- [x] Phase 2: [#578](https://github.com/raymond-van/animama/issues/578), immutable artifacts and independent consumers passed at `059b5e343dd4b2bbce70051d931f4054b789fadc`; depends on #577.
+- [x] Final integration review passed for H1–H6 at `059b5e34`, with zero repairs.
+- [ ] Owner acceptance and exact-candidate merge approval; merge remains prohibited.
 
 The recorded task worktree/branch was reused and clean at implementation start.
 Frozen host dependencies and tracked LFS assets are ready; both optional speech
@@ -260,10 +261,9 @@ chunks only. Reviewers ran no duplicate suites. Phase 1 is complete.
 
 Issue: [#578](https://github.com/raymond-van/animama/issues/578). Requirements: H1–H6 artifact acceptance.
 Start: completed Phase 1 commit `854c6853fc526561534cea75037f59da8fd8b3a0`. Depends on #577.
-The independent fixture changes are in progress; production source is unchanged.
-A clean candidate checkpoint commit is required before the exact-source producer
-can build it. Such a checkpoint will not mark this phase complete before its
-artifact/browser checks and independent review pass.
+The independent fixture changes and the emitted-integration toast repair are
+complete. Checkpoints `c173bc28` and `059b5e34` preserved clean producer inputs;
+the latter passed the full immutable artifact run and targeted review.
 
 1. Extend independent Python/npm and emitted-app fixtures under
    `scripts/repository-boundary/consumers/`. Serve locale inputs from the public fixture;
@@ -360,24 +360,62 @@ Independent P2-LOC-R2-only review passed: the toast retains structured error
 information and updates its wording without changing save behavior or outcome
 semantics. Strict emitted assertions no longer accept the stale language. The
 reviewer verified red/green and browser evidence and found no caused regression.
-Phase 2 has used both repair rounds. The fresh exact-source artifact run remains
-pending; a source-review pass alone does not establish runtime acceptance.
+Phase 2 has used both repair rounds. The subsequent fresh exact-source run passed
+all installed Python/npm, contract, seed and emitted-browser checks. Strict
+Japanese outcome wording passed and its resulting screenshot was visually checked.
+
+#### Exact-source acceptance
+
+Source: `059b5e343dd4b2bbce70051d931f4054b789fadc`, clean tree. Build and compare
+passed. The independent consumer run used fresh dependency resolution without
+source checkout access and passed every phase, including the whole-app browser
+in 123 seconds. It exercised 23 locale checks and retained 17 renders; real Pocket
+PCM preceded the locale switch, with the same two workers, audio context and
+worklet afterward. Exact clean upgrade/rollback against `dca4af86` passed,
+including edited normal and effect-only clips. No provider calls occurred.
+
+The retained local set is `hosted-locale-public-20261015-build2/packages`; consumer
+evidence is `hosted-locale-public-20261015-consumer2`. Package-set manifest SHA-256:
+`1ce4c43d9bf040552ff4e6093b61bca523ea383496ae1a72e031094149495246`.
+The passing `validation.json` SHA-256 is
+`997f971cd147e3e53c32472208306fab9a4f80a8071cdf2e718b29c515bae9fa`;
+consumer summary SHA-256 is
+`fc3816cec57e0f971264272b8c720112678654914f3008416b6564be966d5400`.
+Its predecessor manifest is
+`fa91b4db4469badee5caf4768a68537e5f570972b54a625dbdaf50e300dd0901`.
+Final `pnpm i18n:check` passed using the task-local SWC binding cache. The earlier
+default-cache attempt failed its isolated lint fixture under the sandbox; no
+source change was needed. The 38 built local journeys predate only the reactive
+toast repair; focused and final emitted checks cover that subsequent change.
 
 ## Final integration review
 
-Review combined H1–H6 once, reusing unchanged phase evidence. Record **Code Review #1 Findings**
-and **Code Review #1 Revisions**, exact source, IDs/dispositions and at most two repair rounds.
-None have run. Cover partial outcomes, session continuity and stage-5 compatibility.
-The PR links #576 and this plan at the reviewed revision and identifies outstanding gates.
+### Code Review #1 Findings
+
+Independent final integration review passed H1–H6 at clean `059b5e34` against
+`dca4af86`, reusing phase evidence. No unresolved findings. The reviewer checked
+source/tree identity, all seven artifact hashes, validation recipes, copied
+consumer fixtures, linked receipts and all 17 screenshot hashes. It confirmed
+strict Japanese outcome wording, Python/npm contract acceptance, audio-resource
+continuity and exact predecessor/edited-data rollback. The 38 fast journeys remain
+valid for unchanged product behavior; focused and emitted checks cover the toast repair.
+
+### Code Review #1 Revisions
+
+No revisions required; final integration repair rounds used: 0 of 2. Both phase
+budgets remain exhausted. Synthetic headless focus delivery, physical audio/native
+acceptance and absent hosted CI success remain explicit limits. The final commit
+only records this evidence. The PR links #576 and this plan and grants no merge,
+artifact publication or deployment authority.
 
 ## Validation and acceptance
 
 Planning verification covers document links/whitespace and independent interface
 review. That review clarified consumer validation before remote effects and
 ambiguous readback behavior; it does not constitute a phase implementation review.
-Phase 1 source tests and source browser fixtures are recorded above; emitted-artifact
-and disposable built-stack acceptance remain unperformed. Record commands,
-revision, environment and results. Finish local checks before
+Phase 1 source tests, source browser fixtures, emitted artifacts and the disposable
+built-stack checks are recorded above. The final plan-record-only commit does not
+change the tested product or fixture bytes. Finish local checks before
 pushing; disabled/pending/reduced Validation is not full CI. Exact merge needs owner approval.
 Provider calls, physical microphone/heard audio, native release acceptance and publication
 are neither established by these public fixtures nor authorized here.
@@ -405,6 +443,9 @@ zero forbidden Python edges. Final frontend validation passed 5,106 Vitest cases
 (one skipped), 115 source browser cases and all static/build gates. Package tests
 passed 56 cases. Independent review resolved R1–R3 within two repair rounds.
 Ignored logs and exact frontend command receipts live under this plan's `phase1/`.
-Emitted-artifact and disposable built-stack acceptance remain Phase 2 work.
+Phase 2 delivered installed consumer and emitted-artifact acceptance, 23 locale
+checks, 17 renders, live audio-resource continuity and exact clean upgrade/rollback.
+The disposable built stack passed 38 fast browser journeys and remains available
+at its recorded URL. Both phase review budgets were used without waiving findings.
 GitHub's Portable product validation workflow was read back as manually disabled;
 no hosted run, workflow dispatch, promotion or deployment is claimed.
