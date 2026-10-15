@@ -5,7 +5,8 @@ Source agreement: [#576](https://github.com/raymond-van/animama/issues/576), acc
 revision `hosted-locale-contract-2026-10-15-r1`; [spec snapshot](hosted-locale-contract-spec.md)
 captured 2026-10-15T19:23:50Z. The issue remains authoritative.
 Authorized scope: both phases, approved 2026-10-15, starting with this public
-prerequisite. The owner explicitly prohibited merge and deployment. Billed
+prerequisite. PR merge and deployment remain prohibited; the owner separately
+approved integrating current `main` into this feature branch. Billed
 validation and artifact publication retain their separate gates.
 Branch: `feat/hosted-locale-contract`; starting source:
 `dca4af86da2ce21386b21ebed6d8175c674d58be`. Use one branch and PR for both phases.
@@ -28,6 +29,7 @@ Account storage, cookies, email, consumer migration and publication are outside 
 - [x] Phase 1: [#577](https://github.com/raymond-van/animama/issues/577), completed from planning commit `d630533df9d2ec7cf3db27a764b67a651bf5d4d9`; contracts and app behavior, checks and bounded review passed.
 - [x] Phase 2: [#578](https://github.com/raymond-van/animama/issues/578), immutable artifacts and independent consumers passed at `059b5e343dd4b2bbce70051d931f4054b789fadc`; depends on #577.
 - [x] Final integration review passed for H1–H6 at `059b5e34`, with zero repairs.
+- [x] Current-main refresh at `d644cfec` passed focused source and full installed-artifact validation; see the refresh record below.
 - [ ] Owner acceptance and exact-candidate merge approval; merge remains prohibited.
 
 The recorded task worktree/branch was reused and clean at implementation start.
@@ -449,3 +451,52 @@ The disposable built stack passed 38 fast browser journeys and remains available
 at its recorded URL. Both phase review budgets were used without waiving findings.
 GitHub's Portable product validation workflow was read back as manually disabled;
 no hosted run, workflow dispatch, promotion or deployment is claimed.
+
+## Current-main refresh
+
+The owner approved merging public `main` at
+`b1ccb485a58c4743e609bc500c56c1048e4a91ce` into this feature branch. The resulting
+validated runtime source is `d644cfec7dd511bdfedfb5d01dff9af0c4dc6164`, clean tree
+`f5e4cf452112ae4455e82bc9597d801edd8893c9`. The following documentation-only
+checkpoint records this evidence; its commit is not the artifact's runtime source.
+Locale product code, runtime-contracts and consumer fixtures remain unchanged
+from the previously reviewed source. This refresh does not restart phase reviews
+or their repair budgets.
+
+Two independent clean builds produced package-set manifest SHA-256
+`92493a6dbbe1b7d5a19723f7e86a978481f7b02bdee701ac4d65679e1f5d61cc`.
+Compatibility comparison and full isolated consumer validation passed using the
+previously validated locale artifact as the predecessor:
+
+```sh
+python scripts/package-sets/build.py build --source <clean-checkout> --commit d644cfec7dd511bdfedfb5d01dff9af0c4dc6164 --output <new-set-dir>
+python scripts/package-sets/build.py compare <059b5e34-set> <current-set>
+python scripts/package-sets/build.py validate <current-set> --work-dir <new-consumer-dir> --previous-app-set <059b5e34-set>
+```
+
+The current emitted app passed 23 locale checks with 17 retained desktop/narrow
+renders, including strict Japanese save-outcome messages. Separate real Pocket
+PCM checks preserved two workers, one AudioContext and one worklet across the
+locale change. Exact clean artifact upgrade/rollback and edited clips passed.
+Installed seed checks covered 521 entries, 1,168 files and both complete starters.
+No provider calls, external requests or browser errors were recorded. The whole-app
+browser phase took 339.6 seconds. Current Japanese partial-save and narrow
+Traditional Chinese renders were visually inspected.
+
+Passing `validation.json` SHA-256:
+`d751b4bfcf17c7749f7d38680c785bbcfe17a45b74e7ca1bb92c7c4049efdc7c`;
+consumer summary SHA-256:
+`42afd0eb6cad906e8f7db3ad941d2e3e2414edaafae11a0b2e2d596ac2c0ce82`.
+Independent verification checked the receipt chain, current fixture hashes and
+all 17 screenshot hashes. Focused source checks passed 43 Python tests, 128
+frontend tests, six HTTP fixture tests and eight locale contract tests, plus
+`pnpm --dir web check:source`, `pnpm i18n:check` (11 fixture tests), repository
+dependency/import checks and offline browser-model verification.
+
+Earlier full source suites and 38 fast journeys remain evidence for unchanged
+behavior, not fresh executions at this revision. Full content journeys were not
+rerun for this integration of already-merged main changes. Physical microphone,
+heard audio, native release acceptance and local-production comparison remain
+unperformed. GitHub API readback on 2026-10-15 confirmed Portable product
+validation is `disabled_manually`; PR #582 had no status checks. No hosted CI
+success, PR merge, artifact publication or deployment is claimed or authorized.
