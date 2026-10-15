@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:star_pupils",
+  "version": 1,
+  "name": "Star Pupils",
+  "description": "Golden crayon stars twinkle over the eyes for excited, starstruck delight.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bright_eyes",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "mirror": true,
+      "scale": {
+        "x": 0.64,
+        "y": 0.64
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "star_pupils-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "motion": {
+      "pulse": {
+        "cyclesPerSecond": 1.5,
+        "scaleMax": 1.08,
+        "scaleMin": 0.92
+      },
+      "keyframes": {
+        "loop": true,
+        "frames": [
+          {
+            "opacity": 0.86,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "t": 0.18
+          },
+          {
+            "opacity": 0.88,
+            "t": 0.34
+          },
+          {
+            "opacity": 1,
+            "t": 0.48
+          },
+          {
+            "opacity": 0.86,
+            "t": 0.7
+          }
+        ]
+      }
+    },
+    "faceOptions": {
+      "faceCleanup": true,
+      "forceBlink": true,
+      "hideEyeDetails": true,
+      "skinBackdrop": false
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "star_pupils-sheet.png",
+      "role": "image"
+    }
+  ]
+}

@@ -142,6 +142,9 @@ const ui = {
   status: element<HTMLSpanElement>("status"),
   pickSource: element<HTMLSelectElement>("pick-source"),
   pickCompare: element<HTMLSelectElement>("pick-compare"),
+  pickPrevious: element<HTMLButtonElement>("pick-previous"),
+  pickNext: element<HTMLButtonElement>("pick-next"),
+  pickPosition: element<HTMLSpanElement>("pick-position"),
   errors: element<HTMLDivElement>("errors"),
   views: element<HTMLDivElement>("views"),
   sceneBands: element<HTMLDivElement>("scene-bands"),
@@ -959,6 +962,36 @@ function showSelection() {
     choices.find(({ path }) => path === row?.path)?.spec ?? "";
   ui.pickSource.value = specFor(rows[0]);
   ui.pickCompare.value = specFor(rows[1]);
+  showPosition();
+}
+
+/**
+ * The Review item's picker group, which Previous and Next cycle through, so
+ * stepping through a folder of drafts never wanders into Library items.
+ */
+function reviewGroup(): { items: PreviewChoice[]; index: number } {
+  const current = choices.find(({ spec }) => spec === ui.pickSource.value);
+  if (!current) return { items: [], index: -1 };
+  const items = choices.filter(({ group }) => group === current.group);
+  return { items, index: items.indexOf(current) };
+}
+
+/** Show where the Review item sits in its group, such as "3 / 22". */
+function showPosition() {
+  const { items, index } = reviewGroup();
+  const cycling = items.length > 1;
+  ui.pickPosition.textContent = cycling ? `${index + 1} / ${items.length}` : "";
+  ui.pickPrevious.disabled = !cycling;
+  ui.pickNext.disabled = !cycling;
+}
+
+/** Review the previous (-1) or next (+1) item in the group, wrapping around. */
+function stepReview(direction: -1 | 1) {
+  const { items, index } = reviewGroup();
+  if (items.length < 2) return;
+  const next = items[(index + direction + items.length) % items.length];
+  ui.pickSource.value = next.spec;
+  void pick();
 }
 
 async function loadChoices() {
@@ -991,6 +1024,22 @@ async function pick() {
 }
 ui.pickSource.addEventListener("change", () => void pick());
 ui.pickCompare.addEventListener("change", () => void pick());
+ui.pickPrevious.addEventListener("click", () => stepReview(-1));
+ui.pickNext.addEventListener("click", () => stepReview(1));
+// `[` and `]` step through the Review group, except while typing a note.
+window.addEventListener("keydown", (event) => {
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const { target } = event;
+  if (
+    target instanceof Element &&
+    target.closest("input, textarea, [contenteditable]")
+  )
+    return;
+  if (event.key === "[") stepReview(-1);
+  else if (event.key === "]") stepReview(1);
+  else return;
+  event.preventDefault();
+});
 // New clips or Library items appear when the page regains focus.
 window.addEventListener("focus", () => void loadChoices());
 

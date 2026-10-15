@@ -12,97 +12,104 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": 0.155,
         "y": 0.11,
         "z": 0.04
       },
-      "size": 0.085,
-      "facing": "camera"
+      "size": 0.085
     },
     "art": {
-      "image": "laugh_marks.png"
+      "image": "laugh_marks-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
             "opacity": 0,
-            "scale": 0.3,
             "rotationDeg": 0,
-            "offset": {
-              "x": 0,
-              "y": 0
-            }
+            "scale": 0.3,
+            "t": 0
           },
           {
-            "t": 0.1,
             "opacity": 1,
-            "scale": 1.15
+            "scale": 1.15,
+            "t": 0.1
           },
           {
-            "t": 0.18,
-            "scale": 1
-          },
-          {
-            "t": 0.418,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.18
           },
           {
-            "t": 0.488,
+            "rotationDeg": 0,
+            "scale": 1,
+            "t": 0.418
+          },
+          {
+            "rotationDeg": -4,
             "scale": 1.12,
-            "rotationDeg": -4
+            "t": 0.488
           },
           {
-            "t": 0.598,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.598
           },
           {
-            "t": 0.803,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.803
           },
           {
-            "t": 0.873,
+            "rotationDeg": -4,
             "scale": 1.09,
-            "rotationDeg": -4
+            "t": 0.873
           },
           {
-            "t": 0.983,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.983
           },
           {
-            "t": 1.188,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 1.188
           },
           {
-            "t": 1.258,
+            "rotationDeg": -4,
             "scale": 1.06,
-            "rotationDeg": -4
+            "t": 1.258
           },
           {
-            "t": 1.368,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 1.368
           },
           {
-            "t": 1.5,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "t": 1.5
           },
           {
-            "t": 2.1,
             "offset": {
               "x": 0.004,
               "y": 0.012
-            }
+            },
+            "t": 2.1
           }
         ]
       }
@@ -110,7 +117,7 @@
   },
   "files": [
     {
-      "path": "laugh_marks.png",
+      "path": "laugh_marks-sheet.png",
       "role": "image"
     }
   ]

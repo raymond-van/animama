@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:brain-overload",
+  "version": 1,
+  "semantic_key": "brain_overload",
+  "name": "Brain Overload",
+  "description": "Grips the head, wobbles and goes limp as the brain fries. Use for too much information, an overwhelming question, or confusion past its limit.",
+  "ai_description": "Grips the head, wobbles and goes limp as the brain fries. Use for too much information, an overwhelming question, or confusion past its limit.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:overheat_smoke",
+      "alias": "overheat_smoke",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:overheat-steam",
+      "alias": "overheat_steam",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "brain-overload.json",
+      "role": "sequence"
+    }
+  ]
+}

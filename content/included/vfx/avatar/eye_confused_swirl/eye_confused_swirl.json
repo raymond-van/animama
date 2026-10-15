@@ -27,7 +27,14 @@
       "side": "right"
     },
     "art": {
-      "image": "eye_confused_swirl_r.png"
+      "image": "eye_confused_swirl-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
     },
     "motion": {
       "spin": {
@@ -44,7 +51,7 @@
   },
   "files": [
     {
-      "path": "eye_confused_swirl_r.png",
+      "path": "eye_confused_swirl-sheet.png",
       "role": "image"
     }
   ]

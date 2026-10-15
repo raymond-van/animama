@@ -15,6 +15,7 @@ import {
 import { createParticleVFXBatchedRenderer } from "./batchedRenderer";
 import { cloneParticleVFXPrefab } from "./quarksClone";
 import {
+  alignParticleVFXRootToAvatar,
   cloneParticleVFXTransform,
   mergeParticleVFXTransform,
   resolveParticleVFXAnchorLocalPosition,
@@ -63,10 +64,17 @@ const MAX_ACTIVE_PARTICLES = 512;
  * The controller is intentionally plain Three.js rather than React Three Fiber:
  * Avatar owns the lifecycle, and active particle objects live under
  * `avatar.scene` so existing avatar transform controls move them together.
+ * Their root is turned into the Avatar frame (see
+ * `alignParticleVFXRootToAvatar`), so effects face the same way on VRM 0 and
+ * VRM 1 Avatars.
  */
 export class ParticleVFXController {
   private readonly _avatar: Avatar;
   private readonly _catalogProvider: AnimaRuntimeMediaProvider;
+  /**
+   * Parent of every active effect. Its rotation is owned by
+   * `alignParticleVFXRootToAvatar` (the Avatar frame); do not reset it.
+   */
   private readonly _root = new THREE.Group();
   private readonly _prefabPromises = new Map<string, Promise<THREE.Object3D>>();
   private readonly _loadedPrefabs = new Map<string, THREE.Object3D>();
@@ -102,6 +110,7 @@ export class ParticleVFXController {
     this._root.name = PARTICLE_VFX_ROOT_OBJECT_NAME;
     this._root.userData.animamaParticleVFXRoot = true;
     this._root.matrixAutoUpdate = true;
+    alignParticleVFXRootToAvatar(this._root, avatar);
     avatar.scene?.add(this._root);
     this._snapshot = this._createSnapshot();
   }

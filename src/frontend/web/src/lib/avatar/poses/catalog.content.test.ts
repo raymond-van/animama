@@ -124,7 +124,7 @@ describe("Included Pose starter collection", () => {
   });
 
   it("ships every Included clip as 2.0 with a resolvable base pose", () => {
-    expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(111);
+    expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(133);
     expect(Object.keys(AVATAR_REACTION_CLIP_CATALOG)).toHaveLength(168);
     for (const clip of [
       ...Object.values(AVATAR_POSE_CLIP_CATALOG),
@@ -156,7 +156,7 @@ describe("Included Pose starter collection", () => {
       expect(included).toEqual(AVATAR_POSE_CLIP_CATALOG[slug]);
       if (isAnimaPoseClipV2(included)) v2Ids.push(slug);
     }
-    expect(v2Ids).toHaveLength(111);
+    expect(v2Ids).toHaveLength(133);
     // A 2.0 Gesture plays from the built-in catalog as a fresh copy.
     const replaced = getAvatarPoseClip("arms-crossed-clip");
     expect(isAnimaPoseClipV2(replaced) && replaced.loop).toBe(true);

@@ -31,8 +31,8 @@
       "image": "sweat_splash_flipbook.png",
       "flipbook": {
         "columns": 2,
-        "fps": 10,
-        "frames": 3,
+        "fps": 15,
+        "frames": 4,
         "loop": "once",
         "rows": 2
       }

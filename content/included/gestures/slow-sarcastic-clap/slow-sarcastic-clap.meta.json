@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:slow-sarcastic-clap",
+  "version": 1,
+  "semantic_key": "slow_sarcastic_clap",
+  "name": "Slow Sarcastic Clap",
+  "description": "Four flat, deadpan claps and an eye-roll. Use for teasing sarcasm: 'wow, congratulations', an obvious statement or a mild fail.",
+  "ai_description": "Four flat, deadpan claps and an eye-roll. Use for teasing sarcasm: 'wow, congratulations', an obvious statement or a mild fail.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:awkward-ellipsis",
+      "alias": "awkward-ellipsis",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "slow-sarcastic-clap.json",
+      "role": "sequence"
+    }
+  ]
+}

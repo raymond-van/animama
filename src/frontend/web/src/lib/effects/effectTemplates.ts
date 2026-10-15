@@ -113,11 +113,14 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("calculating-glasses", "Calculating Glasses", "eyes"),
   included("teary_sparkle_eyes", "Teary Sparkle Eyes", "eyes"),
   included("shadowed_glare", "Shadowed Glare", "eyes"),
+  included("star_pupils", "Star Pupils", "eyes"),
   included("blush", "Blush", "cheeks"),
   included("blush_band", "Blush Band", "cheeks"),
   included("blush_deep", "Blush Deep", "cheeks"),
   included("streaming_tears", "Streaming Tears", "cheeks"),
   included("single_tear", "Single Tear", "cheeks", { time: 1.2 }),
+  included("shiver_undereye", "Shiver Undereye", "cheeks"),
+  included("yawn_tear", "Yawn Tear", "cheeks"),
   included("texture_sick_1", "Texture Sick 1", "whole-face"),
   included("texture_sick_2", "Texture Sick 2", "whole-face"),
   included("texture_black_1", "Texture Black 1", "whole-face"),
@@ -125,7 +128,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("pale_blue_shade", "Pale Blue Shade", "whole-face"),
   included("petrified_cracks", "Petrified Cracks", "whole-face"),
   included("angry", "Angry", "around-head"),
-  included("emote", "Emote !", "around-head"),
+  included("emote", "Emote !", "around-head", { framing: "wide" }),
   included("sweat_drop", "Sweat Drop", "around-head"),
   included("gloom_lines", "Gloom Lines", "around-head"),
   included("steam_puffs", "Steam Puffs", "around-head", {
@@ -215,8 +218,8 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("mind_blown_burst", "Mind Blown Burst", "around-head", {
     framing: "wide",
     clip: "mind-blown",
-    // Before its flipbook breaks the poof up, at 1 s.
-    time: 0.95,
+    // Capture the poof before the replacement flipbook dissipates.
+    time: 0.45,
   }),
   included("music_notes", "Music Notes", "around-head", {
     framing: "wide",
@@ -274,8 +277,20 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     clip: "sleepy-nod-off",
     time: 2.8,
   }),
+  included("delicious_sparkle", "Delicious Sparkle", "around-head"),
+  included("dizzy_birds", "Dizzy Birds", "around-head", { framing: "wide" }),
+  included("hitodama_flames", "Hitodama Flames", "around-head", {
+    framing: "wide",
+  }),
+  included("interrobang", "Interrobang", "around-head", { framing: "wide" }),
+  included("overheat_smoke", "Overheat Smoke", "around-head", {
+    framing: "wide",
+  }),
+  included("whistle_notes", "Whistle Notes", "around-head"),
   included("mouth_w", "Mouth w", "mouth"),
   included("mouth_hover_w", "Mouth Hover w", "mouth"),
+  included("sniff_lines", "Sniff Lines", "mouth"),
+  included("snot_bubble", "Snot Bubble", "mouth"),
   included("broken-heart", "Broken Heart", "body", {
     framing: "body",
     time: 1.5,
@@ -333,6 +348,12 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     framing: "wide",
     clip: "cower",
     time: 1.2,
+  }),
+  included("shiver_chatter", "Shiver Chatter", "body", { framing: "body" }),
+  included("glowstick", "Glowstick", "body", {
+    framing: "wide",
+    clip: "idol-glowstick-cheer",
+    time: 1.4375,
   }),
 ];
 

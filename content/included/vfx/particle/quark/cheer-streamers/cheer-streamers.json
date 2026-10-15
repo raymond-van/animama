@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:cheer-streamers",
+  "version": 1,
+  "name": "Cheer Streamers",
+  "description": "Two luminous pastel ribbon fountains rise from behind the shoulders, crest, then fall among sparse star twinkles and a soft colored glow.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "cheer-streamers",
+    "slots": {
+      "particle_vfx": {
+        "label": "Cheer Streamers",
+        "description": "Two luminous pastel ribbon fountains rise from behind the shoulders, crest, then fall among sparse star twinkles and a soft colored glow.",
+        "anchor": "chest",
+        "duration_seconds": 3.4,
+        "max_duration_seconds": 3.4,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 22
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/cheer-ribbon-light.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/cheer-star-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/cheer-soft-haze.png",
+      "role": "texture"
+    }
+  ]
+}

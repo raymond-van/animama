@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:delicious_sparkle",
+  "version": 1,
+  "name": "Delicious Sparkle",
+  "description": "Pink-orange crayon twinkles and a flower-like shine pop beside the cheek in food bliss.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:cute_01v1",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0.07,
+        "y": 0.025
+      },
+      "size": 0.105
+    },
+    "art": {
+      "image": "delicious_sparkle-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 5,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "delicious_sparkle-sheet.png",
+      "role": "image"
+    }
+  ]
+}

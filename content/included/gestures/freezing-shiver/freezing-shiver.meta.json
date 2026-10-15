@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:freezing-shiver",
+  "version": 1,
+  "semantic_key": "freezing_shiver",
+  "name": "Freezing Shiver",
+  "description": "Hugs itself, hunches and shivers with chattering teeth. Use for cold weather, chills, a creepy story or an icy reply.",
+  "ai_description": "Hugs itself, hunches and shivers with chattering teeth. Use for cold weather, chills, a creepy story or an icy reply.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:shiver_chatter",
+      "alias": "shiver_chatter",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:shiver_undereye",
+      "alias": "shiver_undereye",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:snow-crystal-flurry",
+      "alias": "snow_crystal_flurry",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "freezing-shiver.json",
+      "role": "sequence"
+    }
+  ]
+}

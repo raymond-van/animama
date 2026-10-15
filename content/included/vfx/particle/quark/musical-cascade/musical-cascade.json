@@ -13,8 +13,8 @@
         "label": "Musical Cascade",
         "description": "Glossy raspberry and aqua musical notes rise beside the shoulders in two loose arcs, followed by a few pearl glints.",
         "anchor": "head",
-        "duration_seconds": 4,
-        "max_duration_seconds": 4,
+        "duration_seconds": 4.4,
+        "max_duration_seconds": 4.4,
         "preload_tier": "none",
         "follow_anchor": true,
         "transform": {
@@ -37,7 +37,7 @@
         },
         "looping_allowed": false,
         "can_coexist": true,
-        "max_particles": 14
+        "max_particles": 26
       }
     }
   },
@@ -47,15 +47,19 @@
       "role": "manifest"
     },
     {
-      "path": "textures/cascade-single-note.png",
-      "role": "texture"
-    },
-    {
       "path": "textures/cascade-beamed-notes.png",
       "role": "texture"
     },
     {
-      "path": "textures/cascade-glint.png",
+      "path": "textures/pearl-note.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/star-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/soft-haze.png",
       "role": "texture"
     }
   ]

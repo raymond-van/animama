@@ -24,17 +24,17 @@
       "part": "face_skin",
       "pivot": "top-center",
       "scale": {
-        "x": 1.5,
-        "y": 1.5
+        "x": 2.8,
+        "y": 2.8
       },
       "side": "right"
     },
     "art": {
       "image": "streaming_tears.png",
       "flipbook": {
-        "columns": 6,
-        "fps": 10,
-        "frames": 6,
+        "columns": 4,
+        "fps": 8,
+        "frames": 4,
         "loop": "loop",
         "rows": 1
       }

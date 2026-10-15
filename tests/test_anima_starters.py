@@ -515,7 +515,8 @@ def test_starter_gestures_include_every_non_library_gesture_and_exclude_idle_see
     library_ids = {root for root in CORE_LIBRARY_ROOTS if root.startswith("builtin:gesture:")}
     starter_ids = {choice["content_id"] for choice in starter_loadout_policy()["gestures"]}
 
-    assert len(included_ids) == 111
+    assert len(included_ids) == 133
+    assert len(library_ids) == 34
     assert len(idle_ids) == 12
     assert idle_ids <= library_ids <= included_ids
     assert starter_ids.isdisjoint(idle_ids)

@@ -1,0 +1,2415 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "sniff-sniff",
+  "name": "Sniff Sniff",
+  "duration": 4.2,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.25
+  },
+  "fadeOut": {
+    "duration": 0.35
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "notice",
+      "label": "Notice aroma",
+      "time": 0.23
+    },
+    {
+      "id": "sniff1",
+      "label": "Sniff ahead",
+      "time": 0.63
+    },
+    {
+      "id": "sniff2",
+      "label": "Sniff left",
+      "time": 1.31
+    },
+    {
+      "id": "sniff3",
+      "label": "Sniff right",
+      "time": 2.03
+    },
+    {
+      "id": "search",
+      "label": "Follow the scent",
+      "time": 2.55
+    },
+    {
+      "id": "pleased",
+      "label": "Curious and pleased",
+      "time": 3.33
+    },
+    {
+      "id": "nod",
+      "label": "Pleased nod",
+      "time": 3.64
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 4.2
+    }
+  ],
+  "joints": {
+    "head": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "notice"
+        },
+        {
+          "v": -24,
+          "beat": "sniff1"
+        },
+        {
+          "v": -24,
+          "beat": "sniff1",
+          "dt": 0.08
+        },
+        {
+          "v": -7,
+          "beat": "sniff1",
+          "dt": 0.28
+        },
+        {
+          "v": -23,
+          "beat": "sniff2"
+        },
+        {
+          "v": -23,
+          "beat": "sniff2",
+          "dt": 0.08
+        },
+        {
+          "v": -6,
+          "beat": "sniff2",
+          "dt": 0.28
+        },
+        {
+          "v": -22,
+          "beat": "sniff3"
+        },
+        {
+          "v": -22,
+          "beat": "sniff3",
+          "dt": 0.1
+        },
+        {
+          "v": -7,
+          "beat": "sniff3",
+          "dt": 0.3
+        },
+        {
+          "v": -9,
+          "beat": "search"
+        },
+        {
+          "v": -5,
+          "beat": "pleased",
+          "dt": -0.18
+        },
+        {
+          "v": -4,
+          "beat": "pleased"
+        },
+        {
+          "v": 6,
+          "beat": "nod"
+        },
+        {
+          "v": -2,
+          "beat": "nod",
+          "dt": 0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice"
+        },
+        {
+          "v": 0,
+          "beat": "sniff1"
+        },
+        {
+          "v": 16.9,
+          "beat": "sniff2",
+          "dt": -0.0809
+        },
+        {
+          "v": 14.3,
+          "beat": "sniff2",
+          "dt": 0.2339
+        },
+        {
+          "v": -18.2,
+          "beat": "sniff3",
+          "dt": -0.0852
+        },
+        {
+          "v": -15.6,
+          "beat": "sniff3",
+          "dt": 0.275
+        },
+        {
+          "v": -10.4,
+          "beat": "search"
+        },
+        {
+          "v": 1.3,
+          "beat": "pleased",
+          "dt": -0.35
+        },
+        {
+          "v": 5.2,
+          "beat": "pleased"
+        },
+        {
+          "v": 3.9,
+          "beat": "pleased",
+          "dt": 0.17
+        },
+        {
+          "v": 2.6,
+          "beat": "nod",
+          "dt": 0.21
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice"
+        },
+        {
+          "v": 1,
+          "beat": "sniff1"
+        },
+        {
+          "v": 3,
+          "beat": "sniff2"
+        },
+        {
+          "v": -3,
+          "beat": "sniff3"
+        },
+        {
+          "v": -5,
+          "beat": "search"
+        },
+        {
+          "v": 8,
+          "beat": "pleased"
+        },
+        {
+          "v": 6,
+          "beat": "nod"
+        },
+        {
+          "v": 2,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "notice",
+          "dt": 0.0522
+        },
+        {
+          "v": 4,
+          "beat": "sniff1",
+          "dt": 0.0622
+        },
+        {
+          "v": 4,
+          "beat": "sniff1",
+          "dt": 0.1422
+        },
+        {
+          "v": 1,
+          "beat": "sniff2",
+          "dt": -0.3149
+        },
+        {
+          "v": 4,
+          "beat": "sniff2",
+          "dt": 0.0615
+        },
+        {
+          "v": 4,
+          "beat": "sniff2",
+          "dt": 0.1415
+        },
+        {
+          "v": 1,
+          "beat": "sniff3",
+          "dt": -0.3454
+        },
+        {
+          "v": 3.8,
+          "beat": "sniff3",
+          "dt": 0.0625
+        },
+        {
+          "v": 3.8,
+          "beat": "sniff3",
+          "dt": 0.15
+        },
+        {
+          "v": 1,
+          "beat": "sniff3",
+          "dt": 0.3267
+        },
+        {
+          "v": 2,
+          "beat": "search",
+          "dt": 0.05
+        },
+        {
+          "v": 1,
+          "beat": "pleased",
+          "dt": -0.14
+        },
+        {
+          "v": 1,
+          "beat": "pleased",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "nod",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice",
+          "dt": 0.0522
+        },
+        {
+          "v": 0,
+          "beat": "sniff1",
+          "dt": 0.0622
+        },
+        {
+          "v": 6.5,
+          "beat": "sniff2",
+          "dt": 0.0185
+        },
+        {
+          "v": 5.2,
+          "beat": "sniff3",
+          "dt": -0.3927
+        },
+        {
+          "v": -6.5,
+          "beat": "sniff3",
+          "dt": 0.0219
+        },
+        {
+          "v": -5.2,
+          "beat": "sniff3",
+          "dt": 0.3133
+        },
+        {
+          "v": -3.9,
+          "beat": "search",
+          "dt": 0.05
+        },
+        {
+          "v": 0,
+          "beat": "pleased",
+          "dt": -0.3
+        },
+        {
+          "v": 2.6,
+          "beat": "pleased",
+          "dt": 0.04
+        },
+        {
+          "v": 2.08,
+          "beat": "pleased",
+          "dt": 0.21
+        },
+        {
+          "v": 1.3,
+          "beat": "nod",
+          "dt": 0.24
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice",
+          "dt": 0.087
+        },
+        {
+          "v": 1,
+          "beat": "sniff2",
+          "dt": 0.0646
+        },
+        {
+          "v": -1,
+          "beat": "sniff3",
+          "dt": 0.0688
+        },
+        {
+          "v": -1.5,
+          "beat": "search",
+          "dt": 0.05
+        },
+        {
+          "v": 3,
+          "beat": "pleased",
+          "dt": 0.05
+        },
+        {
+          "v": 1,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "yaw": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "notice"
+        },
+        {
+          "v": 0,
+          "beat": "sniff1",
+          "dt": -0.0696
+        },
+        {
+          "v": 5,
+          "beat": "sniff2",
+          "dt": -0.1872
+        },
+        {
+          "v": -5,
+          "beat": "sniff3",
+          "dt": -0.2034
+        },
+        {
+          "v": -3,
+          "beat": "search",
+          "dt": -0.0467
+        },
+        {
+          "v": 1,
+          "beat": "pleased",
+          "dt": -0.32
+        },
+        {
+          "v": 0,
+          "beat": "pleased",
+          "dt": -0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "pitch": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "notice"
+        },
+        {
+          "v": 1,
+          "beat": "sniff1"
+        },
+        {
+          "v": 1.5,
+          "beat": "sniff2",
+          "dt": 0.0031
+        },
+        {
+          "v": 1,
+          "beat": "sniff3",
+          "dt": 0.0063
+        },
+        {
+          "v": 2,
+          "beat": "search"
+        },
+        {
+          "v": 0,
+          "beat": "pleased"
+        },
+        {
+          "v": -2,
+          "beat": "nod"
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.2
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "hips": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0.55,
+          "beat": "sniff1",
+          "dt": -0.1913
+        },
+        {
+          "v": 1.65,
+          "beat": "sniff1",
+          "dt": 0.1867
+        },
+        {
+          "v": 1.65,
+          "beat": "sniff1",
+          "dt": 0.2667
+        },
+        {
+          "v": 1.1,
+          "beat": "sniff2",
+          "dt": -0.1447
+        },
+        {
+          "v": 1.76,
+          "beat": "sniff2",
+          "dt": 0.1846
+        },
+        {
+          "v": 1.76,
+          "beat": "sniff2",
+          "dt": 0.2646
+        },
+        {
+          "v": 1.1,
+          "beat": "sniff3",
+          "dt": -0.1561
+        },
+        {
+          "v": 1.65,
+          "beat": "sniff3",
+          "dt": 0.17
+        },
+        {
+          "v": 1.65,
+          "beat": "sniff3",
+          "dt": 0.25
+        },
+        {
+          "v": 1.1,
+          "beat": "search",
+          "dt": -0.14
+        },
+        {
+          "v": 1.155,
+          "beat": "search",
+          "dt": 0.12
+        },
+        {
+          "v": 0.55,
+          "beat": "pleased",
+          "dt": 0.12
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "sniff1",
+          "dt": 0.1867
+        },
+        {
+          "v": 2.21,
+          "beat": "sniff2",
+          "dt": 0.1846
+        },
+        {
+          "v": -2.21,
+          "beat": "sniff3",
+          "dt": 0.17
+        },
+        {
+          "v": -1.657,
+          "beat": "search",
+          "dt": 0.12
+        },
+        {
+          "v": 1.105,
+          "beat": "pleased",
+          "dt": 0.12
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "sniff2",
+          "dt": 0.1846
+        },
+        {
+          "v": 1,
+          "beat": "sniff3",
+          "dt": 0.17
+        },
+        {
+          "v": 1.3,
+          "beat": "search",
+          "dt": 0.12
+        },
+        {
+          "v": -1.5,
+          "beat": "pleased",
+          "dt": 0.12
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -0.552,
+          "beat": "notice",
+          "dt": 0.1391
+        },
+        {
+          "v": 3.229,
+          "beat": "sniff1",
+          "dt": 0.1244
+        },
+        {
+          "v": 3.229,
+          "beat": "sniff1",
+          "dt": 0.2044
+        },
+        {
+          "v": 1.794,
+          "beat": "sniff2",
+          "dt": -0.2298
+        },
+        {
+          "v": 2.781,
+          "beat": "sniff2",
+          "dt": 0.1231
+        },
+        {
+          "v": 2.781,
+          "beat": "sniff2",
+          "dt": 0.2031
+        },
+        {
+          "v": 1.794,
+          "beat": "sniff3",
+          "dt": -0.2508
+        },
+        {
+          "v": 2.422,
+          "beat": "sniff3",
+          "dt": 0.12
+        },
+        {
+          "v": 2.422,
+          "beat": "sniff3",
+          "dt": 0.2
+        },
+        {
+          "v": 2.21,
+          "beat": "search",
+          "dt": -0.1667
+        },
+        {
+          "v": 2.321,
+          "beat": "search",
+          "dt": 0.08
+        },
+        {
+          "v": 0.897,
+          "beat": "pleased",
+          "dt": 0.08
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.14
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "sniff1",
+          "dt": 0.1244
+        },
+        {
+          "v": 2.983,
+          "beat": "sniff2",
+          "dt": 0.1231
+        },
+        {
+          "v": -2.983,
+          "beat": "sniff3",
+          "dt": 0.12
+        },
+        {
+          "v": -2.237,
+          "beat": "search",
+          "dt": 0.08
+        },
+        {
+          "v": 1.493,
+          "beat": "pleased",
+          "dt": 0.08
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1.43,
+          "beat": "sniff2",
+          "dt": 0.1231
+        },
+        {
+          "v": -1.43,
+          "beat": "sniff3",
+          "dt": 0.12
+        },
+        {
+          "v": -1.859,
+          "beat": "search",
+          "dt": 0.08
+        },
+        {
+          "v": 2.145,
+          "beat": "pleased",
+          "dt": 0.08
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -0.552,
+          "beat": "notice",
+          "dt": 0.113
+        },
+        {
+          "v": 4.968,
+          "beat": "sniff1",
+          "dt": 0.1011
+        },
+        {
+          "v": 4.968,
+          "beat": "sniff1",
+          "dt": 0.1811
+        },
+        {
+          "v": 2.76,
+          "beat": "sniff2",
+          "dt": -0.2617
+        },
+        {
+          "v": 4.278,
+          "beat": "sniff2",
+          "dt": 0.1
+        },
+        {
+          "v": 4.278,
+          "beat": "sniff2",
+          "dt": 0.18
+        },
+        {
+          "v": 2.76,
+          "beat": "sniff3",
+          "dt": -0.2862
+        },
+        {
+          "v": 3.726,
+          "beat": "sniff3",
+          "dt": 0.1013
+        },
+        {
+          "v": 3.726,
+          "beat": "sniff3",
+          "dt": 0.1812
+        },
+        {
+          "v": 3.4,
+          "beat": "search",
+          "dt": -0.1767
+        },
+        {
+          "v": 3.57,
+          "beat": "search",
+          "dt": 0.065
+        },
+        {
+          "v": 1.38,
+          "beat": "pleased",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.125
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "sniff1",
+          "dt": 0.1011
+        },
+        {
+          "v": 5.1,
+          "beat": "sniff2",
+          "dt": 0.1
+        },
+        {
+          "v": -5.1,
+          "beat": "sniff3",
+          "dt": 0.1013
+        },
+        {
+          "v": -3.825,
+          "beat": "search",
+          "dt": 0.065
+        },
+        {
+          "v": 2.55,
+          "beat": "pleased",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2.2,
+          "beat": "sniff2",
+          "dt": 0.1
+        },
+        {
+          "v": -2.2,
+          "beat": "sniff3",
+          "dt": 0.1013
+        },
+        {
+          "v": -2.86,
+          "beat": "search",
+          "dt": 0.065
+        },
+        {
+          "v": 3.3,
+          "beat": "pleased",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -0.552,
+          "beat": "notice",
+          "dt": 0.0783
+        },
+        {
+          "v": 3.229,
+          "beat": "sniff1",
+          "dt": 0.07
+        },
+        {
+          "v": 3.229,
+          "beat": "sniff1",
+          "dt": 0.15
+        },
+        {
+          "v": 1.794,
+          "beat": "sniff2",
+          "dt": -0.3043
+        },
+        {
+          "v": 2.781,
+          "beat": "sniff2",
+          "dt": 0.0692
+        },
+        {
+          "v": 2.781,
+          "beat": "sniff2",
+          "dt": 0.1492
+        },
+        {
+          "v": 1.794,
+          "beat": "sniff3",
+          "dt": -0.3336
+        },
+        {
+          "v": 2.422,
+          "beat": "sniff3",
+          "dt": 0.0703
+        },
+        {
+          "v": 2.422,
+          "beat": "sniff3",
+          "dt": 0.1563
+        },
+        {
+          "v": 1.794,
+          "beat": "sniff3",
+          "dt": 0.33
+        },
+        {
+          "v": 2.321,
+          "beat": "search",
+          "dt": 0.045
+        },
+        {
+          "v": 0.897,
+          "beat": "pleased",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.105
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "sniff1",
+          "dt": 0.07
+        },
+        {
+          "v": 3.094,
+          "beat": "sniff2",
+          "dt": 0.0692
+        },
+        {
+          "v": -3.094,
+          "beat": "sniff3",
+          "dt": 0.0703
+        },
+        {
+          "v": -2.321,
+          "beat": "search",
+          "dt": 0.045
+        },
+        {
+          "v": 1.547,
+          "beat": "pleased",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1.43,
+          "beat": "sniff2",
+          "dt": 0.0692
+        },
+        {
+          "v": -1.43,
+          "beat": "sniff3",
+          "dt": 0.0703
+        },
+        {
+          "v": -1.859,
+          "beat": "search",
+          "dt": 0.045
+        },
+        {
+          "v": 2.145,
+          "beat": "pleased",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "sniff1",
+          "dt": 0.1244
+        },
+        {
+          "v": 4,
+          "beat": "sniff3",
+          "dt": -0.4163
+        },
+        {
+          "v": 3,
+          "beat": "sniff3",
+          "dt": 0.3
+        },
+        {
+          "v": 2,
+          "beat": "search",
+          "dt": 0.09
+        },
+        {
+          "v": 6,
+          "beat": "pleased",
+          "dt": 0.06
+        },
+        {
+          "v": 4,
+          "beat": "nod",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "settle",
+          "dt": -0.24
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2.5,
+          "beat": "sniff1",
+          "dt": 0.1244
+        },
+        {
+          "v": 3.125,
+          "beat": "sniff2",
+          "dt": 0.1108
+        },
+        {
+          "v": 2.5,
+          "beat": "sniff3",
+          "dt": 0.1125
+        },
+        {
+          "v": 1.875,
+          "beat": "search",
+          "dt": 0.05
+        },
+        {
+          "v": -1,
+          "beat": "pleased",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "sniff1",
+          "dt": -0.1913
+        },
+        {
+          "v": 32,
+          "beat": "sniff1",
+          "dt": 0.2489
+        },
+        {
+          "v": 34,
+          "beat": "sniff3",
+          "dt": -0.4163
+        },
+        {
+          "v": 33,
+          "beat": "sniff3",
+          "dt": 0.2875
+        },
+        {
+          "v": 31,
+          "beat": "search",
+          "dt": 0.15
+        },
+        {
+          "v": 30,
+          "beat": "pleased",
+          "dt": 0.13
+        },
+        {
+          "v": 23,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "sniff1",
+          "dt": -0.1913
+        },
+        {
+          "v": 48,
+          "beat": "sniff1",
+          "dt": 0.2489
+        },
+        {
+          "v": 53,
+          "beat": "sniff3",
+          "dt": -0.4163
+        },
+        {
+          "v": 49,
+          "beat": "sniff3",
+          "dt": 0.2875
+        },
+        {
+          "v": 48,
+          "beat": "search",
+          "dt": 0.15
+        },
+        {
+          "v": 42,
+          "beat": "pleased",
+          "dt": 0.13
+        },
+        {
+          "v": 18,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "sniff1",
+          "dt": -0.1913
+        },
+        {
+          "v": 59,
+          "beat": "sniff1",
+          "dt": 0.2489
+        },
+        {
+          "v": 64,
+          "beat": "sniff3",
+          "dt": -0.4163
+        },
+        {
+          "v": 61,
+          "beat": "sniff3",
+          "dt": 0.2875
+        },
+        {
+          "v": 59,
+          "beat": "search",
+          "dt": 0.15
+        },
+        {
+          "v": 62,
+          "beat": "pleased",
+          "dt": 0.13
+        },
+        {
+          "v": 20,
+          "beat": "nod",
+          "dt": 0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 26,
+          "beat": "sniff1",
+          "dt": -0.1217
+        },
+        {
+          "v": 88,
+          "beat": "sniff2",
+          "dt": -0.3574
+        },
+        {
+          "v": 93,
+          "beat": "sniff3",
+          "dt": -0.3217
+        },
+        {
+          "v": 90,
+          "beat": "sniff3",
+          "dt": 0.32
+        },
+        {
+          "v": 87,
+          "beat": "search",
+          "dt": 0.19
+        },
+        {
+          "v": 86,
+          "beat": "nod",
+          "dt": -0.14
+        },
+        {
+          "v": 30,
+          "beat": "settle",
+          "dt": -0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 9,
+          "beat": "sniff2",
+          "dt": -0.3574
+        },
+        {
+          "v": 7,
+          "beat": "sniff3",
+          "dt": 0.32
+        },
+        {
+          "v": 10,
+          "beat": "search",
+          "dt": 0.19
+        },
+        {
+          "v": 18,
+          "beat": "nod",
+          "dt": -0.14
+        },
+        {
+          "v": 6,
+          "beat": "settle",
+          "dt": -0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "sniff2",
+          "dt": -0.2723
+        },
+        {
+          "v": -2,
+          "beat": "sniff3",
+          "dt": -0.2271
+        },
+        {
+          "v": 1,
+          "beat": "search",
+          "dt": -0.1733
+        },
+        {
+          "v": 3,
+          "beat": "search",
+          "dt": 0.23
+        },
+        {
+          "v": -4,
+          "beat": "nod",
+          "dt": -0.1
+        },
+        {
+          "v": 8,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "sniff1",
+          "dt": 0.2489
+        },
+        {
+          "v": 1,
+          "beat": "search",
+          "dt": 0.16
+        },
+        {
+          "v": -2,
+          "beat": "pleased",
+          "dt": 0.16
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "sniff1",
+          "dt": 0.1944
+        },
+        {
+          "v": 4,
+          "beat": "sniff3",
+          "dt": -0.3099
+        },
+        {
+          "v": 3,
+          "beat": "sniff3",
+          "dt": 0.33
+        },
+        {
+          "v": 2,
+          "beat": "search",
+          "dt": 0.135
+        },
+        {
+          "v": 6,
+          "beat": "pleased",
+          "dt": 0.105
+        },
+        {
+          "v": 4,
+          "beat": "nod",
+          "dt": 0.075
+        },
+        {
+          "v": 1,
+          "beat": "settle",
+          "dt": -0.195
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "sniff1",
+          "dt": 0.1867
+        },
+        {
+          "v": 2.5,
+          "beat": "sniff2",
+          "dt": 0.1723
+        },
+        {
+          "v": 2,
+          "beat": "sniff3",
+          "dt": 0.1625
+        },
+        {
+          "v": 1.5,
+          "beat": "search",
+          "dt": 0.09
+        },
+        {
+          "v": -1,
+          "beat": "pleased",
+          "dt": 0.13
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.26
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "sniff1",
+          "dt": -0.113
+        },
+        {
+          "v": 29.44,
+          "beat": "sniff2",
+          "dt": -0.3468
+        },
+        {
+          "v": 31.28,
+          "beat": "sniff3",
+          "dt": -0.3099
+        },
+        {
+          "v": 30.36,
+          "beat": "sniff3",
+          "dt": 0.3233
+        },
+        {
+          "v": 28.52,
+          "beat": "search",
+          "dt": 0.195
+        },
+        {
+          "v": 27.6,
+          "beat": "nod",
+          "dt": -0.135
+        },
+        {
+          "v": 23,
+          "beat": "settle",
+          "dt": -0.255
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "sniff1",
+          "dt": -0.113
+        },
+        {
+          "v": 48,
+          "beat": "sniff2",
+          "dt": -0.3468
+        },
+        {
+          "v": 53,
+          "beat": "sniff3",
+          "dt": -0.3099
+        },
+        {
+          "v": 49,
+          "beat": "sniff3",
+          "dt": 0.3233
+        },
+        {
+          "v": 48,
+          "beat": "search",
+          "dt": 0.195
+        },
+        {
+          "v": 42,
+          "beat": "nod",
+          "dt": -0.135
+        },
+        {
+          "v": 18,
+          "beat": "settle",
+          "dt": -0.255
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "sniff1",
+          "dt": -0.113
+        },
+        {
+          "v": 59,
+          "beat": "sniff2",
+          "dt": -0.3468
+        },
+        {
+          "v": 64,
+          "beat": "sniff3",
+          "dt": -0.3099
+        },
+        {
+          "v": 61,
+          "beat": "sniff3",
+          "dt": 0.3233
+        },
+        {
+          "v": 59,
+          "beat": "search",
+          "dt": 0.195
+        },
+        {
+          "v": 62,
+          "beat": "nod",
+          "dt": -0.135
+        },
+        {
+          "v": 20,
+          "beat": "settle",
+          "dt": -0.255
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 26,
+          "beat": "sniff1",
+          "dt": -0.0435
+        },
+        {
+          "v": 80.96,
+          "beat": "sniff2",
+          "dt": -0.2617
+        },
+        {
+          "v": 85.56,
+          "beat": "sniff3",
+          "dt": -0.2153
+        },
+        {
+          "v": 82.8,
+          "beat": "search",
+          "dt": -0.17
+        },
+        {
+          "v": 80.04,
+          "beat": "search",
+          "dt": 0.235
+        },
+        {
+          "v": 79.12,
+          "beat": "nod",
+          "dt": -0.095
+        },
+        {
+          "v": 30,
+          "beat": "settle",
+          "dt": -0.215
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 9,
+          "beat": "sniff2",
+          "dt": -0.2617
+        },
+        {
+          "v": 7,
+          "beat": "search",
+          "dt": -0.17
+        },
+        {
+          "v": 10,
+          "beat": "search",
+          "dt": 0.235
+        },
+        {
+          "v": 18,
+          "beat": "nod",
+          "dt": -0.095
+        },
+        {
+          "v": 6,
+          "beat": "settle",
+          "dt": -0.215
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "sniff2",
+          "dt": -0.1766
+        },
+        {
+          "v": -2,
+          "beat": "sniff3",
+          "dt": -0.1206
+        },
+        {
+          "v": 1,
+          "beat": "search",
+          "dt": -0.1433
+        },
+        {
+          "v": 3,
+          "beat": "search",
+          "dt": 0.275
+        },
+        {
+          "v": -4,
+          "beat": "nod",
+          "dt": -0.055
+        },
+        {
+          "v": 8,
+          "beat": "settle",
+          "dt": -0.175
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "sniff1",
+          "dt": 0.3226
+        },
+        {
+          "v": 1,
+          "beat": "search",
+          "dt": 0.2
+        },
+        {
+          "v": -2,
+          "beat": "pleased",
+          "dt": 0.2
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "sniff1",
+        "dt": 0.14
+      },
+      {
+        "v": 0.0183,
+        "beat": "sniff2",
+        "dt": 0.1723
+      },
+      {
+        "v": -0.0183,
+        "beat": "sniff3",
+        "dt": 0.1625
+      },
+      {
+        "v": -0.0214,
+        "beat": "search",
+        "dt": 0.1
+      },
+      {
+        "v": 0.0183,
+        "beat": "pleased",
+        "dt": 0.12
+      },
+      {
+        "v": 0.0061,
+        "beat": "settle",
+        "dt": -0.28
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.0135,
+        "beat": "sniff1",
+        "dt": 0.0933
+      },
+      {
+        "v": -0.018,
+        "beat": "sniff2",
+        "dt": 0.1108
+      },
+      {
+        "v": -0.018,
+        "beat": "sniff3",
+        "dt": 0.1125
+      },
+      {
+        "v": -0.0135,
+        "beat": "search",
+        "dt": 0.05
+      },
+      {
+        "v": -0.0045,
+        "beat": "pleased",
+        "dt": 0.08
+      },
+      {
+        "v": 0,
+        "beat": "nod",
+        "dt": 0.26
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.006,
+        "beat": "notice",
+        "dt": -0.06
+      },
+      {
+        "v": 0.0204,
+        "beat": "sniff1",
+        "dt": 0.0933
+      },
+      {
+        "v": 0.0204,
+        "beat": "sniff1",
+        "dt": 0.1733
+      },
+      {
+        "v": 0.0163,
+        "beat": "sniff2",
+        "dt": -0.2723
+      },
+      {
+        "v": 0.0224,
+        "beat": "sniff2",
+        "dt": 0.1108
+      },
+      {
+        "v": 0.0224,
+        "beat": "sniff2",
+        "dt": 0.1908
+      },
+      {
+        "v": 0.0184,
+        "beat": "sniff3",
+        "dt": -0.2744
+      },
+      {
+        "v": 0.0224,
+        "beat": "sniff3",
+        "dt": 0.1125
+      },
+      {
+        "v": 0.0224,
+        "beat": "sniff3",
+        "dt": 0.1925
+      },
+      {
+        "v": 0.0143,
+        "beat": "search",
+        "dt": -0.18
+      },
+      {
+        "v": 0.0143,
+        "beat": "search",
+        "dt": 0.1
+      },
+      {
+        "v": 0.0061,
+        "beat": "pleased",
+        "dt": 0.08
+      },
+      {
+        "v": 0,
+        "beat": "nod",
+        "dt": 0.26
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": 3,
+        "fingers": {
+          "index": {
+            "curl": [-2, -1, 0]
+          },
+          "ring": {
+            "curl": [2, 2, 1]
+          },
+          "little": {
+            "curl": [3, 2, 1]
+          }
+        },
+        "beat": "sniff2",
+        "dt": -0.2723
+      },
+      {
+        "preset": "relaxed",
+        "curl": 2,
+        "fingers": {
+          "ring": {
+            "curl": [1, 1, 0]
+          },
+          "little": {
+            "curl": [2, 1, 0]
+          }
+        },
+        "beat": "search",
+        "dt": -0.1667
+      },
+      {
+        "preset": "relaxed",
+        "curl": -3,
+        "beat": "nod",
+        "dt": -0.09
+      },
+      {
+        "preset": "relaxed",
+        "curl": -1,
+        "fingers": {
+          "index": {
+            "curl": [-3, -2, 0]
+          },
+          "little": {
+            "curl": [2, 2, 1]
+          }
+        },
+        "beat": "nod",
+        "dt": 0.15
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": 3,
+        "fingers": {
+          "index": {
+            "curl": [-2, -1, 0]
+          },
+          "ring": {
+            "curl": [2, 2, 1]
+          },
+          "little": {
+            "curl": [3, 2, 1]
+          }
+        },
+        "beat": "sniff2",
+        "dt": -0.1872
+      },
+      {
+        "preset": "relaxed",
+        "curl": 2,
+        "fingers": {
+          "ring": {
+            "curl": [1, 1, 0]
+          },
+          "little": {
+            "curl": [2, 1, 0]
+          }
+        },
+        "beat": "search",
+        "dt": -0.14
+      },
+      {
+        "preset": "relaxed",
+        "curl": -3,
+        "beat": "nod",
+        "dt": -0.05
+      },
+      {
+        "preset": "relaxed",
+        "curl": -1,
+        "fingers": {
+          "index": {
+            "curl": [-3, -2, 0]
+          },
+          "little": {
+            "curl": [2, 2, 1]
+          }
+        },
+        "beat": "nod",
+        "dt": 0.19
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "surprised": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.3,
+        "beat": "notice"
+      },
+      {
+        "v": 0.3,
+        "beat": "sniff3",
+        "dt": 0.32
+      },
+      {
+        "v": 0.28,
+        "beat": "search",
+        "dt": 0.35
+      },
+      {
+        "v": 0.2,
+        "beat": "pleased"
+      },
+      {
+        "v": 0.15,
+        "beat": "nod",
+        "dt": 0.21
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "ou": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.2,
+        "beat": "notice"
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff1"
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff1",
+        "dt": 0.08
+      },
+      {
+        "v": 0.06,
+        "beat": "sniff1",
+        "dt": 0.28
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff2"
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff2",
+        "dt": 0.08
+      },
+      {
+        "v": 0.06,
+        "beat": "sniff2",
+        "dt": 0.28
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff3"
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff3",
+        "dt": 0.1
+      },
+      {
+        "v": 0.05,
+        "beat": "sniff3",
+        "dt": 0.3
+      },
+      {
+        "v": 0,
+        "beat": "search"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "search",
+        "dt": 0.35
+      },
+      {
+        "v": 0.7,
+        "beat": "pleased"
+      },
+      {
+        "v": 0.7,
+        "beat": "nod",
+        "dt": 0.13
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.15,
+        "beat": "notice"
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff1"
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff1",
+        "dt": 0.08
+      },
+      {
+        "v": 0.18,
+        "beat": "sniff1",
+        "dt": 0.28
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff2"
+      },
+      {
+        "v": 0.38,
+        "beat": "sniff2",
+        "dt": 0.08
+      },
+      {
+        "v": 0.18,
+        "beat": "sniff2",
+        "dt": 0.28
+      },
+      {
+        "v": 0.4,
+        "beat": "sniff3"
+      },
+      {
+        "v": 0.4,
+        "beat": "sniff3",
+        "dt": 0.1
+      },
+      {
+        "v": 0.22,
+        "beat": "sniff3",
+        "dt": 0.3
+      },
+      {
+        "v": 0.18,
+        "beat": "search"
+      },
+      {
+        "v": 0.4,
+        "beat": "pleased"
+      },
+      {
+        "v": 0.4,
+        "beat": "nod",
+        "dt": 0.13
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "aroma-ribbons",
+      "time": 0.23,
+      "kind": "particle_vfx",
+      "effectId": "aroma_ribbons",
+      "duration": 2.9,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.2,
+          "fadeOut": 0.4
+        }
+      }
+    },
+    {
+      "id": "sniff-lines-1",
+      "time": 0.53,
+      "kind": "avatar_vfx",
+      "effectId": "sniff_lines",
+      "duration": 0.5,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.06,
+          "fadeOut": 0.15
+        }
+      }
+    },
+    {
+      "id": "sniff-lines-2",
+      "time": 1.21,
+      "kind": "avatar_vfx",
+      "effectId": "sniff_lines",
+      "duration": 0.5,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.06,
+          "fadeOut": 0.15
+        }
+      }
+    },
+    {
+      "id": "sniff-lines-3",
+      "time": 1.93,
+      "kind": "avatar_vfx",
+      "effectId": "sniff_lines",
+      "duration": 0.5,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.06,
+          "fadeOut": 0.15
+        }
+      }
+    }
+  ]
+}

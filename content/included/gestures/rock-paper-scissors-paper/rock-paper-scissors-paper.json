@@ -1,0 +1,2302 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "rock-paper-scissors-paper",
+  "name": "Rock Paper Scissors Paper",
+  "duration": 3.2,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.24
+  },
+  "fadeOut": {
+    "duration": 0.36
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "ready",
+      "label": "Ready",
+      "time": 0.42
+    },
+    {
+      "id": "rock",
+      "label": "Rock",
+      "time": 0.66
+    },
+    {
+      "id": "paper",
+      "label": "Paper",
+      "time": 1.06
+    },
+    {
+      "id": "scissors",
+      "label": "Scissors",
+      "time": 1.46
+    },
+    {
+      "id": "draw",
+      "label": "Draw",
+      "time": 1.9
+    },
+    {
+      "id": "throw",
+      "label": "Throw",
+      "time": 2.3
+    },
+    {
+      "id": "smug",
+      "label": "Smug",
+      "time": 2.76
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 3.2
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "ready"
+        },
+        {
+          "v": 1,
+          "beat": "rock"
+        },
+        {
+          "v": 0,
+          "beat": "rock",
+          "dt": 0.2
+        },
+        {
+          "v": 1,
+          "beat": "paper"
+        },
+        {
+          "v": 0,
+          "beat": "paper",
+          "dt": 0.2
+        },
+        {
+          "v": 1,
+          "beat": "scissors"
+        },
+        {
+          "v": -1,
+          "beat": "draw"
+        },
+        {
+          "v": 2,
+          "beat": "throw"
+        },
+        {
+          "v": 1,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "ready"
+        },
+        {
+          "v": -1.4,
+          "beat": "rock"
+        },
+        {
+          "v": -1,
+          "beat": "rock",
+          "dt": 0.2
+        },
+        {
+          "v": -1.4,
+          "beat": "paper"
+        },
+        {
+          "v": -1,
+          "beat": "paper",
+          "dt": 0.2
+        },
+        {
+          "v": -1.4,
+          "beat": "scissors"
+        },
+        {
+          "v": -2,
+          "beat": "draw"
+        },
+        {
+          "v": -2.5,
+          "beat": "throw"
+        },
+        {
+          "v": -2,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "ready"
+        },
+        {
+          "v": -2,
+          "beat": "rock"
+        },
+        {
+          "v": -1,
+          "beat": "rock",
+          "dt": 0.2
+        },
+        {
+          "v": -2,
+          "beat": "paper"
+        },
+        {
+          "v": -1,
+          "beat": "paper",
+          "dt": 0.2
+        },
+        {
+          "v": -2,
+          "beat": "scissors"
+        },
+        {
+          "v": 2,
+          "beat": "draw"
+        },
+        {
+          "v": -4,
+          "beat": "throw"
+        },
+        {
+          "v": -3,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.8,
+          "beat": "ready"
+        },
+        {
+          "v": 2.4,
+          "beat": "rock"
+        },
+        {
+          "v": -0.4,
+          "beat": "rock",
+          "dt": 0.2
+        },
+        {
+          "v": 2.16,
+          "beat": "paper"
+        },
+        {
+          "v": -0.32,
+          "beat": "paper",
+          "dt": 0.2
+        },
+        {
+          "v": 1.92,
+          "beat": "scissors"
+        },
+        {
+          "v": -1.6,
+          "beat": "draw"
+        },
+        {
+          "v": 3.2,
+          "beat": "throw"
+        },
+        {
+          "v": 1.6,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.6,
+          "beat": "ready"
+        },
+        {
+          "v": -2.4,
+          "beat": "rock"
+        },
+        {
+          "v": -1.6,
+          "beat": "rock",
+          "dt": 0.2
+        },
+        {
+          "v": -2.4,
+          "beat": "paper"
+        },
+        {
+          "v": -1.6,
+          "beat": "paper",
+          "dt": 0.2
+        },
+        {
+          "v": -2.4,
+          "beat": "scissors"
+        },
+        {
+          "v": 2.4,
+          "beat": "draw"
+        },
+        {
+          "v": -4.8,
+          "beat": "throw"
+        },
+        {
+          "v": -3.2,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "ready",
+          "dt": 0.025
+        },
+        {
+          "v": 3,
+          "beat": "rock",
+          "dt": 0.025
+        },
+        {
+          "v": -0.5,
+          "beat": "paper",
+          "dt": -0.175
+        },
+        {
+          "v": 2.7,
+          "beat": "paper",
+          "dt": 0.025
+        },
+        {
+          "v": -0.4,
+          "beat": "scissors",
+          "dt": -0.175
+        },
+        {
+          "v": 2.4,
+          "beat": "scissors",
+          "dt": 0.025
+        },
+        {
+          "v": -2,
+          "beat": "draw",
+          "dt": 0.025
+        },
+        {
+          "v": 4,
+          "beat": "throw",
+          "dt": 0.025
+        },
+        {
+          "v": 2,
+          "beat": "smug",
+          "dt": 0.025
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "ready",
+          "dt": 0.025
+        },
+        {
+          "v": -3,
+          "beat": "rock",
+          "dt": 0.025
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": -0.175
+        },
+        {
+          "v": -3,
+          "beat": "paper",
+          "dt": 0.025
+        },
+        {
+          "v": -2,
+          "beat": "scissors",
+          "dt": -0.175
+        },
+        {
+          "v": -3,
+          "beat": "scissors",
+          "dt": 0.025
+        },
+        {
+          "v": 3,
+          "beat": "draw",
+          "dt": 0.025
+        },
+        {
+          "v": -6,
+          "beat": "throw",
+          "dt": 0.025
+        },
+        {
+          "v": -4,
+          "beat": "smug",
+          "dt": 0.025
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "ready",
+          "dt": 0.025
+        },
+        {
+          "v": 2,
+          "beat": "rock",
+          "dt": 0.025
+        },
+        {
+          "v": 1.5,
+          "beat": "paper",
+          "dt": -0.175
+        },
+        {
+          "v": 2,
+          "beat": "paper",
+          "dt": 0.025
+        },
+        {
+          "v": 1.5,
+          "beat": "scissors",
+          "dt": -0.175
+        },
+        {
+          "v": 2,
+          "beat": "scissors",
+          "dt": 0.025
+        },
+        {
+          "v": -1,
+          "beat": "draw",
+          "dt": 0.025
+        },
+        {
+          "v": 3,
+          "beat": "throw",
+          "dt": 0.025
+        },
+        {
+          "v": 2.5,
+          "beat": "smug",
+          "dt": 0.025
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.5,
+          "beat": "ready",
+          "dt": 0.05
+        },
+        {
+          "v": 1.5,
+          "beat": "rock",
+          "dt": 0.05
+        },
+        {
+          "v": -0.25,
+          "beat": "paper",
+          "dt": -0.15
+        },
+        {
+          "v": 1.35,
+          "beat": "paper",
+          "dt": 0.05
+        },
+        {
+          "v": -0.2,
+          "beat": "scissors",
+          "dt": -0.15
+        },
+        {
+          "v": 1.2,
+          "beat": "scissors",
+          "dt": 0.05
+        },
+        {
+          "v": -1,
+          "beat": "draw",
+          "dt": 0.05
+        },
+        {
+          "v": 2,
+          "beat": "throw",
+          "dt": 0.05
+        },
+        {
+          "v": 1,
+          "beat": "smug",
+          "dt": 0.05
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "ready",
+          "dt": 0.05
+        },
+        {
+          "v": -1.5,
+          "beat": "rock",
+          "dt": 0.05
+        },
+        {
+          "v": -1,
+          "beat": "paper",
+          "dt": -0.15
+        },
+        {
+          "v": -1.5,
+          "beat": "paper",
+          "dt": 0.05
+        },
+        {
+          "v": -1,
+          "beat": "scissors",
+          "dt": -0.15
+        },
+        {
+          "v": -1.5,
+          "beat": "scissors",
+          "dt": 0.05
+        },
+        {
+          "v": 1.5,
+          "beat": "draw",
+          "dt": 0.05
+        },
+        {
+          "v": -3,
+          "beat": "throw",
+          "dt": 0.05
+        },
+        {
+          "v": -2,
+          "beat": "smug",
+          "dt": 0.05
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "ready",
+          "dt": 0.045
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.045
+        },
+        {
+          "v": -1,
+          "beat": "paper",
+          "dt": -0.155
+        },
+        {
+          "v": 0.8,
+          "beat": "paper",
+          "dt": 0.045
+        },
+        {
+          "v": -1,
+          "beat": "scissors",
+          "dt": -0.155
+        },
+        {
+          "v": 0.7,
+          "beat": "scissors",
+          "dt": 0.045
+        },
+        {
+          "v": -2,
+          "beat": "draw",
+          "dt": 0.045
+        },
+        {
+          "v": 1,
+          "beat": "throw",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "ready",
+          "dt": -0.025
+        },
+        {
+          "v": -1,
+          "beat": "rock",
+          "dt": -0.025
+        },
+        {
+          "v": -1,
+          "beat": "rock",
+          "dt": 0.175
+        },
+        {
+          "v": -1,
+          "beat": "paper",
+          "dt": -0.025
+        },
+        {
+          "v": -1,
+          "beat": "paper",
+          "dt": 0.175
+        },
+        {
+          "v": -1,
+          "beat": "scissors",
+          "dt": -0.025
+        },
+        {
+          "v": 2,
+          "beat": "draw",
+          "dt": -0.025
+        },
+        {
+          "v": -2,
+          "beat": "throw",
+          "dt": -0.025
+        },
+        {
+          "v": -1,
+          "beat": "smug",
+          "dt": -0.025
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "ready",
+          "dt": 0.065
+        },
+        {
+          "v": 2.5,
+          "beat": "rock",
+          "dt": 0.065
+        },
+        {
+          "v": -1,
+          "beat": "paper",
+          "dt": -0.135
+        },
+        {
+          "v": 2,
+          "beat": "paper",
+          "dt": 0.065
+        },
+        {
+          "v": -1,
+          "beat": "scissors",
+          "dt": -0.135
+        },
+        {
+          "v": 1.5,
+          "beat": "scissors",
+          "dt": 0.065
+        },
+        {
+          "v": -4,
+          "beat": "draw",
+          "dt": 0.065
+        },
+        {
+          "v": 1,
+          "beat": "throw",
+          "dt": 0.065
+        },
+        {
+          "v": -2,
+          "beat": "smug",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "ready",
+          "dt": -0.05
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": -0.05
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": 0.15
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": -0.05
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": 0.15
+        },
+        {
+          "v": -2,
+          "beat": "scissors",
+          "dt": -0.05
+        },
+        {
+          "v": -3,
+          "beat": "draw",
+          "dt": -0.05
+        },
+        {
+          "v": 1,
+          "beat": "throw",
+          "dt": -0.05
+        },
+        {
+          "v": 7,
+          "beat": "smug",
+          "dt": -0.05
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "ready",
+          "dt": -0.05
+        },
+        {
+          "v": -3,
+          "beat": "rock",
+          "dt": -0.05
+        },
+        {
+          "v": -3,
+          "beat": "rock",
+          "dt": 0.15
+        },
+        {
+          "v": -3,
+          "beat": "paper",
+          "dt": -0.05
+        },
+        {
+          "v": -3,
+          "beat": "paper",
+          "dt": 0.15
+        },
+        {
+          "v": -3,
+          "beat": "scissors",
+          "dt": -0.05
+        },
+        {
+          "v": 3,
+          "beat": "draw",
+          "dt": -0.05
+        },
+        {
+          "v": -3,
+          "beat": "throw",
+          "dt": -0.05
+        },
+        {
+          "v": -4,
+          "beat": "smug",
+          "dt": -0.05
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "ready",
+          "dt": -0.09
+        },
+        {
+          "v": -4,
+          "beat": "rock",
+          "dt": -0.09
+        },
+        {
+          "v": -3,
+          "beat": "rock",
+          "dt": 0.11
+        },
+        {
+          "v": -4,
+          "beat": "paper",
+          "dt": -0.09
+        },
+        {
+          "v": -3,
+          "beat": "paper",
+          "dt": 0.11
+        },
+        {
+          "v": -4,
+          "beat": "scissors",
+          "dt": -0.09
+        },
+        {
+          "v": 0,
+          "beat": "draw",
+          "dt": -0.09
+        },
+        {
+          "v": 1,
+          "beat": "throw",
+          "dt": -0.09
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": -0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "ready",
+          "dt": -0.09
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": -0.09
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": 0.11
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": -0.09
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": 0.11
+        },
+        {
+          "v": -2,
+          "beat": "scissors",
+          "dt": -0.09
+        },
+        {
+          "v": 0,
+          "beat": "draw",
+          "dt": -0.09
+        },
+        {
+          "v": 0,
+          "beat": "throw",
+          "dt": -0.09
+        },
+        {
+          "v": 1,
+          "beat": "smug",
+          "dt": -0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "ready",
+          "dt": 0.02
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.02
+        },
+        {
+          "v": 3,
+          "beat": "paper",
+          "dt": -0.18
+        },
+        {
+          "v": 1,
+          "beat": "paper",
+          "dt": 0.02
+        },
+        {
+          "v": 3,
+          "beat": "scissors",
+          "dt": -0.18
+        },
+        {
+          "v": 1,
+          "beat": "scissors",
+          "dt": 0.02
+        },
+        {
+          "v": 4,
+          "beat": "draw",
+          "dt": 0.02
+        },
+        {
+          "v": 6,
+          "beat": "throw",
+          "dt": 0.02
+        },
+        {
+          "v": 4,
+          "beat": "smug",
+          "dt": 0.02
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "ready",
+          "dt": 0.035
+        },
+        {
+          "v": 4,
+          "beat": "rock",
+          "dt": 0.035
+        },
+        {
+          "v": 3,
+          "beat": "paper",
+          "dt": -0.165
+        },
+        {
+          "v": 4,
+          "beat": "paper",
+          "dt": 0.035
+        },
+        {
+          "v": 3,
+          "beat": "scissors",
+          "dt": -0.165
+        },
+        {
+          "v": 4,
+          "beat": "scissors",
+          "dt": 0.035
+        },
+        {
+          "v": -2,
+          "beat": "draw",
+          "dt": 0.035
+        },
+        {
+          "v": 6,
+          "beat": "throw",
+          "dt": 0.035
+        },
+        {
+          "v": 4,
+          "beat": "smug",
+          "dt": 0.035
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 46,
+          "beat": "ready",
+          "dt": 0.035
+        },
+        {
+          "v": 35,
+          "beat": "rock",
+          "dt": 0.035
+        },
+        {
+          "v": 46,
+          "beat": "paper",
+          "dt": -0.165
+        },
+        {
+          "v": 35,
+          "beat": "paper",
+          "dt": 0.035
+        },
+        {
+          "v": 46,
+          "beat": "scissors",
+          "dt": -0.165
+        },
+        {
+          "v": 35,
+          "beat": "scissors",
+          "dt": 0.035
+        },
+        {
+          "v": 48,
+          "beat": "draw",
+          "dt": 0.035
+        },
+        {
+          "v": 67,
+          "beat": "throw",
+          "dt": 0.035
+        },
+        {
+          "v": 69,
+          "beat": "throw",
+          "dt": 0.16
+        },
+        {
+          "v": 65,
+          "beat": "smug",
+          "dt": 0.035
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 65,
+          "beat": "ready",
+          "dt": 0.035
+        },
+        {
+          "v": 70,
+          "beat": "rock",
+          "dt": 0.035
+        },
+        {
+          "v": 66,
+          "beat": "paper",
+          "dt": -0.165
+        },
+        {
+          "v": 70,
+          "beat": "paper",
+          "dt": 0.035
+        },
+        {
+          "v": 66,
+          "beat": "scissors",
+          "dt": -0.165
+        },
+        {
+          "v": 70,
+          "beat": "scissors",
+          "dt": 0.035
+        },
+        {
+          "v": 50,
+          "beat": "draw",
+          "dt": 0.035
+        },
+        {
+          "v": 70,
+          "beat": "throw",
+          "dt": 0.035
+        },
+        {
+          "v": 70,
+          "beat": "smug",
+          "dt": 0.035
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 50,
+          "beat": "ready",
+          "dt": 0.055
+        },
+        {
+          "v": 50,
+          "beat": "rock",
+          "dt": 0.055
+        },
+        {
+          "v": 50,
+          "beat": "paper",
+          "dt": -0.145
+        },
+        {
+          "v": 50,
+          "beat": "paper",
+          "dt": 0.055
+        },
+        {
+          "v": 50,
+          "beat": "scissors",
+          "dt": -0.145
+        },
+        {
+          "v": 50,
+          "beat": "scissors",
+          "dt": 0.055
+        },
+        {
+          "v": 58,
+          "beat": "draw",
+          "dt": 0.055
+        },
+        {
+          "v": 55,
+          "beat": "throw",
+          "dt": 0.055
+        },
+        {
+          "v": 53,
+          "beat": "smug",
+          "dt": 0.055
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 98,
+          "beat": "ready",
+          "dt": 0.06
+        },
+        {
+          "v": 74,
+          "beat": "rock",
+          "dt": 0.06
+        },
+        {
+          "v": 98,
+          "beat": "paper",
+          "dt": -0.14
+        },
+        {
+          "v": 74,
+          "beat": "paper",
+          "dt": 0.06
+        },
+        {
+          "v": 98,
+          "beat": "scissors",
+          "dt": -0.14
+        },
+        {
+          "v": 74,
+          "beat": "scissors",
+          "dt": 0.06
+        },
+        {
+          "v": 105,
+          "beat": "draw",
+          "dt": 0.06
+        },
+        {
+          "v": 52,
+          "beat": "throw",
+          "dt": 0.06
+        },
+        {
+          "v": 48,
+          "beat": "throw",
+          "dt": 0.16
+        },
+        {
+          "v": 54,
+          "beat": "smug",
+          "dt": 0.06
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "ready",
+          "dt": 0.065
+        },
+        {
+          "v": 5,
+          "beat": "rock",
+          "dt": 0.065
+        },
+        {
+          "v": 5,
+          "beat": "paper",
+          "dt": -0.135
+        },
+        {
+          "v": 5,
+          "beat": "paper",
+          "dt": 0.065
+        },
+        {
+          "v": 5,
+          "beat": "scissors",
+          "dt": -0.135
+        },
+        {
+          "v": 5,
+          "beat": "scissors",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "draw",
+          "dt": 0.065
+        },
+        {
+          "v": -15,
+          "beat": "throw",
+          "dt": 0.065
+        },
+        {
+          "v": -15,
+          "beat": "smug",
+          "dt": 0.065
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "ready",
+          "dt": 0.08
+        },
+        {
+          "v": 4,
+          "beat": "rock",
+          "dt": 0.08
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": -0.12
+        },
+        {
+          "v": 4,
+          "beat": "paper",
+          "dt": 0.08
+        },
+        {
+          "v": -2,
+          "beat": "scissors",
+          "dt": -0.12
+        },
+        {
+          "v": 4,
+          "beat": "scissors",
+          "dt": 0.08
+        },
+        {
+          "v": -8,
+          "beat": "draw",
+          "dt": 0.08
+        },
+        {
+          "v": -42,
+          "beat": "throw",
+          "dt": 0.08
+        },
+        {
+          "v": -45,
+          "beat": "throw",
+          "dt": 0.16
+        },
+        {
+          "v": -38,
+          "beat": "smug",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "ready",
+          "dt": 0.085
+        },
+        {
+          "v": -6,
+          "beat": "rock",
+          "dt": 0.085
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": -0.115
+        },
+        {
+          "v": -6,
+          "beat": "paper",
+          "dt": 0.085
+        },
+        {
+          "v": -2,
+          "beat": "scissors",
+          "dt": -0.115
+        },
+        {
+          "v": -6,
+          "beat": "scissors",
+          "dt": 0.085
+        },
+        {
+          "v": -2,
+          "beat": "draw",
+          "dt": 0.085
+        },
+        {
+          "v": 1,
+          "beat": "throw",
+          "dt": 0.085
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.085
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "ready",
+          "dt": 0.06
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.06
+        },
+        {
+          "v": 3,
+          "beat": "paper",
+          "dt": -0.14
+        },
+        {
+          "v": 1,
+          "beat": "paper",
+          "dt": 0.06
+        },
+        {
+          "v": 3,
+          "beat": "scissors",
+          "dt": -0.14
+        },
+        {
+          "v": 1,
+          "beat": "scissors",
+          "dt": 0.06
+        },
+        {
+          "v": 4,
+          "beat": "draw",
+          "dt": 0.06
+        },
+        {
+          "v": 1,
+          "beat": "throw",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.06
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "ready",
+          "dt": 0.075
+        },
+        {
+          "v": 4,
+          "beat": "rock",
+          "dt": 0.075
+        },
+        {
+          "v": 3,
+          "beat": "paper",
+          "dt": -0.125
+        },
+        {
+          "v": 4,
+          "beat": "paper",
+          "dt": 0.075
+        },
+        {
+          "v": 3,
+          "beat": "scissors",
+          "dt": -0.125
+        },
+        {
+          "v": 4,
+          "beat": "scissors",
+          "dt": 0.075
+        },
+        {
+          "v": -2,
+          "beat": "draw",
+          "dt": 0.075
+        },
+        {
+          "v": 0,
+          "beat": "throw",
+          "dt": 0.075
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.075
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 29,
+          "beat": "ready",
+          "dt": 0.09
+        },
+        {
+          "v": 30,
+          "beat": "rock",
+          "dt": 0.09
+        },
+        {
+          "v": 28,
+          "beat": "paper",
+          "dt": -0.11
+        },
+        {
+          "v": 30,
+          "beat": "paper",
+          "dt": 0.09
+        },
+        {
+          "v": 28,
+          "beat": "scissors",
+          "dt": -0.11
+        },
+        {
+          "v": 30,
+          "beat": "scissors",
+          "dt": 0.09
+        },
+        {
+          "v": 33,
+          "beat": "draw",
+          "dt": 0.09
+        },
+        {
+          "v": 29,
+          "beat": "throw",
+          "dt": 0.09
+        },
+        {
+          "v": 27,
+          "beat": "smug",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 8,
+          "beat": "ready",
+          "dt": 0.09
+        },
+        {
+          "v": 10,
+          "beat": "rock",
+          "dt": 0.09
+        },
+        {
+          "v": 8,
+          "beat": "paper",
+          "dt": -0.11
+        },
+        {
+          "v": 10,
+          "beat": "paper",
+          "dt": 0.09
+        },
+        {
+          "v": 8,
+          "beat": "scissors",
+          "dt": -0.11
+        },
+        {
+          "v": 10,
+          "beat": "scissors",
+          "dt": 0.09
+        },
+        {
+          "v": 5,
+          "beat": "draw",
+          "dt": 0.09
+        },
+        {
+          "v": 15,
+          "beat": "throw",
+          "dt": 0.09
+        },
+        {
+          "v": 12,
+          "beat": "smug",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 10,
+          "beat": "ready",
+          "dt": 0.11
+        },
+        {
+          "v": 14,
+          "beat": "rock",
+          "dt": 0.11
+        },
+        {
+          "v": 10,
+          "beat": "paper",
+          "dt": -0.09
+        },
+        {
+          "v": 14,
+          "beat": "paper",
+          "dt": 0.11
+        },
+        {
+          "v": 10,
+          "beat": "scissors",
+          "dt": -0.09
+        },
+        {
+          "v": 14,
+          "beat": "scissors",
+          "dt": 0.11
+        },
+        {
+          "v": 8,
+          "beat": "draw",
+          "dt": 0.11
+        },
+        {
+          "v": 18,
+          "beat": "throw",
+          "dt": 0.11
+        },
+        {
+          "v": 14,
+          "beat": "smug",
+          "dt": 0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24,
+          "beat": "rock",
+          "dt": -0.12
+        },
+        {
+          "v": 28,
+          "beat": "rock",
+          "dt": 0.12
+        },
+        {
+          "v": 24,
+          "beat": "paper",
+          "dt": -0.08
+        },
+        {
+          "v": 28,
+          "beat": "paper",
+          "dt": 0.12
+        },
+        {
+          "v": 24,
+          "beat": "scissors",
+          "dt": -0.08
+        },
+        {
+          "v": 28,
+          "beat": "scissors",
+          "dt": 0.12
+        },
+        {
+          "v": 35,
+          "beat": "draw",
+          "dt": 0.12
+        },
+        {
+          "v": 25,
+          "beat": "throw",
+          "dt": 0.12
+        },
+        {
+          "v": 20,
+          "beat": "smug",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 10,
+          "beat": "rock",
+          "dt": -0.12
+        },
+        {
+          "v": 12,
+          "beat": "rock",
+          "dt": 0.12
+        },
+        {
+          "v": 10,
+          "beat": "paper",
+          "dt": -0.08
+        },
+        {
+          "v": 12,
+          "beat": "paper",
+          "dt": 0.12
+        },
+        {
+          "v": 10,
+          "beat": "scissors",
+          "dt": -0.08
+        },
+        {
+          "v": 12,
+          "beat": "scissors",
+          "dt": 0.12
+        },
+        {
+          "v": 8,
+          "beat": "draw",
+          "dt": 0.12
+        },
+        {
+          "v": 15,
+          "beat": "throw",
+          "dt": 0.12
+        },
+        {
+          "v": 10,
+          "beat": "smug",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "rock",
+          "dt": -0.1
+        },
+        {
+          "v": 8,
+          "beat": "rock",
+          "dt": 0.14
+        },
+        {
+          "v": 4,
+          "beat": "paper",
+          "dt": -0.06
+        },
+        {
+          "v": 8,
+          "beat": "paper",
+          "dt": 0.14
+        },
+        {
+          "v": 4,
+          "beat": "scissors",
+          "dt": -0.06
+        },
+        {
+          "v": 8,
+          "beat": "scissors",
+          "dt": 0.14
+        },
+        {
+          "v": 0,
+          "beat": "draw",
+          "dt": 0.14
+        },
+        {
+          "v": 9,
+          "beat": "throw",
+          "dt": 0.14
+        },
+        {
+          "v": 8,
+          "beat": "smug",
+          "dt": 0.14
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "rock",
+          "dt": -0.1
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": 0.14
+        },
+        {
+          "v": 0,
+          "beat": "paper",
+          "dt": -0.06
+        },
+        {
+          "v": -2,
+          "beat": "paper",
+          "dt": 0.14
+        },
+        {
+          "v": 0,
+          "beat": "scissors",
+          "dt": -0.06
+        },
+        {
+          "v": -2,
+          "beat": "scissors",
+          "dt": 0.14
+        },
+        {
+          "v": -3,
+          "beat": "draw",
+          "dt": 0.14
+        },
+        {
+          "v": 1,
+          "beat": "throw",
+          "dt": 0.14
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.14
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.008,
+        "beat": "ready"
+      },
+      {
+        "v": 0.01,
+        "beat": "rock"
+      },
+      {
+        "v": 0.009,
+        "beat": "rock",
+        "dt": 0.2
+      },
+      {
+        "v": 0.011,
+        "beat": "paper"
+      },
+      {
+        "v": 0.01,
+        "beat": "paper",
+        "dt": 0.2
+      },
+      {
+        "v": 0.012,
+        "beat": "scissors"
+      },
+      {
+        "v": 0.014,
+        "beat": "draw"
+      },
+      {
+        "v": 0.018,
+        "beat": "throw"
+      },
+      {
+        "v": 0.015,
+        "beat": "smug"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.004,
+        "beat": "ready"
+      },
+      {
+        "v": -0.014,
+        "beat": "rock"
+      },
+      {
+        "v": -0.005,
+        "beat": "rock",
+        "dt": 0.2
+      },
+      {
+        "v": -0.013,
+        "beat": "paper"
+      },
+      {
+        "v": -0.005,
+        "beat": "paper",
+        "dt": 0.2
+      },
+      {
+        "v": -0.012,
+        "beat": "scissors"
+      },
+      {
+        "v": -0.009,
+        "beat": "draw"
+      },
+      {
+        "v": -0.016,
+        "beat": "throw"
+      },
+      {
+        "v": -0.012,
+        "beat": "smug"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.002,
+        "beat": "ready"
+      },
+      {
+        "v": 0.005,
+        "beat": "rock"
+      },
+      {
+        "v": 0.002,
+        "beat": "rock",
+        "dt": 0.2
+      },
+      {
+        "v": 0.005,
+        "beat": "paper"
+      },
+      {
+        "v": 0.002,
+        "beat": "paper",
+        "dt": 0.2
+      },
+      {
+        "v": 0.005,
+        "beat": "scissors"
+      },
+      {
+        "v": -0.006,
+        "beat": "draw"
+      },
+      {
+        "v": 0.009,
+        "beat": "throw"
+      },
+      {
+        "v": 0.006,
+        "beat": "smug"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "fist",
+        "beat": "ready",
+        "dt": -0.12
+      },
+      {
+        "preset": "fist",
+        "beat": "draw"
+      },
+      {
+        "preset": "open-together",
+        "spread": 3,
+        "beat": "throw"
+      },
+      {
+        "preset": "open-together",
+        "spread": 1,
+        "fingers": {
+          "ring": {
+            "curl": [1, 1, 0]
+          },
+          "little": {
+            "curl": [2, 2, 0]
+          }
+        },
+        "beat": "smug"
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": 9,
+        "beat": "ready",
+        "dt": 0.06
+      },
+      {
+        "preset": "relaxed",
+        "curl": 12,
+        "beat": "draw"
+      },
+      {
+        "preset": "relaxed",
+        "curl": 6,
+        "spread": 3,
+        "beat": "throw",
+        "dt": 0.04
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0.4,
+        "beat": "start"
+      },
+      {
+        "v": 0.4,
+        "beat": "draw"
+      },
+      {
+        "v": 0.35,
+        "beat": "throw"
+      },
+      {
+        "v": 0.6,
+        "beat": "smug"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "angry": [
+      {
+        "v": 0.2,
+        "beat": "start"
+      },
+      {
+        "v": 0.2,
+        "beat": "draw"
+      },
+      {
+        "v": 0.1,
+        "beat": "throw"
+      },
+      {
+        "v": 0,
+        "beat": "smug"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "surprised": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "draw"
+      },
+      {
+        "v": 0.3,
+        "beat": "throw"
+      },
+      {
+        "v": 0,
+        "beat": "smug"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "throw-kira-star",
+      "time": 2.3,
+      "kind": "avatar_vfx",
+      "effectId": "kira_star_v2",
+      "duration": 0.55,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.05,
+          "fadeOut": 0.16
+        }
+      }
+    }
+  ]
+}

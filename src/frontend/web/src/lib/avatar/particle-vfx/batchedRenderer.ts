@@ -17,11 +17,23 @@ type QuarksBatch = BatchedRenderer["batches"][number];
  * The particle shader has no sRGB output step either way, so with tone
  * mapping off a texture's stored values reach the canvas unchanged when its
  * `colorSpace` is empty (the art shows as authored, white at 255).
+ *
+ * three.quarks writes every particle's position in world space, so its
+ * batches must draw with an identity world matrix. The renderer keeps an
+ * identity world matrix wherever it is parented: under the Avatar scene the
+ * Avatar's transform would otherwise apply twice, which mirrors VRM 0
+ * Avatars' particles (their scenes turn half about Y) to the far side.
  */
 export function createParticleVFXBatchedRenderer(
   quarks: ThreeQuarksModule,
 ): BatchedRenderer {
   class ParticleVFXBatchedRenderer extends quarks.BatchedRenderer {
+    constructor() {
+      super();
+      this.matrixAutoUpdate = false;
+      this.matrixWorldAutoUpdate = false;
+    }
+
     override addSystem(system: QuarksParticleSystem): void {
       const toneMapped = isToneMapped(
         (system as ParticleSystem).getRendererSettings(),

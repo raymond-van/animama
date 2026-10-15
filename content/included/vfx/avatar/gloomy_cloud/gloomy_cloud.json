@@ -12,55 +12,62 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": 0,
         "y": 0.29,
         "z": 0
       },
-      "size": 0.13,
-      "facing": "camera"
+      "size": 0.13
     },
     "art": {
-      "image": "gloomy_cloud.png"
+      "image": "gloomy_cloud-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 4,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
-            "opacity": 0,
-            "scale": 0.7,
             "offset": {
               "x": 0,
               "y": 0.012
-            }
+            },
+            "opacity": 0,
+            "scale": 0.7,
+            "t": 0
           },
           {
-            "t": 0.3,
-            "opacity": 1,
-            "scale": 1.04,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "opacity": 1,
+            "scale": 1.04,
+            "t": 0.3
           },
           {
-            "t": 0.45,
-            "scale": 1
+            "scale": 1,
+            "t": 0.45
           },
           {
-            "t": 1.1,
             "offset": {
               "x": 0,
               "y": -0.006
-            }
+            },
+            "t": 1.1
           },
           {
-            "t": 1.9,
             "offset": {
               "x": 0,
               "y": -0.002
-            }
+            },
+            "t": 1.9
           }
         ]
       }
@@ -68,7 +75,7 @@
   },
   "files": [
     {
-      "path": "gloomy_cloud.png",
+      "path": "gloomy_cloud-sheet.png",
       "role": "image"
     }
   ]

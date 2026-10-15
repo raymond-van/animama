@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:shiver_chatter",
+  "version": 1,
+  "name": "Shiver Chatter",
+  "description": "Blue wobbly shiver marks chatter on both sides of the arms when freezing cold.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:wobble_short",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "body",
+      "offset": {
+        "x": 0,
+        "y": 0.035
+      },
+      "size": 0.38
+    },
+    "art": {
+      "image": "shiver_chatter-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "shiver_chatter-sheet.png",
+      "role": "image"
+    }
+  ]
+}

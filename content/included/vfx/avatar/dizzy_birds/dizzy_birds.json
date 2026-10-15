@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:dizzy_birds",
+  "version": 1,
+  "name": "Dizzy Birds",
+  "description": "Two yellow crayon chicks and a star circle above the head after a cartoon bonk, for dazed and dizzy moments.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:wobble_riser_01v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0,
+        "y": 0.16
+      },
+      "size": 0.23
+    },
+    "art": {
+      "image": "dizzy_birds-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 4,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "dizzy_birds-sheet.png",
+      "role": "image"
+    }
+  ]
+}

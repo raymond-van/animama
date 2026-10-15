@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:spit-spray-mist",
+  "version": 1,
+  "name": "Spit Spray Mist",
+  "description": "A brief forward cone of glossy water droplets and pearly mist, falling and fading after a startled spit take.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "spit-spray-mist",
+    "slots": {
+      "particle_vfx": {
+        "label": "Spit Spray Mist",
+        "description": "A brief forward cone of glossy water droplets and pearly mist, falling and fading after a startled spit take.",
+        "anchor": "head",
+        "duration_seconds": 2.55,
+        "max_duration_seconds": 2.55,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.005,
+            "z": 0.12
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 56
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/water-drop.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/water-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/water-mist.png",
+      "role": "texture"
+    }
+  ]
+}

@@ -22,53 +22,38 @@
       "facing": "camera",
       "offset": {
         "x": 0,
-        "y": 0.28,
-        "z": 0.02
+        "y": 0.26,
+        "z": 0.1
       },
-      "size": 0.14
+      "size": 0.28
     },
     "art": {
       "image": "mind_blown_burst_flipbook.png",
       "flipbook": {
         "columns": 4,
-        "fps": 10,
-        "frames": 12,
+        "fps": 8,
+        "frames": 8,
         "loop": "once",
-        "rows": 3
+        "rows": 2
       }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "offset": {
-              "x": 0,
-              "y": -0.02
-            },
-            "opacity": 0,
-            "scale": 0.2,
+            "opacity": 1,
+            "scale": 1,
             "t": 0
           },
           {
-            "offset": {
-              "x": 0,
-              "y": 0
-            },
             "opacity": 1,
-            "scale": 1.12,
-            "t": 0.08
-          },
-          {
             "scale": 1,
-            "t": 0.13
+            "t": 0.8
           },
           {
-            "offset": {
-              "x": 0,
-              "y": 0.025
-            },
-            "scale": 1.08,
-            "t": 0.68
+            "opacity": 0,
+            "scale": 1,
+            "t": 1.05
           }
         ]
       }

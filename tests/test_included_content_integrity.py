@@ -35,7 +35,7 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["vfx/scene/**/*.png"]["license_id"] == "LicenseRef-Animama-owner-authored"
     assert not any("emoji" in rule["glob"] or "twemoji" in rule["provenance"].lower() for rule in rules)
     # Each Particle Effect has its own rule. Keep the existing owner-authored
-    # terms separate from the agent-authored effects (#523, #569) and the legacy Heart stream.
+    # terms separate from the agent-authored effects and their reused texture provenance.
     agent_authored_particles = {
         "butterfly-flutter",
         "musical-cascade",
@@ -52,18 +52,59 @@ def test_included_license_inventory_records_the_release_gate() -> None:
         "rage-embers",
         "sparkle-bubbles",
         "sweat-spray",
+        # Content Library expansion, including the replaced Heart stream.
+        "aroma-ribbons",
+        "cheer-streamers",
+        "electric-crackle",
+        "energy-wave-charge",
+        "hearts-v1",
+        "overheat-steam",
+        "spit-spray-mist",
+        "ta-da-glitter",
     }
-    particle_rules = [rule for rule in rules if rule["glob"].startswith("vfx/particle/quark/")]
+    particle_rules = [
+        rule for rule in rules if rule["glob"].startswith("vfx/particle/quark/") and rule["glob"].endswith("/**")
+    ]
     for stem in sorted(path.name for path in (ROOT / "content/included/vfx/particle/quark").iterdir()):
         rule = by_glob[f"vfx/particle/quark/{stem}/**"]
-        if stem == "hearts-v1":
-            expected = "LicenseRef-Animama-generated-and-CC0-particle-VFX"
-        elif stem in agent_authored_particles:
+        if stem in agent_authored_particles:
             expected = "LicenseRef-Animama-agent-authored"
         else:
             expected = "LicenseRef-Animama-owner-authored"
         assert rule["license_id"] == expected, stem
     assert len(particle_rules) == len(list((ROOT / "content/included/vfx/particle/quark").iterdir()))
+    # Copied creator textures retain their approved source terms ahead of each
+    # effect-wide rule; they are not additional Particle Effects.
+    reused_texture_terms = {
+        **dict.fromkeys(
+            (
+                "aroma-ribbons/textures/aroma-ribbons-glint.png",
+                "cheer-streamers/textures/cheer-star-glint.png",
+                "cheer-streamers/textures/cheer-soft-haze.png",
+                "electric-crackle/textures/soft-haze.png",
+                "hearts-v1/textures/soft-haze.png",
+                "hearts-v1/textures/star-glint.png",
+                "musical-cascade/textures/soft-haze.png",
+                "musical-cascade/textures/star-glint.png",
+                "overheat-steam/textures/overheat-steam-glint.png",
+            ),
+            "LicenseRef-Animama-owner-authored",
+        ),
+        **dict.fromkeys(
+            (
+                "energy-wave-charge/textures/glow-soft.png",
+                "energy-wave-charge/textures/glow-sharp.png",
+                "energy-wave-charge/textures/shock-ring.png",
+                "energy-wave-charge/textures/soft-dot.png",
+            ),
+            "LicenseRef-Animama-generated-and-CC0-particle-VFX",
+        ),
+    }
+    assert {
+        rule["glob"].removeprefix("vfx/particle/quark/"): rule["license_id"]
+        for rule in rules
+        if rule["glob"].startswith("vfx/particle/quark/") and not rule["glob"].endswith("/**")
+    } == reused_texture_terms
 
 
 @pytest.mark.parametrize(
@@ -138,7 +179,7 @@ def test_core_gesture_identities_stay_distinct_from_the_mixamo_pack() -> None:
         json.loads(path.read_text(encoding="utf-8"))
         for path in sorted((ROOT / "content/included/gestures").glob("*/*.meta.json"))
     ]
-    assert len(metas) >= 111
+    assert len(metas) >= 133
     assert _pack_collisions(metas, pack) == []
     assert _pack_collisions([{"content_id": "builtin:gesture:goodbye-wave", "semantic_key": "wave"}], pack) == [
         ("goodbye-wave", "wave")

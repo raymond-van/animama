@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:electric-crackle",
+  "version": 1,
+  "name": "Electric Crackle",
+  "description": "Bright cyan-violet arcs snap at changing points along the shoulders and arms, with brief flicker, a faint violet halo and a few escaping spark motes.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "electric-crackle",
+    "slots": {
+      "particle_vfx": {
+        "label": "Electric Crackle",
+        "description": "Bright cyan-violet arcs snap at changing points along the shoulders and arms, with brief flicker, a faint violet halo and a few escaping spark motes.",
+        "anchor": "chest",
+        "duration_seconds": 4.6,
+        "max_duration_seconds": 4.6,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 48
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/jolt-bolts.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/jolt-spark.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/soft-haze.png",
+      "role": "texture"
+    }
+  ]
+}

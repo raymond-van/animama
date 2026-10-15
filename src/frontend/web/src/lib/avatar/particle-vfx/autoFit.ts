@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { worldToParticleVFXAvatarFrame } from "./runtime";
 import type {
   ParticleVFXShapeAutoFit,
   ParticleVFXTransform,
@@ -148,8 +149,9 @@ export function resolveParticleVFXAvatarBoundsRectangleFit(args: {
   };
 }
 
+/** The Avatar's renderable bounds in the Avatar frame. */
 export function resolveParticleVFXAvatarRenderableBoundsLocal(
-  avatar: Pick<Avatar, "scene">,
+  avatar: Pick<Avatar, "scene" | "vrm">,
 ): ParticleVFXAvatarBoundsLocal | null {
   const scene = avatar.scene;
   if (!scene) return null;
@@ -184,7 +186,7 @@ export function resolveParticleVFXAvatarRenderableBoundsLocal(
 
   const localBox = new THREE.Box3();
   for (const corner of getBoxCorners(worldBox)) {
-    localBox.expandByPoint(scene.worldToLocal(corner));
+    localBox.expandByPoint(worldToParticleVFXAvatarFrame(avatar, corner));
   }
   if (localBox.isEmpty()) return null;
 

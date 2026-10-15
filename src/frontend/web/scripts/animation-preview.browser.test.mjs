@@ -402,7 +402,7 @@ test("previews an effect source and reloads it when its image changes", async ()
     );
     await copyFile(
       path.join(INCLUDED_EFFECT_ROOT, "eye_vv/eye_vv_r.png"),
-      path.join(folder, "eye_confused_swirl_r.png"),
+      path.join(folder, "eye_confused_swirl-sheet.png"),
     );
     await page.waitForFunction(
       (before) => window.animationPreview.generation > before,

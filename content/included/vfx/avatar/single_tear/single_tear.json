@@ -26,7 +26,7 @@
       "side": "right"
     },
     "art": {
-      "image": "single_tear_flipbook.png",
+      "image": "single_tear_ink_flipbook.png",
       "flipbook": {
         "columns": 2,
         "fps": 8,
@@ -80,7 +80,7 @@
   },
   "files": [
     {
-      "path": "single_tear_flipbook.png",
+      "path": "single_tear_ink_flipbook.png",
       "role": "image"
     }
   ]

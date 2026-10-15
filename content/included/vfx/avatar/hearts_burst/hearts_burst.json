@@ -19,45 +19,45 @@
     "attachment": {
       "kind": "body",
       "bone": "chest",
+      "facing": "camera",
       "offset": {
         "x": 0.055,
         "y": 0.215,
         "z": 0.29
       },
-      "size": 0.08,
-      "facing": "camera"
+      "size": 0.08
     },
     "art": {
       "image": "hearts_burst-sheet.png",
       "flipbook": {
         "columns": 4,
-        "rows": 2,
-        "frames": 7,
         "fps": 12,
-        "loop": "once"
+        "frames": 7,
+        "loop": "once",
+        "rows": 2
       }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
-            "opacity": 0,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "opacity": 0,
+            "t": 0
           },
           {
-            "t": 0.12,
-            "opacity": 1
+            "opacity": 1,
+            "t": 0.12
           },
           {
-            "t": 1.8,
             "offset": {
               "x": 0,
               "y": 0.015
-            }
+            },
+            "t": 1.8
           }
         ]
       }

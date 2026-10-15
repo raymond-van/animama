@@ -98,7 +98,7 @@ after(async () => {
 
 test("lists every Included effect descriptor and skips asset folders", async () => {
   const effects = await listIncludedEffects();
-  assert.equal(effects.length, 87);
+  assert.equal(effects.length, 100);
   assert.ok(!effects.some((effect) => effect.stem === "face"));
   for (const effect of effects) {
     assert.ok(effect.imagePath.startsWith(INCLUDED_EFFECT_ROOT));
@@ -110,7 +110,7 @@ test("resolves Included effects by stem, content id, name and path", async () =>
   assert.equal(byStem.stem, "heart_eyes");
   assert.equal(
     byStem.imagePath,
-    path.join(INCLUDED_EFFECT_ROOT, "heart_eyes/heart_eyes_r.png"),
+    path.join(INCLUDED_EFFECT_ROOT, "heart_eyes/heart_eyes-sheet.png"),
   );
   const byId = await resolveEffectSource(
     "library:included/builtin:avatar-effect:angry",
@@ -363,7 +363,9 @@ test("resolves Particle and Scene Effect sources by library spec and folder", as
   assert.equal(stream.contentId, "builtin:particle-effect:hearts-v1");
   assert.equal(stream.manifestPath, path.join(folder, "particle.json"));
   assert.deepEqual(stream.texturePaths, [
-    path.join(folder, "textures/heart.png"),
+    path.join(folder, "textures/pearl-heart.png"),
+    path.join(folder, "textures/soft-haze.png"),
+    path.join(folder, "textures/star-glint.png"),
   ]);
   assert.equal(stream.defaults.anchor, "head");
   const byFolder = await resolveAnyEffectSource(folder);
@@ -371,7 +373,9 @@ test("resolves Particle and Scene Effect sources by library spec and folder", as
   assert.deepEqual(effectSourceFiles(byFolder), [
     path.join(folder, "hearts-v1.json"),
     path.join(folder, "particle.json"),
-    path.join(folder, "textures/heart.png"),
+    path.join(folder, "textures/pearl-heart.png"),
+    path.join(folder, "textures/soft-haze.png"),
+    path.join(folder, "textures/star-glint.png"),
   ]);
 
   const joy = await resolveAnyEffectSource(

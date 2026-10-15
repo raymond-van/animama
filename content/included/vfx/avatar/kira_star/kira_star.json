@@ -31,53 +31,60 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": -0.1,
         "y": 0.123,
         "z": 0.138
       },
-      "size": 0.065,
-      "facing": "camera"
+      "size": 0.065
     },
     "art": {
-      "image": "kira_star.png"
+      "image": "kira_star-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
     },
     "motion": {
       "pulse": {
-        "scaleMin": 0.92,
+        "cyclesPerSecond": 1.5,
         "scaleMax": 1.06,
-        "cyclesPerSecond": 1.5
+        "scaleMin": 0.92
       },
       "keyframes": {
         "frames": [
           {
-            "t": 0,
             "opacity": 0,
+            "rotationDeg": -45,
             "scale": 0.2,
-            "rotationDeg": -45
+            "t": 0
           },
           {
-            "t": 0.1,
             "opacity": 1,
+            "rotationDeg": 8,
             "scale": 1.25,
-            "rotationDeg": 8
+            "t": 0.1
           },
           {
-            "t": 0.2,
+            "rotationDeg": 0,
             "scale": 0.92,
-            "rotationDeg": 0
+            "t": 0.2
           },
           {
-            "t": 0.28,
-            "scale": 1
+            "scale": 1,
+            "t": 0.28
           },
           {
-            "t": 0.36,
-            "scale": 1.12
+            "scale": 1.12,
+            "t": 0.36
           },
           {
-            "t": 0.46,
-            "scale": 1
+            "scale": 1,
+            "t": 0.46
           }
         ]
       }
@@ -86,7 +93,7 @@
   },
   "files": [
     {
-      "path": "kira_star.png",
+      "path": "kira_star-sheet.png",
       "role": "image"
     }
   ]

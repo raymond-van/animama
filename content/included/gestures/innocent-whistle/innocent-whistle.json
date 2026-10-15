@@ -1,0 +1,2115 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "innocent-whistle",
+  "name": "Innocent Whistle",
+  "duration": 4.6,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.3
+  },
+  "fadeOut": {
+    "duration": 0.4
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "prepare",
+      "label": "Hide the hands",
+      "time": 0.345
+    },
+    {
+      "id": "clasp",
+      "label": "Clasp behind back",
+      "time": 1.035
+    },
+    {
+      "id": "heels",
+      "label": "Rock back",
+      "time": 1.725
+    },
+    {
+      "id": "toes",
+      "label": "Rock forward",
+      "time": 2.53
+    },
+    {
+      "id": "caught",
+      "label": "Caught looking",
+      "time": 2.76
+    },
+    {
+      "id": "away",
+      "label": "Look innocently away",
+      "time": 3.105
+    },
+    {
+      "id": "nervous",
+      "label": "Nervous little smile",
+      "time": 3.68
+    },
+    {
+      "id": "settle",
+      "label": "Unhurried release",
+      "time": 4.6
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.55,
+          "beat": "prepare"
+        },
+        {
+          "v": -3.1,
+          "beat": "clasp"
+        },
+        {
+          "v": -1.55,
+          "beat": "heels"
+        },
+        {
+          "v": 2.79,
+          "beat": "toes"
+        },
+        {
+          "v": -0.93,
+          "beat": "away"
+        },
+        {
+          "v": -0.31,
+          "beat": "nervous"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "prepare"
+        },
+        {
+          "v": -2.31,
+          "beat": "clasp"
+        },
+        {
+          "v": 2.475,
+          "beat": "heels"
+        },
+        {
+          "v": -1.815,
+          "beat": "toes"
+        },
+        {
+          "v": 1.32,
+          "beat": "away"
+        },
+        {
+          "v": -0.99,
+          "beat": "nervous"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.24,
+          "beat": "prepare"
+        },
+        {
+          "v": 2.325,
+          "beat": "clasp"
+        },
+        {
+          "v": 3.1,
+          "beat": "heels"
+        },
+        {
+          "v": 1.55,
+          "beat": "toes"
+        },
+        {
+          "v": 4.65,
+          "beat": "away"
+        },
+        {
+          "v": -1.55,
+          "beat": "nervous"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.93,
+          "beat": "prepare",
+          "dt": 0.03
+        },
+        {
+          "v": -1.86,
+          "beat": "clasp",
+          "dt": 0.03
+        },
+        {
+          "v": -0.93,
+          "beat": "heels",
+          "dt": 0.03
+        },
+        {
+          "v": 1.674,
+          "beat": "toes",
+          "dt": 0.03
+        },
+        {
+          "v": -0.558,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": -0.186,
+          "beat": "nervous",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "prepare",
+          "dt": 0.03
+        },
+        {
+          "v": -1.386,
+          "beat": "clasp",
+          "dt": 0.03
+        },
+        {
+          "v": 1.485,
+          "beat": "heels",
+          "dt": 0.03
+        },
+        {
+          "v": -1.089,
+          "beat": "toes",
+          "dt": 0.03
+        },
+        {
+          "v": 0.792,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": -0.594,
+          "beat": "nervous",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.744,
+          "beat": "prepare",
+          "dt": 0.03
+        },
+        {
+          "v": 1.395,
+          "beat": "clasp",
+          "dt": 0.03
+        },
+        {
+          "v": 1.86,
+          "beat": "heels",
+          "dt": 0.03
+        },
+        {
+          "v": 0.93,
+          "beat": "toes",
+          "dt": 0.03
+        },
+        {
+          "v": 2.79,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": -0.93,
+          "beat": "nervous",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.775,
+          "beat": "prepare",
+          "dt": 0.06
+        },
+        {
+          "v": -1.55,
+          "beat": "clasp",
+          "dt": 0.06
+        },
+        {
+          "v": -0.775,
+          "beat": "heels",
+          "dt": 0.06
+        },
+        {
+          "v": 1.395,
+          "beat": "toes",
+          "dt": 0.06
+        },
+        {
+          "v": -0.465,
+          "beat": "away",
+          "dt": 0.06
+        },
+        {
+          "v": -0.155,
+          "beat": "nervous",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "prepare",
+          "dt": 0.06
+        },
+        {
+          "v": -1.155,
+          "beat": "clasp",
+          "dt": 0.06
+        },
+        {
+          "v": 1.2375,
+          "beat": "heels",
+          "dt": 0.06
+        },
+        {
+          "v": -0.9075,
+          "beat": "toes",
+          "dt": 0.06
+        },
+        {
+          "v": 0.66,
+          "beat": "away",
+          "dt": 0.06
+        },
+        {
+          "v": -0.495,
+          "beat": "nervous",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.62,
+          "beat": "prepare",
+          "dt": 0.06
+        },
+        {
+          "v": 1.1625,
+          "beat": "clasp",
+          "dt": 0.06
+        },
+        {
+          "v": 1.55,
+          "beat": "heels",
+          "dt": 0.06
+        },
+        {
+          "v": 0.775,
+          "beat": "toes",
+          "dt": 0.06
+        },
+        {
+          "v": 2.325,
+          "beat": "away",
+          "dt": 0.06
+        },
+        {
+          "v": -0.775,
+          "beat": "nervous",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.62,
+          "beat": "prepare",
+          "dt": 0.09
+        },
+        {
+          "v": -1.24,
+          "beat": "clasp",
+          "dt": 0.09
+        },
+        {
+          "v": -0.62,
+          "beat": "heels",
+          "dt": 0.09
+        },
+        {
+          "v": 1.116,
+          "beat": "toes",
+          "dt": 0.09
+        },
+        {
+          "v": -1.8,
+          "beat": "caught",
+          "dt": 0.06
+        },
+        {
+          "v": -0.372,
+          "beat": "away",
+          "dt": 0.09
+        },
+        {
+          "v": -0.124,
+          "beat": "nervous",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "prepare",
+          "dt": 0.09
+        },
+        {
+          "v": -0.924,
+          "beat": "clasp",
+          "dt": 0.09
+        },
+        {
+          "v": 0.99,
+          "beat": "heels",
+          "dt": 0.09
+        },
+        {
+          "v": -0.726,
+          "beat": "toes",
+          "dt": 0.09
+        },
+        {
+          "v": 0.528,
+          "beat": "away",
+          "dt": 0.09
+        },
+        {
+          "v": -0.396,
+          "beat": "nervous",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.496,
+          "beat": "prepare",
+          "dt": 0.09
+        },
+        {
+          "v": 0.93,
+          "beat": "clasp",
+          "dt": 0.09
+        },
+        {
+          "v": 1.24,
+          "beat": "heels",
+          "dt": 0.09
+        },
+        {
+          "v": 0.62,
+          "beat": "toes",
+          "dt": 0.09
+        },
+        {
+          "v": 1.86,
+          "beat": "away",
+          "dt": 0.09
+        },
+        {
+          "v": -0.62,
+          "beat": "nervous",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "prepare",
+          "dt": 0.025
+        },
+        {
+          "v": -4,
+          "beat": "clasp",
+          "dt": 0.035
+        },
+        {
+          "v": -2,
+          "beat": "heels",
+          "dt": -0.295
+        },
+        {
+          "v": -4.5,
+          "beat": "heels",
+          "dt": 0.045
+        },
+        {
+          "v": -2,
+          "beat": "heels",
+          "dt": 0.395
+        },
+        {
+          "v": -3,
+          "beat": "toes",
+          "dt": 0.02
+        },
+        {
+          "v": 0,
+          "beat": "caught",
+          "dt": 0.05
+        },
+        {
+          "v": -5,
+          "beat": "away",
+          "dt": 0.025
+        },
+        {
+          "v": -2,
+          "beat": "nervous",
+          "dt": 0.08
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "prepare",
+          "dt": 0.035
+        },
+        {
+          "v": 5,
+          "beat": "clasp",
+          "dt": 0.035
+        },
+        {
+          "v": 7,
+          "beat": "heels",
+          "dt": 0.045
+        },
+        {
+          "v": 6,
+          "beat": "toes",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "caught",
+          "dt": 0.05
+        },
+        {
+          "v": 8,
+          "beat": "away",
+          "dt": 0.025
+        },
+        {
+          "v": 5,
+          "beat": "nervous",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "prepare",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "clasp",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "heels",
+          "dt": 0.04
+        },
+        {
+          "v": 2.5,
+          "beat": "toes",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "away",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "nervous",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "prepare",
+          "dt": -0.045
+        },
+        {
+          "v": -8,
+          "beat": "clasp",
+          "dt": -0.045
+        },
+        {
+          "v": -4,
+          "beat": "clasp",
+          "dt": 0.325
+        },
+        {
+          "v": -10,
+          "beat": "heels",
+          "dt": -0.035
+        },
+        {
+          "v": -5,
+          "beat": "heels",
+          "dt": 0.325
+        },
+        {
+          "v": -7,
+          "beat": "toes",
+          "dt": -0.05
+        },
+        {
+          "v": -1,
+          "beat": "caught"
+        },
+        {
+          "v": -11,
+          "beat": "away",
+          "dt": -0.045
+        },
+        {
+          "v": -7,
+          "beat": "nervous",
+          "dt": -0.2
+        },
+        {
+          "v": -5,
+          "beat": "nervous"
+        },
+        {
+          "v": -3,
+          "beat": "nervous",
+          "dt": 0.4
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "prepare",
+          "dt": -0.055
+        },
+        {
+          "v": 14,
+          "beat": "clasp",
+          "dt": -0.055
+        },
+        {
+          "v": 18,
+          "beat": "heels",
+          "dt": -0.055
+        },
+        {
+          "v": 15,
+          "beat": "toes",
+          "dt": -0.11
+        },
+        {
+          "v": -2,
+          "beat": "caught"
+        },
+        {
+          "v": 22,
+          "beat": "away",
+          "dt": -0.065
+        },
+        {
+          "v": 15,
+          "beat": "nervous"
+        },
+        {
+          "v": 12,
+          "beat": "nervous",
+          "dt": 0.42
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "prepare",
+          "dt": -0.025
+        },
+        {
+          "v": 5,
+          "beat": "clasp",
+          "dt": -0.025
+        },
+        {
+          "v": -2,
+          "beat": "heels",
+          "dt": -0.025
+        },
+        {
+          "v": 5,
+          "beat": "toes",
+          "dt": -0.06
+        },
+        {
+          "v": 1,
+          "beat": "caught"
+        },
+        {
+          "v": -3,
+          "beat": "away",
+          "dt": -0.025
+        },
+        {
+          "v": 5,
+          "beat": "nervous"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 6,
+          "beat": "prepare",
+          "dt": -0.105
+        },
+        {
+          "v": 10,
+          "beat": "clasp",
+          "dt": -0.105
+        },
+        {
+          "v": 13,
+          "beat": "heels",
+          "dt": -0.095
+        },
+        {
+          "v": 10,
+          "beat": "toes",
+          "dt": -0.13
+        },
+        {
+          "v": -5,
+          "beat": "caught",
+          "dt": -0.08
+        },
+        {
+          "v": -5,
+          "beat": "caught",
+          "dt": 0.03
+        },
+        {
+          "v": 14,
+          "beat": "away",
+          "dt": -0.125
+        },
+        {
+          "v": 10,
+          "beat": "nervous",
+          "dt": -0.08
+        },
+        {
+          "v": 8,
+          "beat": "settle",
+          "dt": -0.45
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "prepare",
+          "dt": -0.085
+        },
+        {
+          "v": 8,
+          "beat": "clasp",
+          "dt": -0.085
+        },
+        {
+          "v": 10,
+          "beat": "heels",
+          "dt": -0.075
+        },
+        {
+          "v": 7,
+          "beat": "toes",
+          "dt": -0.13
+        },
+        {
+          "v": 0,
+          "beat": "caught",
+          "dt": -0.08
+        },
+        {
+          "v": 0,
+          "beat": "caught",
+          "dt": 0.03
+        },
+        {
+          "v": 10,
+          "beat": "away",
+          "dt": -0.125
+        },
+        {
+          "v": 7,
+          "beat": "nervous",
+          "dt": -0.08
+        },
+        {
+          "v": 5,
+          "beat": "settle",
+          "dt": -0.45
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1.8,
+          "beat": "prepare",
+          "dt": 0.075
+        },
+        {
+          "v": 4.2,
+          "beat": "clasp",
+          "dt": 0.065
+        },
+        {
+          "v": 3.6,
+          "beat": "heels",
+          "dt": 0.075
+        },
+        {
+          "v": 4.5,
+          "beat": "toes",
+          "dt": 0.02
+        },
+        {
+          "v": 5.4,
+          "beat": "caught",
+          "dt": 0.07
+        },
+        {
+          "v": 4.2,
+          "beat": "away",
+          "dt": 0.075
+        },
+        {
+          "v": 4.8,
+          "beat": "nervous",
+          "dt": 0.07
+        },
+        {
+          "v": 2.4,
+          "beat": "settle",
+          "dt": -0.38
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "prepare",
+          "dt": 0.03
+        },
+        {
+          "v": -15,
+          "beat": "clasp",
+          "dt": 0.03
+        },
+        {
+          "v": -15,
+          "beat": "heels",
+          "dt": 0.03
+        },
+        {
+          "v": -15,
+          "beat": "toes",
+          "dt": 0.03
+        },
+        {
+          "v": -15,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": -15,
+          "beat": "nervous",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "prepare",
+          "dt": 0.06
+        },
+        {
+          "v": 49,
+          "beat": "clasp",
+          "dt": 0.06
+        },
+        {
+          "v": 49,
+          "beat": "heels",
+          "dt": 0.06
+        },
+        {
+          "v": 49,
+          "beat": "toes",
+          "dt": 0.06
+        },
+        {
+          "v": 49,
+          "beat": "away",
+          "dt": 0.06
+        },
+        {
+          "v": 49,
+          "beat": "nervous",
+          "dt": 0.06
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -65,
+          "beat": "prepare",
+          "dt": 0.03
+        },
+        {
+          "v": -86,
+          "beat": "clasp",
+          "dt": 0.03
+        },
+        {
+          "v": -86,
+          "beat": "heels",
+          "dt": 0.03
+        },
+        {
+          "v": -86,
+          "beat": "toes",
+          "dt": 0.03
+        },
+        {
+          "v": -86,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": -86,
+          "beat": "nervous",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -45,
+          "beat": "prepare",
+          "dt": 0.07
+        },
+        {
+          "v": -91,
+          "beat": "clasp",
+          "dt": 0.07
+        },
+        {
+          "v": -91,
+          "beat": "heels",
+          "dt": 0.07
+        },
+        {
+          "v": -91,
+          "beat": "toes",
+          "dt": 0.07
+        },
+        {
+          "v": -91,
+          "beat": "away",
+          "dt": 0.07
+        },
+        {
+          "v": -91,
+          "beat": "nervous",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 8,
+          "beat": "prepare",
+          "dt": 0.09
+        },
+        {
+          "v": 44,
+          "beat": "clasp",
+          "dt": 0.09
+        },
+        {
+          "v": 44,
+          "beat": "heels",
+          "dt": 0.09
+        },
+        {
+          "v": 44,
+          "beat": "toes",
+          "dt": 0.09
+        },
+        {
+          "v": 44,
+          "beat": "away",
+          "dt": 0.09
+        },
+        {
+          "v": 44,
+          "beat": "nervous",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -10,
+          "beat": "prepare",
+          "dt": 0.1
+        },
+        {
+          "v": -3,
+          "beat": "clasp",
+          "dt": 0.1
+        },
+        {
+          "v": -3,
+          "beat": "heels",
+          "dt": 0.1
+        },
+        {
+          "v": -3,
+          "beat": "toes",
+          "dt": 0.1
+        },
+        {
+          "v": -3,
+          "beat": "away",
+          "dt": 0.1
+        },
+        {
+          "v": -3,
+          "beat": "nervous",
+          "dt": 0.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "prepare",
+          "dt": 0.12
+        },
+        {
+          "v": 50,
+          "beat": "clasp",
+          "dt": 0.12
+        },
+        {
+          "v": 50,
+          "beat": "heels",
+          "dt": 0.12
+        },
+        {
+          "v": 50,
+          "beat": "toes",
+          "dt": 0.12
+        },
+        {
+          "v": 50,
+          "beat": "away",
+          "dt": 0.12
+        },
+        {
+          "v": 50,
+          "beat": "nervous",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "prepare",
+          "dt": 0.14
+        },
+        {
+          "v": 4,
+          "beat": "clasp",
+          "dt": 0.14
+        },
+        {
+          "v": 4,
+          "beat": "heels",
+          "dt": 0.14
+        },
+        {
+          "v": 3,
+          "beat": "toes",
+          "dt": 0.14
+        },
+        {
+          "v": 4,
+          "beat": "away",
+          "dt": 0.14
+        },
+        {
+          "v": 3,
+          "beat": "nervous",
+          "dt": 0.14
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1.8,
+          "beat": "prepare",
+          "dt": 0.13
+        },
+        {
+          "v": 4.2,
+          "beat": "clasp",
+          "dt": 0.12
+        },
+        {
+          "v": 3.6,
+          "beat": "heels",
+          "dt": 0.13
+        },
+        {
+          "v": 4.5,
+          "beat": "toes",
+          "dt": 0.075
+        },
+        {
+          "v": 5.4,
+          "beat": "caught",
+          "dt": 0.125
+        },
+        {
+          "v": 4.2,
+          "beat": "away",
+          "dt": 0.13
+        },
+        {
+          "v": 4.8,
+          "beat": "nervous",
+          "dt": 0.125
+        },
+        {
+          "v": 2.4,
+          "beat": "settle",
+          "dt": -0.325
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "prepare",
+          "dt": 0.09
+        },
+        {
+          "v": -15,
+          "beat": "clasp",
+          "dt": 0.09
+        },
+        {
+          "v": -15,
+          "beat": "heels",
+          "dt": 0.09
+        },
+        {
+          "v": -15,
+          "beat": "toes",
+          "dt": 0.09
+        },
+        {
+          "v": -15,
+          "beat": "away",
+          "dt": 0.09
+        },
+        {
+          "v": -15,
+          "beat": "nervous",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "prepare",
+          "dt": 0.12
+        },
+        {
+          "v": 49,
+          "beat": "clasp",
+          "dt": 0.12
+        },
+        {
+          "v": 49,
+          "beat": "heels",
+          "dt": 0.12
+        },
+        {
+          "v": 49,
+          "beat": "toes",
+          "dt": 0.12
+        },
+        {
+          "v": 49,
+          "beat": "away",
+          "dt": 0.12
+        },
+        {
+          "v": 49,
+          "beat": "nervous",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -65,
+          "beat": "prepare",
+          "dt": 0.09
+        },
+        {
+          "v": -86,
+          "beat": "clasp",
+          "dt": 0.09
+        },
+        {
+          "v": -86,
+          "beat": "heels",
+          "dt": 0.09
+        },
+        {
+          "v": -86,
+          "beat": "toes",
+          "dt": 0.09
+        },
+        {
+          "v": -86,
+          "beat": "away",
+          "dt": 0.09
+        },
+        {
+          "v": -86,
+          "beat": "nervous",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -45,
+          "beat": "prepare",
+          "dt": 0.13
+        },
+        {
+          "v": -91,
+          "beat": "clasp",
+          "dt": 0.13
+        },
+        {
+          "v": -91,
+          "beat": "heels",
+          "dt": 0.13
+        },
+        {
+          "v": -91,
+          "beat": "toes",
+          "dt": 0.13
+        },
+        {
+          "v": -91,
+          "beat": "away",
+          "dt": 0.13
+        },
+        {
+          "v": -91,
+          "beat": "nervous",
+          "dt": 0.13
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 8,
+          "beat": "prepare",
+          "dt": 0.15
+        },
+        {
+          "v": 44,
+          "beat": "clasp",
+          "dt": 0.15
+        },
+        {
+          "v": 44,
+          "beat": "heels",
+          "dt": 0.15
+        },
+        {
+          "v": 44,
+          "beat": "toes",
+          "dt": 0.15
+        },
+        {
+          "v": 44,
+          "beat": "away",
+          "dt": 0.15
+        },
+        {
+          "v": 44,
+          "beat": "nervous",
+          "dt": 0.15
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -10,
+          "beat": "prepare",
+          "dt": 0.16
+        },
+        {
+          "v": -3,
+          "beat": "clasp",
+          "dt": 0.16
+        },
+        {
+          "v": -3,
+          "beat": "heels",
+          "dt": 0.16
+        },
+        {
+          "v": -3,
+          "beat": "toes",
+          "dt": 0.16
+        },
+        {
+          "v": -3,
+          "beat": "away",
+          "dt": 0.16
+        },
+        {
+          "v": -3,
+          "beat": "nervous",
+          "dt": 0.16
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "prepare",
+          "dt": 0.18
+        },
+        {
+          "v": 50,
+          "beat": "clasp",
+          "dt": 0.18
+        },
+        {
+          "v": 50,
+          "beat": "heels",
+          "dt": 0.18
+        },
+        {
+          "v": 50,
+          "beat": "toes",
+          "dt": 0.18
+        },
+        {
+          "v": 50,
+          "beat": "away",
+          "dt": 0.18
+        },
+        {
+          "v": 50,
+          "beat": "nervous",
+          "dt": 0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "prepare",
+          "dt": 0.2
+        },
+        {
+          "v": 4,
+          "beat": "clasp",
+          "dt": 0.2
+        },
+        {
+          "v": 4,
+          "beat": "heels",
+          "dt": 0.2
+        },
+        {
+          "v": 3,
+          "beat": "toes",
+          "dt": 0.2
+        },
+        {
+          "v": 4,
+          "beat": "away",
+          "dt": 0.2
+        },
+        {
+          "v": 3,
+          "beat": "nervous",
+          "dt": 0.2
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.005,
+        "beat": "prepare"
+      },
+      {
+        "v": 0.025,
+        "beat": "clasp"
+      },
+      {
+        "v": -0.023,
+        "beat": "heels"
+      },
+      {
+        "v": 0.024,
+        "beat": "toes"
+      },
+      {
+        "v": 0.018,
+        "beat": "caught"
+      },
+      {
+        "v": -0.019,
+        "beat": "away"
+      },
+      {
+        "v": 0.016,
+        "beat": "nervous"
+      },
+      {
+        "v": 0.009,
+        "beat": "nervous",
+        "dt": 0.42
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.006,
+        "beat": "prepare"
+      },
+      {
+        "v": -0.017,
+        "beat": "clasp"
+      },
+      {
+        "v": -0.009,
+        "beat": "heels"
+      },
+      {
+        "v": -0.02,
+        "beat": "toes"
+      },
+      {
+        "v": -0.018,
+        "beat": "caught"
+      },
+      {
+        "v": -0.011,
+        "beat": "away"
+      },
+      {
+        "v": -0.017,
+        "beat": "nervous"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.006,
+        "beat": "prepare"
+      },
+      {
+        "v": 0.02,
+        "beat": "clasp"
+      },
+      {
+        "v": -0.022,
+        "beat": "heels"
+      },
+      {
+        "v": 0.023,
+        "beat": "toes"
+      },
+      {
+        "v": 0.02,
+        "beat": "caught"
+      },
+      {
+        "v": -0.02,
+        "beat": "away"
+      },
+      {
+        "v": 0.019,
+        "beat": "nervous"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": -3,
+        "beat": "prepare",
+        "dt": 0.1
+      },
+      {
+        "preset": "relaxed",
+        "beat": "clasp",
+        "dt": 0.1
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "ring": {
+            "curl": [2, 1, 0]
+          },
+          "little": {
+            "curl": [3, 2, 0]
+          }
+        },
+        "beat": "heels",
+        "dt": 0.15
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "ring": {
+            "curl": [-1, 0, 0]
+          },
+          "little": {
+            "curl": [0, 1, 0]
+          }
+        },
+        "beat": "toes",
+        "dt": 0.15
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "middle": {
+            "curl": [1, 1, 0]
+          },
+          "ring": {
+            "curl": [3, 2, 0]
+          },
+          "little": {
+            "curl": [4, 2, 1]
+          }
+        },
+        "beat": "nervous",
+        "dt": 0.1
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.1
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": -3,
+        "beat": "prepare",
+        "dt": 0.16
+      },
+      {
+        "preset": "relaxed",
+        "beat": "clasp",
+        "dt": 0.16
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "ring": {
+            "curl": [2, 1, 0]
+          },
+          "little": {
+            "curl": [3, 2, 0]
+          }
+        },
+        "beat": "heels",
+        "dt": 0.21
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "ring": {
+            "curl": [-1, 0, 0]
+          },
+          "little": {
+            "curl": [0, 1, 0]
+          }
+        },
+        "beat": "toes",
+        "dt": 0.21
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "middle": {
+            "curl": [1, 1, 0]
+          },
+          "ring": {
+            "curl": [3, 2, 0]
+          },
+          "little": {
+            "curl": [4, 2, 1]
+          }
+        },
+        "beat": "nervous",
+        "dt": 0.16
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.1
+      }
+    ]
+  },
+  "expressions": {
+    "ou": [
+      {
+        "v": 0.6,
+        "beat": "start"
+      },
+      {
+        "v": 0.6,
+        "beat": "nervous",
+        "dt": 0.25
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "relaxed": [
+      {
+        "v": 0.3,
+        "beat": "start"
+      },
+      {
+        "v": 0.3,
+        "beat": "nervous",
+        "dt": 0.25
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "away",
+        "dt": 0.3
+      },
+      {
+        "v": 0.2,
+        "beat": "nervous"
+      },
+      {
+        "v": 0.2,
+        "beat": "nervous",
+        "dt": 0.25
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "caught",
+        "dt": 0.06
+      },
+      {
+        "v": 0.55,
+        "beat": "caught",
+        "dt": 0.17
+      },
+      {
+        "v": 0,
+        "beat": "away",
+        "dt": -0.065
+      },
+      {
+        "v": 0,
+        "beat": "nervous",
+        "dt": 0.44
+      },
+      {
+        "v": 0.65,
+        "beat": "settle",
+        "dt": -0.37
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": -0.24
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightIndexDistal",
+      "target": "leftIndexDistal",
+      "beat": "clasp",
+      "from": 0.16,
+      "to": 2.72,
+      "offset": [0, 0, 0],
+      "point": "tip",
+      "targetPoint": "tip",
+      "solve": {
+        "blendIn": 0.35,
+        "blendOut": 0.45
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "whistle_notes",
+      "time": 0.15,
+      "kind": "avatar_vfx",
+      "effectId": "whistle_notes",
+      "duration": 3.85,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.18,
+          "fadeOut": 0.3
+        }
+      },
+      "override": {
+        "attachment": {
+          "kind": "sticker",
+          "around": "head",
+          "offset": {
+            "x": 0.09,
+            "y": 0.035
+          },
+          "size": 0.09
+        }
+      }
+    },
+    {
+      "id": "sweat_drop_v2",
+      "time": 2.76,
+      "kind": "avatar_vfx",
+      "effectId": "sweat_drop_v2",
+      "duration": 1.22,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.06,
+          "fadeOut": 0.25
+        }
+      },
+      "playAccompanyingSound": false
+    }
+  ]
+}

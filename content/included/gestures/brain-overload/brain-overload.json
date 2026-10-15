@@ -1,0 +1,3020 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "brain-overload",
+  "name": "Brain Overload",
+  "duration": 4.5,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.25
+  },
+  "fadeOut": {
+    "duration": 0.4
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "alarm",
+      "label": "Too much information",
+      "time": 0.345
+    },
+    {
+      "id": "reach",
+      "label": "Hands rise",
+      "time": 0.69
+    },
+    {
+      "id": "grip",
+      "label": "Grip temples",
+      "time": 1.035
+    },
+    {
+      "id": "rock-right",
+      "label": "Rock right",
+      "time": 1.38
+    },
+    {
+      "id": "rock-left",
+      "label": "Rock left",
+      "time": 1.725
+    },
+    {
+      "id": "shudder",
+      "label": "Overload shudder",
+      "time": 2.07
+    },
+    {
+      "id": "sputter",
+      "label": "Sputter",
+      "time": 2.55
+    },
+    {
+      "id": "fried",
+      "label": "Brain fried",
+      "time": 2.76
+    },
+    {
+      "id": "limp",
+      "label": "Arms drop limp",
+      "time": 3.22
+    },
+    {
+      "id": "droop",
+      "label": "Heavy droop",
+      "time": 3.62
+    },
+    {
+      "id": "recover",
+      "label": "Slowly recover",
+      "time": 4.06
+    },
+    {
+      "id": "settle",
+      "label": "Recover to rest",
+      "time": 4.5
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "alarm",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "reach",
+          "dt": 0.03
+        },
+        {
+          "v": 2,
+          "beat": "grip",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "rock-right",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "rock-left",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "shudder",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "sputter",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "fried",
+          "dt": 0.03
+        },
+        {
+          "v": 5,
+          "beat": "limp",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "droop",
+          "dt": 0.03
+        },
+        {
+          "v": 1.4,
+          "beat": "recover",
+          "dt": -0.02
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.1
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "alarm",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "reach",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "grip",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "rock-right",
+          "dt": 0.04
+        },
+        {
+          "v": -2,
+          "beat": "rock-left",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "shudder",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "sputter",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "limp",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "droop",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.1
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "alarm",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "reach",
+          "dt": 0.03
+        },
+        {
+          "v": -1,
+          "beat": "grip",
+          "dt": 0.03
+        },
+        {
+          "v": -3,
+          "beat": "rock-right",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "rock-left",
+          "dt": 0.03
+        },
+        {
+          "v": -1,
+          "beat": "shudder",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "sputter",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "limp",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "droop",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.1
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "alarm",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "reach",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "grip",
+          "dt": 0.04
+        },
+        {
+          "v": 5,
+          "beat": "rock-right",
+          "dt": 0.04
+        },
+        {
+          "v": 5,
+          "beat": "rock-left",
+          "dt": 0.04
+        },
+        {
+          "v": 7,
+          "beat": "shudder",
+          "dt": 0.04
+        },
+        {
+          "v": 4.5,
+          "beat": "shudder",
+          "dt": 0.12
+        },
+        {
+          "v": 8.625,
+          "beat": "sputter",
+          "dt": -0.2
+        },
+        {
+          "v": 6,
+          "beat": "sputter",
+          "dt": -0.04
+        },
+        {
+          "v": 6,
+          "beat": "sputter",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "fried",
+          "dt": 0.04
+        },
+        {
+          "v": 8,
+          "beat": "limp",
+          "dt": 0.04
+        },
+        {
+          "v": 7,
+          "beat": "droop",
+          "dt": 0.04
+        },
+        {
+          "v": 3.3,
+          "beat": "recover"
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.1
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "reach",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "grip",
+          "dt": 0.04
+        },
+        {
+          "v": -4,
+          "beat": "rock-right",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "rock-left",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "shudder",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "sputter",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "limp",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "droop",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.1
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "alarm",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "reach",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "grip",
+          "dt": 0.04
+        },
+        {
+          "v": -2,
+          "beat": "rock-right",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "rock-left",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "shudder",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "sputter",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "limp",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "droop",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.1
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.3,
+          "beat": "alarm",
+          "dt": 0.065
+        },
+        {
+          "v": 2.6,
+          "beat": "reach",
+          "dt": 0.065
+        },
+        {
+          "v": 5.2,
+          "beat": "grip",
+          "dt": 0.065
+        },
+        {
+          "v": 6.5,
+          "beat": "rock-right",
+          "dt": 0.065
+        },
+        {
+          "v": 6.5,
+          "beat": "rock-left",
+          "dt": 0.065
+        },
+        {
+          "v": 9.1,
+          "beat": "shudder",
+          "dt": 0.065
+        },
+        {
+          "v": 6.1,
+          "beat": "shudder",
+          "dt": 0.145
+        },
+        {
+          "v": 11.05,
+          "beat": "sputter",
+          "dt": -0.175
+        },
+        {
+          "v": 7.9,
+          "beat": "sputter",
+          "dt": -0.015
+        },
+        {
+          "v": 7.8,
+          "beat": "sputter",
+          "dt": 0.065
+        },
+        {
+          "v": 5.2,
+          "beat": "fried",
+          "dt": 0.065
+        },
+        {
+          "v": 10.4,
+          "beat": "limp",
+          "dt": 0.065
+        },
+        {
+          "v": 9.1,
+          "beat": "droop",
+          "dt": 0.065
+        },
+        {
+          "v": 4.2,
+          "beat": "recover",
+          "dt": 0.025
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.075
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.3,
+          "beat": "alarm",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "reach",
+          "dt": 0.065
+        },
+        {
+          "v": -1.3,
+          "beat": "grip",
+          "dt": 0.065
+        },
+        {
+          "v": -5.2,
+          "beat": "rock-right",
+          "dt": 0.065
+        },
+        {
+          "v": 5.2,
+          "beat": "rock-left",
+          "dt": 0.065
+        },
+        {
+          "v": -1.3,
+          "beat": "shudder",
+          "dt": 0.065
+        },
+        {
+          "v": 1.3,
+          "beat": "sputter",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.065
+        },
+        {
+          "v": 1.3,
+          "beat": "limp",
+          "dt": 0.065
+        },
+        {
+          "v": 1.3,
+          "beat": "droop",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.075
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "alarm",
+          "dt": 0.065
+        },
+        {
+          "v": 1.3,
+          "beat": "reach",
+          "dt": 0.065
+        },
+        {
+          "v": -1.3,
+          "beat": "grip",
+          "dt": 0.065
+        },
+        {
+          "v": -2.6,
+          "beat": "rock-right",
+          "dt": 0.065
+        },
+        {
+          "v": 2.6,
+          "beat": "rock-left",
+          "dt": 0.065
+        },
+        {
+          "v": -1.3,
+          "beat": "shudder",
+          "dt": 0.065
+        },
+        {
+          "v": 1.3,
+          "beat": "sputter",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.065
+        },
+        {
+          "v": -1.3,
+          "beat": "limp",
+          "dt": 0.065
+        },
+        {
+          "v": -1.3,
+          "beat": "droop",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.075
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.8,
+          "beat": "alarm",
+          "dt": 0.09
+        },
+        {
+          "v": 1.6,
+          "beat": "reach",
+          "dt": 0.09
+        },
+        {
+          "v": 3.2,
+          "beat": "grip",
+          "dt": 0.09
+        },
+        {
+          "v": 4,
+          "beat": "rock-right",
+          "dt": 0.09
+        },
+        {
+          "v": 4,
+          "beat": "rock-left",
+          "dt": 0.09
+        },
+        {
+          "v": 5.6,
+          "beat": "shudder",
+          "dt": 0.09
+        },
+        {
+          "v": 3.4,
+          "beat": "shudder",
+          "dt": 0.17
+        },
+        {
+          "v": 7.03,
+          "beat": "sputter",
+          "dt": -0.15
+        },
+        {
+          "v": 4.8,
+          "beat": "sputter",
+          "dt": 0.09
+        },
+        {
+          "v": 3.2,
+          "beat": "fried",
+          "dt": 0.09
+        },
+        {
+          "v": 6.4,
+          "beat": "limp",
+          "dt": 0.09
+        },
+        {
+          "v": 5.6,
+          "beat": "droop",
+          "dt": 0.09
+        },
+        {
+          "v": 2.7,
+          "beat": "recover",
+          "dt": 0.05
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.05
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0.8,
+          "beat": "alarm",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "reach",
+          "dt": 0.09
+        },
+        {
+          "v": -0.8,
+          "beat": "grip",
+          "dt": 0.09
+        },
+        {
+          "v": -3.2,
+          "beat": "rock-right",
+          "dt": 0.09
+        },
+        {
+          "v": 3.2,
+          "beat": "rock-left",
+          "dt": 0.09
+        },
+        {
+          "v": -0.8,
+          "beat": "shudder",
+          "dt": 0.09
+        },
+        {
+          "v": 0.8,
+          "beat": "sputter",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.09
+        },
+        {
+          "v": 0.8,
+          "beat": "limp",
+          "dt": 0.09
+        },
+        {
+          "v": 0.8,
+          "beat": "droop",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.05
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "alarm",
+          "dt": 0.09
+        },
+        {
+          "v": 0.8,
+          "beat": "reach",
+          "dt": 0.09
+        },
+        {
+          "v": -0.8,
+          "beat": "grip",
+          "dt": 0.09
+        },
+        {
+          "v": -1.6,
+          "beat": "rock-right",
+          "dt": 0.09
+        },
+        {
+          "v": 1.6,
+          "beat": "rock-left",
+          "dt": 0.09
+        },
+        {
+          "v": -0.8,
+          "beat": "shudder",
+          "dt": 0.09
+        },
+        {
+          "v": 0.8,
+          "beat": "sputter",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.09
+        },
+        {
+          "v": -0.8,
+          "beat": "limp",
+          "dt": 0.09
+        },
+        {
+          "v": -0.8,
+          "beat": "droop",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.05
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "alarm",
+          "dt": 0.01
+        },
+        {
+          "v": 2,
+          "beat": "reach",
+          "dt": 0.01
+        },
+        {
+          "v": 3,
+          "beat": "grip",
+          "dt": 0.01
+        },
+        {
+          "v": 2,
+          "beat": "rock-right",
+          "dt": 0.01
+        },
+        {
+          "v": 3,
+          "beat": "rock-left",
+          "dt": 0.01
+        },
+        {
+          "v": 3,
+          "beat": "shudder",
+          "dt": 0.01
+        },
+        {
+          "v": 1.6,
+          "beat": "shudder",
+          "dt": 0.19
+        },
+        {
+          "v": 3.91,
+          "beat": "sputter",
+          "dt": -0.13
+        },
+        {
+          "v": 4,
+          "beat": "sputter",
+          "dt": 0.01
+        },
+        {
+          "v": 5,
+          "beat": "fried",
+          "dt": 0.01
+        },
+        {
+          "v": 9,
+          "beat": "limp",
+          "dt": 0.01
+        },
+        {
+          "v": 8,
+          "beat": "droop",
+          "dt": 0.065
+        },
+        {
+          "v": 4.6,
+          "beat": "recover",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.025
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "reach",
+          "dt": 0.03
+        },
+        {
+          "v": -1,
+          "beat": "grip",
+          "dt": 0.03
+        },
+        {
+          "v": -3,
+          "beat": "rock-right",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "rock-left",
+          "dt": 0.03
+        },
+        {
+          "v": -1,
+          "beat": "shudder",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "sputter",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.03
+        },
+        {
+          "v": 2,
+          "beat": "limp",
+          "dt": 0.03
+        },
+        {
+          "v": 2,
+          "beat": "droop",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.025
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.015
+        },
+        {
+          "v": -1,
+          "beat": "reach",
+          "dt": 0.015
+        },
+        {
+          "v": -2,
+          "beat": "grip",
+          "dt": 0.015
+        },
+        {
+          "v": -4,
+          "beat": "rock-right",
+          "dt": 0.015
+        },
+        {
+          "v": 4,
+          "beat": "rock-left",
+          "dt": 0.015
+        },
+        {
+          "v": -2,
+          "beat": "shudder",
+          "dt": 0.015
+        },
+        {
+          "v": 2,
+          "beat": "sputter",
+          "dt": 0.015
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": 0.015
+        },
+        {
+          "v": -1,
+          "beat": "limp",
+          "dt": 0.015
+        },
+        {
+          "v": -1,
+          "beat": "droop",
+          "dt": 0.015
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.025
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "alarm",
+          "dt": -0.025
+        },
+        {
+          "v": -1,
+          "beat": "reach",
+          "dt": -0.025
+        },
+        {
+          "v": 2,
+          "beat": "grip",
+          "dt": -0.025
+        },
+        {
+          "v": 1,
+          "beat": "rock-right",
+          "dt": -0.025
+        },
+        {
+          "v": 2,
+          "beat": "rock-left",
+          "dt": -0.025
+        },
+        {
+          "v": 2,
+          "beat": "shudder",
+          "dt": -0.025
+        },
+        {
+          "v": 0.2,
+          "beat": "shudder",
+          "dt": 0.21
+        },
+        {
+          "v": 3.17,
+          "beat": "sputter",
+          "dt": -0.11
+        },
+        {
+          "v": 4,
+          "beat": "sputter",
+          "dt": -0.025
+        },
+        {
+          "v": 6,
+          "beat": "fried",
+          "dt": -0.025
+        },
+        {
+          "v": 17,
+          "beat": "limp",
+          "dt": -0.025
+        },
+        {
+          "v": 14,
+          "beat": "droop",
+          "dt": 0.08
+        },
+        {
+          "v": 8,
+          "beat": "recover",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "alarm",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "reach",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "grip",
+          "dt": -0.03
+        },
+        {
+          "v": -5,
+          "beat": "rock-right",
+          "dt": -0.03
+        },
+        {
+          "v": 5,
+          "beat": "rock-left",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "shudder",
+          "dt": -0.03
+        },
+        {
+          "v": 2,
+          "beat": "sputter",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": -0.03
+        },
+        {
+          "v": 4,
+          "beat": "limp",
+          "dt": -0.03
+        },
+        {
+          "v": 3,
+          "beat": "droop",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "alarm",
+          "dt": -0.04
+        },
+        {
+          "v": -2,
+          "beat": "reach",
+          "dt": -0.04
+        },
+        {
+          "v": -2,
+          "beat": "grip",
+          "dt": -0.04
+        },
+        {
+          "v": -5,
+          "beat": "rock-right",
+          "dt": -0.04
+        },
+        {
+          "v": 5,
+          "beat": "rock-left",
+          "dt": -0.04
+        },
+        {
+          "v": -3,
+          "beat": "shudder",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "sputter",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": -0.04
+        },
+        {
+          "v": -2,
+          "beat": "limp",
+          "dt": -0.04
+        },
+        {
+          "v": -1,
+          "beat": "droop",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "alarm",
+          "dt": -0.06
+        },
+        {
+          "v": -2,
+          "beat": "reach",
+          "dt": -0.06
+        },
+        {
+          "v": -3,
+          "beat": "grip",
+          "dt": -0.06
+        },
+        {
+          "v": -5,
+          "beat": "rock-right",
+          "dt": -0.06
+        },
+        {
+          "v": 4,
+          "beat": "rock-left",
+          "dt": -0.06
+        },
+        {
+          "v": -3,
+          "beat": "shudder",
+          "dt": -0.06
+        },
+        {
+          "v": 2,
+          "beat": "sputter",
+          "dt": -0.06
+        },
+        {
+          "v": 0,
+          "beat": "fried",
+          "dt": -0.06
+        },
+        {
+          "v": -1,
+          "beat": "limp",
+          "dt": -0.06
+        },
+        {
+          "v": 0,
+          "beat": "droop",
+          "dt": -0.06
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "alarm",
+          "dt": -0.045
+        },
+        {
+          "v": 1,
+          "beat": "reach",
+          "dt": -0.045
+        },
+        {
+          "v": 0,
+          "beat": "grip",
+          "dt": -0.045
+        },
+        {
+          "v": 0,
+          "beat": "rock-right",
+          "dt": -0.045
+        },
+        {
+          "v": 0,
+          "beat": "rock-left",
+          "dt": -0.045
+        },
+        {
+          "v": -1,
+          "beat": "shudder",
+          "dt": -0.045
+        },
+        {
+          "v": -2,
+          "beat": "sputter",
+          "dt": -0.045
+        },
+        {
+          "v": -3,
+          "beat": "fried",
+          "dt": -0.045
+        },
+        {
+          "v": -5,
+          "beat": "limp",
+          "dt": -0.045
+        },
+        {
+          "v": -2,
+          "beat": "droop",
+          "dt": -0.045
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.04
+        },
+        {
+          "v": 7,
+          "beat": "reach",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "grip",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "rock-right",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "rock-left",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "shudder",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "sputter",
+          "dt": 0.04
+        },
+        {
+          "v": 5,
+          "beat": "fried",
+          "dt": 0.04
+        },
+        {
+          "v": -5,
+          "beat": "limp",
+          "dt": 0.04
+        },
+        {
+          "v": -4,
+          "beat": "droop",
+          "dt": 0.04
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.055
+        },
+        {
+          "v": 4,
+          "beat": "reach",
+          "dt": 0.055
+        },
+        {
+          "v": 6,
+          "beat": "grip",
+          "dt": 0.055
+        },
+        {
+          "v": 7,
+          "beat": "rock-right",
+          "dt": 0.055
+        },
+        {
+          "v": 6,
+          "beat": "rock-left",
+          "dt": 0.055
+        },
+        {
+          "v": 8,
+          "beat": "shudder",
+          "dt": 0.055
+        },
+        {
+          "v": 7,
+          "beat": "sputter",
+          "dt": 0.055
+        },
+        {
+          "v": 5,
+          "beat": "fried",
+          "dt": 0.055
+        },
+        {
+          "v": 4,
+          "beat": "limp",
+          "dt": 0.055
+        },
+        {
+          "v": 3,
+          "beat": "droop",
+          "dt": 0.055
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24,
+          "beat": "alarm",
+          "dt": 0.055
+        },
+        {
+          "v": 58,
+          "beat": "reach",
+          "dt": 0.055
+        },
+        {
+          "v": 76,
+          "beat": "grip",
+          "dt": 0.055
+        },
+        {
+          "v": 76,
+          "beat": "rock-right",
+          "dt": 0.055
+        },
+        {
+          "v": 76,
+          "beat": "rock-left",
+          "dt": 0.055
+        },
+        {
+          "v": 76,
+          "beat": "shudder",
+          "dt": 0.055
+        },
+        {
+          "v": 76,
+          "beat": "sputter",
+          "dt": 0.055
+        },
+        {
+          "v": 76,
+          "beat": "fried",
+          "dt": 0.055
+        },
+        {
+          "v": 23,
+          "beat": "limp",
+          "dt": 0.055
+        },
+        {
+          "v": 22,
+          "beat": "droop",
+          "dt": 0.055
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "alarm",
+          "dt": 0.07
+        },
+        {
+          "v": 42,
+          "beat": "reach",
+          "dt": 0.07
+        },
+        {
+          "v": 25,
+          "beat": "grip",
+          "dt": 0.07
+        },
+        {
+          "v": 25,
+          "beat": "rock-right",
+          "dt": 0.07
+        },
+        {
+          "v": 25,
+          "beat": "rock-left",
+          "dt": 0.07
+        },
+        {
+          "v": 25,
+          "beat": "shudder",
+          "dt": 0.07
+        },
+        {
+          "v": 25,
+          "beat": "sputter",
+          "dt": 0.07
+        },
+        {
+          "v": 25,
+          "beat": "fried",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "limp",
+          "dt": 0.07
+        },
+        {
+          "v": -6,
+          "beat": "droop",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 7,
+          "beat": "alarm",
+          "dt": 0.07
+        },
+        {
+          "v": 53,
+          "beat": "reach",
+          "dt": 0.07
+        },
+        {
+          "v": 78,
+          "beat": "grip",
+          "dt": 0.07
+        },
+        {
+          "v": 78,
+          "beat": "rock-right",
+          "dt": 0.07
+        },
+        {
+          "v": 78,
+          "beat": "rock-left",
+          "dt": 0.07
+        },
+        {
+          "v": 78,
+          "beat": "shudder",
+          "dt": 0.07
+        },
+        {
+          "v": 78,
+          "beat": "sputter",
+          "dt": 0.07
+        },
+        {
+          "v": 78,
+          "beat": "fried",
+          "dt": 0.07
+        },
+        {
+          "v": 8,
+          "beat": "limp",
+          "dt": 0.07
+        },
+        {
+          "v": -2,
+          "beat": "droop",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "alarm",
+          "dt": 0.08
+        },
+        {
+          "v": 100,
+          "beat": "reach",
+          "dt": 0.08
+        },
+        {
+          "v": 135,
+          "beat": "grip",
+          "dt": 0.08
+        },
+        {
+          "v": 135,
+          "beat": "rock-right",
+          "dt": 0.08
+        },
+        {
+          "v": 135,
+          "beat": "rock-left",
+          "dt": 0.08
+        },
+        {
+          "v": 135,
+          "beat": "shudder",
+          "dt": 0.08
+        },
+        {
+          "v": 135,
+          "beat": "sputter",
+          "dt": 0.08
+        },
+        {
+          "v": 135,
+          "beat": "fried",
+          "dt": -0.03
+        },
+        {
+          "v": 12,
+          "beat": "limp",
+          "dt": 0.08
+        },
+        {
+          "v": 5,
+          "beat": "droop",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "alarm",
+          "dt": 0.09
+        },
+        {
+          "v": 25,
+          "beat": "reach",
+          "dt": 0.09
+        },
+        {
+          "v": 40,
+          "beat": "grip",
+          "dt": 0.09
+        },
+        {
+          "v": 40,
+          "beat": "rock-right",
+          "dt": 0.09
+        },
+        {
+          "v": 40,
+          "beat": "rock-left",
+          "dt": 0.09
+        },
+        {
+          "v": 40,
+          "beat": "shudder",
+          "dt": 0.09
+        },
+        {
+          "v": 40,
+          "beat": "sputter",
+          "dt": 0.09
+        },
+        {
+          "v": 40,
+          "beat": "fried",
+          "dt": 0.09
+        },
+        {
+          "v": -8,
+          "beat": "limp",
+          "dt": 0.09
+        },
+        {
+          "v": -5,
+          "beat": "droop",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.11
+        },
+        {
+          "v": -5,
+          "beat": "reach",
+          "dt": 0.11
+        },
+        {
+          "v": -10,
+          "beat": "grip",
+          "dt": 0.11
+        },
+        {
+          "v": -10,
+          "beat": "rock-right",
+          "dt": 0.11
+        },
+        {
+          "v": -10,
+          "beat": "rock-left",
+          "dt": 0.11
+        },
+        {
+          "v": -11,
+          "beat": "shudder",
+          "dt": 0.11
+        },
+        {
+          "v": -10,
+          "beat": "fried",
+          "dt": -0.1
+        },
+        {
+          "v": -10,
+          "beat": "fried",
+          "dt": 0.11
+        },
+        {
+          "v": 20,
+          "beat": "limp",
+          "dt": 0.11
+        },
+        {
+          "v": 17,
+          "beat": "droop",
+          "dt": 0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.12
+        },
+        {
+          "v": 3,
+          "beat": "reach",
+          "dt": 0.12
+        },
+        {
+          "v": 5,
+          "beat": "grip",
+          "dt": 0.12
+        },
+        {
+          "v": 5,
+          "beat": "rock-right",
+          "dt": 0.12
+        },
+        {
+          "v": 5,
+          "beat": "rock-left",
+          "dt": 0.12
+        },
+        {
+          "v": 4,
+          "beat": "shudder",
+          "dt": 0.12
+        },
+        {
+          "v": 5,
+          "beat": "fried",
+          "dt": -0.09
+        },
+        {
+          "v": 4,
+          "beat": "fried",
+          "dt": 0.12
+        },
+        {
+          "v": -3,
+          "beat": "limp",
+          "dt": 0.12
+        },
+        {
+          "v": -2,
+          "beat": "droop",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.095
+        },
+        {
+          "v": 7,
+          "beat": "reach",
+          "dt": 0.095
+        },
+        {
+          "v": 2,
+          "beat": "grip",
+          "dt": 0.095
+        },
+        {
+          "v": 3,
+          "beat": "rock-right",
+          "dt": 0.095
+        },
+        {
+          "v": 2,
+          "beat": "rock-left",
+          "dt": 0.095
+        },
+        {
+          "v": 4,
+          "beat": "shudder",
+          "dt": 0.095
+        },
+        {
+          "v": 3,
+          "beat": "sputter",
+          "dt": 0.095
+        },
+        {
+          "v": 5,
+          "beat": "fried",
+          "dt": 0.095
+        },
+        {
+          "v": -5,
+          "beat": "limp",
+          "dt": 0.095
+        },
+        {
+          "v": -4,
+          "beat": "droop",
+          "dt": 0.095
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.11
+        },
+        {
+          "v": 4,
+          "beat": "reach",
+          "dt": 0.11
+        },
+        {
+          "v": 6,
+          "beat": "grip",
+          "dt": 0.11
+        },
+        {
+          "v": 7,
+          "beat": "rock-right",
+          "dt": 0.11
+        },
+        {
+          "v": 6,
+          "beat": "rock-left",
+          "dt": 0.11
+        },
+        {
+          "v": 8,
+          "beat": "shudder",
+          "dt": 0.11
+        },
+        {
+          "v": 7,
+          "beat": "fried",
+          "dt": -0.1
+        },
+        {
+          "v": 5,
+          "beat": "fried",
+          "dt": 0.11
+        },
+        {
+          "v": 4,
+          "beat": "limp",
+          "dt": 0.11
+        },
+        {
+          "v": 3,
+          "beat": "droop",
+          "dt": 0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24,
+          "beat": "alarm",
+          "dt": 0.11
+        },
+        {
+          "v": 58,
+          "beat": "reach",
+          "dt": 0.11
+        },
+        {
+          "v": 76,
+          "beat": "grip",
+          "dt": 0.11
+        },
+        {
+          "v": 76,
+          "beat": "rock-right",
+          "dt": 0.11
+        },
+        {
+          "v": 76,
+          "beat": "rock-left",
+          "dt": 0.11
+        },
+        {
+          "v": 76,
+          "beat": "shudder",
+          "dt": 0.11
+        },
+        {
+          "v": 76,
+          "beat": "fried",
+          "dt": -0.1
+        },
+        {
+          "v": 76,
+          "beat": "fried",
+          "dt": 0.11
+        },
+        {
+          "v": 23,
+          "beat": "limp",
+          "dt": 0.11
+        },
+        {
+          "v": 22,
+          "beat": "droop",
+          "dt": 0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "alarm",
+          "dt": 0.125
+        },
+        {
+          "v": 42,
+          "beat": "reach",
+          "dt": 0.125
+        },
+        {
+          "v": 25,
+          "beat": "grip",
+          "dt": 0.125
+        },
+        {
+          "v": 25,
+          "beat": "rock-right",
+          "dt": 0.125
+        },
+        {
+          "v": 25,
+          "beat": "rock-left",
+          "dt": 0.125
+        },
+        {
+          "v": 25,
+          "beat": "shudder",
+          "dt": 0.125
+        },
+        {
+          "v": 25,
+          "beat": "fried",
+          "dt": -0.085
+        },
+        {
+          "v": 25,
+          "beat": "fried",
+          "dt": 0.125
+        },
+        {
+          "v": 0,
+          "beat": "limp",
+          "dt": 0.125
+        },
+        {
+          "v": -6,
+          "beat": "droop",
+          "dt": 0.125
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 7,
+          "beat": "alarm",
+          "dt": 0.125
+        },
+        {
+          "v": 53,
+          "beat": "reach",
+          "dt": 0.125
+        },
+        {
+          "v": 78,
+          "beat": "grip",
+          "dt": 0.125
+        },
+        {
+          "v": 78,
+          "beat": "rock-right",
+          "dt": 0.125
+        },
+        {
+          "v": 78,
+          "beat": "rock-left",
+          "dt": 0.125
+        },
+        {
+          "v": 78,
+          "beat": "shudder",
+          "dt": 0.125
+        },
+        {
+          "v": 78,
+          "beat": "fried",
+          "dt": -0.085
+        },
+        {
+          "v": 78,
+          "beat": "fried",
+          "dt": 0.125
+        },
+        {
+          "v": 8,
+          "beat": "limp",
+          "dt": 0.125
+        },
+        {
+          "v": -2,
+          "beat": "droop",
+          "dt": 0.125
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "alarm",
+          "dt": 0.135
+        },
+        {
+          "v": 100,
+          "beat": "reach",
+          "dt": 0.135
+        },
+        {
+          "v": 135,
+          "beat": "grip",
+          "dt": 0.135
+        },
+        {
+          "v": 135,
+          "beat": "rock-right",
+          "dt": 0.135
+        },
+        {
+          "v": 135,
+          "beat": "rock-left",
+          "dt": 0.135
+        },
+        {
+          "v": 135,
+          "beat": "shudder",
+          "dt": 0.135
+        },
+        {
+          "v": 135,
+          "beat": "sputter",
+          "dt": 0.135
+        },
+        {
+          "v": 135,
+          "beat": "fried",
+          "dt": 0.025
+        },
+        {
+          "v": 12,
+          "beat": "limp",
+          "dt": 0.135
+        },
+        {
+          "v": 5,
+          "beat": "droop",
+          "dt": 0.135
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "alarm",
+          "dt": 0.145
+        },
+        {
+          "v": 25,
+          "beat": "reach",
+          "dt": 0.145
+        },
+        {
+          "v": 40,
+          "beat": "grip",
+          "dt": 0.145
+        },
+        {
+          "v": 40,
+          "beat": "rock-right",
+          "dt": 0.145
+        },
+        {
+          "v": 40,
+          "beat": "rock-left",
+          "dt": 0.145
+        },
+        {
+          "v": 40,
+          "beat": "shudder",
+          "dt": 0.145
+        },
+        {
+          "v": 40,
+          "beat": "fried",
+          "dt": -0.065
+        },
+        {
+          "v": 40,
+          "beat": "fried",
+          "dt": 0.145
+        },
+        {
+          "v": -8,
+          "beat": "droop",
+          "dt": -0.135
+        },
+        {
+          "v": -5,
+          "beat": "droop",
+          "dt": 0.145
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "alarm",
+          "dt": 0.165
+        },
+        {
+          "v": -5,
+          "beat": "reach",
+          "dt": 0.165
+        },
+        {
+          "v": -10,
+          "beat": "grip",
+          "dt": 0.165
+        },
+        {
+          "v": -10,
+          "beat": "rock-right",
+          "dt": 0.165
+        },
+        {
+          "v": -10,
+          "beat": "rock-left",
+          "dt": 0.165
+        },
+        {
+          "v": -11,
+          "beat": "shudder",
+          "dt": 0.165
+        },
+        {
+          "v": -10,
+          "beat": "fried",
+          "dt": -0.045
+        },
+        {
+          "v": -10,
+          "beat": "fried",
+          "dt": 0.165
+        },
+        {
+          "v": 20,
+          "beat": "droop",
+          "dt": -0.115
+        },
+        {
+          "v": 17,
+          "beat": "droop",
+          "dt": 0.165
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "reach",
+          "dt": -0.17
+        },
+        {
+          "v": 3,
+          "beat": "grip",
+          "dt": -0.17
+        },
+        {
+          "v": 5,
+          "beat": "rock-right",
+          "dt": -0.17
+        },
+        {
+          "v": 5,
+          "beat": "rock-left",
+          "dt": -0.17
+        },
+        {
+          "v": 5,
+          "beat": "shudder",
+          "dt": -0.17
+        },
+        {
+          "v": 4,
+          "beat": "shudder",
+          "dt": 0.175
+        },
+        {
+          "v": 5,
+          "beat": "fried",
+          "dt": -0.035
+        },
+        {
+          "v": 4,
+          "beat": "fried",
+          "dt": 0.175
+        },
+        {
+          "v": -3,
+          "beat": "droop",
+          "dt": -0.105
+        },
+        {
+          "v": -2,
+          "beat": "droop",
+          "dt": 0.175
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "alarm",
+        "dt": 0.035
+      },
+      {
+        "v": 0.004,
+        "beat": "reach",
+        "dt": 0.035
+      },
+      {
+        "v": 0,
+        "beat": "grip",
+        "dt": 0.035
+      },
+      {
+        "v": -0.02,
+        "beat": "rock-right",
+        "dt": 0.035
+      },
+      {
+        "v": 0.021,
+        "beat": "rock-left",
+        "dt": 0.035
+      },
+      {
+        "v": -0.008,
+        "beat": "shudder",
+        "dt": 0.035
+      },
+      {
+        "v": 0.005,
+        "beat": "sputter",
+        "dt": 0.035
+      },
+      {
+        "v": 0,
+        "beat": "fried",
+        "dt": 0.035
+      },
+      {
+        "v": -0.007,
+        "beat": "limp",
+        "dt": 0.035
+      },
+      {
+        "v": -0.006,
+        "beat": "droop",
+        "dt": 0.035
+      },
+      {
+        "v": -0.0025,
+        "beat": "recover",
+        "dt": -0.015
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": -0.1
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.002,
+        "beat": "alarm",
+        "dt": 0.035
+      },
+      {
+        "v": -0.008,
+        "beat": "reach",
+        "dt": 0.035
+      },
+      {
+        "v": -0.012,
+        "beat": "grip",
+        "dt": 0.035
+      },
+      {
+        "v": -0.018,
+        "beat": "rock-right",
+        "dt": 0.035
+      },
+      {
+        "v": -0.018,
+        "beat": "rock-left",
+        "dt": 0.035
+      },
+      {
+        "v": -0.02,
+        "beat": "shudder",
+        "dt": 0.035
+      },
+      {
+        "v": -0.02,
+        "beat": "sputter",
+        "dt": 0.035
+      },
+      {
+        "v": -0.021,
+        "beat": "fried",
+        "dt": 0.035
+      },
+      {
+        "v": -0.028,
+        "beat": "limp",
+        "dt": 0.035
+      },
+      {
+        "v": -0.025,
+        "beat": "droop",
+        "dt": 0.035
+      },
+      {
+        "v": -0.011,
+        "beat": "recover",
+        "dt": -0.015
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": -0.1
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.002,
+        "beat": "alarm",
+        "dt": 0.035
+      },
+      {
+        "v": 0,
+        "beat": "reach",
+        "dt": 0.035
+      },
+      {
+        "v": 0.003,
+        "beat": "grip",
+        "dt": 0.035
+      },
+      {
+        "v": 0.005,
+        "beat": "rock-right",
+        "dt": 0.035
+      },
+      {
+        "v": 0.005,
+        "beat": "rock-left",
+        "dt": 0.035
+      },
+      {
+        "v": 0.007,
+        "beat": "shudder",
+        "dt": 0.035
+      },
+      {
+        "v": 0.007,
+        "beat": "sputter",
+        "dt": 0.035
+      },
+      {
+        "v": 0.005,
+        "beat": "fried",
+        "dt": 0.035
+      },
+      {
+        "v": 0.012,
+        "beat": "limp",
+        "dt": 0.035
+      },
+      {
+        "v": 0.009,
+        "beat": "droop",
+        "dt": 0.035
+      },
+      {
+        "v": 0.004,
+        "beat": "recover",
+        "dt": -0.015
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": -0.1
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": -3,
+        "spread": 3,
+        "beat": "alarm"
+      },
+      {
+        "preset": "palm-flat",
+        "spread": 6,
+        "beat": "reach",
+        "dt": -0.03
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 3,
+        "spread": 5,
+        "beat": "grip",
+        "dt": -0.015
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 5,
+        "spread": 4,
+        "beat": "shudder",
+        "dt": -0.17
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 2,
+        "spread": 5,
+        "beat": "sputter",
+        "dt": 0.05
+      },
+      {
+        "preset": "relaxed",
+        "curl": -5,
+        "spread": 3,
+        "beat": "fried",
+        "dt": 0.19
+      },
+      {
+        "preset": "relaxed",
+        "curl": 2,
+        "spread": 1,
+        "beat": "droop",
+        "dt": -0.05
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": -3,
+        "spread": 3,
+        "beat": "alarm",
+        "dt": 0.055
+      },
+      {
+        "preset": "palm-flat",
+        "spread": 6,
+        "beat": "reach",
+        "dt": 0.025
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 3,
+        "spread": 5,
+        "beat": "grip",
+        "dt": 0.04
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 5,
+        "spread": 4,
+        "beat": "shudder",
+        "dt": -0.115
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 2,
+        "spread": 5,
+        "beat": "fried",
+        "dt": -0.105
+      },
+      {
+        "preset": "relaxed",
+        "curl": -5,
+        "spread": 3,
+        "beat": "limp",
+        "dt": -0.215
+      },
+      {
+        "preset": "relaxed",
+        "curl": 2,
+        "spread": 1,
+        "beat": "droop",
+        "dt": 0.005
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "surprised": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.4,
+        "beat": "alarm"
+      },
+      {
+        "v": 0.4,
+        "beat": "grip",
+        "dt": -0.135
+      },
+      {
+        "v": 0,
+        "beat": "grip",
+        "dt": 0.115
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "sad": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.3,
+        "beat": "alarm"
+      },
+      {
+        "v": 0.6,
+        "beat": "grip",
+        "dt": 0.115
+      },
+      {
+        "v": 0.6,
+        "beat": "sputter",
+        "dt": -0.05
+      },
+      {
+        "v": 0,
+        "beat": "fried"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "grip",
+        "dt": -0.135
+      },
+      {
+        "v": 0.3,
+        "beat": "grip",
+        "dt": 0.115
+      },
+      {
+        "v": 0.3,
+        "beat": "sputter",
+        "dt": -0.05
+      },
+      {
+        "v": 0.45,
+        "beat": "fried"
+      },
+      {
+        "v": 0.45,
+        "beat": "droop"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "aa": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "grip",
+        "dt": -0.115
+      },
+      {
+        "v": 0.3,
+        "beat": "grip",
+        "dt": 0.115
+      },
+      {
+        "v": 0.3,
+        "beat": "sputter",
+        "dt": -0.05
+      },
+      {
+        "v": 0,
+        "beat": "fried"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "relaxed": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "sputter",
+        "dt": -0.05
+      },
+      {
+        "v": 0.4,
+        "beat": "fried"
+      },
+      {
+        "v": 0.4,
+        "beat": "droop"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "head",
+      "beat": "grip",
+      "from": 0.06,
+      "to": 1.58,
+      "offset": [-0.103, 0.07, 0.06],
+      "point": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.4,
+        "blendOut": 0.32
+      }
+    },
+    {
+      "bone": "leftHand",
+      "target": "head",
+      "beat": "grip",
+      "from": 0.115,
+      "to": 1.58,
+      "offset": [0.103, 0.07, 0.06],
+      "point": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.4,
+        "blendOut": 0.32
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "overheat_smoke",
+      "time": 1.035,
+      "kind": "avatar_vfx",
+      "effectId": "overheat_smoke",
+      "duration": 2.365,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.2,
+          "fadeOut": 0.64
+        }
+      },
+      "playAccompanyingSound": false
+    },
+    {
+      "id": "overheat_steam",
+      "time": 1.035,
+      "kind": "particle_vfx",
+      "effectId": "overheat_steam",
+      "duration": 2.75,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.25,
+          "fadeOut": 0.65
+        }
+      }
+    }
+  ]
+}

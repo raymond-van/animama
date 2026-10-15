@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:shiver_undereye",
+  "version": 1,
+  "name": "Shiver Undereye",
+  "description": "A faint icy blue crayon tint beneath both eyes accompanies the freezing shiver.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "undereye",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "undereye",
+      "layout": "single",
+      "mirror": true,
+      "part": "face_skin",
+      "scale": {
+        "x": 1.2,
+        "y": 0.7
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "shiver_undereye-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "appearance": {
+      "opacity": 0.45,
+      "blend": "multiply"
+    }
+  },
+  "files": [
+    {
+      "path": "shiver_undereye-sheet.png",
+      "role": "image"
+    }
+  ]
+}

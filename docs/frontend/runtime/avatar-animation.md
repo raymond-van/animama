@@ -708,7 +708,11 @@ from `src/frontend/web`:
   (about real time) and with SwiftShader elsewhere.
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
   the Gesture creator in a headless browser, revising an existing Local
-  Gesture with the same Selector ID.
+  Gesture with the same Selector ID. An optional `project` path (absolute or
+  relative to the items file) imports its sequence and dependencies instead
+  of `clip`, resolving Local and Included effect refs against the running
+  Library and replacing dependencies on revisions too; name, AI description
+  and Selector ID still come from the item.
 - `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
   item live on both Included Avatars through `Avatar`/`PoseController`, lit
   like the chat canvas, with the chat's Scene layers around each view. A
@@ -718,7 +722,9 @@ from `src/frontend/web`:
   played, and the page says so. It also previews Avatar, Particle and Scene
   Effect sources (see the [Avatar VFX guide](avatar-vfx.md#headed-preview)).
   Its Review and Compare pickers switch to any clip beside a file source and
-  any Library Gesture, Reaction or effect without a restart. Review notes are saved beside a
+  any Library Gesture, Reaction or effect without a restart; Prev and Next
+  (or `[` and `]`) step through the Review item's picker group, such as a
+  folder of drafts, and show its position. Review notes are saved beside a
   file source (in the working directory for a Library item or any file inside
   Library content); `animation review` and `animation resolve` manage them.
 

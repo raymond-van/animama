@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:energy-wave",
+  "version": 1,
+  "semantic_key": "energy_wave_blast",
+  "name": "Energy Wave",
+  "description": "Crouches, charges an energy ball at the hip, then blasts it forward with both palms, anime style. Use for hype, powering up, or a playful 'take that!' finisher.",
+  "ai_description": "Crouches, charges an energy ball at the hip, then blasts it forward with both palms, anime style. Use for hype, powering up, or a playful 'take that!' finisher.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:energy-wave-charge",
+      "alias": "energy_wave_charge",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "energy-wave.json",
+      "role": "sequence"
+    }
+  ]
+}

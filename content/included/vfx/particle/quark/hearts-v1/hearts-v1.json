@@ -13,20 +13,20 @@
         "label": "hearts-v1",
         "description": "hearts",
         "anchor": "head",
-        "duration_seconds": 15,
-        "max_duration_seconds": 30,
-        "preload_tier": "tier_a",
+        "duration_seconds": 5.1,
+        "max_duration_seconds": 5.1,
+        "preload_tier": "none",
         "follow_anchor": true,
         "transform": {
           "offset": {
             "x": 0,
-            "y": 0.1,
-            "z": -0.15
+            "y": 0,
+            "z": 0
           },
           "depth_offset": 0,
           "rotation": {
-            "x": 1,
-            "y": 0.1,
+            "x": 0,
+            "y": 0,
             "z": 0
           },
           "scale": {
@@ -35,9 +35,9 @@
             "z": 1
           }
         },
-        "looping_allowed": true,
+        "looping_allowed": false,
         "can_coexist": true,
-        "max_particles": 64
+        "max_particles": 50
       }
     }
   },
@@ -47,7 +47,15 @@
       "role": "manifest"
     },
     {
-      "path": "textures/heart.png",
+      "path": "textures/pearl-heart.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/soft-haze.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/star-glint.png",
       "role": "texture"
     }
   ]

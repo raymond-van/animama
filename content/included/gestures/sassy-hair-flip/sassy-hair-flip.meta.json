@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:sassy-hair-flip",
+  "version": 1,
+  "semantic_key": "sassy_hair_flip",
+  "name": "Sassy Hair Flip",
+  "description": "Flicks the hair back with a head whip and lands a hand on the hip. Use for sass, playful vanity or 'I know I'm right'.",
+  "ai_description": "Flicks the hair back with a head whip and lands a hand on the hip. Use for sass, playful vanity or 'I know I'm right'.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:star-burst",
+      "alias": "hair_flip_sparkle",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "sassy-hair-flip.json",
+      "role": "sequence"
+    }
+  ]
+}

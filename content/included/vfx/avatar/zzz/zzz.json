@@ -12,47 +12,47 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": 0.15,
         "y": 0.13,
         "z": 0.03
       },
-      "size": 0.08,
-      "facing": "camera"
+      "size": 0.08
     },
     "art": {
       "image": "zzz-sheet.png",
       "flipbook": {
         "columns": 4,
-        "rows": 1,
-        "frames": 4,
         "fps": 2.5,
-        "loop": "once"
+        "frames": 4,
+        "loop": "once",
+        "rows": 1
       }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
-            "opacity": 0,
-            "scale": 0.7,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "opacity": 0,
+            "scale": 0.7,
+            "t": 0
           },
           {
-            "t": 0.2,
             "opacity": 1,
-            "scale": 1
+            "scale": 1,
+            "t": 0.2
           },
           {
-            "t": 1.6,
             "offset": {
               "x": 0.008,
               "y": 0.012
-            }
+            },
+            "t": 1.6
           }
         ]
       }

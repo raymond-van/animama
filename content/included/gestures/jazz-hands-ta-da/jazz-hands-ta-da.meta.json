@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:jazz-hands-ta-da",
+  "version": 1,
+  "semantic_key": "jazz_hands_tada",
+  "name": "Jazz Hands Ta-da",
+  "description": "Small crouch, then pops up with shaking jazz hands. Use for a reveal, presenting a result or a playful 'ta-da!'.",
+  "ai_description": "Small crouch, then pops up with shaking jazz hands. Use for a reveal, presenting a result or a playful 'ta-da!'.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:ta-da-glitter",
+      "alias": "ta_da_glitter",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "jazz-hands-ta-da.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -19,105 +19,99 @@
     "attachment": {
       "kind": "body",
       "bone": "chest",
+      "facing": "camera",
       "offset": {
         "x": -0.008,
         "y": 0.37,
-        "z": 0.025
+        "z": 0.18
       },
-      "size": 0.09,
-      "facing": "camera"
+      "size": 0.09
     },
     "art": {
-      "image": "soul_wisp.png"
+      "image": "soul_wisp-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
     },
     "appearance": {
       "opacity": 0.85
     },
     "motion": {
+      "spin": {
+        "amountTurns": 0.0277777778,
+        "degreesPerSecond": 8,
+        "direction": "counterclockwise"
+      },
       "keyframes": {
         "frames": [
           {
-            "t": 0,
-            "opacity": 0,
-            "scale": 0.25,
             "offset": {
               "x": 0,
               "y": -0.035
             },
-            "rotationDeg": 0
+            "opacity": 0,
+            "rotationDeg": 0,
+            "scale": 0.25,
+            "t": 0
           },
           {
-            "t": 0.22,
-            "opacity": 1,
-            "scale": 1.08,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "opacity": 1,
+            "scale": 1.08,
+            "t": 0.22
           },
           {
-            "t": 0.34,
-            "scale": 1
+            "scale": 1,
+            "t": 0.34
           },
           {
-            "t": 0.55,
             "offset": {
               "x": 0.007,
               "y": 0.014
             },
-            "rotationDeg": -6
+            "rotationDeg": -6,
+            "t": 0.55
           },
           {
-            "t": 0.8,
             "offset": {
               "x": -0.007,
               "y": 0.032
             },
-            "rotationDeg": 6
+            "rotationDeg": 6,
+            "t": 0.8
           },
           {
-            "t": 1.05,
             "offset": {
               "x": 0.007,
               "y": 0.052
             },
-            "rotationDeg": -6
+            "rotationDeg": -6,
+            "t": 1.05
           },
           {
-            "t": 1.3,
             "offset": {
               "x": -0.006,
               "y": 0.068
             },
-            "rotationDeg": 5
+            "rotationDeg": 5,
+            "t": 1.3
           },
           {
-            "t": 1.4,
-            "opacity": 1,
-            "scale": 1.05,
             "offset": {
               "x": 0,
               "y": 0.072
             },
-            "rotationDeg": 0
-          },
-          {
-            "t": 1.52,
-            "opacity": 0.8,
-            "scale": 0.35,
-            "offset": {
-              "x": 0,
-              "y": -0.02
-            }
-          },
-          {
-            "t": 1.56,
-            "opacity": 0,
-            "scale": 0.15,
-            "offset": {
-              "x": 0,
-              "y": -0.035
-            }
+            "opacity": 1,
+            "rotationDeg": -5,
+            "scale": 1.05,
+            "t": 1.4
           }
         ]
       }
@@ -126,7 +120,7 @@
   },
   "files": [
     {
-      "path": "soul_wisp.png",
+      "path": "soul_wisp-sheet.png",
       "role": "image"
     }
   ]

@@ -14,7 +14,7 @@
       "landmark": "top_edge",
       "offset": {
         "x": 0,
-        "y": 0.06,
+        "y": 0.025,
         "z": 0.015
       },
       "position": "middle",
@@ -29,40 +29,39 @@
       }
     },
     "art": {
-      "image": "crown.png"
+      "image": "crown-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "offset": {
-              "x": 0,
-              "y": 0.08
-            },
             "opacity": 0,
-            "rotationDeg": 15,
+            "rotationDeg": 10,
+            "scale": 0.3,
             "t": 0
           },
           {
-            "offset": {
-              "x": 0,
-              "y": 0
-            },
             "opacity": 1,
-            "rotationDeg": -14,
-            "t": 0.22
+            "rotationDeg": -5,
+            "scale": 1.18,
+            "t": 0.14
           },
           {
-            "rotationDeg": 8,
-            "t": 0.4
-          },
-          {
-            "rotationDeg": -4,
-            "t": 0.62
+            "rotationDeg": 3,
+            "scale": 0.95,
+            "t": 0.26
           },
           {
             "rotationDeg": 0,
-            "t": 0.9
+            "scale": 1,
+            "t": 0.4
           }
         ]
       }
@@ -70,7 +69,7 @@
   },
   "files": [
     {
-      "path": "crown.png",
+      "path": "crown-sheet.png",
       "role": "image"
     }
   ]

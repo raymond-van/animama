@@ -230,7 +230,7 @@ async function greySquareEffect(dir, stem, level, toneMapped) {
     { recursive: true },
   );
   await writeFile(
-    path.join(folder, "textures/heart.png"),
+    path.join(folder, "textures/pearl-heart.png"),
     await sharp({
       create: {
         width: 16,
@@ -246,7 +246,13 @@ async function greySquareEffect(dir, stem, level, toneMapped) {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const [material] = manifest.materials;
   material.blending = 1;
-  if (toneMapped !== undefined) material.toneMapped = toneMapped;
+  if (toneMapped === undefined) delete material.toneMapped;
+  else material.toneMapped = toneMapped;
+  // The promoted effect has several emitters; this fixture draws one square.
+  manifest.object.children = manifest.object.children.slice(0, 1);
+  manifest.object.children[0].matrix = [
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+  ];
   const constant = (value) => ({ type: "ConstantValue", value });
   Object.assign(manifest.object.children[0].ps, {
     shape: { type: "point" },

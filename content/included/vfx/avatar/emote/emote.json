@@ -28,11 +28,11 @@
     "art": {
       "image": "emote-sheet.png",
       "flipbook": {
-        "columns": 3,
+        "columns": 2,
         "fps": 8,
-        "frames": 3,
+        "frames": 4,
         "loop": "loop",
-        "rows": 1
+        "rows": 2
       }
     },
     "motion": {

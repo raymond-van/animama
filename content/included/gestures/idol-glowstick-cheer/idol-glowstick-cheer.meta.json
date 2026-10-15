@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:idol-glowstick-cheer",
+  "version": 1,
+  "semantic_key": "idol_glowstick_cheer",
+  "name": "Idol Glowstick Cheer",
+  "description": "Cheers like an idol fan, holding pink and cyan glowsticks and swinging them overhead. Use for fandom, concerts, cheering the user on or big excitement.",
+  "ai_description": "Cheers like an idol fan, holding pink and cyan glowsticks and swinging them overhead. Use for fandom, concerts, cheering the user on or big excitement.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:glowstick",
+      "alias": "glowstick",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "idol-glowstick-cheer.json",
+      "role": "sequence"
+    }
+  ]
+}

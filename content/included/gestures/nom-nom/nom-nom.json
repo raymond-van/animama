@@ -1,0 +1,2963 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "nom-nom",
+  "name": "Nom Nom",
+  "duration": 4.4,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.26
+  },
+  "fadeOut": {
+    "duration": 0.36
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "gather",
+      "label": "Gather",
+      "time": 0.24
+    },
+    {
+      "id": "bite1",
+      "label": "Bite 1",
+      "time": 0.575
+    },
+    {
+      "id": "chew1a",
+      "label": "Chew 1a",
+      "time": 0.8
+    },
+    {
+      "id": "chew1b",
+      "label": "Chew 1b",
+      "time": 1
+    },
+    {
+      "id": "chew1c",
+      "label": "Chew 1c",
+      "time": 1.2
+    },
+    {
+      "id": "scoop",
+      "label": "Scoop",
+      "time": 1.4
+    },
+    {
+      "id": "bite2",
+      "label": "Bite 2",
+      "time": 1.75
+    },
+    {
+      "id": "chew2a",
+      "label": "Chew 2a",
+      "time": 2
+    },
+    {
+      "id": "chew2b",
+      "label": "Chew 2b",
+      "time": 2.2
+    },
+    {
+      "id": "chew2c",
+      "label": "Chew 2c",
+      "time": 2.4
+    },
+    {
+      "id": "chew2d",
+      "label": "Chew 2d",
+      "time": 2.6
+    },
+    {
+      "id": "chew2e",
+      "label": "Chew 2e",
+      "time": 2.8
+    },
+    {
+      "id": "bliss",
+      "label": "Bliss",
+      "time": 2.99
+    },
+    {
+      "id": "shiver1",
+      "label": "Happy shiver 1",
+      "time": 3.2
+    },
+    {
+      "id": "shiver2",
+      "label": "Happy shiver 2",
+      "time": 3.4
+    },
+    {
+      "id": "lower",
+      "label": "Lower",
+      "time": 3.7
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 4.1
+    },
+    {
+      "id": "rest",
+      "label": "Rest",
+      "time": 4.4
+    }
+  ],
+  "joints": {
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "gather"
+        },
+        {
+          "v": 5,
+          "beat": "bite1"
+        },
+        {
+          "v": 7,
+          "beat": "chew1a"
+        },
+        {
+          "v": 3.5,
+          "beat": "chew1b"
+        },
+        {
+          "v": 6,
+          "beat": "chew1c"
+        },
+        {
+          "v": 2,
+          "beat": "scoop"
+        },
+        {
+          "v": 6,
+          "beat": "bite2"
+        },
+        {
+          "v": 7,
+          "beat": "chew2a"
+        },
+        {
+          "v": 3.5,
+          "beat": "chew2b"
+        },
+        {
+          "v": 6,
+          "beat": "chew2c"
+        },
+        {
+          "v": 3,
+          "beat": "chew2d"
+        },
+        {
+          "v": 5,
+          "beat": "chew2e"
+        },
+        {
+          "v": -1,
+          "beat": "bliss"
+        },
+        {
+          "v": -2,
+          "beat": "shiver1"
+        },
+        {
+          "v": 0,
+          "beat": "shiver2"
+        },
+        {
+          "v": -1,
+          "beat": "lower"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "bite1"
+        },
+        {
+          "v": -1,
+          "beat": "scoop"
+        },
+        {
+          "v": -4,
+          "beat": "bite2"
+        },
+        {
+          "v": -1,
+          "beat": "chew2e"
+        },
+        {
+          "v": 4,
+          "beat": "bliss"
+        },
+        {
+          "v": -4,
+          "beat": "shiver1"
+        },
+        {
+          "v": 3,
+          "beat": "shiver2"
+        },
+        {
+          "v": 0,
+          "beat": "lower"
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "gather",
+          "dt": 0.025
+        },
+        {
+          "v": 7,
+          "beat": "bite1",
+          "dt": 0.025
+        },
+        {
+          "v": 8,
+          "beat": "chew1a",
+          "dt": 0.025
+        },
+        {
+          "v": 4,
+          "beat": "chew1b",
+          "dt": 0.025
+        },
+        {
+          "v": 7,
+          "beat": "chew1c",
+          "dt": 0.025
+        },
+        {
+          "v": 2,
+          "beat": "scoop",
+          "dt": 0.025
+        },
+        {
+          "v": 8,
+          "beat": "bite2",
+          "dt": 0.025
+        },
+        {
+          "v": 8,
+          "beat": "chew2a",
+          "dt": 0.025
+        },
+        {
+          "v": 4,
+          "beat": "chew2b",
+          "dt": 0.025
+        },
+        {
+          "v": 7,
+          "beat": "chew2c",
+          "dt": 0.025
+        },
+        {
+          "v": 3.5,
+          "beat": "chew2d",
+          "dt": 0.025
+        },
+        {
+          "v": 6,
+          "beat": "chew2e",
+          "dt": 0.025
+        },
+        {
+          "v": -1,
+          "beat": "bliss",
+          "dt": 0.025
+        },
+        {
+          "v": -3,
+          "beat": "shiver1",
+          "dt": 0.025
+        },
+        {
+          "v": 1,
+          "beat": "shiver2",
+          "dt": 0.025
+        },
+        {
+          "v": -1,
+          "beat": "lower",
+          "dt": 0.025
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.025
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -5,
+          "beat": "bite1",
+          "dt": 0.03
+        },
+        {
+          "v": -2,
+          "beat": "scoop",
+          "dt": 0.03
+        },
+        {
+          "v": -6,
+          "beat": "bite2",
+          "dt": 0.03
+        },
+        {
+          "v": -1,
+          "beat": "chew2e",
+          "dt": 0.03
+        },
+        {
+          "v": 6,
+          "beat": "bliss",
+          "dt": 0.03
+        },
+        {
+          "v": -5,
+          "beat": "shiver1",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "shiver2",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "lower",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "bite1",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "scoop",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "bite2",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "chew2e",
+          "dt": 0.04
+        },
+        {
+          "v": -4,
+          "beat": "bliss",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "shiver1",
+          "dt": 0.04
+        },
+        {
+          "v": -3,
+          "beat": "shiver2",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "lower",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "gather",
+          "dt": 0.05
+        },
+        {
+          "v": 3,
+          "beat": "bite1",
+          "dt": 0.05
+        },
+        {
+          "v": 4,
+          "beat": "chew1a",
+          "dt": 0.05
+        },
+        {
+          "v": 1.5,
+          "beat": "chew1b",
+          "dt": 0.05
+        },
+        {
+          "v": 3.5,
+          "beat": "chew1c",
+          "dt": 0.05
+        },
+        {
+          "v": 1,
+          "beat": "scoop",
+          "dt": 0.05
+        },
+        {
+          "v": 3.5,
+          "beat": "bite2",
+          "dt": 0.05
+        },
+        {
+          "v": 4,
+          "beat": "chew2a",
+          "dt": 0.05
+        },
+        {
+          "v": 1.5,
+          "beat": "chew2b",
+          "dt": 0.05
+        },
+        {
+          "v": 3.5,
+          "beat": "chew2c",
+          "dt": 0.05
+        },
+        {
+          "v": 1.5,
+          "beat": "chew2d",
+          "dt": 0.05
+        },
+        {
+          "v": 3,
+          "beat": "chew2e",
+          "dt": 0.05
+        },
+        {
+          "v": -1,
+          "beat": "bliss",
+          "dt": 0.05
+        },
+        {
+          "v": -2,
+          "beat": "shiver1",
+          "dt": 0.05
+        },
+        {
+          "v": 0,
+          "beat": "shiver2",
+          "dt": 0.05
+        },
+        {
+          "v": -1,
+          "beat": "lower",
+          "dt": 0.05
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.05
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "gather",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "bite1",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "chew1a",
+          "dt": 0.07
+        },
+        {
+          "v": -1,
+          "beat": "chew1b",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "chew1c",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "scoop",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "bite2",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "chew2a",
+          "dt": 0.07
+        },
+        {
+          "v": -1,
+          "beat": "chew2b",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "chew2c",
+          "dt": 0.07
+        },
+        {
+          "v": -1,
+          "beat": "chew2d",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "chew2e",
+          "dt": 0.07
+        },
+        {
+          "v": -2,
+          "beat": "bliss",
+          "dt": 0.07
+        },
+        {
+          "v": -3,
+          "beat": "shiver1",
+          "dt": 0.07
+        },
+        {
+          "v": -1,
+          "beat": "shiver2",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "lower",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "bite1",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "scoop",
+          "dt": 0.06
+        },
+        {
+          "v": -1,
+          "beat": "bite2",
+          "dt": 0.06
+        },
+        {
+          "v": 1,
+          "beat": "chew2e",
+          "dt": 0.06
+        },
+        {
+          "v": 3,
+          "beat": "bliss",
+          "dt": 0.06
+        },
+        {
+          "v": -1,
+          "beat": "shiver1",
+          "dt": 0.06
+        },
+        {
+          "v": 3,
+          "beat": "shiver2",
+          "dt": 0.06
+        },
+        {
+          "v": 1,
+          "beat": "lower",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "gather",
+          "dt": 0.09
+        },
+        {
+          "v": -2,
+          "beat": "bite1",
+          "dt": -0.05
+        },
+        {
+          "v": 6,
+          "beat": "chew1a",
+          "dt": 0.09
+        },
+        {
+          "v": -2,
+          "beat": "chew1b",
+          "dt": 0.09
+        },
+        {
+          "v": 5,
+          "beat": "chew1c",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "scoop",
+          "dt": 0.09
+        },
+        {
+          "v": -2,
+          "beat": "bite2",
+          "dt": -0.05
+        },
+        {
+          "v": 6,
+          "beat": "chew2a",
+          "dt": 0.09
+        },
+        {
+          "v": -2,
+          "beat": "chew2b",
+          "dt": 0.09
+        },
+        {
+          "v": 5,
+          "beat": "chew2c",
+          "dt": 0.09
+        },
+        {
+          "v": -1,
+          "beat": "chew2d",
+          "dt": 0.09
+        },
+        {
+          "v": 4,
+          "beat": "chew2e",
+          "dt": 0.09
+        },
+        {
+          "v": -4,
+          "beat": "bliss",
+          "dt": 0.09
+        },
+        {
+          "v": -5,
+          "beat": "shiver1",
+          "dt": 0.09
+        },
+        {
+          "v": -2,
+          "beat": "shiver2",
+          "dt": 0.09
+        },
+        {
+          "v": -1,
+          "beat": "lower",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "gather",
+          "dt": 0.08
+        },
+        {
+          "v": -3,
+          "beat": "bite1",
+          "dt": 0.08
+        },
+        {
+          "v": -1,
+          "beat": "scoop",
+          "dt": 0.08
+        },
+        {
+          "v": -2,
+          "beat": "bite2",
+          "dt": 0.08
+        },
+        {
+          "v": 1,
+          "beat": "chew2e",
+          "dt": 0.08
+        },
+        {
+          "v": 10,
+          "beat": "bliss",
+          "dt": 0.08
+        },
+        {
+          "v": 3,
+          "beat": "shiver1",
+          "dt": 0.08
+        },
+        {
+          "v": 9,
+          "beat": "shiver2",
+          "dt": 0.08
+        },
+        {
+          "v": 5,
+          "beat": "lower",
+          "dt": 0.08
+        },
+        {
+          "v": 1,
+          "beat": "settle",
+          "dt": 0.08
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -5,
+          "beat": "gather",
+          "dt": -0.04
+        },
+        {
+          "v": -3,
+          "beat": "bite1",
+          "dt": -0.04
+        },
+        {
+          "v": -6,
+          "beat": "scoop",
+          "dt": -0.04
+        },
+        {
+          "v": -2,
+          "beat": "bite2",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "chew2e",
+          "dt": -0.04
+        },
+        {
+          "v": -4,
+          "beat": "bliss",
+          "dt": -0.04
+        },
+        {
+          "v": -2,
+          "beat": "shiver1",
+          "dt": -0.04
+        },
+        {
+          "v": -4,
+          "beat": "shiver2",
+          "dt": -0.04
+        },
+        {
+          "v": -2,
+          "beat": "lower",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "hips": {
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "bite1",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "scoop",
+          "dt": 0.04
+        },
+        {
+          "v": -2,
+          "beat": "bite2",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "chew2e",
+          "dt": 0.04
+        },
+        {
+          "v": -3,
+          "beat": "bliss",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "shiver1",
+          "dt": 0.04
+        },
+        {
+          "v": -2,
+          "beat": "shiver2",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "lower",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "bite1",
+          "dt": 0.02
+        },
+        {
+          "v": -1,
+          "beat": "scoop",
+          "dt": 0.02
+        },
+        {
+          "v": -2,
+          "beat": "bite2",
+          "dt": 0.02
+        },
+        {
+          "v": 0,
+          "beat": "chew2e",
+          "dt": 0.02
+        },
+        {
+          "v": 2.5,
+          "beat": "bliss",
+          "dt": 0.02
+        },
+        {
+          "v": -2.5,
+          "beat": "shiver1",
+          "dt": 0.02
+        },
+        {
+          "v": 2,
+          "beat": "shiver2",
+          "dt": 0.02
+        },
+        {
+          "v": 0,
+          "beat": "lower",
+          "dt": 0.02
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "gather",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "bite1",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "scoop",
+          "dt": 0.04
+        },
+        {
+          "v": 3.5,
+          "beat": "bite2",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "chew2e",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "bliss",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "shiver2",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -6,
+          "beat": "gather",
+          "dt": -0.06
+        },
+        {
+          "v": -2,
+          "beat": "bite1",
+          "dt": -0.06
+        },
+        {
+          "v": -7,
+          "beat": "scoop",
+          "dt": -0.06
+        },
+        {
+          "v": -2,
+          "beat": "bite2",
+          "dt": -0.06
+        },
+        {
+          "v": 0,
+          "beat": "bliss",
+          "dt": -0.06
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "gather",
+          "dt": -0.08
+        },
+        {
+          "v": 0,
+          "beat": "bite1",
+          "dt": -0.08
+        },
+        {
+          "v": -2,
+          "beat": "scoop",
+          "dt": -0.08
+        },
+        {
+          "v": 0,
+          "beat": "bite2",
+          "dt": -0.08
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "gather",
+          "dt": 0.045
+        },
+        {
+          "v": 7,
+          "beat": "bite1",
+          "dt": 0.045
+        },
+        {
+          "v": 8,
+          "beat": "chew1a",
+          "dt": 0.045
+        },
+        {
+          "v": 4,
+          "beat": "scoop",
+          "dt": 0.045
+        },
+        {
+          "v": 8,
+          "beat": "bite2",
+          "dt": 0.045
+        },
+        {
+          "v": 5,
+          "beat": "chew2c",
+          "dt": 0.045
+        },
+        {
+          "v": 4,
+          "beat": "chew2e",
+          "dt": 0.045
+        },
+        {
+          "v": 17,
+          "beat": "bliss",
+          "dt": 0.045
+        },
+        {
+          "v": 11,
+          "beat": "shiver1",
+          "dt": 0.045
+        },
+        {
+          "v": 15,
+          "beat": "shiver2",
+          "dt": 0.045
+        },
+        {
+          "v": 6,
+          "beat": "lower",
+          "dt": 0.045
+        },
+        {
+          "v": 1,
+          "beat": "settle",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "protraction": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "gather",
+          "dt": 0.045
+        },
+        {
+          "v": 7,
+          "beat": "bite1",
+          "dt": 0.045
+        },
+        {
+          "v": 4,
+          "beat": "scoop",
+          "dt": 0.045
+        },
+        {
+          "v": 8,
+          "beat": "bite2",
+          "dt": 0.045
+        },
+        {
+          "v": 4,
+          "beat": "chew2e",
+          "dt": 0.045
+        },
+        {
+          "v": 7,
+          "beat": "bliss",
+          "dt": 0.045
+        },
+        {
+          "v": 8,
+          "beat": "shiver1",
+          "dt": 0.045
+        },
+        {
+          "v": 6,
+          "beat": "shiver2",
+          "dt": 0.045
+        },
+        {
+          "v": 2,
+          "beat": "lower",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "gather",
+          "dt": 0.075
+        },
+        {
+          "v": 7,
+          "beat": "bite1",
+          "dt": 0.075
+        },
+        {
+          "v": 8,
+          "beat": "chew1a",
+          "dt": 0.075
+        },
+        {
+          "v": 4,
+          "beat": "scoop",
+          "dt": 0.075
+        },
+        {
+          "v": 8,
+          "beat": "bite2",
+          "dt": 0.075
+        },
+        {
+          "v": 5,
+          "beat": "chew2c",
+          "dt": 0.075
+        },
+        {
+          "v": 4,
+          "beat": "chew2e",
+          "dt": 0.075
+        },
+        {
+          "v": 15,
+          "beat": "bliss",
+          "dt": 0.075
+        },
+        {
+          "v": 17,
+          "beat": "shiver1",
+          "dt": 0.075
+        },
+        {
+          "v": 12,
+          "beat": "shiver2",
+          "dt": 0.075
+        },
+        {
+          "v": 6,
+          "beat": "lower",
+          "dt": 0.075
+        },
+        {
+          "v": 1,
+          "beat": "settle",
+          "dt": 0.075
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ],
+      "protraction": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "gather",
+          "dt": 0.075
+        },
+        {
+          "v": 7,
+          "beat": "bite1",
+          "dt": 0.075
+        },
+        {
+          "v": 4,
+          "beat": "scoop",
+          "dt": 0.075
+        },
+        {
+          "v": 8,
+          "beat": "bite2",
+          "dt": 0.075
+        },
+        {
+          "v": 4,
+          "beat": "chew2e",
+          "dt": 0.075
+        },
+        {
+          "v": 7,
+          "beat": "bliss",
+          "dt": 0.075
+        },
+        {
+          "v": 8,
+          "beat": "shiver1",
+          "dt": 0.075
+        },
+        {
+          "v": 6,
+          "beat": "shiver2",
+          "dt": 0.075
+        },
+        {
+          "v": 2,
+          "beat": "lower",
+          "dt": 0.075
+        },
+        {
+          "v": 0,
+          "beat": "rest"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 38,
+          "beat": "gather",
+          "dt": 0.025
+        },
+        {
+          "v": 50,
+          "beat": "bite1",
+          "dt": 0.025
+        },
+        {
+          "v": 50,
+          "beat": "chew1a",
+          "dt": 0.025
+        },
+        {
+          "v": 36,
+          "beat": "chew1c",
+          "dt": 0.025
+        },
+        {
+          "v": 34,
+          "beat": "scoop",
+          "dt": 0.025
+        },
+        {
+          "v": 50,
+          "beat": "bite2",
+          "dt": 0.025
+        },
+        {
+          "v": 50,
+          "beat": "chew2a",
+          "dt": 0.025
+        },
+        {
+          "v": 35,
+          "beat": "chew2c",
+          "dt": 0.025
+        },
+        {
+          "v": 32,
+          "beat": "chew2e",
+          "dt": 0.025
+        },
+        {
+          "v": 34,
+          "beat": "bliss",
+          "dt": 0.025
+        },
+        {
+          "v": 32,
+          "beat": "shiver2",
+          "dt": 0.025
+        },
+        {
+          "v": 26,
+          "beat": "lower",
+          "dt": 0.025
+        },
+        {
+          "v": 19,
+          "beat": "settle",
+          "dt": 0.025
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 15,
+          "beat": "gather",
+          "dt": 0.025
+        },
+        {
+          "v": 45,
+          "beat": "bite1",
+          "dt": 0.025
+        },
+        {
+          "v": 45,
+          "beat": "chew1a",
+          "dt": 0.025
+        },
+        {
+          "v": 15,
+          "beat": "chew1c",
+          "dt": 0.025
+        },
+        {
+          "v": 15,
+          "beat": "scoop",
+          "dt": 0.025
+        },
+        {
+          "v": 45,
+          "beat": "bite2",
+          "dt": 0.025
+        },
+        {
+          "v": 45,
+          "beat": "chew2a",
+          "dt": 0.025
+        },
+        {
+          "v": 15,
+          "beat": "chew2c",
+          "dt": 0.025
+        },
+        {
+          "v": 15,
+          "beat": "chew2e",
+          "dt": 0.025
+        },
+        {
+          "v": 15,
+          "beat": "bliss",
+          "dt": 0.025
+        },
+        {
+          "v": 15,
+          "beat": "shiver2",
+          "dt": 0.025
+        },
+        {
+          "v": 20,
+          "beat": "lower",
+          "dt": 0.025
+        },
+        {
+          "v": 4,
+          "beat": "settle",
+          "dt": 0.025
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 25,
+          "beat": "gather",
+          "dt": 0.04
+        },
+        {
+          "v": 72,
+          "beat": "bite1",
+          "dt": 0.04
+        },
+        {
+          "v": 72,
+          "beat": "chew1a",
+          "dt": 0.04
+        },
+        {
+          "v": 30,
+          "beat": "chew1c",
+          "dt": 0.04
+        },
+        {
+          "v": 25,
+          "beat": "scoop",
+          "dt": 0.04
+        },
+        {
+          "v": 72,
+          "beat": "bite2",
+          "dt": 0.04
+        },
+        {
+          "v": 72,
+          "beat": "chew2a",
+          "dt": 0.04
+        },
+        {
+          "v": 30,
+          "beat": "chew2c",
+          "dt": 0.04
+        },
+        {
+          "v": 25,
+          "beat": "chew2e",
+          "dt": 0.04
+        },
+        {
+          "v": 25,
+          "beat": "bliss",
+          "dt": 0.04
+        },
+        {
+          "v": 22,
+          "beat": "shiver2",
+          "dt": 0.04
+        },
+        {
+          "v": 12,
+          "beat": "lower",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "settle",
+          "dt": 0.04
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 58,
+          "beat": "gather",
+          "dt": 0.045
+        },
+        {
+          "v": 128,
+          "beat": "bite1",
+          "dt": 0.045
+        },
+        {
+          "v": 128,
+          "beat": "chew1a",
+          "dt": 0.045
+        },
+        {
+          "v": 90,
+          "beat": "chew1c",
+          "dt": 0.045
+        },
+        {
+          "v": 84,
+          "beat": "scoop",
+          "dt": 0.045
+        },
+        {
+          "v": 128,
+          "beat": "bite2",
+          "dt": 0.045
+        },
+        {
+          "v": 128,
+          "beat": "chew2a",
+          "dt": 0.045
+        },
+        {
+          "v": 90,
+          "beat": "chew2c",
+          "dt": 0.045
+        },
+        {
+          "v": 70,
+          "beat": "chew2e",
+          "dt": 0.045
+        },
+        {
+          "v": 74,
+          "beat": "bliss",
+          "dt": 0.045
+        },
+        {
+          "v": 68,
+          "beat": "shiver2",
+          "dt": 0.045
+        },
+        {
+          "v": 42,
+          "beat": "lower",
+          "dt": 0.045
+        },
+        {
+          "v": 15,
+          "beat": "settle",
+          "dt": 0.045
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "gather",
+          "dt": 0.055
+        },
+        {
+          "v": 30,
+          "beat": "bite1",
+          "dt": 0.055
+        },
+        {
+          "v": 30,
+          "beat": "chew1a",
+          "dt": 0.055
+        },
+        {
+          "v": 45,
+          "beat": "chew1c",
+          "dt": 0.055
+        },
+        {
+          "v": 40,
+          "beat": "scoop",
+          "dt": 0.055
+        },
+        {
+          "v": 30,
+          "beat": "bite2",
+          "dt": 0.055
+        },
+        {
+          "v": 30,
+          "beat": "chew2a",
+          "dt": 0.055
+        },
+        {
+          "v": 45,
+          "beat": "chew2c",
+          "dt": 0.055
+        },
+        {
+          "v": 30,
+          "beat": "chew2e",
+          "dt": 0.055
+        },
+        {
+          "v": 32,
+          "beat": "bliss",
+          "dt": 0.055
+        },
+        {
+          "v": 30,
+          "beat": "shiver2",
+          "dt": 0.055
+        },
+        {
+          "v": 18,
+          "beat": "lower",
+          "dt": 0.055
+        },
+        {
+          "v": 4,
+          "beat": "settle",
+          "dt": 0.055
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 6,
+          "beat": "gather",
+          "dt": 0.065
+        },
+        {
+          "v": 60,
+          "beat": "bite1",
+          "dt": 0.065
+        },
+        {
+          "v": 60,
+          "beat": "chew1a",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "chew1c",
+          "dt": 0.065
+        },
+        {
+          "v": -3,
+          "beat": "scoop",
+          "dt": 0.065
+        },
+        {
+          "v": 60,
+          "beat": "bite2",
+          "dt": 0.065
+        },
+        {
+          "v": 60,
+          "beat": "chew2a",
+          "dt": 0.065
+        },
+        {
+          "v": 0,
+          "beat": "chew2c",
+          "dt": 0.065
+        },
+        {
+          "v": -3,
+          "beat": "chew2e",
+          "dt": 0.065
+        },
+        {
+          "v": -11,
+          "beat": "bliss",
+          "dt": 0.065
+        },
+        {
+          "v": -5,
+          "beat": "shiver1",
+          "dt": 0.065
+        },
+        {
+          "v": -3,
+          "beat": "shiver2",
+          "dt": 0.065
+        },
+        {
+          "v": 5,
+          "beat": "lower",
+          "dt": 0.065
+        },
+        {
+          "v": 8,
+          "beat": "settle",
+          "dt": 0.065
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "gather",
+          "dt": 0.07
+        },
+        {
+          "v": 18,
+          "beat": "bite1",
+          "dt": 0.07
+        },
+        {
+          "v": 18,
+          "beat": "chew1a",
+          "dt": 0.07
+        },
+        {
+          "v": -4,
+          "beat": "chew1c",
+          "dt": 0.07
+        },
+        {
+          "v": -4,
+          "beat": "scoop",
+          "dt": 0.07
+        },
+        {
+          "v": 18,
+          "beat": "bite2",
+          "dt": 0.07
+        },
+        {
+          "v": 18,
+          "beat": "chew2a",
+          "dt": 0.07
+        },
+        {
+          "v": -4,
+          "beat": "chew2c",
+          "dt": 0.07
+        },
+        {
+          "v": -1,
+          "beat": "chew2e",
+          "dt": 0.07
+        },
+        {
+          "v": -3,
+          "beat": "bliss",
+          "dt": 0.07
+        },
+        {
+          "v": -2,
+          "beat": "shiver2",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "lower",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 35,
+          "beat": "gather",
+          "dt": 0.03
+        },
+        {
+          "v": 42,
+          "beat": "bite1",
+          "dt": 0.03
+        },
+        {
+          "v": 42,
+          "beat": "scoop",
+          "dt": 0.03
+        },
+        {
+          "v": 42,
+          "beat": "bite2",
+          "dt": 0.03
+        },
+        {
+          "v": 42,
+          "beat": "chew2e",
+          "dt": 0.03
+        },
+        {
+          "v": 42,
+          "beat": "bliss",
+          "dt": 0.03
+        },
+        {
+          "v": 42,
+          "beat": "shiver2",
+          "dt": 0.03
+        },
+        {
+          "v": 30,
+          "beat": "lower",
+          "dt": 0.03
+        },
+        {
+          "v": 20,
+          "beat": "settle",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 45,
+          "beat": "gather",
+          "dt": 0.03
+        },
+        {
+          "v": 68,
+          "beat": "bite1",
+          "dt": 0.03
+        },
+        {
+          "v": 68,
+          "beat": "scoop",
+          "dt": 0.03
+        },
+        {
+          "v": 68,
+          "beat": "bite2",
+          "dt": 0.03
+        },
+        {
+          "v": 68,
+          "beat": "chew2e",
+          "dt": 0.03
+        },
+        {
+          "v": 68,
+          "beat": "bliss",
+          "dt": 0.03
+        },
+        {
+          "v": 68,
+          "beat": "shiver2",
+          "dt": 0.03
+        },
+        {
+          "v": 50,
+          "beat": "lower",
+          "dt": 0.03
+        },
+        {
+          "v": 10,
+          "beat": "settle",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "gather",
+          "dt": 0.05
+        },
+        {
+          "v": 42.5,
+          "beat": "bite1",
+          "dt": 0.05
+        },
+        {
+          "v": 42.5,
+          "beat": "scoop",
+          "dt": 0.05
+        },
+        {
+          "v": 42.5,
+          "beat": "bite2",
+          "dt": 0.05
+        },
+        {
+          "v": 42.5,
+          "beat": "chew2e",
+          "dt": 0.05
+        },
+        {
+          "v": 42.5,
+          "beat": "bliss",
+          "dt": 0.05
+        },
+        {
+          "v": 42.5,
+          "beat": "shiver2",
+          "dt": 0.05
+        },
+        {
+          "v": 23,
+          "beat": "lower",
+          "dt": 0.05
+        },
+        {
+          "v": 3,
+          "beat": "settle",
+          "dt": 0.05
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 55,
+          "beat": "gather",
+          "dt": 0.06
+        },
+        {
+          "v": 135,
+          "beat": "bite1",
+          "dt": 0.06
+        },
+        {
+          "v": 135,
+          "beat": "scoop",
+          "dt": 0.06
+        },
+        {
+          "v": 135,
+          "beat": "bite2",
+          "dt": 0.06
+        },
+        {
+          "v": 135,
+          "beat": "chew2e",
+          "dt": 0.06
+        },
+        {
+          "v": 135,
+          "beat": "bliss",
+          "dt": 0.06
+        },
+        {
+          "v": 135,
+          "beat": "shiver2",
+          "dt": 0.06
+        },
+        {
+          "v": 70,
+          "beat": "lower",
+          "dt": 0.06
+        },
+        {
+          "v": 18,
+          "beat": "settle",
+          "dt": 0.06
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 55,
+          "beat": "gather",
+          "dt": 0.07
+        },
+        {
+          "v": 80,
+          "beat": "bite1",
+          "dt": 0.07
+        },
+        {
+          "v": 80,
+          "beat": "scoop",
+          "dt": 0.07
+        },
+        {
+          "v": 80,
+          "beat": "bite2",
+          "dt": 0.07
+        },
+        {
+          "v": 80,
+          "beat": "chew2e",
+          "dt": 0.07
+        },
+        {
+          "v": 80,
+          "beat": "bliss",
+          "dt": 0.07
+        },
+        {
+          "v": 80,
+          "beat": "shiver2",
+          "dt": 0.07
+        },
+        {
+          "v": 45,
+          "beat": "lower",
+          "dt": 0.07
+        },
+        {
+          "v": 8,
+          "beat": "settle",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -10,
+          "beat": "gather",
+          "dt": 0.08
+        },
+        {
+          "v": -55,
+          "beat": "bite1",
+          "dt": 0.08
+        },
+        {
+          "v": -55,
+          "beat": "scoop",
+          "dt": 0.08
+        },
+        {
+          "v": -55,
+          "beat": "bite2",
+          "dt": 0.08
+        },
+        {
+          "v": -55,
+          "beat": "chew2e",
+          "dt": 0.08
+        },
+        {
+          "v": -55,
+          "beat": "bliss",
+          "dt": 0.08
+        },
+        {
+          "v": -55,
+          "beat": "shiver2",
+          "dt": 0.08
+        },
+        {
+          "v": -5,
+          "beat": "lower",
+          "dt": 0.08
+        },
+        {
+          "v": 6,
+          "beat": "settle",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "gather",
+          "dt": 0.085
+        },
+        {
+          "v": -30,
+          "beat": "bite1",
+          "dt": 0.085
+        },
+        {
+          "v": -30,
+          "beat": "scoop",
+          "dt": 0.085
+        },
+        {
+          "v": -30,
+          "beat": "bite2",
+          "dt": 0.085
+        },
+        {
+          "v": -30,
+          "beat": "chew2e",
+          "dt": 0.085
+        },
+        {
+          "v": -30,
+          "beat": "bliss",
+          "dt": 0.085
+        },
+        {
+          "v": -30,
+          "beat": "shiver2",
+          "dt": 0.085
+        },
+        {
+          "v": 0,
+          "beat": "lower",
+          "dt": 0.085
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.085
+        },
+        {
+          "v": "base",
+          "beat": "rest"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.006,
+        "beat": "gather"
+      },
+      {
+        "v": 0.018,
+        "beat": "bite1"
+      },
+      {
+        "v": 0.012,
+        "beat": "scoop"
+      },
+      {
+        "v": 0.02,
+        "beat": "bite2"
+      },
+      {
+        "v": 0.01,
+        "beat": "chew2e"
+      },
+      {
+        "v": -0.014,
+        "beat": "bliss"
+      },
+      {
+        "v": 0.014,
+        "beat": "shiver1"
+      },
+      {
+        "v": -0.011,
+        "beat": "shiver2"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      },
+      {
+        "v": 0,
+        "beat": "rest"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.008,
+        "beat": "gather"
+      },
+      {
+        "v": -0.022,
+        "beat": "bite1"
+      },
+      {
+        "v": -0.014,
+        "beat": "scoop"
+      },
+      {
+        "v": -0.025,
+        "beat": "bite2"
+      },
+      {
+        "v": -0.014,
+        "beat": "chew2e"
+      },
+      {
+        "v": -0.009,
+        "beat": "bliss"
+      },
+      {
+        "v": -0.019,
+        "beat": "shiver1"
+      },
+      {
+        "v": -0.01,
+        "beat": "shiver2"
+      },
+      {
+        "v": -0.004,
+        "beat": "settle"
+      },
+      {
+        "v": 0,
+        "beat": "rest"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.003,
+        "beat": "gather"
+      },
+      {
+        "v": 0.02,
+        "beat": "bite1"
+      },
+      {
+        "v": 0.005,
+        "beat": "scoop"
+      },
+      {
+        "v": 0.024,
+        "beat": "bite2"
+      },
+      {
+        "v": 0.01,
+        "beat": "chew2e"
+      },
+      {
+        "v": 0,
+        "beat": "bliss"
+      },
+      {
+        "v": -0.004,
+        "beat": "shiver1"
+      },
+      {
+        "v": 0,
+        "beat": "shiver2"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      },
+      {
+        "v": 0,
+        "beat": "rest"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "index": {
+            "curl": [12, 8, 4]
+          },
+          "middle": {
+            "curl": [-66, -70, -52]
+          },
+          "ring": {
+            "curl": [-12, -8, -4]
+          },
+          "little": {
+            "curl": [-10, -6, -3]
+          },
+          "thumb": {
+            "curl": [-12, -8]
+          }
+        },
+        "beat": "gather",
+        "dt": 0.08
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "index": {
+            "curl": [12, 8, 4]
+          },
+          "middle": {
+            "curl": [-66, -70, -52]
+          },
+          "ring": {
+            "curl": [-12, -8, -4]
+          },
+          "little": {
+            "curl": [-10, -6, -3]
+          },
+          "thumb": {
+            "curl": [-12, -8]
+          }
+        },
+        "beat": "bite1",
+        "dt": -0.04
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "index": {
+            "curl": [12, 8, 4]
+          },
+          "middle": {
+            "curl": [-66, -70, -52]
+          },
+          "ring": {
+            "curl": [-12, -8, -4]
+          },
+          "little": {
+            "curl": [-10, -6, -3]
+          },
+          "thumb": {
+            "curl": [-12, -8]
+          }
+        },
+        "beat": "scoop"
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "index": {
+            "curl": [12, 8, 4]
+          },
+          "middle": {
+            "curl": [-66, -70, -52]
+          },
+          "ring": {
+            "curl": [-12, -8, -4]
+          },
+          "little": {
+            "curl": [-10, -6, -3]
+          },
+          "thumb": {
+            "curl": [-12, -8]
+          }
+        },
+        "beat": "scoop",
+        "dt": 0.16
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "index": {
+            "curl": [12, 8, 4]
+          },
+          "middle": {
+            "curl": [-66, -70, -52]
+          },
+          "ring": {
+            "curl": [-12, -8, -4]
+          },
+          "little": {
+            "curl": [-10, -6, -3]
+          },
+          "thumb": {
+            "curl": [-12, -8]
+          }
+        },
+        "beat": "bite2",
+        "dt": -0.04
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "index": {
+            "curl": [12, 8, 4]
+          },
+          "middle": {
+            "curl": [-66, -70, -52]
+          },
+          "ring": {
+            "curl": [-12, -8, -4]
+          },
+          "little": {
+            "curl": [-10, -6, -3]
+          },
+          "thumb": {
+            "curl": [-12, -8]
+          }
+        },
+        "beat": "bliss"
+      },
+      {
+        "preset": "relaxed",
+        "beat": "lower",
+        "dt": 0.08
+      },
+      {
+        "preset": "relaxed",
+        "beat": "rest"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "cupped",
+        "curl": 8,
+        "beat": "gather",
+        "dt": 0.06
+      },
+      {
+        "preset": "cupped",
+        "curl": 8,
+        "beat": "bite1",
+        "dt": -0.02
+      },
+      {
+        "preset": "cupped",
+        "curl": 8,
+        "beat": "scoop"
+      },
+      {
+        "preset": "cupped",
+        "curl": 8,
+        "beat": "bite2"
+      },
+      {
+        "preset": "cupped",
+        "curl": 8,
+        "beat": "bliss"
+      },
+      {
+        "preset": "relaxed",
+        "beat": "lower",
+        "dt": 0.12
+      },
+      {
+        "preset": "relaxed",
+        "beat": "rest"
+      }
+    ]
+  },
+  "expressions": {
+    "aa": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.05,
+        "beat": "gather"
+      },
+      {
+        "v": 0.6,
+        "beat": "bite1"
+      },
+      {
+        "v": 0.05,
+        "beat": "chew1a"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew1b"
+      },
+      {
+        "v": 0.04,
+        "beat": "chew1c"
+      },
+      {
+        "v": 0.3,
+        "beat": "scoop"
+      },
+      {
+        "v": 0.6,
+        "beat": "bite2"
+      },
+      {
+        "v": 0.05,
+        "beat": "chew2a"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew2b"
+      },
+      {
+        "v": 0.04,
+        "beat": "chew2c"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew2d"
+      },
+      {
+        "v": 0.04,
+        "beat": "chew2e"
+      },
+      {
+        "v": 0,
+        "beat": "bliss"
+      },
+      {
+        "v": 0,
+        "beat": "shiver1"
+      },
+      {
+        "v": 0,
+        "beat": "shiver2"
+      },
+      {
+        "v": 0,
+        "beat": "lower"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      },
+      {
+        "v": 0,
+        "beat": "rest"
+      }
+    ],
+    "ou": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "gather"
+      },
+      {
+        "v": 0,
+        "beat": "bite1"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew1a"
+      },
+      {
+        "v": 0.03,
+        "beat": "chew1b"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew1c"
+      },
+      {
+        "v": 0.03,
+        "beat": "scoop"
+      },
+      {
+        "v": 0,
+        "beat": "bite2"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew2a"
+      },
+      {
+        "v": 0.03,
+        "beat": "chew2b"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew2c"
+      },
+      {
+        "v": 0.03,
+        "beat": "chew2d"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew2e"
+      },
+      {
+        "v": 0,
+        "beat": "bliss"
+      },
+      {
+        "v": 0,
+        "beat": "shiver1"
+      },
+      {
+        "v": 0,
+        "beat": "shiver2"
+      },
+      {
+        "v": 0,
+        "beat": "lower"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      },
+      {
+        "v": 0,
+        "beat": "rest"
+      }
+    ],
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "gather"
+      },
+      {
+        "v": 0,
+        "beat": "bite1"
+      },
+      {
+        "v": 0.1,
+        "beat": "chew1a"
+      },
+      {
+        "v": 0.1,
+        "beat": "chew1b"
+      },
+      {
+        "v": 0.1,
+        "beat": "chew1c"
+      },
+      {
+        "v": 0.1,
+        "beat": "scoop"
+      },
+      {
+        "v": 0.1,
+        "beat": "bite2"
+      },
+      {
+        "v": 0.1,
+        "beat": "chew2a"
+      },
+      {
+        "v": 0.1,
+        "beat": "chew2b"
+      },
+      {
+        "v": 0.1,
+        "beat": "chew2c"
+      },
+      {
+        "v": 0.15,
+        "beat": "chew2d"
+      },
+      {
+        "v": 0.3,
+        "beat": "chew2e"
+      },
+      {
+        "v": 0.9,
+        "beat": "bliss"
+      },
+      {
+        "v": 0.9,
+        "beat": "shiver1"
+      },
+      {
+        "v": 0.85,
+        "beat": "shiver2"
+      },
+      {
+        "v": 0.6,
+        "beat": "lower"
+      },
+      {
+        "v": 0.15,
+        "beat": "settle"
+      },
+      {
+        "v": 0,
+        "beat": "rest"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "gather"
+      },
+      {
+        "v": 0,
+        "beat": "bite1"
+      },
+      {
+        "v": 0,
+        "beat": "chew1a"
+      },
+      {
+        "v": 0,
+        "beat": "chew1b"
+      },
+      {
+        "v": 0,
+        "beat": "chew1c"
+      },
+      {
+        "v": 0,
+        "beat": "scoop"
+      },
+      {
+        "v": 0,
+        "beat": "bite2"
+      },
+      {
+        "v": 0,
+        "beat": "chew2a"
+      },
+      {
+        "v": 0,
+        "beat": "chew2b"
+      },
+      {
+        "v": 0,
+        "beat": "chew2c"
+      },
+      {
+        "v": 0,
+        "beat": "chew2d"
+      },
+      {
+        "v": 0,
+        "beat": "chew2e"
+      },
+      {
+        "v": 0.45,
+        "beat": "bliss"
+      },
+      {
+        "v": 0.45,
+        "beat": "shiver1"
+      },
+      {
+        "v": 0.4,
+        "beat": "shiver2"
+      },
+      {
+        "v": 0.25,
+        "beat": "lower"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      },
+      {
+        "v": 0,
+        "beat": "rest"
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "delicious-sparkle",
+      "time": 2.99,
+      "kind": "avatar_vfx",
+      "effectId": "delicious_sparkle",
+      "duration": 0.9,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.12,
+          "fadeOut": 0.25
+        }
+      }
+    },
+    {
+      "id": "happy_flowers",
+      "time": 3.7,
+      "kind": "avatar_vfx",
+      "effectId": "happy_flowers",
+      "duration": 0.7,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.1,
+          "fadeOut": 0.22
+        }
+      },
+      "playAccompanyingSound": false
+    }
+  ]
+}

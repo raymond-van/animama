@@ -77,6 +77,12 @@ pnpm -s animation:save <items.json>
 Keep the items file in a scratch directory, outside the repository; clip
 paths are absolute or relative to the items file. An optional `description`
 sets a new Gesture's Library description (it defaults to the AI description).
+An optional `project` path, also absolute or relative to the items file,
+imports that project's sequence and dependencies instead of `clip`, resolving
+Local and Included effect refs against the running Library; the item's name,
+AI description and Selector ID still apply. For revisions, a project import
+replaces the dependencies and project metadata too; without `project`, the
+clip-only behavior below is unchanged.
 
 The tool saves the items one after another through the Gesture creator,
 exactly as a person would:

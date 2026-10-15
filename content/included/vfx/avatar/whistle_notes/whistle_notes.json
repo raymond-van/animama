@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:whistle_notes",
+  "version": 1,
+  "name": "Whistle Notes",
+  "description": "Purple crayon music notes pop from beside the lips and float up-right for an exaggerated innocent whistle.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0.05,
+        "y": 0.01
+      },
+      "size": 0.11
+    },
+    "art": {
+      "image": "whistle_notes-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 4,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "whistle_notes-sheet.png",
+      "role": "image"
+    }
+  ]
+}

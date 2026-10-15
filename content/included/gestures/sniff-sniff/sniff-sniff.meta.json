@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:sniff-sniff",
+  "version": 1,
+  "semantic_key": "sniff_sniff_curious",
+  "name": "Sniff Sniff",
+  "description": "Follows a smell with slow curious sniffs, then looks delighted. Use for something that smells good, food being mentioned or a curious 'what's that?'.",
+  "ai_description": "Follows a smell with slow curious sniffs, then looks delighted. Use for something that smells good, food being mentioned or a curious 'what's that?'.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:sniff_lines",
+      "alias": "sniff_lines",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:aroma-ribbons",
+      "alias": "aroma_ribbons",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "sniff-sniff.json",
+      "role": "sequence"
+    }
+  ]
+}

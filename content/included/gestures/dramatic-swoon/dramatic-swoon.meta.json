@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:dramatic-swoon",
+  "version": 1,
+  "semantic_key": "dramatic_swoon",
+  "name": "Dramatic Swoon",
+  "description": "Back of the hand to the forehead and a theatrical near-faint. Use for playful melodrama: being overwhelmed, flattered or exaggeratedly scandalised.",
+  "ai_description": "Back of the hand to the forehead and a theatrical near-faint. Use for playful melodrama: being overwhelmed, flattered or exaggeratedly scandalised.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:dizzy-stars",
+      "alias": "dizzy-stars",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "dramatic-swoon.json",
+      "role": "sequence"
+    }
+  ]
+}

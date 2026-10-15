@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:innocent-whistle",
+  "version": 1,
+  "semantic_key": "innocent_whistle",
+  "name": "Innocent Whistle",
+  "description": "Hands behind the back, rocking and whistling while glancing away. Use when playfully dodging a question, pretending innocence or hiding something.",
+  "ai_description": "Hands behind the back, rocking and whistling while glancing away. Use when playfully dodging a question, pretending innocence or hiding something.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:whistle_notes",
+      "alias": "whistle_notes",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:sweat_drop",
+      "alias": "sweat_drop_v2",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "innocent-whistle.json",
+      "role": "sequence"
+    }
+  ]
+}

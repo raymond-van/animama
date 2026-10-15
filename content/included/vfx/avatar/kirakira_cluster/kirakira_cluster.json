@@ -23,28 +23,28 @@
       "image": "kirakira_cluster-sheet.png",
       "flipbook": {
         "columns": 4,
-        "rows": 1,
-        "frames": 4,
         "fps": 8,
-        "loop": "pingpong"
+        "frames": 4,
+        "loop": "pingpong",
+        "rows": 1
       }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
             "opacity": 0,
-            "scale": 0.3
+            "scale": 0.3,
+            "t": 0
           },
           {
-            "t": 0.09,
             "opacity": 1,
-            "scale": 1.25
+            "scale": 1.25,
+            "t": 0.09
           },
           {
-            "t": 0.15,
-            "scale": 1
+            "scale": 1,
+            "t": 0.15
           }
         ]
       }

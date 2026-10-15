@@ -27,13 +27,13 @@
       "side": "right"
     },
     "art": {
-      "image": "heart_eyes_r.png"
-    },
-    "motion": {
-      "pulse": {
-        "cyclesPerSecond": 1.5,
-        "scaleMax": 1.1,
-        "scaleMin": 0.9
+      "image": "heart_eyes-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 8,
+        "frames": 8,
+        "loop": "loop",
+        "rows": 2
       }
     },
     "faceOptions": {
@@ -45,7 +45,7 @@
   },
   "files": [
     {
-      "path": "heart_eyes_r.png",
+      "path": "heart_eyes-sheet.png",
       "role": "image"
     }
   ]

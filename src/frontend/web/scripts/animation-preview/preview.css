@@ -340,3 +340,21 @@ select {
     max-height: 40vh;
   }
 }
+
+.cycle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cycle #pick-position {
+  min-width: 3.5em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  border-color: var(--line);
+}

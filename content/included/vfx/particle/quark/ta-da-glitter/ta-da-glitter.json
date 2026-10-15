@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:ta-da-glitter",
+  "version": 1,
+  "name": "Ta Da Glitter",
+  "description": "Gold and pastel star glints fan out from both hands, then fall in a soft twinkling shower.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "ta-da-glitter",
+    "slots": {
+      "particle_vfx": {
+        "label": "Ta Da Glitter",
+        "description": "Gold and pastel star glints fan out from both hands, then fall in a soft twinkling shower.",
+        "anchor": "chest",
+        "duration_seconds": 3.3,
+        "max_duration_seconds": 3.3,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 112
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/tada-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/tada-halo.png",
+      "role": "texture"
+    }
+  ]
+}

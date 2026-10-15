@@ -1,0 +1,3125 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "brush-off-shoulders",
+  "name": "Brush Off Shoulders",
+  "duration": 3.952,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.23
+  },
+  "fadeOut": {
+    "duration": 0.35
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Rest",
+      "time": 0
+    },
+    {
+      "id": "chin",
+      "label": "Chin up",
+      "time": 0.23
+    },
+    {
+      "id": "dust1",
+      "label": "Right brush 1",
+      "time": 0.713
+    },
+    {
+      "id": "flick1",
+      "label": "Flick dust away",
+      "time": 0.966
+    },
+    {
+      "id": "dust2",
+      "label": "Right brush 2",
+      "time": 1.265
+    },
+    {
+      "id": "flick2",
+      "label": "Second flick",
+      "time": 1.518
+    },
+    {
+      "id": "leftdust",
+      "label": "Left brush 1",
+      "time": 2.0125
+    },
+    {
+      "id": "leftflick",
+      "label": "Left flick 1",
+      "time": 2.2655
+    },
+    {
+      "id": "leftdust2",
+      "label": "Left brush 2",
+      "time": 2.5645
+    },
+    {
+      "id": "leftflick2",
+      "label": "Left flick 2",
+      "time": 2.8175
+    },
+    {
+      "id": "collar",
+      "label": "Adjust collar",
+      "time": 3.197
+    },
+    {
+      "id": "smug",
+      "label": "Smug glance",
+      "time": 3.312
+    },
+    {
+      "id": "release",
+      "label": "Release",
+      "time": 3.542
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 3.9445
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "chin"
+        },
+        {
+          "v": 0,
+          "beat": "dust1"
+        },
+        {
+          "v": -1,
+          "beat": "flick1"
+        },
+        {
+          "v": 0,
+          "beat": "dust2"
+        },
+        {
+          "v": -1,
+          "beat": "flick2"
+        },
+        {
+          "v": 0,
+          "beat": "leftdust"
+        },
+        {
+          "v": -1,
+          "beat": "leftflick"
+        },
+        {
+          "v": 0,
+          "beat": "leftdust2"
+        },
+        {
+          "v": -1,
+          "beat": "leftflick2"
+        },
+        {
+          "v": 0,
+          "beat": "collar"
+        },
+        {
+          "v": 0,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.023
+        },
+        {
+          "v": 3,
+          "beat": "dust1",
+          "dt": 0.023
+        },
+        {
+          "v": 4,
+          "beat": "flick1",
+          "dt": 0.023
+        },
+        {
+          "v": 3,
+          "beat": "dust2",
+          "dt": 0.023
+        },
+        {
+          "v": 4,
+          "beat": "flick2",
+          "dt": 0.023
+        },
+        {
+          "v": -3,
+          "beat": "leftdust",
+          "dt": 0.023
+        },
+        {
+          "v": -4,
+          "beat": "leftflick",
+          "dt": 0.023
+        },
+        {
+          "v": -3,
+          "beat": "leftdust2",
+          "dt": 0.023
+        },
+        {
+          "v": -4,
+          "beat": "leftflick2",
+          "dt": 0.023
+        },
+        {
+          "v": 2,
+          "beat": "collar",
+          "dt": 0.023
+        },
+        {
+          "v": 2,
+          "beat": "smug",
+          "dt": 0.023
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.023
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "chin"
+        },
+        {
+          "v": -2,
+          "beat": "dust1"
+        },
+        {
+          "v": -2,
+          "beat": "flick1"
+        },
+        {
+          "v": -2,
+          "beat": "dust2"
+        },
+        {
+          "v": -2,
+          "beat": "flick2"
+        },
+        {
+          "v": 2,
+          "beat": "leftdust"
+        },
+        {
+          "v": 2,
+          "beat": "leftflick"
+        },
+        {
+          "v": 2,
+          "beat": "leftdust2"
+        },
+        {
+          "v": 2,
+          "beat": "leftflick2"
+        },
+        {
+          "v": -1,
+          "beat": "collar"
+        },
+        {
+          "v": -1,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "chin",
+          "dt": 0.0403
+        },
+        {
+          "v": -2,
+          "beat": "dust1",
+          "dt": 0.0403
+        },
+        {
+          "v": -1,
+          "beat": "flick1",
+          "dt": 0.0403
+        },
+        {
+          "v": -2,
+          "beat": "dust2",
+          "dt": 0.0403
+        },
+        {
+          "v": -1,
+          "beat": "flick2",
+          "dt": 0.0403
+        },
+        {
+          "v": -2,
+          "beat": "leftdust",
+          "dt": 0.0403
+        },
+        {
+          "v": -1,
+          "beat": "leftflick",
+          "dt": 0.0403
+        },
+        {
+          "v": -2,
+          "beat": "leftdust2",
+          "dt": 0.0403
+        },
+        {
+          "v": -1,
+          "beat": "leftflick2",
+          "dt": 0.0403
+        },
+        {
+          "v": -1,
+          "beat": "collar",
+          "dt": 0.0403
+        },
+        {
+          "v": -2,
+          "beat": "smug",
+          "dt": 0.0403
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": 0.0403
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.0288
+        },
+        {
+          "v": 2,
+          "beat": "dust1",
+          "dt": 0.0288
+        },
+        {
+          "v": 3,
+          "beat": "flick1",
+          "dt": 0.0288
+        },
+        {
+          "v": 2,
+          "beat": "dust2",
+          "dt": 0.0288
+        },
+        {
+          "v": 3,
+          "beat": "flick2",
+          "dt": 0.0288
+        },
+        {
+          "v": -2,
+          "beat": "leftdust",
+          "dt": 0.0288
+        },
+        {
+          "v": -3,
+          "beat": "leftflick",
+          "dt": 0.0288
+        },
+        {
+          "v": -2,
+          "beat": "leftdust2",
+          "dt": 0.0288
+        },
+        {
+          "v": -3,
+          "beat": "leftflick2",
+          "dt": 0.0288
+        },
+        {
+          "v": 1,
+          "beat": "collar",
+          "dt": 0.0288
+        },
+        {
+          "v": 1,
+          "beat": "smug",
+          "dt": 0.0288
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.0288
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "chin",
+          "dt": 0.0517
+        },
+        {
+          "v": -2,
+          "beat": "dust1",
+          "dt": 0.0517
+        },
+        {
+          "v": -1,
+          "beat": "flick1",
+          "dt": 0.0517
+        },
+        {
+          "v": -2,
+          "beat": "dust2",
+          "dt": 0.0517
+        },
+        {
+          "v": -1,
+          "beat": "flick2",
+          "dt": 0.0517
+        },
+        {
+          "v": -2,
+          "beat": "leftdust",
+          "dt": 0.0517
+        },
+        {
+          "v": -1,
+          "beat": "leftflick",
+          "dt": 0.0517
+        },
+        {
+          "v": -2,
+          "beat": "leftdust2",
+          "dt": 0.0517
+        },
+        {
+          "v": -1,
+          "beat": "leftflick2",
+          "dt": 0.0517
+        },
+        {
+          "v": -2,
+          "beat": "collar",
+          "dt": 0.0517
+        },
+        {
+          "v": -2,
+          "beat": "smug",
+          "dt": 0.0517
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": 0.0517
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "chin",
+          "dt": 0.046
+        },
+        {
+          "v": 2,
+          "beat": "dust1",
+          "dt": 0.046
+        },
+        {
+          "v": 1,
+          "beat": "flick1",
+          "dt": 0.046
+        },
+        {
+          "v": 2,
+          "beat": "dust2",
+          "dt": 0.046
+        },
+        {
+          "v": 1,
+          "beat": "flick2",
+          "dt": 0.046
+        },
+        {
+          "v": -2,
+          "beat": "leftdust",
+          "dt": 0.046
+        },
+        {
+          "v": -1,
+          "beat": "leftflick",
+          "dt": 0.046
+        },
+        {
+          "v": -2,
+          "beat": "leftdust2",
+          "dt": 0.046
+        },
+        {
+          "v": -1,
+          "beat": "leftflick2",
+          "dt": 0.046
+        },
+        {
+          "v": 1,
+          "beat": "collar",
+          "dt": 0.046
+        },
+        {
+          "v": 1,
+          "beat": "smug",
+          "dt": 0.046
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.046
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "chin",
+          "dt": 0.046
+        },
+        {
+          "v": 5,
+          "beat": "dust1",
+          "dt": 0.046
+        },
+        {
+          "v": 4,
+          "beat": "flick1",
+          "dt": 0.046
+        },
+        {
+          "v": 5,
+          "beat": "dust2",
+          "dt": 0.046
+        },
+        {
+          "v": 4,
+          "beat": "flick2",
+          "dt": 0.046
+        },
+        {
+          "v": -5,
+          "beat": "leftdust",
+          "dt": 0.046
+        },
+        {
+          "v": -4,
+          "beat": "leftflick",
+          "dt": 0.046
+        },
+        {
+          "v": -5,
+          "beat": "leftdust2",
+          "dt": 0.046
+        },
+        {
+          "v": -4,
+          "beat": "leftflick2",
+          "dt": 0.046
+        },
+        {
+          "v": 1,
+          "beat": "collar",
+          "dt": 0.046
+        },
+        {
+          "v": 2,
+          "beat": "smug",
+          "dt": 0.046
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.046
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "chin",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "dust1",
+          "dt": 0.0633
+        },
+        {
+          "v": -1,
+          "beat": "flick1",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "dust2",
+          "dt": 0.0633
+        },
+        {
+          "v": -1,
+          "beat": "flick2",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "leftdust",
+          "dt": 0.0633
+        },
+        {
+          "v": -1,
+          "beat": "leftflick",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "leftdust2",
+          "dt": 0.0633
+        },
+        {
+          "v": -1,
+          "beat": "leftflick2",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "collar",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "smug",
+          "dt": 0.0633
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": 0.0633
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.0633
+        },
+        {
+          "v": 2,
+          "beat": "dust1",
+          "dt": 0.0633
+        },
+        {
+          "v": 2,
+          "beat": "flick1",
+          "dt": 0.0633
+        },
+        {
+          "v": 2,
+          "beat": "dust2",
+          "dt": 0.0633
+        },
+        {
+          "v": 2,
+          "beat": "flick2",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "leftdust",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "leftflick",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "leftdust2",
+          "dt": 0.0633
+        },
+        {
+          "v": -2,
+          "beat": "leftflick2",
+          "dt": 0.0633
+        },
+        {
+          "v": 1,
+          "beat": "collar",
+          "dt": 0.0633
+        },
+        {
+          "v": 1,
+          "beat": "smug",
+          "dt": 0.0633
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.0633
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "chin",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "dust1",
+          "dt": -0.0173
+        },
+        {
+          "v": -1,
+          "beat": "flick1",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "dust2",
+          "dt": -0.0173
+        },
+        {
+          "v": -1,
+          "beat": "flick2",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "leftdust",
+          "dt": -0.0173
+        },
+        {
+          "v": -1,
+          "beat": "leftflick",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "leftdust2",
+          "dt": -0.0173
+        },
+        {
+          "v": -1,
+          "beat": "leftflick2",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "collar",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "smug",
+          "dt": -0.0173
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": -0.0173
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "chin",
+          "dt": -0.0173
+        },
+        {
+          "v": 3,
+          "beat": "dust1",
+          "dt": -0.0173
+        },
+        {
+          "v": 2,
+          "beat": "flick1",
+          "dt": -0.0173
+        },
+        {
+          "v": 3,
+          "beat": "dust2",
+          "dt": -0.0173
+        },
+        {
+          "v": 2,
+          "beat": "flick2",
+          "dt": -0.0173
+        },
+        {
+          "v": -3,
+          "beat": "leftdust",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "leftflick",
+          "dt": -0.0173
+        },
+        {
+          "v": -3,
+          "beat": "leftdust2",
+          "dt": -0.0173
+        },
+        {
+          "v": -2,
+          "beat": "leftflick2",
+          "dt": -0.0173
+        },
+        {
+          "v": 2,
+          "beat": "collar",
+          "dt": -0.0173
+        },
+        {
+          "v": 3,
+          "beat": "smug",
+          "dt": -0.0173
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.0173
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -6,
+          "beat": "chin",
+          "dt": -0.0345
+        },
+        {
+          "v": -5,
+          "beat": "dust1",
+          "dt": -0.0345
+        },
+        {
+          "v": -6,
+          "beat": "flick1",
+          "dt": -0.0345
+        },
+        {
+          "v": -5,
+          "beat": "dust2",
+          "dt": -0.0345
+        },
+        {
+          "v": -6,
+          "beat": "flick2",
+          "dt": -0.0345
+        },
+        {
+          "v": -4,
+          "beat": "leftdust",
+          "dt": -0.0345
+        },
+        {
+          "v": -6,
+          "beat": "leftflick",
+          "dt": -0.0345
+        },
+        {
+          "v": -4,
+          "beat": "leftdust2",
+          "dt": -0.0345
+        },
+        {
+          "v": -6,
+          "beat": "leftflick2",
+          "dt": -0.0345
+        },
+        {
+          "v": -5,
+          "beat": "collar",
+          "dt": -0.0345
+        },
+        {
+          "v": -7,
+          "beat": "smug",
+          "dt": -0.0345
+        },
+        {
+          "v": -3,
+          "beat": "release",
+          "dt": -0.0345
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "chin",
+          "dt": -0.0345
+        },
+        {
+          "v": 10,
+          "beat": "dust1",
+          "dt": -0.0345
+        },
+        {
+          "v": 7,
+          "beat": "flick1",
+          "dt": -0.0345
+        },
+        {
+          "v": 10,
+          "beat": "dust2",
+          "dt": -0.0345
+        },
+        {
+          "v": 7,
+          "beat": "flick2",
+          "dt": -0.0345
+        },
+        {
+          "v": -8,
+          "beat": "leftdust",
+          "dt": -0.0345
+        },
+        {
+          "v": -5,
+          "beat": "leftflick",
+          "dt": -0.0345
+        },
+        {
+          "v": -8,
+          "beat": "leftdust2",
+          "dt": -0.0345
+        },
+        {
+          "v": -5,
+          "beat": "leftflick2",
+          "dt": -0.0345
+        },
+        {
+          "v": 6,
+          "beat": "collar",
+          "dt": -0.0345
+        },
+        {
+          "v": 10,
+          "beat": "smug",
+          "dt": -0.0345
+        },
+        {
+          "v": 5,
+          "beat": "release",
+          "dt": -0.0345
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "chin",
+          "dt": -0.0115
+        },
+        {
+          "v": -5,
+          "beat": "dust1",
+          "dt": -0.0115
+        },
+        {
+          "v": -4,
+          "beat": "flick1",
+          "dt": -0.0115
+        },
+        {
+          "v": -5,
+          "beat": "dust2",
+          "dt": -0.0115
+        },
+        {
+          "v": -4,
+          "beat": "flick2",
+          "dt": -0.0115
+        },
+        {
+          "v": 4,
+          "beat": "leftdust",
+          "dt": -0.0115
+        },
+        {
+          "v": 3,
+          "beat": "leftflick",
+          "dt": -0.0115
+        },
+        {
+          "v": 4,
+          "beat": "leftdust2",
+          "dt": -0.0115
+        },
+        {
+          "v": 3,
+          "beat": "leftflick2",
+          "dt": -0.0115
+        },
+        {
+          "v": -4,
+          "beat": "collar",
+          "dt": -0.0115
+        },
+        {
+          "v": -5,
+          "beat": "smug",
+          "dt": -0.0115
+        },
+        {
+          "v": -2,
+          "beat": "release",
+          "dt": -0.0115
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "yaw": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "chin",
+          "dt": -0.0517
+        },
+        {
+          "v": 4,
+          "beat": "dust1",
+          "dt": -0.0517
+        },
+        {
+          "v": 2,
+          "beat": "flick1",
+          "dt": -0.0517
+        },
+        {
+          "v": 4,
+          "beat": "dust2",
+          "dt": -0.0517
+        },
+        {
+          "v": 2,
+          "beat": "flick2",
+          "dt": -0.0517
+        },
+        {
+          "v": -3,
+          "beat": "leftdust",
+          "dt": -0.0517
+        },
+        {
+          "v": -2,
+          "beat": "leftflick",
+          "dt": -0.0517
+        },
+        {
+          "v": -3,
+          "beat": "leftdust2",
+          "dt": -0.0517
+        },
+        {
+          "v": -2,
+          "beat": "leftflick2",
+          "dt": -0.0517
+        },
+        {
+          "v": 3,
+          "beat": "collar",
+          "dt": -0.0517
+        },
+        {
+          "v": 5,
+          "beat": "smug",
+          "dt": -0.0517
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.0517
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "pitch": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "chin",
+          "dt": -0.0517
+        },
+        {
+          "v": 0,
+          "beat": "dust1",
+          "dt": -0.0517
+        },
+        {
+          "v": 1,
+          "beat": "flick1",
+          "dt": -0.0517
+        },
+        {
+          "v": 0,
+          "beat": "dust2",
+          "dt": -0.0517
+        },
+        {
+          "v": 1,
+          "beat": "flick2",
+          "dt": -0.0517
+        },
+        {
+          "v": 0,
+          "beat": "leftdust",
+          "dt": -0.0517
+        },
+        {
+          "v": 1,
+          "beat": "leftflick",
+          "dt": -0.0517
+        },
+        {
+          "v": 0,
+          "beat": "leftdust2",
+          "dt": -0.0517
+        },
+        {
+          "v": 1,
+          "beat": "leftflick2",
+          "dt": -0.0517
+        },
+        {
+          "v": 0,
+          "beat": "collar",
+          "dt": -0.0517
+        },
+        {
+          "v": 1,
+          "beat": "smug",
+          "dt": -0.0517
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": -0.0517
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.0345
+        },
+        {
+          "v": 5,
+          "beat": "dust1",
+          "dt": 0.0345
+        },
+        {
+          "v": 3,
+          "beat": "flick1",
+          "dt": 0.0345
+        },
+        {
+          "v": 5,
+          "beat": "dust2",
+          "dt": 0.0345
+        },
+        {
+          "v": 3,
+          "beat": "flick2",
+          "dt": 0.0345
+        },
+        {
+          "v": -1,
+          "beat": "leftdust",
+          "dt": 0.0345
+        },
+        {
+          "v": -1,
+          "beat": "leftflick",
+          "dt": 0.0345
+        },
+        {
+          "v": -1,
+          "beat": "leftdust2",
+          "dt": 0.0345
+        },
+        {
+          "v": -1,
+          "beat": "leftflick2",
+          "dt": 0.0345
+        },
+        {
+          "v": 2,
+          "beat": "collar",
+          "dt": 0.0345
+        },
+        {
+          "v": 2,
+          "beat": "smug",
+          "dt": 0.0345
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.0345
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "chin",
+          "dt": 0.0288
+        },
+        {
+          "v": 9,
+          "beat": "dust1",
+          "dt": 0.0288
+        },
+        {
+          "v": 6,
+          "beat": "flick1",
+          "dt": 0.0288
+        },
+        {
+          "v": 9,
+          "beat": "dust2",
+          "dt": 0.0288
+        },
+        {
+          "v": 6,
+          "beat": "flick2",
+          "dt": 0.0288
+        },
+        {
+          "v": 0,
+          "beat": "leftdust",
+          "dt": 0.0288
+        },
+        {
+          "v": 0,
+          "beat": "leftflick",
+          "dt": 0.0288
+        },
+        {
+          "v": 0,
+          "beat": "leftdust2",
+          "dt": 0.0288
+        },
+        {
+          "v": 0,
+          "beat": "leftflick2",
+          "dt": 0.0288
+        },
+        {
+          "v": 5,
+          "beat": "collar",
+          "dt": 0.0288
+        },
+        {
+          "v": 5,
+          "beat": "smug",
+          "dt": 0.0288
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": 0.0288
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "chin",
+          "dt": 0.0633
+        },
+        {
+          "v": 59.5,
+          "beat": "dust1",
+          "dt": 0.0633
+        },
+        {
+          "v": 62.5,
+          "beat": "flick1",
+          "dt": 0.0633
+        },
+        {
+          "v": 59.5,
+          "beat": "dust2",
+          "dt": 0.0633
+        },
+        {
+          "v": 62.5,
+          "beat": "flick2",
+          "dt": 0.0633
+        },
+        {
+          "v": 35,
+          "beat": "leftdust",
+          "dt": 0.0633
+        },
+        {
+          "v": 35,
+          "beat": "leftflick",
+          "dt": 0.0633
+        },
+        {
+          "v": 35,
+          "beat": "leftdust2",
+          "dt": 0.0633
+        },
+        {
+          "v": 45,
+          "beat": "leftflick2",
+          "dt": 0.0633
+        },
+        {
+          "v": 63.6,
+          "beat": "collar",
+          "dt": 0.0633
+        },
+        {
+          "v": 63.6,
+          "beat": "smug",
+          "dt": -0.025
+        },
+        {
+          "v": 34,
+          "beat": "release",
+          "dt": 0.005
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 45,
+          "beat": "chin",
+          "dt": 0.0633
+        },
+        {
+          "v": 68.1,
+          "beat": "dust1",
+          "dt": 0.0633
+        },
+        {
+          "v": 50.1,
+          "beat": "flick1",
+          "dt": 0.0633
+        },
+        {
+          "v": 68.1,
+          "beat": "dust2",
+          "dt": 0.0633
+        },
+        {
+          "v": 50.1,
+          "beat": "flick2",
+          "dt": 0.0633
+        },
+        {
+          "v": 15,
+          "beat": "leftdust",
+          "dt": 0.0633
+        },
+        {
+          "v": 15,
+          "beat": "leftflick",
+          "dt": 0.0633
+        },
+        {
+          "v": 15,
+          "beat": "leftdust2",
+          "dt": 0.0633
+        },
+        {
+          "v": 25,
+          "beat": "leftflick2",
+          "dt": 0.0633
+        },
+        {
+          "v": 66.2,
+          "beat": "collar",
+          "dt": 0.0633
+        },
+        {
+          "v": 66.2,
+          "beat": "smug",
+          "dt": -0.025
+        },
+        {
+          "v": 70,
+          "beat": "release",
+          "dt": 0.005
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 15,
+          "beat": "chin",
+          "dt": 0.069
+        },
+        {
+          "v": 33.6,
+          "beat": "dust1",
+          "dt": 0.069
+        },
+        {
+          "v": 21.6,
+          "beat": "flick1",
+          "dt": 0.069
+        },
+        {
+          "v": 33.6,
+          "beat": "dust2",
+          "dt": 0.069
+        },
+        {
+          "v": 21.6,
+          "beat": "flick2",
+          "dt": 0.069
+        },
+        {
+          "v": 10,
+          "beat": "leftdust",
+          "dt": 0.069
+        },
+        {
+          "v": 10,
+          "beat": "leftflick",
+          "dt": 0.069
+        },
+        {
+          "v": 10,
+          "beat": "leftdust2",
+          "dt": 0.069
+        },
+        {
+          "v": 25,
+          "beat": "leftflick2",
+          "dt": 0.069
+        },
+        {
+          "v": 35,
+          "beat": "collar",
+          "dt": 0.069
+        },
+        {
+          "v": 35,
+          "beat": "smug",
+          "dt": -0.025
+        },
+        {
+          "v": 20,
+          "beat": "release",
+          "dt": 0.005
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 55,
+          "beat": "chin",
+          "dt": 0.0805
+        },
+        {
+          "v": 135,
+          "beat": "dust1",
+          "dt": 0.0805
+        },
+        {
+          "v": 123,
+          "beat": "flick1",
+          "dt": 0.0805
+        },
+        {
+          "v": 135,
+          "beat": "dust2",
+          "dt": 0.0805
+        },
+        {
+          "v": 123,
+          "beat": "flick2",
+          "dt": 0.0805
+        },
+        {
+          "v": 35,
+          "beat": "leftdust",
+          "dt": 0.0805
+        },
+        {
+          "v": 35,
+          "beat": "leftflick",
+          "dt": 0.0805
+        },
+        {
+          "v": 35,
+          "beat": "leftdust2",
+          "dt": 0.0805
+        },
+        {
+          "v": 87,
+          "beat": "leftflick2",
+          "dt": 0.0805
+        },
+        {
+          "v": 135,
+          "beat": "collar",
+          "dt": 0.0805
+        },
+        {
+          "v": 95,
+          "beat": "release",
+          "dt": 0.005
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 10,
+          "beat": "chin",
+          "dt": 0.0862
+        },
+        {
+          "v": 3.8,
+          "beat": "dust1",
+          "dt": 0.0862
+        },
+        {
+          "v": -4.2,
+          "beat": "flick1",
+          "dt": 0.0862
+        },
+        {
+          "v": 3.8,
+          "beat": "dust2",
+          "dt": 0.0862
+        },
+        {
+          "v": -4.2,
+          "beat": "flick2",
+          "dt": 0.0862
+        },
+        {
+          "v": 0,
+          "beat": "leftdust",
+          "dt": 0.0862
+        },
+        {
+          "v": 0,
+          "beat": "leftflick",
+          "dt": 0.0862
+        },
+        {
+          "v": 0,
+          "beat": "leftdust2",
+          "dt": 0.0862
+        },
+        {
+          "v": 5,
+          "beat": "leftflick2",
+          "dt": 0.0862
+        },
+        {
+          "v": 10.6,
+          "beat": "collar",
+          "dt": 0.0862
+        },
+        {
+          "v": 15,
+          "beat": "release",
+          "dt": 0.005
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "chin",
+          "dt": 0.092
+        },
+        {
+          "v": 45,
+          "beat": "dust1",
+          "dt": 0.092
+        },
+        {
+          "v": 10,
+          "beat": "flick1",
+          "dt": 0.092
+        },
+        {
+          "v": 45,
+          "beat": "dust2",
+          "dt": 0.092
+        },
+        {
+          "v": 10,
+          "beat": "flick2",
+          "dt": 0.092
+        },
+        {
+          "v": 4,
+          "beat": "leftdust",
+          "dt": 0.092
+        },
+        {
+          "v": 4,
+          "beat": "leftflick",
+          "dt": 0.092
+        },
+        {
+          "v": 4,
+          "beat": "leftdust2",
+          "dt": 0.092
+        },
+        {
+          "v": -5,
+          "beat": "leftflick2",
+          "dt": 0.092
+        },
+        {
+          "v": 39,
+          "beat": "collar",
+          "dt": 0.092
+        },
+        {
+          "v": 39,
+          "beat": "smug"
+        },
+        {
+          "v": 8,
+          "beat": "release",
+          "dt": 0.005
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.0978
+        },
+        {
+          "v": 20,
+          "beat": "dust1",
+          "dt": 0.0978
+        },
+        {
+          "v": -5,
+          "beat": "flick1",
+          "dt": 0.0978
+        },
+        {
+          "v": 20,
+          "beat": "dust2",
+          "dt": 0.0978
+        },
+        {
+          "v": -5,
+          "beat": "flick2",
+          "dt": 0.0978
+        },
+        {
+          "v": 0,
+          "beat": "leftdust",
+          "dt": 0.0978
+        },
+        {
+          "v": 0,
+          "beat": "leftflick",
+          "dt": 0.0978
+        },
+        {
+          "v": 0,
+          "beat": "leftdust2",
+          "dt": 0.0978
+        },
+        {
+          "v": 0,
+          "beat": "leftflick2",
+          "dt": 0.0978
+        },
+        {
+          "v": -23,
+          "beat": "collar",
+          "dt": 0.0978
+        },
+        {
+          "v": -23,
+          "beat": "smug"
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.005
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "chin",
+          "dt": 0.046
+        },
+        {
+          "v": 2,
+          "beat": "dust1",
+          "dt": 0.046
+        },
+        {
+          "v": 0,
+          "beat": "flick1",
+          "dt": 0.046
+        },
+        {
+          "v": 2,
+          "beat": "dust2",
+          "dt": 0.046
+        },
+        {
+          "v": 0,
+          "beat": "flick2",
+          "dt": 0.046
+        },
+        {
+          "v": 5,
+          "beat": "leftdust",
+          "dt": 0.046
+        },
+        {
+          "v": 3,
+          "beat": "leftflick",
+          "dt": 0.046
+        },
+        {
+          "v": 5,
+          "beat": "leftdust2",
+          "dt": 0.046
+        },
+        {
+          "v": 3,
+          "beat": "leftflick2",
+          "dt": 0.046
+        },
+        {
+          "v": 0,
+          "beat": "collar",
+          "dt": 0.046
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.046
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": 0.046
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.0345
+        },
+        {
+          "v": -2,
+          "beat": "dust1",
+          "dt": 0.0345
+        },
+        {
+          "v": -1,
+          "beat": "flick1",
+          "dt": 0.0345
+        },
+        {
+          "v": -2,
+          "beat": "dust2",
+          "dt": 0.0345
+        },
+        {
+          "v": -1,
+          "beat": "flick2",
+          "dt": 0.0345
+        },
+        {
+          "v": 9,
+          "beat": "leftdust",
+          "dt": 0.0345
+        },
+        {
+          "v": 6,
+          "beat": "leftflick",
+          "dt": 0.0345
+        },
+        {
+          "v": 9,
+          "beat": "leftdust2",
+          "dt": 0.0345
+        },
+        {
+          "v": 6,
+          "beat": "leftflick2",
+          "dt": 0.0345
+        },
+        {
+          "v": 1,
+          "beat": "collar",
+          "dt": 0.0345
+        },
+        {
+          "v": 1,
+          "beat": "smug",
+          "dt": 0.0345
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.0345
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "chin",
+          "dt": 0.069
+        },
+        {
+          "v": 24,
+          "beat": "dust1",
+          "dt": 0.069
+        },
+        {
+          "v": 22,
+          "beat": "flick1",
+          "dt": 0.069
+        },
+        {
+          "v": 24,
+          "beat": "dust2",
+          "dt": 0.069
+        },
+        {
+          "v": 40,
+          "beat": "flick2",
+          "dt": 0.069
+        },
+        {
+          "v": 60.4,
+          "beat": "leftdust",
+          "dt": 0.069
+        },
+        {
+          "v": 63.4,
+          "beat": "leftflick",
+          "dt": 0.069
+        },
+        {
+          "v": 60.4,
+          "beat": "leftdust2",
+          "dt": 0.069
+        },
+        {
+          "v": 63.4,
+          "beat": "leftflick2",
+          "dt": 0.069
+        },
+        {
+          "v": 22,
+          "beat": "collar",
+          "dt": 0.069
+        },
+        {
+          "v": 22,
+          "beat": "smug",
+          "dt": 0.069
+        },
+        {
+          "v": 22,
+          "beat": "release",
+          "dt": 0.069
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.069
+        },
+        {
+          "v": 5,
+          "beat": "dust1",
+          "dt": 0.069
+        },
+        {
+          "v": 0,
+          "beat": "flick1",
+          "dt": 0.069
+        },
+        {
+          "v": 5,
+          "beat": "dust2",
+          "dt": 0.069
+        },
+        {
+          "v": 10,
+          "beat": "flick2",
+          "dt": 0.069
+        },
+        {
+          "v": 65.9,
+          "beat": "leftdust",
+          "dt": 0.069
+        },
+        {
+          "v": 47.9,
+          "beat": "leftflick",
+          "dt": 0.069
+        },
+        {
+          "v": 65.9,
+          "beat": "leftdust2",
+          "dt": 0.069
+        },
+        {
+          "v": 47.9,
+          "beat": "leftflick2",
+          "dt": 0.069
+        },
+        {
+          "v": 0,
+          "beat": "collar",
+          "dt": 0.069
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.069
+        },
+        {
+          "v": 10,
+          "beat": "release",
+          "dt": 0.069
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "chin",
+          "dt": 0.0747
+        },
+        {
+          "v": 5,
+          "beat": "dust1",
+          "dt": 0.0747
+        },
+        {
+          "v": 3,
+          "beat": "flick1",
+          "dt": 0.0747
+        },
+        {
+          "v": 5,
+          "beat": "dust2",
+          "dt": 0.0747
+        },
+        {
+          "v": 20,
+          "beat": "flick2",
+          "dt": 0.0747
+        },
+        {
+          "v": 31.5,
+          "beat": "leftdust",
+          "dt": 0.0747
+        },
+        {
+          "v": 19.5,
+          "beat": "leftflick",
+          "dt": 0.069
+        },
+        {
+          "v": 31.5,
+          "beat": "leftdust2",
+          "dt": 0.0747
+        },
+        {
+          "v": 19.5,
+          "beat": "leftflick2",
+          "dt": 0.069
+        },
+        {
+          "v": 3,
+          "beat": "collar",
+          "dt": 0.0747
+        },
+        {
+          "v": 3,
+          "beat": "smug",
+          "dt": 0.0747
+        },
+        {
+          "v": 4,
+          "beat": "release",
+          "dt": 0.0747
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 10,
+          "beat": "chin",
+          "dt": 0.0862
+        },
+        {
+          "v": 14,
+          "beat": "dust1",
+          "dt": 0.0862
+        },
+        {
+          "v": 12,
+          "beat": "flick1",
+          "dt": 0.0862
+        },
+        {
+          "v": 14,
+          "beat": "dust2",
+          "dt": 0.0862
+        },
+        {
+          "v": 65,
+          "beat": "flick2",
+          "dt": 0.0862
+        },
+        {
+          "v": 135,
+          "beat": "leftdust",
+          "dt": 0.0862
+        },
+        {
+          "v": 123,
+          "beat": "leftflick",
+          "dt": 0.0862
+        },
+        {
+          "v": 134,
+          "beat": "leftdust2",
+          "dt": 0.0862
+        },
+        {
+          "v": 123,
+          "beat": "leftflick2",
+          "dt": 0.0862
+        },
+        {
+          "v": 20,
+          "beat": "collar",
+          "dt": 0.11
+        },
+        {
+          "v": 15,
+          "beat": "smug",
+          "dt": 0.0862
+        },
+        {
+          "v": 12,
+          "beat": "release",
+          "dt": 0.0862
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "chin",
+          "dt": 0.092
+        },
+        {
+          "v": 3,
+          "beat": "dust1",
+          "dt": 0.092
+        },
+        {
+          "v": 2,
+          "beat": "flick1",
+          "dt": 0.092
+        },
+        {
+          "v": 3,
+          "beat": "dust2",
+          "dt": 0.092
+        },
+        {
+          "v": 10,
+          "beat": "flick2",
+          "dt": 0.092
+        },
+        {
+          "v": 4.8,
+          "beat": "leftdust",
+          "dt": 0.092
+        },
+        {
+          "v": -3.2,
+          "beat": "leftflick",
+          "dt": 0.0862
+        },
+        {
+          "v": 4.8,
+          "beat": "leftdust2",
+          "dt": 0.092
+        },
+        {
+          "v": -3.2,
+          "beat": "leftflick2",
+          "dt": 0.0862
+        },
+        {
+          "v": 0,
+          "beat": "collar",
+          "dt": 0.092
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.092
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.092
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 7,
+          "beat": "chin",
+          "dt": 0.0978
+        },
+        {
+          "v": 8,
+          "beat": "dust1",
+          "dt": 0.0978
+        },
+        {
+          "v": 7,
+          "beat": "flick1",
+          "dt": 0.0978
+        },
+        {
+          "v": 8,
+          "beat": "dust2",
+          "dt": 0.0978
+        },
+        {
+          "v": 0,
+          "beat": "flick2",
+          "dt": 0.0978
+        },
+        {
+          "v": 43.5,
+          "beat": "leftdust",
+          "dt": 0.0978
+        },
+        {
+          "v": 10,
+          "beat": "leftflick",
+          "dt": 0.0978
+        },
+        {
+          "v": 43.5,
+          "beat": "leftdust2",
+          "dt": 0.0978
+        },
+        {
+          "v": 10,
+          "beat": "leftflick2",
+          "dt": 0.0978
+        },
+        {
+          "v": 8,
+          "beat": "collar",
+          "dt": 0.0978
+        },
+        {
+          "v": 8,
+          "beat": "smug",
+          "dt": 0.0978
+        },
+        {
+          "v": 7,
+          "beat": "release",
+          "dt": 0.0978
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "chin",
+          "dt": 0.1035
+        },
+        {
+          "v": 0,
+          "beat": "dust1",
+          "dt": 0.1035
+        },
+        {
+          "v": 0,
+          "beat": "flick1",
+          "dt": 0.1035
+        },
+        {
+          "v": 0,
+          "beat": "dust2",
+          "dt": 0.1035
+        },
+        {
+          "v": 0,
+          "beat": "flick2",
+          "dt": 0.1035
+        },
+        {
+          "v": 20,
+          "beat": "leftdust",
+          "dt": 0.1035
+        },
+        {
+          "v": -5,
+          "beat": "leftflick",
+          "dt": 0.1035
+        },
+        {
+          "v": 20,
+          "beat": "leftdust2",
+          "dt": 0.1035
+        },
+        {
+          "v": -5,
+          "beat": "leftflick2",
+          "dt": 0.1035
+        },
+        {
+          "v": 0,
+          "beat": "collar",
+          "dt": 0.1035
+        },
+        {
+          "v": 0,
+          "beat": "smug",
+          "dt": 0.1035
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.1035
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.004,
+        "beat": "chin",
+        "dt": 0.046
+      },
+      {
+        "v": 0.018,
+        "beat": "dust1",
+        "dt": 0.046
+      },
+      {
+        "v": 0.014,
+        "beat": "flick1",
+        "dt": 0.046
+      },
+      {
+        "v": 0.018,
+        "beat": "dust2",
+        "dt": 0.046
+      },
+      {
+        "v": 0.014,
+        "beat": "flick2",
+        "dt": 0.046
+      },
+      {
+        "v": -0.018,
+        "beat": "leftdust",
+        "dt": 0.046
+      },
+      {
+        "v": -0.012,
+        "beat": "leftflick",
+        "dt": 0.046
+      },
+      {
+        "v": -0.018,
+        "beat": "leftdust2",
+        "dt": 0.046
+      },
+      {
+        "v": -0.012,
+        "beat": "leftflick2",
+        "dt": 0.046
+      },
+      {
+        "v": 0.008,
+        "beat": "collar",
+        "dt": 0.046
+      },
+      {
+        "v": 0.01,
+        "beat": "smug",
+        "dt": 0.046
+      },
+      {
+        "v": 0.004,
+        "beat": "release",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.003,
+        "beat": "chin",
+        "dt": 0.046
+      },
+      {
+        "v": -0.009,
+        "beat": "dust1",
+        "dt": 0.046
+      },
+      {
+        "v": -0.006,
+        "beat": "flick1",
+        "dt": 0.046
+      },
+      {
+        "v": -0.009,
+        "beat": "dust2",
+        "dt": 0.046
+      },
+      {
+        "v": -0.006,
+        "beat": "flick2",
+        "dt": 0.046
+      },
+      {
+        "v": -0.01,
+        "beat": "leftdust",
+        "dt": 0.046
+      },
+      {
+        "v": -0.006,
+        "beat": "leftflick",
+        "dt": 0.046
+      },
+      {
+        "v": -0.01,
+        "beat": "leftdust2",
+        "dt": 0.046
+      },
+      {
+        "v": -0.006,
+        "beat": "leftflick2",
+        "dt": 0.046
+      },
+      {
+        "v": -0.004,
+        "beat": "collar",
+        "dt": 0.046
+      },
+      {
+        "v": -0.003,
+        "beat": "smug",
+        "dt": 0.046
+      },
+      {
+        "v": -0.002,
+        "beat": "release",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.002,
+        "beat": "chin",
+        "dt": 0.046
+      },
+      {
+        "v": 0.002,
+        "beat": "dust1",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "flick1",
+        "dt": 0.046
+      },
+      {
+        "v": 0.002,
+        "beat": "dust2",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "flick2",
+        "dt": 0.046
+      },
+      {
+        "v": 0.002,
+        "beat": "leftdust",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "leftflick",
+        "dt": 0.046
+      },
+      {
+        "v": 0.002,
+        "beat": "leftdust2",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "leftflick2",
+        "dt": 0.046
+      },
+      {
+        "v": -0.002,
+        "beat": "collar",
+        "dt": 0.046
+      },
+      {
+        "v": -0.003,
+        "beat": "smug",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "release",
+        "dt": 0.046
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "beat": "chin",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": 5,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "dust1",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": -2,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "flick1",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": 5,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "dust2",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": -2,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "flick2",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "leftdust",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "leftdust2",
+        "dt": -0.0345
+      },
+      {
+        "preset": "pinch",
+        "beat": "collar",
+        "dt": -0.0345
+      },
+      {
+        "preset": "pinch",
+        "beat": "smug",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "release",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "beat": "chin",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "dust1",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "flick1",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "dust2",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "flick2",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": 5,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "leftdust",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": -2,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "leftflick",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": 5,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "leftdust2",
+        "dt": -0.0345
+      },
+      {
+        "preset": "open-together",
+        "curl": -2,
+        "spread": 3,
+        "fingers": {
+          "ring": {
+            "curl": [3, 6, 6]
+          },
+          "little": {
+            "curl": [6, 9, 9]
+          }
+        },
+        "beat": "leftflick2",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "release",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.3,
+        "beat": "chin"
+      },
+      {
+        "v": 0.3,
+        "beat": "leftflick"
+      },
+      {
+        "v": 0.5,
+        "beat": "leftflick2",
+        "dt": -0.0575
+      },
+      {
+        "v": 0.45,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "relaxed": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.3,
+        "beat": "chin"
+      },
+      {
+        "v": 0.3,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "flick1",
+        "dt": 0.08
+      },
+      {
+        "v": 0.3,
+        "beat": "dust2",
+        "dt": -0.115
+      },
+      {
+        "v": 0.3,
+        "beat": "dust2",
+        "dt": 0.1
+      },
+      {
+        "v": 0,
+        "beat": "flick2"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightMiddleDistal",
+      "target": "leftShoulder",
+      "beat": "dust1",
+      "from": 0.06,
+      "to": 0.12,
+      "offset": [0.075, 0.015, 0.075],
+      "point": "tip",
+      "solve": {
+        "blendIn": 0.25,
+        "blendOut": 0.22
+      }
+    },
+    {
+      "bone": "rightMiddleDistal",
+      "target": "leftShoulder",
+      "beat": "dust2",
+      "from": 0.06,
+      "to": 0.12,
+      "offset": [0.075, 0.015, 0.075],
+      "point": "tip",
+      "solve": {
+        "blendIn": 0.25,
+        "blendOut": 0.22
+      }
+    },
+    {
+      "bone": "leftMiddleDistal",
+      "target": "rightShoulder",
+      "beat": "leftdust",
+      "from": 0.06,
+      "to": 0.12,
+      "offset": [-0.075, 0.015, 0.075],
+      "point": "tip",
+      "solve": {
+        "blendIn": 0.25,
+        "blendOut": 0.22
+      }
+    },
+    {
+      "bone": "leftMiddleDistal",
+      "target": "rightShoulder",
+      "beat": "leftdust2",
+      "from": 0.06,
+      "to": 0.12,
+      "offset": [-0.075, 0.015, 0.075],
+      "point": "tip",
+      "solve": {
+        "blendIn": 0.25,
+        "blendOut": 0.22
+      }
+    },
+    {
+      "bone": "rightIndexDistal",
+      "target": "upperChest",
+      "beat": "collar",
+      "from": 0.02,
+      "to": 0.085,
+      "offset": [0.075, 0.09, 0.11],
+      "point": "tip",
+      "solve": {
+        "blendIn": 0.24,
+        "blendOut": 0.3
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "brush_off_shoulders-accent",
+      "time": 3.24,
+      "kind": "avatar_vfx",
+      "effectId": "sly_glint",
+      "duration": 0.65,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.03,
+          "fadeOut": 0.16
+        }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "head",
+          "offset": {
+            "x": 0.07,
+            "y": 0.058,
+            "z": 0.115
+          },
+          "size": 0.056,
+          "facing": "camera"
+        }
+      }
+    }
+  ]
+}

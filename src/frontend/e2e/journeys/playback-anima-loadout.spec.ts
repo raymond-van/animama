@@ -37,7 +37,7 @@ const JOURNEYS: readonly AnimaLoadoutJourney[] = [
     target: { kind: "anima_pose_clip", runtimeId: "admiration-4" },
     requiredFiles: [
       "shimmer-glint.png",
-      "star3.png",
+      "star3-sheet.png",
       "twinkle-star-gold.png",
       "bokeh-tile.png",
     ],

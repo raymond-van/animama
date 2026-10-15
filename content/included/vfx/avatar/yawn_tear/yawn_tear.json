@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:yawn_tear",
+  "version": 1,
+  "name": "Yawn Tear",
+  "description": "A single fat blue manga tear wells at one eye corner and catches a tiny sparkle after a sleepy yawn.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "offset": {
+        "x": -0.013,
+        "y": -0.023,
+        "z": 0.02
+      },
+      "scale": {
+        "x": 0.85,
+        "y": 0.85
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "yawn_tear-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 4,
+        "frames": 4,
+        "loop": "once",
+        "rows": 2
+      }
+    },
+    "faceOptions": {
+      "faceCleanup": false,
+      "forceBlink": false,
+      "hideEyeDetails": false,
+      "skinBackdrop": false
+    }
+  },
+  "files": [
+    {
+      "path": "yawn_tear-sheet.png",
+      "role": "image"
+    }
+  ]
+}

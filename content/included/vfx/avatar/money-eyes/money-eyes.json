@@ -14,14 +14,21 @@
       "landmark": "eyes",
       "mirror": true,
       "scale": {
-        "x": 0.564,
-        "y": 0.564
+        "x": 0.8,
+        "y": 0.8
       },
       "side": "right"
     },
     "art": {
       "image": "dollar.png",
-      "otherEyeImage": "other-dollar.png"
+      "otherEyeImage": "other-dollar.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 10,
+        "frames": 8,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "pulse": {
@@ -32,9 +39,9 @@
       "keyframes": {
         "frames": [
           {
-            "opacity": 0,
+            "opacity": 0.65,
             "rotationDeg": -12,
-            "scale": 0.55,
+            "scale": 0.8,
             "t": 0
           },
           {

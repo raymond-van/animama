@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:glowstick",
+  "version": 1,
+  "name": "Glowstick",
+  "description": "A straight luminous concert glowstick held at a hand, with a white core and soft neon halo; can be tinted for each hand.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "leftHand",
+      "facing": "bone",
+      "offset": {
+        "x": 0.14,
+        "y": -0.018,
+        "z": 0.018
+      },
+      "rotationDeg": -90,
+      "size": 0.25
+    },
+    "art": {
+      "image": "glowstick.png"
+    },
+    "appearance": {
+      "tint": "#ff52b7"
+    }
+  },
+  "files": [
+    {
+      "path": "glowstick.png",
+      "role": "image"
+    }
+  ]
+}

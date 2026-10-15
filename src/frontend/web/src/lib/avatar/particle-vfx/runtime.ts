@@ -2,6 +2,7 @@ import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
 import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
+import { isVrm0 } from "../poses/poseRetargeting";
 import {
   PARTICLE_VFX_ANCHORS,
   type ParticleVFXAnchor,
@@ -76,6 +77,43 @@ export function getParticleVFXCombinedOffset(
   };
 }
 
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+/**
+ * Particle Effects are placed in the Avatar frame: Avatar scene-local
+ * coordinates turned so +Z is the Avatar's forward for every VRM, as in the
+ * VRM 1 scenes effects are authored on. three-vrm turns a VRM 0 scene half
+ * about Y to face +Z (`VRMUtils.rotateVRM0`), so its scene-local forward is
+ * -Z; the Avatar frame undoes that turn.
+ */
+function particleVFXAvatarFrameTurn(avatar: Pick<Avatar, "vrm">): number {
+  return isVrm0(avatar.vrm) ? Math.PI : 0;
+}
+
+/** Turn a root under `avatar.scene` so its local space is the Avatar frame. */
+export function alignParticleVFXRootToAvatar(
+  root: THREE.Object3D,
+  avatar: Pick<Avatar, "vrm">,
+): void {
+  root.rotation.set(0, particleVFXAvatarFrameTurn(avatar), 0);
+  root.updateMatrixWorld(true);
+}
+
+/** Convert a world point into the Avatar frame, in place. */
+export function worldToParticleVFXAvatarFrame(
+  avatar: Pick<Avatar, "scene" | "vrm">,
+  point: THREE.Vector3,
+): THREE.Vector3 {
+  const scene = avatar.scene;
+  if (!scene) return point;
+  scene.worldToLocal(point);
+  return point.applyAxisAngle(Y_AXIS, -particleVFXAvatarFrameTurn(avatar));
+}
+
+/**
+ * Resolve an anchor bone plus the transform's offset in the Avatar frame
+ * (see `alignParticleVFXRootToAvatar`).
+ */
 export function resolveParticleVFXAnchorLocalPosition(args: {
   avatar: Avatar;
   anchor: ParticleVFXAnchor;
@@ -103,7 +141,8 @@ export function resolveParticleVFXAnchorLocalPosition(args: {
   if (resolved?.boneName) {
     const boneNode = resolved.object;
     boneNode.updateMatrixWorld(true);
-    const localPosition = scene.worldToLocal(
+    const localPosition = worldToParticleVFXAvatarFrame(
+      args.avatar,
       boneNode.getWorldPosition(new THREE.Vector3()),
     );
     localPosition.add(

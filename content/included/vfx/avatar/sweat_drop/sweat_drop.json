@@ -36,12 +36,12 @@
       }
     },
     "art": {
-      "image": "sweat_drop_flipbook.png",
+      "image": "sweat_drop_ink_flipbook.png",
       "flipbook": {
         "columns": 2,
         "fps": 10,
         "frames": 4,
-        "loop": "once",
+        "loop": "pingpong",
         "rows": 2
       }
     },
@@ -53,68 +53,14 @@
               "x": 0,
               "y": 0
             },
-            "opacity": 0,
-            "scale": 0.3,
             "t": 0
-          },
-          {
-            "opacity": 1,
-            "scale": 1.2,
-            "t": 0.12
-          },
-          {
-            "scale": 0.92,
-            "t": 0.24
-          },
-          {
-            "offset": {
-              "x": 0,
-              "y": 0
-            },
-            "scale": 1,
-            "t": 0.34
-          },
-          {
-            "offset": {
-              "x": 0,
-              "y": 0
-            },
-            "t": 1
-          },
-          {
-            "offset": {
-              "x": 0,
-              "y": -0.008
-            },
-            "t": 1.6
-          },
-          {
-            "offset": {
-              "x": 0,
-              "y": -0.008
-            },
-            "t": 2.2
-          },
-          {
-            "offset": {
-              "x": 0,
-              "y": -0.016
-            },
-            "t": 3
-          },
-          {
-            "offset": {
-              "x": 0,
-              "y": -0.016
-            },
-            "t": 3.4
           },
           {
             "offset": {
               "x": 0,
               "y": -0.022
             },
-            "t": 4.2
+            "t": 3
           }
         ]
       }
@@ -123,7 +69,7 @@
   },
   "files": [
     {
-      "path": "sweat_drop_flipbook.png",
+      "path": "sweat_drop_ink_flipbook.png",
       "role": "image"
     }
   ]

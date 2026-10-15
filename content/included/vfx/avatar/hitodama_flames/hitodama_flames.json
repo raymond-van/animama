@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:hitodama_flames",
+  "version": 1,
+  "name": "Hitodama Flames",
+  "description": "Two pale blue-violet crayon spirit flames flicker beside the head for spooky, gloomy beats.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:wobble_riser_01v1",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0,
+        "y": 0.075
+      },
+      "size": 0.26
+    },
+    "art": {
+      "image": "hitodama_flames-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 4,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "hitodama_flames-sheet.png",
+      "role": "image"
+    }
+  ]
+}

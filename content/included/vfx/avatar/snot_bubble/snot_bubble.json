@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:snot_bubble",
+  "version": 1,
+  "name": "Snot Bubble",
+  "description": "A light-blue sleeping nose bubble inflates and deflates at one nostril for oblivious, deeply sleepy beats.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "mouth",
+      "offset": {
+        "x": 0.025,
+        "y": 0.005,
+        "z": 0.025
+      },
+      "scale": {
+        "x": 2,
+        "y": 2
+      }
+    },
+    "art": {
+      "image": "snot_bubble-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 3,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "faceOptions": {
+      "faceCleanup": false,
+      "skinBackdrop": false
+    }
+  },
+  "files": [
+    {
+      "path": "snot_bubble-sheet.png",
+      "role": "image"
+    }
+  ]
+}

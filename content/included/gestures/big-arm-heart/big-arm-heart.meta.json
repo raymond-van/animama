@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:big-arm-heart",
+  "version": 1,
+  "semantic_key": "big_arm_heart",
+  "name": "Big Arm Heart",
+  "description": "Forms a big heart over the head with both arms and sways. Use for love, warm thanks or showing affection to the user.",
+  "ai_description": "Forms a big heart over the head with both arms and sways. Use for love, warm thanks or showing affection to the user.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:sparkle-hearts",
+      "alias": "sparkle_hearts",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "big-arm-heart.json",
+      "role": "sequence"
+    }
+  ]
+}

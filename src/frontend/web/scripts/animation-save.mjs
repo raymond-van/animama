@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
  *
  *   pnpm -s animation:save <items.json> [--url <app origin>]
  *
- * `items.json` lists `{ clip, name, aiDescription, selectorId, description? }`
- * entries (clip paths are relative to the items file). Each item is saved in
+ * `items.json` lists `{ clip, project?, name, aiDescription, selectorId, description? }`
+ * entries (paths are relative to the items file). Each item is saved in
  * turn in a headless browser, exactly as a person would:
  *
  * - a new Selector ID: a creator project file (clip, name, descriptions and
@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
  *   only if the creator finds nothing to save). The item's name must match:
  *   renaming is refused, since the creator can re-derive the Selector ID
  *   from a new name.
+ * With `project`, its sequence and dependencies replace the clip and components
+ * for either save. Readable dependency refs are resolved against the Library.
  *
  * After each save the Library item is read back to confirm its Selector ID.
  *
@@ -38,7 +40,10 @@ export function parseSaveItems(value, itemsFile) {
   const seen = new Set();
   return value.map((item, index) => {
     const where = `${itemsFile} item ${index + 1}`;
-    for (const field of ["clip", "name", "aiDescription", "selectorId"])
+    // A project carries its own sequence, so the clip is then optional.
+    const required = ["name", "aiDescription", "selectorId"];
+    if (item?.project === undefined) required.unshift("clip");
+    for (const field of required)
       if (typeof item?.[field] !== "string" || !item[field].trim())
         throw new Error(`${where}: "${field}" must be a non-empty string.`);
     if (!SELECTOR_ID.test(item.selectorId))
@@ -50,8 +55,18 @@ export function parseSaveItems(value, itemsFile) {
     seen.add(item.selectorId);
     if (item.description !== undefined && typeof item.description !== "string")
       throw new Error(`${where}: "description" must be a string.`);
+    if (
+      item.project !== undefined &&
+      (typeof item.project !== "string" || !item.project.trim())
+    )
+      throw new Error(`${where}: "project" must be a non-empty string.`);
     return {
-      clip: path.resolve(path.dirname(itemsFile), item.clip),
+      ...(typeof item.clip === "string" && item.clip.trim()
+        ? { clip: path.resolve(path.dirname(itemsFile), item.clip) }
+        : {}),
+      ...(item.project === undefined
+        ? {}
+        : { project: path.resolve(path.dirname(itemsFile), item.project) }),
       name: item.name.trim(),
       aiDescription: item.aiDescription.trim(),
       description: item.description?.trim() || item.aiDescription.trim(),
@@ -60,17 +75,65 @@ export function parseSaveItems(value, itemsFile) {
   });
 }
 
-/** The creator project file a new Gesture is imported from. */
-export function gestureProject(item, sequence) {
+/** Resolve readable Local/Included refs to the sources the creator accepts. */
+function projectDependencies(dependencies, libraryItems) {
+  return dependencies.map((dependency) => {
+    // Exported creator projects already carry exact sources.
+    if (dependency?.source) return structuredClone(dependency);
+    const { ref, ...fields } = dependency ?? {};
+    const where = `Dependency "${fields.alias ?? "?"}" (${ref ?? "no ref"})`;
+    const matches = libraryItems.filter(
+      (entry) =>
+        typeof ref === "string" &&
+        (entry.item_id === ref || entry.logical_key === ref),
+    );
+    if (matches.length !== 1)
+      throw new Error(
+        `${where}: ${matches.length ? "ambiguous in" : "not found in"} the Library.`,
+      );
+    const [entry] = matches;
+    if (entry.kind !== fields.content_type)
+      throw new Error(
+        `${where}: expected ${fields.content_type}, found ${entry.kind}.`,
+      );
+    if (entry.status !== "valid")
+      throw new Error(`${where}: Library item is ${entry.status}.`);
+    return {
+      ...fields,
+      source: {
+        type: "catalog",
+        catalog_item_id: entry.item_id,
+        logical_key: entry.logical_key,
+      },
+    };
+  });
+}
+
+/** Build a creator import from a clip or project, keeping item metadata authoritative. */
+export function gestureProject(item, input, libraryItems = []) {
+  const project = input?.schema === PROJECT_SCHEMA ? input : null;
+  if (
+    project &&
+    (project.intent !== "gesture" ||
+      !Array.isArray(project.dependencies) ||
+      project.sequence?.schema !== "animaPoseClip/2.0" ||
+      !project.sequence.beats?.length)
+  )
+    throw new Error(
+      "Expected a Gesture project with a 2.0 sequence and dependencies array.",
+    );
   return {
+    ...(project ?? {}),
     schema: PROJECT_SCHEMA,
     intent: "gesture",
     name: item.name,
     description: item.description,
     aiDescription: item.aiDescription,
     semanticKey: item.selectorId,
-    sequence,
-    dependencies: [],
+    sequence: project ? project.sequence : input,
+    dependencies: project
+      ? projectDependencies(project.dependencies, libraryItems)
+      : [],
   };
 }
 
@@ -99,18 +162,22 @@ export function planSaves(items, libraryItems) {
   });
 }
 
-async function readClip(file) {
-  let sequence;
+async function readSaveInput(item) {
+  const file = item.project ?? item.clip;
+  let input;
   try {
-    sequence = JSON.parse(await readFile(file, "utf8"));
+    input = JSON.parse(await readFile(file, "utf8"));
   } catch (error) {
     throw new Error(`${file}: ${error.message}`);
   }
+  if (item.project && input?.schema !== PROJECT_SCHEMA)
+    throw new Error(`${file}: expected an ${PROJECT_SCHEMA} project.`);
+  const sequence = item.project ? input.sequence : input;
   if (sequence?.schema !== "animaPoseClip/2.0" || !sequence.beats?.length)
     throw new Error(
       `${file}: expected an animaPoseClip/2.0 clip (run animation validate).`,
     );
-  return sequence;
+  return input;
 }
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -123,7 +190,7 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  */
 export async function saveGestures(items, origin, onSaved = () => {}) {
   const { chromium } = await import("playwright");
-  const clips = await Promise.all(items.map(({ clip }) => readClip(clip)));
+  const inputs = await Promise.all(items.map(readSaveInput));
   const browser = await chromium.launch({
     headless: true,
     args: [
@@ -148,6 +215,23 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
       return (await response.json()).items ?? [];
     });
     const targets = planSaves(items, library);
+    const dependencies = items.some(({ project }) => project)
+      ? await page.evaluate(async () => {
+          const response = await fetch("/v1/content/catalog");
+          if (!response.ok)
+            throw new Error(`Library request ${response.status}`);
+          return (await response.json()).items ?? [];
+        })
+      : [];
+    // Resolve every project before saving the first item, so a missing effect
+    // fails the batch before any mutation.
+    const projects = items.map((item, index) => {
+      try {
+        return gestureProject(item, inputs[index], dependencies);
+      } catch (error) {
+        throw new Error(`${item.project ?? item.clip}: ${error.message}`);
+      }
+    });
     const save = page.getByRole("button", {
       name: "Save content",
       exact: true,
@@ -156,7 +240,8 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
     for (const [index, item] of items.entries()) {
       let step = "open the creator";
       try {
-        const sequence = clips[index];
+        const project = projects[index];
+        const sequence = project.sequence;
         const target = targets[index];
         await page.goto(
           target
@@ -188,7 +273,7 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
             )
             .catch(() => {});
         }
-        step = "import the clip";
+        step = item.project ? "import the project" : "import the clip";
         await page.getByRole("tab", { name: "Clip", exact: true }).click();
         await page
           .getByRole("button", { name: "Import", exact: true })
@@ -197,7 +282,7 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
         const file = page.locator(
           '[role="dialog"] input[type="file"][accept=".json,application/json"]',
         );
-        if (target) {
+        if (target && !item.project) {
           // A plain clip import keeps the item's components, notes and
           // description; only the clip, name and AI description change.
           await file.setInputFiles({
@@ -215,7 +300,7 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
           await file.setInputFiles({
             name: `${item.selectorId}.project.json`,
             mimeType: "application/json",
-            buffer: Buffer.from(JSON.stringify(gestureProject(item, sequence))),
+            buffer: Buffer.from(JSON.stringify(project)),
           });
           await page
             .getByText("Typed project imported with exact dependency pins.")
@@ -304,7 +389,10 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
 const USAGE = `Usage: pnpm -s animation:save <items.json> [--url <app origin>]
 
 items.json: [{ "clip": "<file>.clip.json", "name": "...", "aiDescription": "...",
-               "selectorId": "lower_snake_case", "description"?: "..." }]
+               "selectorId": "lower_snake_case", "description"?: "...",
+               "project"?: "<file>.project.json" }]
+With project, import its sequence and dependencies instead of the clip
+(the clip may then be left out).
 A Local Gesture with the same Selector ID is revised; otherwise a new one is
 saved. The origin defaults to ANIMAMA_PUBLIC_ORIGIN (source the stack record),
 then http://localhost:8000.`;

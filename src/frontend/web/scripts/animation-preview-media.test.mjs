@@ -68,14 +68,17 @@ test("tells effect sources from clips", async () => {
 test("serves only offered files, each inside its folder", async () => {
   const files = new PreviewMediaFiles();
   const folder = path.join(dir, "star3");
-  const url = files.url(folder, path.join(folder, "star3.png"), "abc");
-  assert.match(url, /^\/__preview\/media\/[a-f0-9]{16}\/star3\.png\?v=abc$/);
+  const url = files.url(folder, path.join(folder, "star3-sheet.png"), "abc");
+  assert.match(
+    url,
+    /^\/__preview\/media\/[a-f0-9]{16}\/star3-sheet\.png\?v=abc$/,
+  );
   const route = url.slice("/__preview/media/".length).split("?")[0];
-  assert.equal(await files.lookup(route), path.join(folder, "star3.png"));
+  assert.equal(await files.lookup(route), path.join(folder, "star3-sheet.png"));
   const token = route.split("/")[0];
   assert.equal(await files.lookup(`${token}/star3.json`), null);
   assert.equal(await files.lookup(`${token}/..%2Fwave.clip.json`), null);
-  assert.equal(await files.lookup("unknown/star3.png"), null);
+  assert.equal(await files.lookup("unknown/star3-sheet.png"), null);
   assert.throws(() => files.url(folder, path.join(dir, "wave.clip.json")));
   // A file swapped for a link that leaves the folder is no longer served.
   const linked = path.join(dir, "linked");
@@ -106,12 +109,14 @@ test("loads an effect source with served, versioned images and notes beside its 
   assert.match(loaded.version, /^[a-f0-9]{12}$/);
   assert.deepEqual(loaded.files, [
     path.join(dir, "star3/star3.json"),
-    path.join(dir, "star3/star3.png"),
+    path.join(dir, "star3/star3-sheet.png"),
   ]);
   assert.equal(loaded.effect.kind, "avatar_effect");
   assert.equal(loaded.effect.name, "Star3");
   assert.equal(loaded.effect.duration, 2);
-  assert.ok(loaded.effect.imageUrl.endsWith(`star3.png?v=${loaded.version}`));
+  assert.ok(
+    loaded.effect.imageUrl.endsWith(`star3-sheet.png?v=${loaded.version}`),
+  );
   assert.equal(
     await effectVersionForFile(path.join(dir, "star3/star3.json")),
     loaded.version,
@@ -198,7 +203,7 @@ test("offers Library Avatar Effects and named effect sources as choices", async 
   const included = choices.filter(
     ({ group }) => group === "Included Avatar Effects",
   );
-  assert.equal(included.length, 87);
+  assert.equal(included.length, 100);
   assert.ok(
     included.some(
       ({ spec }) =>
@@ -240,7 +245,7 @@ test("watches an effect whose image is missing until the image appears", async (
     /"new.png" does not exist/,
   );
   await copyFile(
-    path.join(dir, "star3/star3.png"),
+    path.join(dir, "star3/star3-sheet.png"),
     path.join(folder, "new.png"),
   );
   const loaded = await adapter.load(source, roots());
@@ -288,14 +293,16 @@ test("loads Particle and Scene Effect sources with their files served", async ()
   assert.equal(particle.effect.kind, "particle_effect");
   // The version covers the manifest and textures, which are watched.
   assert.ok(
-    particle.files.some((file) => file.endsWith("textures/heart.png")),
+    particle.files.some((file) => file.endsWith("textures/pearl-heart.png")),
     particle.files,
   );
   const manifest = particle.effect.manifestUrl
     .slice("/__preview/media/".length)
     .split("?")[0];
   assert.ok(await files.lookup(manifest));
-  assert.ok(await files.lookup(`${manifest.split("/")[0]}/textures/heart.png`));
+  assert.ok(
+    await files.lookup(`${manifest.split("/")[0]}/textures/pearl-heart.png`),
+  );
 
   const scene = await adapter.load(
     await adapter.resolve("kinds/scene-vfx-emotion-joy", roots()),
@@ -311,7 +318,10 @@ test("loads Particle and Scene Effect sources with their files served", async ()
   assert.equal(PreviewMediaFiles.contentType("star.svg"), "image/svg+xml");
 
   // Changing a texture or an image gives a new version, so the page reloads.
-  const textureFile = path.join(dir, "kinds/hearts-v1/textures/heart.png");
+  const textureFile = path.join(
+    dir,
+    "kinds/hearts-v1/textures/pearl-heart.png",
+  );
   await writeFile(
     textureFile,
     Buffer.concat([await readFile(textureFile), Buffer.from([0])]),

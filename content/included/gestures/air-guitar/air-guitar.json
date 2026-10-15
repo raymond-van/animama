@@ -1,0 +1,2581 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "air-guitar",
+  "name": "Air Guitar",
+  "duration": 4.6,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.25
+  },
+  "fadeOut": {
+    "duration": 0.32
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "rock",
+      "label": "Rock face and stance",
+      "time": 0.345
+    },
+    {
+      "id": "neck",
+      "label": "Find guitar neck",
+      "time": 0.9775
+    },
+    {
+      "id": "strum1",
+      "label": "Downstroke 1",
+      "time": 1.725
+    },
+    {
+      "id": "strum2",
+      "label": "Downstroke 2",
+      "time": 2.0822
+    },
+    {
+      "id": "strum3",
+      "label": "Downstroke 3",
+      "time": 2.4394
+    },
+    {
+      "id": "strum4",
+      "label": "Downstroke 4",
+      "time": 2.7966
+    },
+    {
+      "id": "windmill",
+      "label": "Windmill overhead",
+      "time": 3.45
+    },
+    {
+      "id": "final",
+      "label": "Final strum",
+      "time": 3.91
+    },
+    {
+      "id": "pose",
+      "label": "Rock-star pose",
+      "time": 4.117
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 4.6
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "rock",
+          "dt": 0.03
+        },
+        {
+          "v": 7,
+          "beat": "neck",
+          "dt": 0.03
+        },
+        {
+          "v": 8,
+          "beat": "strum1",
+          "dt": -0.2575
+        },
+        {
+          "v": 7,
+          "beat": "strum4",
+          "dt": 0.1084
+        },
+        {
+          "v": 1,
+          "beat": "windmill",
+          "dt": -0.26
+        },
+        {
+          "v": 0.7,
+          "beat": "windmill",
+          "dt": 0.03
+        },
+        {
+          "v": 7,
+          "beat": "final",
+          "dt": -0.01
+        },
+        {
+          "v": 5,
+          "beat": "pose",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": 0.03
+        },
+        {
+          "v": -5,
+          "beat": "neck",
+          "dt": 0.03
+        },
+        {
+          "v": -5,
+          "beat": "strum1",
+          "dt": -0.2575
+        },
+        {
+          "v": -3,
+          "beat": "strum4",
+          "dt": 0.1084
+        },
+        {
+          "v": 3,
+          "beat": "windmill",
+          "dt": -0.27
+        },
+        {
+          "v": 4,
+          "beat": "windmill",
+          "dt": 0.01
+        },
+        {
+          "v": -6,
+          "beat": "final",
+          "dt": -0.01
+        },
+        {
+          "v": -4,
+          "beat": "pose",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "neck",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "strum1",
+          "dt": -0.2575
+        },
+        {
+          "v": 2,
+          "beat": "strum4",
+          "dt": 0.1084
+        },
+        {
+          "v": -1,
+          "beat": "windmill",
+          "dt": -0.27
+        },
+        {
+          "v": -2,
+          "beat": "windmill",
+          "dt": 0.01
+        },
+        {
+          "v": 3,
+          "beat": "final",
+          "dt": -0.01
+        },
+        {
+          "v": 2,
+          "beat": "pose",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "rock",
+          "dt": 0.03
+        },
+        {
+          "v": -3,
+          "beat": "neck",
+          "dt": 0.03
+        },
+        {
+          "v": -4,
+          "beat": "strum1",
+          "dt": -0.22
+        },
+        {
+          "v": 0,
+          "beat": "strum1",
+          "dt": -0.06
+        },
+        {
+          "v": -4,
+          "beat": "strum1",
+          "dt": 0.1371
+        },
+        {
+          "v": 0,
+          "beat": "strum2",
+          "dt": -0.0601
+        },
+        {
+          "v": -4,
+          "beat": "strum2",
+          "dt": 0.1371
+        },
+        {
+          "v": 0,
+          "beat": "strum3",
+          "dt": -0.0601
+        },
+        {
+          "v": -4,
+          "beat": "strum3",
+          "dt": 0.137
+        },
+        {
+          "v": 0,
+          "beat": "strum4",
+          "dt": -0.0602
+        },
+        {
+          "v": -5,
+          "beat": "windmill",
+          "dt": -0.24
+        },
+        {
+          "v": -3.5,
+          "beat": "windmill",
+          "dt": 0.05
+        },
+        {
+          "v": 5,
+          "beat": "final",
+          "dt": 0.01
+        },
+        {
+          "v": 0,
+          "beat": "pose",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "neck",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "strum1",
+          "dt": -0.2575
+        },
+        {
+          "v": 4,
+          "beat": "strum4",
+          "dt": 0.1084
+        },
+        {
+          "v": -2,
+          "beat": "windmill",
+          "dt": -0.25
+        },
+        {
+          "v": -3,
+          "beat": "windmill",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "final",
+          "dt": 0.01
+        },
+        {
+          "v": 3,
+          "beat": "pose",
+          "dt": 0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": 0.06
+        },
+        {
+          "v": -5,
+          "beat": "neck",
+          "dt": 0.06
+        },
+        {
+          "v": -5,
+          "beat": "strum1",
+          "dt": -0.19
+        },
+        {
+          "v": 1,
+          "beat": "strum1",
+          "dt": -0.03
+        },
+        {
+          "v": -5,
+          "beat": "strum1",
+          "dt": 0.1671
+        },
+        {
+          "v": 1,
+          "beat": "strum2",
+          "dt": -0.0301
+        },
+        {
+          "v": -5,
+          "beat": "strum2",
+          "dt": 0.1671
+        },
+        {
+          "v": 1,
+          "beat": "strum3",
+          "dt": -0.0301
+        },
+        {
+          "v": -5,
+          "beat": "strum3",
+          "dt": 0.167
+        },
+        {
+          "v": 1,
+          "beat": "strum4",
+          "dt": -0.0302
+        },
+        {
+          "v": -7,
+          "beat": "windmill",
+          "dt": -0.21
+        },
+        {
+          "v": -4.9,
+          "beat": "windmill",
+          "dt": 0.08
+        },
+        {
+          "v": 7,
+          "beat": "final",
+          "dt": 0.04
+        },
+        {
+          "v": -2,
+          "beat": "pose",
+          "dt": 0.06
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "rock",
+          "dt": 0.06
+        },
+        {
+          "v": -6,
+          "beat": "neck",
+          "dt": 0.06
+        },
+        {
+          "v": -7,
+          "beat": "strum1",
+          "dt": -0.2275
+        },
+        {
+          "v": -5,
+          "beat": "strum4",
+          "dt": 0.1384
+        },
+        {
+          "v": 4,
+          "beat": "windmill",
+          "dt": -0.24
+        },
+        {
+          "v": 7,
+          "beat": "windmill",
+          "dt": 0.04
+        },
+        {
+          "v": -8,
+          "beat": "final",
+          "dt": 0.02
+        },
+        {
+          "v": -5,
+          "beat": "pose",
+          "dt": 0.06
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "rock",
+          "dt": 0.06
+        },
+        {
+          "v": 5,
+          "beat": "neck",
+          "dt": 0.06
+        },
+        {
+          "v": 6,
+          "beat": "strum1",
+          "dt": -0.2275
+        },
+        {
+          "v": 5,
+          "beat": "strum4",
+          "dt": 0.1384
+        },
+        {
+          "v": -3,
+          "beat": "windmill",
+          "dt": -0.22
+        },
+        {
+          "v": -4,
+          "beat": "windmill",
+          "dt": 0.06
+        },
+        {
+          "v": 6,
+          "beat": "final",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "pose",
+          "dt": 0.06
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "rock",
+          "dt": 0.09
+        },
+        {
+          "v": -3,
+          "beat": "neck",
+          "dt": 0.09
+        },
+        {
+          "v": -2,
+          "beat": "strum1",
+          "dt": -0.16
+        },
+        {
+          "v": 2,
+          "beat": "strum1"
+        },
+        {
+          "v": -2,
+          "beat": "strum2",
+          "dt": -0.1601
+        },
+        {
+          "v": 2,
+          "beat": "strum2",
+          "dt": -0.0001
+        },
+        {
+          "v": -2,
+          "beat": "strum3",
+          "dt": -0.1601
+        },
+        {
+          "v": 2,
+          "beat": "strum3",
+          "dt": -0.0001
+        },
+        {
+          "v": -2,
+          "beat": "strum4",
+          "dt": -0.1602
+        },
+        {
+          "v": 2,
+          "beat": "strum4",
+          "dt": -0.0002
+        },
+        {
+          "v": -2,
+          "beat": "strum4",
+          "dt": 0.1684
+        },
+        {
+          "v": -4,
+          "beat": "windmill",
+          "dt": -0.18
+        },
+        {
+          "v": -2.8,
+          "beat": "windmill",
+          "dt": 0.11
+        },
+        {
+          "v": 4,
+          "beat": "final",
+          "dt": 0.07
+        },
+        {
+          "v": 1,
+          "beat": "pose",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "rock",
+          "dt": 0.09
+        },
+        {
+          "v": -3,
+          "beat": "neck",
+          "dt": 0.09
+        },
+        {
+          "v": -3,
+          "beat": "strum1",
+          "dt": -0.1975
+        },
+        {
+          "v": -2,
+          "beat": "strum4",
+          "dt": 0.1684
+        },
+        {
+          "v": 2,
+          "beat": "windmill",
+          "dt": -0.21
+        },
+        {
+          "v": 3,
+          "beat": "windmill",
+          "dt": 0.07
+        },
+        {
+          "v": -4,
+          "beat": "final",
+          "dt": 0.05
+        },
+        {
+          "v": -2,
+          "beat": "pose",
+          "dt": 0.09
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": -0.03
+        },
+        {
+          "v": -4,
+          "beat": "neck",
+          "dt": -0.03
+        },
+        {
+          "v": -5,
+          "beat": "strum1",
+          "dt": -0.3175
+        },
+        {
+          "v": -3,
+          "beat": "strum1",
+          "dt": -0.14
+        },
+        {
+          "v": 3,
+          "beat": "strum1",
+          "dt": 0.02
+        },
+        {
+          "v": -3,
+          "beat": "strum2",
+          "dt": -0.1401
+        },
+        {
+          "v": 3,
+          "beat": "strum2",
+          "dt": 0.0199
+        },
+        {
+          "v": -3,
+          "beat": "strum3",
+          "dt": -0.1401
+        },
+        {
+          "v": 3,
+          "beat": "strum3",
+          "dt": 0.0199
+        },
+        {
+          "v": -3,
+          "beat": "strum4",
+          "dt": -0.1402
+        },
+        {
+          "v": 3,
+          "beat": "strum4",
+          "dt": 0.0198
+        },
+        {
+          "v": -5,
+          "beat": "windmill",
+          "dt": -0.03
+        },
+        {
+          "v": 6,
+          "beat": "final",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "pose",
+          "dt": -0.03
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "rock",
+          "dt": -0.05
+        },
+        {
+          "v": -6,
+          "beat": "neck",
+          "dt": -0.05
+        },
+        {
+          "v": -8,
+          "beat": "strum1",
+          "dt": -0.3375
+        },
+        {
+          "v": -5,
+          "beat": "strum1",
+          "dt": -0.12
+        },
+        {
+          "v": 10,
+          "beat": "strum1",
+          "dt": 0.04
+        },
+        {
+          "v": -5,
+          "beat": "strum2",
+          "dt": -0.1201
+        },
+        {
+          "v": 10,
+          "beat": "strum2",
+          "dt": 0.0399
+        },
+        {
+          "v": -5,
+          "beat": "strum3",
+          "dt": -0.1201
+        },
+        {
+          "v": 10,
+          "beat": "strum3",
+          "dt": 0.0399
+        },
+        {
+          "v": -5,
+          "beat": "strum4",
+          "dt": -0.1202
+        },
+        {
+          "v": 10,
+          "beat": "strum4",
+          "dt": 0.0398
+        },
+        {
+          "v": -7,
+          "beat": "windmill",
+          "dt": -0.05
+        },
+        {
+          "v": 10,
+          "beat": "final",
+          "dt": -0.05
+        },
+        {
+          "v": -5,
+          "beat": "pose",
+          "dt": -0.05
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "rock",
+          "dt": -0.04
+        },
+        {
+          "v": 9,
+          "beat": "neck",
+          "dt": -0.04
+        },
+        {
+          "v": 12,
+          "beat": "strum1",
+          "dt": -0.3275
+        },
+        {
+          "v": 10,
+          "beat": "strum4",
+          "dt": 0.0384
+        },
+        {
+          "v": -8,
+          "beat": "windmill",
+          "dt": -0.04
+        },
+        {
+          "v": 7,
+          "beat": "final",
+          "dt": -0.04
+        },
+        {
+          "v": 8,
+          "beat": "pose",
+          "dt": -0.04
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "rock",
+          "dt": -0.02
+        },
+        {
+          "v": 5,
+          "beat": "neck",
+          "dt": -0.02
+        },
+        {
+          "v": 7,
+          "beat": "strum1",
+          "dt": -0.3075
+        },
+        {
+          "v": 5,
+          "beat": "strum4",
+          "dt": 0.0584
+        },
+        {
+          "v": -5,
+          "beat": "windmill",
+          "dt": -0.02
+        },
+        {
+          "v": 5,
+          "beat": "final",
+          "dt": -0.02
+        },
+        {
+          "v": 6,
+          "beat": "pose",
+          "dt": -0.02
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "neck",
+          "dt": 0.04
+        },
+        {
+          "v": 7,
+          "beat": "strum1",
+          "dt": -0.19
+        },
+        {
+          "v": 3,
+          "beat": "strum1",
+          "dt": -0.03
+        },
+        {
+          "v": 7,
+          "beat": "strum1",
+          "dt": 0.1671
+        },
+        {
+          "v": 3,
+          "beat": "strum2",
+          "dt": -0.0301
+        },
+        {
+          "v": 7,
+          "beat": "strum2",
+          "dt": 0.1671
+        },
+        {
+          "v": 3,
+          "beat": "strum3",
+          "dt": -0.0301
+        },
+        {
+          "v": 7,
+          "beat": "strum3",
+          "dt": 0.167
+        },
+        {
+          "v": 3,
+          "beat": "strum4",
+          "dt": -0.0302
+        },
+        {
+          "v": 8,
+          "beat": "strum4",
+          "dt": 0.1434
+        },
+        {
+          "v": 14,
+          "beat": "strum4",
+          "dt": 0.3034
+        },
+        {
+          "v": 15,
+          "beat": "windmill",
+          "dt": -0.18
+        },
+        {
+          "v": 16,
+          "beat": "windmill",
+          "dt": -0.05
+        },
+        {
+          "v": 12,
+          "beat": "windmill",
+          "dt": 0.1
+        },
+        {
+          "v": 7,
+          "beat": "final",
+          "dt": -0.19
+        },
+        {
+          "v": 6,
+          "beat": "final",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "pose",
+          "dt": 0.04
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "neck",
+          "dt": 0.04
+        },
+        {
+          "v": 5,
+          "beat": "strum1",
+          "dt": -0.2475
+        },
+        {
+          "v": 6,
+          "beat": "strum4",
+          "dt": 0.1434
+        },
+        {
+          "v": 10,
+          "beat": "strum4",
+          "dt": 0.3234
+        },
+        {
+          "v": 7,
+          "beat": "windmill",
+          "dt": -0.16
+        },
+        {
+          "v": -6,
+          "beat": "windmill",
+          "dt": -0.02
+        },
+        {
+          "v": -10,
+          "beat": "windmill",
+          "dt": 0.15
+        },
+        {
+          "v": -3,
+          "beat": "final",
+          "dt": -0.14
+        },
+        {
+          "v": 7,
+          "beat": "final",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "pose",
+          "dt": 0.04
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.07
+        },
+        {
+          "v": 5,
+          "beat": "neck",
+          "dt": 0.07
+        },
+        {
+          "v": 7,
+          "beat": "strum1",
+          "dt": -0.2175
+        },
+        {
+          "v": 8,
+          "beat": "strum4",
+          "dt": 0.1484
+        },
+        {
+          "v": 7,
+          "beat": "windmill",
+          "dt": 0.07
+        },
+        {
+          "v": 7,
+          "beat": "final",
+          "dt": 0.07
+        },
+        {
+          "v": 4,
+          "beat": "pose",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "rock",
+          "dt": 0.07
+        },
+        {
+          "v": 1,
+          "beat": "neck",
+          "dt": 0.07
+        },
+        {
+          "v": 2,
+          "beat": "strum1",
+          "dt": -0.2175
+        },
+        {
+          "v": 3,
+          "beat": "strum4",
+          "dt": 0.1484
+        },
+        {
+          "v": 2,
+          "beat": "windmill",
+          "dt": 0.07
+        },
+        {
+          "v": 1,
+          "beat": "final",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "pose",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 27,
+          "beat": "rock",
+          "dt": 0.07
+        },
+        {
+          "v": 33,
+          "beat": "neck",
+          "dt": 0.07
+        },
+        {
+          "v": 36,
+          "beat": "strum1",
+          "dt": -0.16
+        },
+        {
+          "v": 26,
+          "beat": "strum1"
+        },
+        {
+          "v": 36,
+          "beat": "strum2",
+          "dt": -0.1601
+        },
+        {
+          "v": 26,
+          "beat": "strum2",
+          "dt": -0.0001
+        },
+        {
+          "v": 36,
+          "beat": "strum3",
+          "dt": -0.1601
+        },
+        {
+          "v": 26,
+          "beat": "strum3",
+          "dt": -0.0001
+        },
+        {
+          "v": 36,
+          "beat": "strum4",
+          "dt": -0.1602
+        },
+        {
+          "v": 26,
+          "beat": "strum4",
+          "dt": -0.0002
+        },
+        {
+          "v": 52,
+          "beat": "strum4",
+          "dt": 0.1734
+        },
+        {
+          "v": 108,
+          "beat": "windmill",
+          "dt": -0.32
+        },
+        {
+          "v": 146,
+          "beat": "windmill",
+          "dt": -0.18
+        },
+        {
+          "v": 151,
+          "beat": "windmill",
+          "dt": -0.05
+        },
+        {
+          "v": 117,
+          "beat": "windmill",
+          "dt": 0.08
+        },
+        {
+          "v": 63,
+          "beat": "windmill",
+          "dt": 0.23
+        },
+        {
+          "v": 22,
+          "beat": "final",
+          "dt": -0.08
+        },
+        {
+          "v": 33,
+          "beat": "final",
+          "dt": 0.07
+        },
+        {
+          "v": 29,
+          "beat": "pose",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 25,
+          "beat": "rock",
+          "dt": 0.07
+        },
+        {
+          "v": 45,
+          "beat": "neck",
+          "dt": 0.07
+        },
+        {
+          "v": 47,
+          "beat": "strum1",
+          "dt": -0.2175
+        },
+        {
+          "v": 63,
+          "beat": "strum4",
+          "dt": 0.1734
+        },
+        {
+          "v": 65,
+          "beat": "windmill",
+          "dt": -0.32
+        },
+        {
+          "v": 55,
+          "beat": "windmill",
+          "dt": -0.18
+        },
+        {
+          "v": 0,
+          "beat": "windmill",
+          "dt": -0.05
+        },
+        {
+          "v": -56,
+          "beat": "windmill",
+          "dt": 0.08
+        },
+        {
+          "v": -50,
+          "beat": "windmill",
+          "dt": 0.23
+        },
+        {
+          "v": -5,
+          "beat": "final",
+          "dt": -0.08
+        },
+        {
+          "v": 42,
+          "beat": "final",
+          "dt": 0.07
+        },
+        {
+          "v": 30,
+          "beat": "pose",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 8,
+          "beat": "rock",
+          "dt": 0.08
+        },
+        {
+          "v": 15,
+          "beat": "neck",
+          "dt": 0.08
+        },
+        {
+          "v": 18,
+          "beat": "strum1",
+          "dt": -0.2075
+        },
+        {
+          "v": 17,
+          "beat": "strum4",
+          "dt": 0.0434
+        },
+        {
+          "v": 18,
+          "beat": "strum4",
+          "dt": 0.1734
+        },
+        {
+          "v": -20,
+          "beat": "windmill",
+          "dt": -0.32
+        },
+        {
+          "v": -35,
+          "beat": "windmill",
+          "dt": -0.18
+        },
+        {
+          "v": 20,
+          "beat": "windmill",
+          "dt": -0.05
+        },
+        {
+          "v": 65,
+          "beat": "windmill",
+          "dt": 0.08
+        },
+        {
+          "v": 40,
+          "beat": "windmill",
+          "dt": 0.23
+        },
+        {
+          "v": 28,
+          "beat": "final",
+          "dt": -0.08
+        },
+        {
+          "v": 20,
+          "beat": "final",
+          "dt": 0.08
+        },
+        {
+          "v": 10,
+          "beat": "pose",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24,
+          "beat": "rock",
+          "dt": 0.1
+        },
+        {
+          "v": 75,
+          "beat": "neck",
+          "dt": 0.1
+        },
+        {
+          "v": 84,
+          "beat": "strum1",
+          "dt": -0.135
+        },
+        {
+          "v": 55,
+          "beat": "strum1",
+          "dt": 0.025
+        },
+        {
+          "v": 84,
+          "beat": "strum2",
+          "dt": -0.1351
+        },
+        {
+          "v": 55,
+          "beat": "strum2",
+          "dt": 0.0249
+        },
+        {
+          "v": 84,
+          "beat": "strum3",
+          "dt": -0.1351
+        },
+        {
+          "v": 55,
+          "beat": "strum3",
+          "dt": 0.0249
+        },
+        {
+          "v": 84,
+          "beat": "strum4",
+          "dt": -0.1352
+        },
+        {
+          "v": 55,
+          "beat": "strum4",
+          "dt": 0.0248
+        },
+        {
+          "v": 70,
+          "beat": "strum4",
+          "dt": 0.1734
+        },
+        {
+          "v": 35,
+          "beat": "windmill",
+          "dt": -0.3
+        },
+        {
+          "v": 12,
+          "beat": "windmill",
+          "dt": -0.16
+        },
+        {
+          "v": 10,
+          "beat": "windmill",
+          "dt": -0.02
+        },
+        {
+          "v": 12,
+          "beat": "windmill",
+          "dt": 0.11
+        },
+        {
+          "v": 18,
+          "beat": "final",
+          "dt": -0.2
+        },
+        {
+          "v": 30,
+          "beat": "final",
+          "dt": -0.05
+        },
+        {
+          "v": 60,
+          "beat": "final",
+          "dt": 0.1
+        },
+        {
+          "v": 45,
+          "beat": "pose",
+          "dt": 0.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "rock",
+          "dt": 0.1
+        },
+        {
+          "v": -5,
+          "beat": "neck",
+          "dt": 0.1
+        },
+        {
+          "v": -8,
+          "beat": "strum1",
+          "dt": -0.1875
+        },
+        {
+          "v": -7,
+          "beat": "strum4",
+          "dt": 0.1734
+        },
+        {
+          "v": -8,
+          "beat": "windmill",
+          "dt": -0.28
+        },
+        {
+          "v": -15,
+          "beat": "windmill",
+          "dt": -0.02
+        },
+        {
+          "v": -12,
+          "beat": "final",
+          "dt": -0.19
+        },
+        {
+          "v": -10,
+          "beat": "final",
+          "dt": 0.1
+        },
+        {
+          "v": -3,
+          "beat": "pose",
+          "dt": 0.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "rock",
+          "dt": 0.12
+        },
+        {
+          "v": -5,
+          "beat": "neck",
+          "dt": 0.12
+        },
+        {
+          "v": -9,
+          "beat": "strum1",
+          "dt": -0.11
+        },
+        {
+          "v": 18,
+          "beat": "strum1",
+          "dt": 0.05
+        },
+        {
+          "v": -9,
+          "beat": "strum2",
+          "dt": -0.1101
+        },
+        {
+          "v": 18,
+          "beat": "strum2",
+          "dt": 0.0499
+        },
+        {
+          "v": -9,
+          "beat": "strum3",
+          "dt": -0.1101
+        },
+        {
+          "v": 18,
+          "beat": "strum3",
+          "dt": 0.0499
+        },
+        {
+          "v": -9,
+          "beat": "strum4",
+          "dt": -0.1102
+        },
+        {
+          "v": 18,
+          "beat": "strum4",
+          "dt": 0.0498
+        },
+        {
+          "v": 0,
+          "beat": "strum4",
+          "dt": 0.2034
+        },
+        {
+          "v": -8,
+          "beat": "windmill",
+          "dt": -0.26
+        },
+        {
+          "v": -10,
+          "beat": "windmill",
+          "dt": 0.01
+        },
+        {
+          "v": 0,
+          "beat": "final",
+          "dt": -0.17
+        },
+        {
+          "v": 22,
+          "beat": "pose",
+          "dt": -0.087
+        },
+        {
+          "v": 7,
+          "beat": "pose",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "rock",
+          "dt": 0.12
+        },
+        {
+          "v": 2,
+          "beat": "neck",
+          "dt": 0.12
+        },
+        {
+          "v": 3,
+          "beat": "strum1",
+          "dt": -0.1675
+        },
+        {
+          "v": 2,
+          "beat": "strum4",
+          "dt": 0.2034
+        },
+        {
+          "v": -2,
+          "beat": "windmill",
+          "dt": -0.25
+        },
+        {
+          "v": -5,
+          "beat": "windmill",
+          "dt": 0.01
+        },
+        {
+          "v": -4,
+          "beat": "final",
+          "dt": -0.17
+        },
+        {
+          "v": -12,
+          "beat": "pose",
+          "dt": -0.087
+        },
+        {
+          "v": -3,
+          "beat": "pose",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 28,
+          "beat": "rock",
+          "dt": 0.08
+        },
+        {
+          "v": 46,
+          "beat": "neck",
+          "dt": 0.08
+        },
+        {
+          "v": 49,
+          "beat": "strum1",
+          "dt": -0.2075
+        },
+        {
+          "v": 57,
+          "beat": "strum4",
+          "dt": 0.1584
+        },
+        {
+          "v": 58,
+          "beat": "windmill",
+          "dt": 0.08
+        },
+        {
+          "v": 55,
+          "beat": "final",
+          "dt": 0.08
+        },
+        {
+          "v": 43,
+          "beat": "pose",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "rock",
+          "dt": 0.08
+        },
+        {
+          "v": 15,
+          "beat": "neck",
+          "dt": 0.08
+        },
+        {
+          "v": 14,
+          "beat": "strum1",
+          "dt": -0.2075
+        },
+        {
+          "v": 12,
+          "beat": "strum4",
+          "dt": 0.1584
+        },
+        {
+          "v": 13,
+          "beat": "windmill",
+          "dt": 0.08
+        },
+        {
+          "v": 16,
+          "beat": "final",
+          "dt": 0.08
+        },
+        {
+          "v": 14,
+          "beat": "pose",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 15,
+          "beat": "rock",
+          "dt": 0.1
+        },
+        {
+          "v": 64,
+          "beat": "neck",
+          "dt": 0.1
+        },
+        {
+          "v": 67,
+          "beat": "strum1",
+          "dt": -0.1875
+        },
+        {
+          "v": 72,
+          "beat": "strum4",
+          "dt": 0.1784
+        },
+        {
+          "v": 70,
+          "beat": "windmill",
+          "dt": 0.1
+        },
+        {
+          "v": 66,
+          "beat": "final",
+          "dt": 0.1
+        },
+        {
+          "v": 48,
+          "beat": "pose",
+          "dt": 0.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "rock",
+          "dt": 0.12
+        },
+        {
+          "v": 86,
+          "beat": "neck",
+          "dt": 0.12
+        },
+        {
+          "v": 88,
+          "beat": "strum1",
+          "dt": -0.1675
+        },
+        {
+          "v": 98,
+          "beat": "strum4",
+          "dt": 0.1984
+        },
+        {
+          "v": 95,
+          "beat": "windmill",
+          "dt": 0.12
+        },
+        {
+          "v": 92,
+          "beat": "pose",
+          "dt": -0.087
+        },
+        {
+          "v": 63,
+          "beat": "pose",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "rock",
+          "dt": 0.12
+        },
+        {
+          "v": 58,
+          "beat": "neck",
+          "dt": 0.12
+        },
+        {
+          "v": 62,
+          "beat": "strum1",
+          "dt": -0.1675
+        },
+        {
+          "v": 66,
+          "beat": "strum4",
+          "dt": 0.1984
+        },
+        {
+          "v": 64,
+          "beat": "windmill",
+          "dt": 0.12
+        },
+        {
+          "v": 60,
+          "beat": "pose",
+          "dt": -0.087
+        },
+        {
+          "v": 35,
+          "beat": "pose",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -5,
+          "beat": "rock",
+          "dt": 0.14
+        },
+        {
+          "v": -14,
+          "beat": "neck",
+          "dt": 0.14
+        },
+        {
+          "v": -18,
+          "beat": "strum1",
+          "dt": -0.1475
+        },
+        {
+          "v": -22,
+          "beat": "strum4",
+          "dt": 0.2184
+        },
+        {
+          "v": -20,
+          "beat": "windmill",
+          "dt": 0.14
+        },
+        {
+          "v": -15,
+          "beat": "pose",
+          "dt": -0.067
+        },
+        {
+          "v": -8,
+          "beat": "pose",
+          "dt": 0.14
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "rock",
+          "dt": 0.14
+        },
+        {
+          "v": 6,
+          "beat": "neck",
+          "dt": 0.14
+        },
+        {
+          "v": 7,
+          "beat": "strum1",
+          "dt": -0.1475
+        },
+        {
+          "v": 10,
+          "beat": "strum4",
+          "dt": 0.2184
+        },
+        {
+          "v": 8,
+          "beat": "windmill",
+          "dt": 0.14
+        },
+        {
+          "v": 6,
+          "beat": "pose",
+          "dt": -0.067
+        },
+        {
+          "v": 3,
+          "beat": "pose",
+          "dt": 0.14
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "rock"
+        },
+        {
+          "v": 8,
+          "beat": "neck"
+        },
+        {
+          "v": 8,
+          "beat": "strum1",
+          "dt": -0.2875
+        },
+        {
+          "v": 5,
+          "beat": "strum4",
+          "dt": 0.0784
+        },
+        {
+          "v": -4,
+          "beat": "windmill"
+        },
+        {
+          "v": 0,
+          "beat": "final"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.008,
+        "beat": "rock"
+      },
+      {
+        "v": -0.025,
+        "beat": "neck"
+      },
+      {
+        "v": -0.024,
+        "beat": "strum1",
+        "dt": -0.2875
+      },
+      {
+        "v": -0.023,
+        "beat": "strum4",
+        "dt": 0.0784
+      },
+      {
+        "v": 0.012,
+        "beat": "windmill",
+        "dt": -0.3
+      },
+      {
+        "v": 0.02,
+        "beat": "windmill"
+      },
+      {
+        "v": -0.02,
+        "beat": "final",
+        "dt": -0.01
+      },
+      {
+        "v": -0.012,
+        "beat": "pose"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.01,
+        "beat": "rock"
+      },
+      {
+        "v": -0.026,
+        "beat": "neck"
+      },
+      {
+        "v": -0.024,
+        "beat": "strum1",
+        "dt": -0.2875
+      },
+      {
+        "v": -0.022,
+        "beat": "strum1",
+        "dt": -0.13
+      },
+      {
+        "v": -0.028,
+        "beat": "strum1",
+        "dt": 0.06
+      },
+      {
+        "v": -0.022,
+        "beat": "strum2",
+        "dt": -0.1301
+      },
+      {
+        "v": -0.028,
+        "beat": "strum2",
+        "dt": 0.0599
+      },
+      {
+        "v": -0.022,
+        "beat": "strum3",
+        "dt": -0.1301
+      },
+      {
+        "v": -0.028,
+        "beat": "strum3",
+        "dt": 0.0599
+      },
+      {
+        "v": -0.022,
+        "beat": "strum4",
+        "dt": -0.1302
+      },
+      {
+        "v": -0.028,
+        "beat": "strum4",
+        "dt": 0.0598
+      },
+      {
+        "v": -0.026,
+        "beat": "strum4",
+        "dt": 0.0784
+      },
+      {
+        "v": -0.021,
+        "beat": "windmill",
+        "dt": -0.3
+      },
+      {
+        "v": -0.018,
+        "beat": "windmill"
+      },
+      {
+        "v": -0.024,
+        "beat": "final",
+        "dt": -0.01
+      },
+      {
+        "v": -0.02,
+        "beat": "pose"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.01,
+        "beat": "neck"
+      },
+      {
+        "v": -0.012,
+        "beat": "strum1",
+        "dt": -0.2875
+      },
+      {
+        "v": -0.01,
+        "beat": "strum4",
+        "dt": 0.0784
+      },
+      {
+        "v": -0.012,
+        "beat": "windmill",
+        "dt": -0.3
+      },
+      {
+        "v": -0.008,
+        "beat": "windmill"
+      },
+      {
+        "v": 0.006,
+        "beat": "final",
+        "dt": -0.01
+      },
+      {
+        "v": 0,
+        "beat": "pose"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "pinch",
+        "beat": "rock",
+        "dt": 0.2875
+      },
+      {
+        "preset": "pinch",
+        "beat": "strum1",
+        "dt": -0.345
+      },
+      {
+        "preset": "pinch",
+        "beat": "strum4",
+        "dt": 0.0209
+      },
+      {
+        "preset": "open-together",
+        "curl": 4,
+        "spread": 6,
+        "beat": "windmill",
+        "dt": -0.1725
+      },
+      {
+        "preset": "pinch",
+        "beat": "final",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "curl": 5,
+        "beat": "pose",
+        "dt": 0.0805
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.023
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "cupped",
+        "curl": 22,
+        "beat": "neck",
+        "dt": -0.23
+      },
+      {
+        "preset": "cupped",
+        "curl": 27,
+        "fingers": {
+          "index": {
+            "curl": [-6, -2, 0]
+          }
+        },
+        "beat": "strum1",
+        "dt": -0.23
+      },
+      {
+        "preset": "cupped",
+        "curl": 22,
+        "fingers": {
+          "middle": {
+            "curl": [6, 2, 0]
+          }
+        },
+        "beat": "strum2",
+        "dt": -0.0122
+      },
+      {
+        "preset": "cupped",
+        "curl": 28,
+        "fingers": {
+          "index": {
+            "curl": [5, 0, 0]
+          }
+        },
+        "beat": "strum4",
+        "dt": -0.0941
+      },
+      {
+        "preset": "cupped",
+        "curl": 23,
+        "beat": "windmill",
+        "dt": 0.23
+      },
+      {
+        "preset": "cupped",
+        "curl": 14,
+        "beat": "pose",
+        "dt": -0.0345
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.023
+      }
+    ]
+  },
+  "expressions": {
+    "angry": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.3,
+        "beat": "rock"
+      },
+      {
+        "v": 0.3,
+        "beat": "strum4",
+        "dt": 0.1934
+      },
+      {
+        "v": 0.2,
+        "beat": "windmill"
+      },
+      {
+        "v": 0,
+        "beat": "final"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.4,
+        "beat": "rock"
+      },
+      {
+        "v": 0.4,
+        "beat": "strum4",
+        "dt": 0.1934
+      },
+      {
+        "v": 0.8,
+        "beat": "final"
+      },
+      {
+        "v": 0.8,
+        "beat": "pose",
+        "dt": 0.0805
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "windmill",
+        "dt": 0.23
+      },
+      {
+        "v": 0.4,
+        "beat": "final"
+      },
+      {
+        "v": 0.4,
+        "beat": "pose",
+        "dt": 0.0805
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "aa": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "strum1",
+        "dt": -0.1725
+      },
+      {
+        "v": 0.5,
+        "beat": "strum1"
+      },
+      {
+        "v": 0.08,
+        "beat": "strum1",
+        "dt": 0.1495
+      },
+      {
+        "v": 0.5,
+        "beat": "strum2",
+        "dt": -0.0001
+      },
+      {
+        "v": 0.08,
+        "beat": "strum2",
+        "dt": 0.1494
+      },
+      {
+        "v": 0.5,
+        "beat": "strum3",
+        "dt": -0.0001
+      },
+      {
+        "v": 0.08,
+        "beat": "strum3",
+        "dt": 0.1494
+      },
+      {
+        "v": 0.5,
+        "beat": "strum4",
+        "dt": -0.0002
+      },
+      {
+        "v": 0.08,
+        "beat": "strum4",
+        "dt": 0.1493
+      },
+      {
+        "v": 0,
+        "beat": "windmill",
+        "dt": -0.1725
+      },
+      {
+        "v": 0.2,
+        "beat": "final",
+        "dt": -0.1725
+      },
+      {
+        "v": 0.5,
+        "beat": "final"
+      },
+      {
+        "v": 0,
+        "beat": "pose",
+        "dt": 0.0805
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "musical_cascade_v2",
+      "time": 1.25,
+      "kind": "particle_vfx",
+      "effectId": "musical_cascade_v2",
+      "duration": 2.65,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.15,
+          "fadeOut": 0.3
+        }
+      }
+    },
+    {
+      "id": "electric_crackle",
+      "time": 3.35,
+      "kind": "particle_vfx",
+      "effectId": "electric_crackle",
+      "duration": 1.05,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.06,
+          "fadeOut": 0.24
+        }
+      }
+    }
+  ]
+}

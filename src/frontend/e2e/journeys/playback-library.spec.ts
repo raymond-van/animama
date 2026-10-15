@@ -74,7 +74,7 @@ const JOURNEYS: readonly LibraryJourney[] = [
     section: "avatar",
     proof: "avatar",
     target: { kind: "avatar_vfx", runtimeId: "eye_confused_swirl" },
-    requiredFiles: ["eye_confused_swirl_r.png"],
+    requiredFiles: ["eye_confused_swirl-sheet.png"],
   },
   {
     key: "library-reaction-admiration-4",
@@ -85,7 +85,7 @@ const JOURNEYS: readonly LibraryJourney[] = [
     target: { kind: "anima_pose_clip", runtimeId: "admiration-4" },
     requiredFiles: [
       "shimmer-glint.png",
-      "star3.png",
+      "star3-sheet.png",
       "twinkle-star-gold.png",
       "bokeh-tile.png",
     ],

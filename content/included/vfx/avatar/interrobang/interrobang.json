@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:interrobang",
+  "version": 1,
+  "name": "Interrobang",
+  "description": "Red and blue surprise punctuation pops beside the head, then wobbles in confused disbelief.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:surprised_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0.16,
+        "y": 0.045
+      },
+      "size": 0.16
+    },
+    "art": {
+      "image": "interrobang-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 6,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.3,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.2,
+            "t": 0.1
+          },
+          {
+            "scale": 0.94,
+            "t": 0.2
+          },
+          {
+            "scale": 1,
+            "t": 0.3
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "interrobang-sheet.png",
+      "role": "image"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:energy-wave-charge",
+  "version": 1,
+  "name": "Energy Wave Charge",
+  "description": "A cyan-white orb gathers with spiralling motes at the hands, then releases a luminous forward pulse and expanding shock ring.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "energy-wave-charge",
+    "slots": {
+      "particle_vfx": {
+        "label": "Energy Wave Charge",
+        "description": "A cyan-white orb gathers with spiralling motes at the hands, then releases a luminous forward pulse and expanding shock ring.",
+        "anchor": "rightHand",
+        "duration_seconds": 3.5,
+        "max_duration_seconds": 3.6,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.035,
+            "z": 0.04
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 57
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/glow-soft.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/glow-sharp.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/shock-ring.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/energy-streak.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/soft-dot.png",
+      "role": "texture"
+    }
+  ]
+}

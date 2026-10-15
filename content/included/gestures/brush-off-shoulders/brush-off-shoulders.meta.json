@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:brush-off-shoulders",
+  "version": 1,
+  "semantic_key": "brush_off_shoulders",
+  "name": "Brush Off Shoulders",
+  "description": "Smugly brushes dust off each shoulder with the chin up. Use for confident bragging, shrugging off criticism or 'too easy'.",
+  "ai_description": "Smugly brushes dust off each shoulder with the chin up. Use for confident bragging, shrugging off criticism or 'too easy'.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:sly_glint",
+      "alias": "sly_glint",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "brush-off-shoulders.json",
+      "role": "sequence"
+    }
+  ]
+}

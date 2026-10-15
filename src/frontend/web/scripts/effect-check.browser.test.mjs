@@ -187,11 +187,13 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
         dir,
         "vfx/particle/quark/hearts-v1",
         "clear",
-        async (_descriptor, folder) => {
-          await writeFile(
-            path.join(folder, "textures/heart.png"),
-            await disc(0),
-          );
+        async (descriptor, folder) => {
+          const transparent = await disc(0);
+          for (const file of descriptor.files.filter(
+            (file) => file.role === "texture",
+          )) {
+            await writeFile(path.join(folder, file.path), transparent);
+          }
         },
       ),
       await copyIncluded(
@@ -237,7 +239,7 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
     assert.deepEqual(fails(stream), [], JSON.stringify(stream.lines));
     assert.ok(
       stream.lines.some((line) =>
-        /^particles: Save's estimate is up to \d+ at once \(declared budget 64/.test(
+        /^particles: Save's estimate is up to \d+ at once \(declared budget 50/.test(
           line.message,
         ),
       ),
@@ -265,7 +267,7 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
       fails(unlisted).some(
         (line) =>
           /^particles: /.test(line.message) &&
-          /textures\/heart\.png/.test(line.message),
+          /textures\/pearl-heart\.png/.test(line.message),
       ),
       JSON.stringify(unlisted.lines),
     );

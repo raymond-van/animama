@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:overheat_smoke",
+  "version": 1,
+  "name": "Overheat Smoke",
+  "description": "Crayon-grey smoke billows off the crown when the brain has too much to process.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:irritated_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top",
+      "offset": {
+        "x": 0,
+        "y": 0.095,
+        "z": 0.03
+      },
+      "position": "middle",
+      "scale": {
+        "x": 2.7,
+        "y": 2.7
+      }
+    },
+    "art": {
+      "image": "overheat_smoke-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 4,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "overheat_smoke-sheet.png",
+      "role": "image"
+    }
+  ]
+}

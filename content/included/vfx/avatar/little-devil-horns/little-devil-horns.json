@@ -24,7 +24,14 @@
       }
     },
     "art": {
-      "image": "horns.png"
+      "image": "horns-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
@@ -49,7 +56,7 @@
   },
   "files": [
     {
-      "path": "horns.png",
+      "path": "horns-sheet.png",
       "role": "image"
     }
   ]

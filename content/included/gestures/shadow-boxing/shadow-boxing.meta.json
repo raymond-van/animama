@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:shadow-boxing",
+  "version": 1,
+  "semantic_key": "shadow_boxing_combo",
+  "name": "Shadow Boxing",
+  "description": "Bounces in a boxing guard and throws a jab-jab-cross-hook combo. Use for determination, getting pumped for a challenge, or playfully fighting a problem.",
+  "ai_description": "Bounces in a boxing guard and throws a jab-jab-cross-hook combo. Use for determination, getting pumped for a challenge, or playfully fighting a problem.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:impact_burst",
+      "alias": "impact_burst_v2",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "shadow-boxing.json",
+      "role": "sequence"
+    }
+  ]
+}

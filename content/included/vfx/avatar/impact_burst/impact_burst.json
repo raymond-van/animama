@@ -40,13 +40,13 @@
       "size": 0.13
     },
     "art": {
-      "image": "clap_burst-draw-on.png",
+      "image": "impact_burst-sheet.png",
       "flipbook": {
-        "columns": 3,
-        "fps": 20,
-        "frames": 8,
+        "columns": 2,
+        "fps": 10,
+        "frames": 4,
         "loop": "once",
-        "rows": 3
+        "rows": 2
       }
     },
     "motion": {
@@ -81,7 +81,7 @@
   },
   "files": [
     {
-      "path": "clap_burst-draw-on.png",
+      "path": "impact_burst-sheet.png",
       "role": "image"
     }
   ]

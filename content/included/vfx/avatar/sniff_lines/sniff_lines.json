@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:sniff_lines",
+  "version": 1,
+  "name": "Sniff Lines",
+  "description": "Three crisp navy sniff arcs and a tiny warm scent curl pulse beside the nostril.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "mouth",
+      "offset": {
+        "x": 0.014,
+        "y": 0.026,
+        "z": 0.03
+      },
+      "scale": {
+        "x": 0.55,
+        "y": 0.55
+      }
+    },
+    "art": {
+      "image": "sniff_lines-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "motion": {
+      "pulse": {
+        "cyclesPerSecond": 2,
+        "scaleMax": 1.08,
+        "scaleMin": 0.92
+      }
+    },
+    "faceOptions": {
+      "faceCleanup": false,
+      "skinBackdrop": false
+    }
+  },
+  "files": [
+    {
+      "path": "sniff_lines-sheet.png",
+      "role": "image"
+    }
+  ]
+}

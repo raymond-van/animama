@@ -21,7 +21,14 @@
     },
     "art": {
       "image": "eye.png",
-      "otherEyeImage": "other-eye.png"
+      "otherEyeImage": "other-eye.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 6,
+        "frames": 6,
+        "loop": "once",
+        "rows": 2
+      }
     }
   },
   "files": [
