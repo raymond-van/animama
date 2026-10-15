@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "@/lib/avatar";
+import { installAvatarShaderRendering } from "@/lib/avatar/toon-shader/applyAvatarShader";
 import {
   DEFAULT_SCENE_LIGHTS,
   buildSceneCameraPreset,
@@ -92,6 +93,9 @@ export function createStage(
   renderer.setSize(width, height);
   applyChatColorPipeline(renderer);
   renderer.setClearColor(0x000000, 0);
+  // Extra passes for an `--avatar-shader` override. The Avatar load awaits the
+  // same shader module, so they are installed before the first frame.
+  void installAvatarShaderRendering(renderer);
   const scene = new THREE.Scene();
   addChatLights(scene);
   const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 20);

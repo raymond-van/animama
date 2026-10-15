@@ -207,6 +207,9 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
+      '@mochiya/three-liltoon':
+        specifier: 0.1.5
+        version: 0.1.5(@pixiv/three-vrm@3.5.2(three@0.182.0))(three@0.182.0)
       '@noble/hashes':
         specifier: 2.2.0
         version: 2.2.0
@@ -1310,6 +1313,16 @@ packages:
 
   '@mermaid-js/parser@1.1.0':
     resolution: {integrity: sha512-gxK9ZX2+Fex5zu8LhRQoMeMPEHbc73UKZ0FQ54YrQtUxE1VVhMwzeNtKRPAu5aXks4FasbMe4xB4bWrmq6Jlxw==}
+
+  '@mochiya/three-liltoon@0.1.5':
+    resolution: {integrity: sha512-RE49/WsNK4YzTCAyrk5/9Z0yd0vwxvsMgjqLRbvy50DwyMoyciXE6iKzhDEA3kZoe/dwbMOvNcqvAy5zud/Nzg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@pixiv/three-vrm': '>=3.4.0 <4'
+      three: '>=0.180.0 <0.190.0'
+    peerDependenciesMeta:
+      '@pixiv/three-vrm':
+        optional: true
 
   '@monogrid/gainmap-js@3.4.0':
     resolution: {integrity: sha512-2Z0FATFHaoYJ8b+Y4y4Hgfn3FRFwuU5zRrk+9dFWp4uGAdHGqVEdP7HP+gLA3X469KXHmfupJaUbKo1b/aDKIg==}
@@ -3267,6 +3280,7 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   abbrev@4.0.0:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}
@@ -7397,6 +7411,12 @@ snapshots:
   '@mermaid-js/parser@1.1.0':
     dependencies:
       langium: 4.2.2
+
+  '@mochiya/three-liltoon@0.1.5(@pixiv/three-vrm@3.5.2(three@0.182.0))(three@0.182.0)':
+    dependencies:
+      three: 0.182.0
+    optionalDependencies:
+      '@pixiv/three-vrm': 3.5.2(three@0.182.0)
 
   '@monogrid/gainmap-js@3.4.0(three@0.182.0)':
     dependencies:

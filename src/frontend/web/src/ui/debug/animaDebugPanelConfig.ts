@@ -1,6 +1,7 @@
 "use client";
 
 export const DEBUG_SECTION_KEYS = [
+  "avatarShader",
   "animation",
   "signals",
   "lipSync",
@@ -30,6 +31,7 @@ export const ANIMAMA_DEBUG_PANEL_PRODUCERS = {
 export type AnimaDebugProducerKey = keyof typeof ANIMAMA_DEBUG_PANEL_PRODUCERS;
 
 export const ANIMAMA_DEBUG_PANEL_SECTIONS = {
+  avatarShader: true,
   animation: true,
   signals: true,
   lipSync: true,

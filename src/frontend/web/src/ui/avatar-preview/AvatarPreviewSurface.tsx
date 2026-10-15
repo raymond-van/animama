@@ -37,6 +37,7 @@ import {
   SceneVFXOverlayLayers,
   SceneVFXUnderlayLayers,
 } from "@/ui/main/scene-vfx/SceneVFXLayers";
+import { AvatarShaderRendering } from "@/lib/avatar/toon-shader/AvatarShaderRendering";
 
 export type AvatarPreviewCameraProfile = CreatorCameraPreset | "custom";
 
@@ -164,6 +165,7 @@ export function AvatarPreviewSurface({
             onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
           >
             <AvatarPreviewLifecycleMarker owner={lifecycleOwner} />
+            <AvatarShaderRendering />
             <AvatarPreviewCameraController
               settings={camera}
               resetRequest={resetCameraRequest}

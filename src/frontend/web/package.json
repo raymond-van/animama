@@ -45,6 +45,7 @@
     "@gltf-transform/extensions": "^4.3.0",
     "@hookform/resolvers": "^5.2.2",
     "@lezer/highlight": "^1.2.3",
+    "@mochiya/three-liltoon": "0.1.5",
     "@noble/hashes": "2.2.0",
     "@opentelemetry/api": "^1.9.0",
     "@pixiv/three-vrm": "^3.4.4",

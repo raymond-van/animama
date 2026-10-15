@@ -25,6 +25,7 @@ import {
 } from "three";
 
 import { getAvatarBackgroundOption } from "@/lib/avatar/backgroundOptions";
+import { AvatarShaderRendering } from "@/lib/avatar/toon-shader/AvatarShaderRendering";
 import type { CursorLookAtInputProvider } from "@/lib/avatar";
 import { resolveAvatarBackgroundCrop } from "@/lib/avatar/backgroundCrop";
 import { AvatarCanvasActor } from "./AvatarCanvasActor";
@@ -276,6 +277,7 @@ export default function Scene({
           orbitControlsRef={orbitControlsRef}
           settings={sceneCameraSettings}
         />
+        <AvatarShaderRendering />
         <ambientLight intensity={DEFAULT_SCENE_LIGHTS.ambientIntensity} />
         {DEFAULT_SCENE_LIGHTS.directional.map((light, index) => (
           <directionalLight

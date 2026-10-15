@@ -35,6 +35,7 @@ import {
   DEFAULT_SCENE_ORBIT_TARGET,
 } from "@/ui/main/canvas/sceneCameraPresets";
 import { useFormatters } from "@animama/product-ui/i18n";
+import { AvatarShaderRendering } from "@/lib/avatar/toon-shader/AvatarShaderRendering";
 
 type PreviewStatus = "idle" | "loading" | "ready" | "error";
 
@@ -368,6 +369,7 @@ export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
             intensity={light.intensity}
           />
         ))}
+        <AvatarShaderRendering />
         <Suspense fallback={null}>
           <PreviewAvatarActor
             file={file}

@@ -67,6 +67,7 @@ import {
 } from "@/ui/debug/useDebugSystemMetrics";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
 import { LipSyncDebugSection } from "@/ui/debug/LipSyncDebugSection";
+import { AvatarShaderDebugSection } from "@/ui/debug/AvatarShaderDebugSection";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import {
   useAnimaAnimationDebugStore,
@@ -1110,6 +1111,15 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
               `avatar-chat` mode if the scene is hidden.
             </div>
           ) : null}
+
+          <Section
+            title="Avatar shader"
+            isOpen={sectionOpen.avatarShader}
+            onToggle={() => toggleSection("avatarShader")}
+            disabled={!isAnimaDebugSectionAvailable("avatarShader")}
+          >
+            <AvatarShaderDebugSection />
+          </Section>
 
           <Section
             title="Animation"
