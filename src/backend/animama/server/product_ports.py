@@ -50,6 +50,7 @@ from animama.product_http.ports import (
     ProductPolicy,
     ProductRefusal,
     ProductUploads,
+    UserSettingsMutation,
     model_role_resolver,
 )
 from animama.server.companion_safety import runtime_crisis_resources
@@ -317,6 +318,11 @@ class LocalProductPorts:
 
     async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
         return await local_runtime_capabilities(self._app, session)
+
+    async def prepare_user_settings_change(
+        self, session: AsyncSession, principal: RequestPrincipal, mutation: UserSettingsMutation
+    ) -> None:
+        """Local settings have no external authority to update before their write."""
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         # The embeddings role may have changed; re-check stored vectors now.

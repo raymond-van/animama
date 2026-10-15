@@ -4,6 +4,7 @@ import { systemPreferredLanguages } from "@animama/product-ui/i18n";
 import { resolveLocale } from "@animama/runtime-contracts/locale";
 
 import { useUserSettings } from "@/query/hooks/useUserSettings";
+import { useOptionalLocaleInput } from "@/app/runtime/RuntimeAdmissionProvider";
 import {
   pseudoLocaleActive,
   rememberAppliedLocale,
@@ -32,14 +33,33 @@ export function LocaleSync() {
   const { data: settings, isSuccess } = useUserSettings();
   const saved = settings?.locale ?? null;
   const preferred = useSystemLanguages();
+  const hosted = useOptionalLocaleInput();
 
   useEffect(() => {
-    if (!isSuccess || pseudoLocaleActive()) return;
+    if (hosted || !isSuccess || pseudoLocaleActive()) return;
     const locale = resolveLocale({ saved, preferred });
     rememberAppliedLocale(locale);
     shareAppliedLocaleWithShell(locale);
     if (i18n.language !== locale) void i18n.changeLanguage(locale);
-  }, [i18n, isSuccess, preferred, saved]);
+  }, [hosted, i18n, isSuccess, preferred, saved]);
 
+  return null;
+}
+
+/** Hosted display hints also apply on signed-out, setup and unavailable screens. */
+export function HostedLocaleSync() {
+  const { i18n } = useTranslation();
+  const hosted = useOptionalLocaleInput();
+  const preferred = useSystemLanguages();
+  useEffect(() => {
+    if (!hosted || pseudoLocaleActive()) return;
+    const locale = resolveLocale({
+      saved: hosted.preference,
+      visitor: hosted.visitor,
+      preferred,
+    });
+    rememberAppliedLocale(locale);
+    if (i18n.language !== locale) void i18n.changeLanguage(locale);
+  }, [hosted, i18n, preferred]);
   return null;
 }

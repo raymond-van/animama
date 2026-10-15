@@ -4,6 +4,10 @@ import type {
 } from "@animama/runtime-contracts";
 import type { LocalOnboardingInput } from "../local-runtime/LocalRuntimeProvider";
 import type { SessionRequestScope } from "./session-requests";
+import type {
+  HostedLocaleInput,
+  UiLocale,
+} from "@animama/runtime-contracts/locale";
 
 /**
  * Why a composition asks for readmission. `true` ends the current session;
@@ -33,4 +37,10 @@ export interface AppComposition extends ProductRuntimeComposition {
   ) => Promise<RuntimeAdmission>;
   /** Read whenever admission is published; compositions without accounts omit it. */
   readonly accountAffordances?: () => AccountAffordances;
+  /** Optional display authority, independent of admission and session lifetime. */
+  readonly localeInput?: () => HostedLocaleInput | null;
+  /** Confirmed explicit preference writes also select/clear the visitor choice. */
+  readonly confirmLocale?: (locale: UiLocale | null) => void;
+  /** Drop account-derived display state as soon as sign-out begins. */
+  readonly clearLocalePreference?: () => void;
 }

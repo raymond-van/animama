@@ -1,3 +1,4 @@
+import { useRef, type ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { systemPreferredLanguages } from "@animama/product-ui/i18n";
@@ -20,9 +21,54 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
+import { useOptionalLocaleInput } from "@/app/runtime/RuntimeAdmissionProvider";
+import {
+  apiErrorLine,
+  apiErrorText,
+  readApiError,
+} from "@/lib/errors/apiError";
 
 /** Select value standing for "follow the OS or browser language". */
 const SYSTEM_LOCALE = "system";
+
+/** Radix suppresses unchanged values; an explicit re-selection can still update the visitor choice. */
+function LanguageOption({
+  onReselect,
+  ...props
+}: ComponentProps<typeof SelectItem> & { onReselect?: () => void }) {
+  const pointerType = useRef("touch");
+  return (
+    <SelectItem
+      {...props}
+      onPointerDown={(event) => {
+        pointerType.current = event.pointerType;
+      }}
+      onPointerMove={(event) => {
+        pointerType.current = event.pointerType;
+      }}
+      onPointerUp={(event) => {
+        // Radix cancels the opening release before it reaches this item.
+        if (!event.defaultPrevented && pointerType.current === "mouse")
+          onReselect?.();
+      }}
+      onClick={(event) => {
+        if (!event.defaultPrevented && pointerType.current !== "mouse")
+          onReselect?.();
+      }}
+      onKeyDown={(event) => {
+        if (event.defaultPrevented) return;
+        if (event.key === "Enter") onReselect?.();
+        if (event.key === " ") {
+          // Radix consumes Space for selection, but leaves it unconsumed
+          // during typeahead. Wait for its handler before deciding to save.
+          queueMicrotask(() => {
+            if (event.defaultPrevented) onReselect?.();
+          });
+        }
+      }}
+    />
+  );
+}
 
 /**
  * Language picker, saved as soon as it changes. "System default" stores no
@@ -40,14 +86,36 @@ export function LanguageSelect({
 }) {
   const { t } = useTranslation(["settings", "common"]);
   const { data: settings } = useUserSettings();
+  const hosted = useOptionalLocaleInput();
   const { mutateAsync: updateUserSettings, isPending } =
     useUpdateUserSettings();
-  const saved = isUiLocale(settings?.locale) ? settings.locale : null;
+  const saved = hosted
+    ? hosted.preference
+    : isUiLocale(settings?.locale)
+      ? settings.locale
+      : null;
   const systemLocale = resolveLocale({ preferred: systemPreferredLanguages() });
   const nameWithBeta = (locale: (typeof SUPPORTED_LOCALES)[number]) =>
     isBetaLocale(locale)
       ? `${localeNativeName(locale)} · ${t("common:beta")}`
       : localeNativeName(locale);
+  const save = (locale: (typeof SUPPORTED_LOCALES)[number] | null) => {
+    void updateUserSettings({ body: { locale } }).catch((error: unknown) =>
+      toast.error(
+        apiErrorLine(
+          apiErrorText(
+            readApiError(error),
+            "settings",
+            t("language.saveFailed"),
+          ),
+        ),
+      ),
+    );
+  };
+  const reselect = (locale: (typeof SUPPORTED_LOCALES)[number] | null) =>
+    hosted && saved === locale && hosted.visitor !== locale
+      ? () => save(locale)
+      : undefined;
 
   return (
     <Select
@@ -55,9 +123,7 @@ export function LanguageSelect({
       disabled={!settings || isPending}
       onValueChange={(value) => {
         const locale = isUiLocale(value) ? value : null;
-        void updateUserSettings({ body: { locale } }).catch(() =>
-          toast.error(t("language.saveFailed")),
-        );
+        save(locale);
       }}
     >
       <SelectTrigger
@@ -68,15 +134,20 @@ export function LanguageSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={SYSTEM_LOCALE}>
+        <LanguageOption value={SYSTEM_LOCALE} onReselect={reselect(null)}>
           {t("language.systemDefaultResolved", {
             language: localeNativeName(systemLocale),
           })}
-        </SelectItem>
+        </LanguageOption>
         {SUPPORTED_LOCALES.map((locale) => (
-          <SelectItem key={locale} value={locale} lang={locale}>
+          <LanguageOption
+            key={locale}
+            value={locale}
+            lang={locale}
+            onReselect={reselect(locale)}
+          >
             {nameWithBeta(locale)}
-          </SelectItem>
+          </LanguageOption>
         ))}
       </SelectContent>
     </Select>

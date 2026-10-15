@@ -10,10 +10,11 @@ the ports they need as they move into this package.
 from __future__ import annotations
 
 import math
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 from typing import Annotated, Any, Literal, Protocol, cast
 from urllib.parse import urlsplit
 
@@ -29,6 +30,7 @@ from animama.app.contracts.elevenlabs import (
     PyElevenLabsVoice,
 )
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+from animama.app.contracts.settings import PyUserSettingsUpdate
 from animama.app.model_clients import ModelClientRegistry
 from animama.app.ports.anima_chat_profile_port import AnimaChatProfileRepository
 from animama.app.ports.anima_port import AnimaRepository
@@ -506,6 +508,38 @@ class ProductUploads:
     staging_directory: Path
 
 
+def _freeze_settings_value(value: Any) -> Any:
+    """Copy JSON containers into immutable values without retaining caller-owned data."""
+
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze_settings_value(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze_settings_value(item) for item in value)
+    return value
+
+
+@dataclass(frozen=True)
+class UserSettingsMutation:
+    """Validated intent before settings defaults erase omitted-versus-null fields.
+
+    ``patch`` contains only supplied fields. Nested JSON objects and arrays are
+    immutable mappings and tuples; reset has an empty patch and explicitly clears
+    settings. A composition must validate its own field/ownership rules before
+    performing an external effect.
+    """
+
+    operation: Literal["create", "patch", "reset"]
+    patch: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.operation not in {"create", "patch", "reset"}:
+            raise ValueError("unknown user settings mutation operation")
+        if self.operation == "reset" and self.patch:
+            raise ValueError("a settings reset has no patch")
+        validated = PyUserSettingsUpdate.model_validate(dict(self.patch)).model_dump(exclude_unset=True)
+        object.__setattr__(self, "patch", _freeze_settings_value(validated))
+
+
 class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers.
 
@@ -606,6 +640,20 @@ class ProductPorts(Protocol):
         """What this composition offers ``principal`` now, reading any stored state on ``session``."""
         ...
 
+    async def prepare_user_settings_change(
+        self, session: AsyncSession, principal: RequestPrincipal, mutation: UserSettingsMutation
+    ) -> None:
+        """Prepare validated intent before materialization or any local settings write.
+
+        Reuse this composition-owned write session; do not open or commit another.
+        Shared admission, schema, model-role and create-conflict checks have passed.
+        Validate any composition-specific fields before a remote effect. Refuse
+        through ``ProductRefusal``; retain request-scoped remote outcomes so the
+        write context can report a partial failure even if its deferred commit fails.
+        A confirmed external write must never be compensated with a stale value.
+        """
+        ...
+
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         """Tell the composition ``principal``'s user settings changed.
 
@@ -686,8 +734,13 @@ async def get_write_session(
     ports: Annotated[ProductPorts, Depends(get_product_ports)],
     principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> AsyncIterator[AsyncSession]:
-    async with ports.write_session(principal) as session:
-        yield session
+    try:
+        async with ports.write_session(principal) as session:
+            yield session
+    except ProductRefusal as exc:
+        # Function-scoped teardown precedes the response, including a composition's
+        # deferred commit. Its partial-outcome refusal must not become a false 200.
+        raise refusal_error(exc) from exc
 
 
 ReadSession = Annotated[AsyncSession, Depends(get_read_session)]

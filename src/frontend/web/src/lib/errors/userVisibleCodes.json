@@ -217,5 +217,11 @@
     "rate_limited",
     "timeout",
     "unreachable"
+  ],
+  "settings": [
+    "locale_conflict",
+    "locale_authority_unavailable",
+    "locale_save_outcome_unknown",
+    "locale_saved_settings_failed"
   ]
 }

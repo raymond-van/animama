@@ -27,6 +27,7 @@ describe("application entrypoints", () => {
       "@web/i18n/web-i18n",
       "./i18n/locale-preference",
       "./i18n/web-i18n",
+      "./app/hosted-runtime/hosted-context",
       "@animama/product-ui/styles.css",
       "./index.css",
     ];
@@ -47,5 +48,12 @@ describe("application entrypoints", () => {
         staticImports.filter((specifier) => specifier.endsWith(".css")),
       ).toEqual(["@animama/product-ui/styles.css", "./index.css"]);
     }
+    // The one early application-path helper only parses display hints and
+    // reads same-origin context; it cannot load application or i18n modules.
+    const context = await source("./hosted-runtime/hosted-context.ts");
+    const contextImports = [
+      ...context.matchAll(/(?:from\s+|import\s*\()["']([^"']+)["']/g),
+    ].map((match) => match[1]);
+    expect(contextImports).toEqual(["@animama/runtime-contracts/locale"]);
   });
 });

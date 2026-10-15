@@ -74,6 +74,7 @@ from animama.product_http.ports import (
     ProductPorts,
     ProductRefusal,
     ProductUploads,
+    UserSettingsMutation,
     VoiceResolver,
     install_product_ports,
     model_role_resolver,
@@ -413,6 +414,11 @@ class DoubleCollaborators:
 
     async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
         return HOSTED_CAPABILITIES
+
+    async def prepare_user_settings_change(
+        self, session: AsyncSession, principal: RequestPrincipal, mutation: UserSettingsMutation
+    ) -> None:
+        """Most fixture compositions keep all settings in their local transaction."""
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)

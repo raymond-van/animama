@@ -189,6 +189,12 @@
     "saveFailedReason": "Could not save your personalization ({{reason}}).",
     "user_profile_missing": "Your local personalization is unavailable. Try again."
   },
+  "settings": {
+    "locale_authority_unavailable": "Language preferences are temporarily unavailable. Try again when the connection returns.",
+    "locale_conflict": "Your language preference changed elsewhere. Check the current choice before trying again.",
+    "locale_save_outcome_unknown": "We could not confirm whether your language was saved. Check the current choice before trying again.",
+    "locale_saved_settings_failed": "Your language was saved, but other settings could not be saved. Check those settings before trying again."
+  },
   "sharing": {
     "clip_format_unsupported": "This package contains a clip in an unsupported format, such as the retired animaPoseClip/1.0. Only animaPoseClip/2.0 clips can be imported or exported.",
     "dependencyMissingItems": "Some content uses an Included effect that was removed. Open it in its creator, map or remove those effect events, then export: {{items, list(style: narrow)}}.",

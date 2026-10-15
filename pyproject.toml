@@ -1,6 +1,6 @@
 [project]
 name = "animama-backend"
-version = "0.3.0"
+version = "0.4.0"
 description = "Animama backend for an AI avatar companion app with direct model-client chat runtime."
 readme = "README.md"
 requires-python = ">=3.12"

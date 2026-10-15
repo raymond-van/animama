@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHostedComposition } from "./hosted-composition";
 import { hostedCapabilitiesFixture as capabilities } from "../runtime/runtime-fixture";
 import { RuntimeController } from "../runtime/runtime-controller";
+import type { HostedLocaleInput } from "@animama/runtime-contracts/locale";
 
 const active = {
   schema_version: 1,
@@ -58,6 +59,94 @@ function installReloadStorage() {
 
 describe("hosted admission and transport", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("clears account-derived locale immediately on sign-out while retaining the visitor choice", async () => {
+    const { composition, fetch } = fixture();
+    fetch.mockResolvedValueOnce(
+      Response.json({ ...active, locale: { preference: "ja", visitor: "ko" } }),
+    );
+    const controller = new RuntimeController(composition);
+    await controller.refresh();
+    let finish!: (response: Response) => void;
+    fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const signingOut = controller.signOut();
+    expect(controller.getSnapshot().locale).toEqual({
+      preference: null,
+      visitor: "ko",
+    });
+    finish(Response.json({ ok: true }));
+    await signingOut;
+    controller.dispose();
+  });
+
+  it("publishes display locale before admission and refreshes it without replacing session state", async () => {
+    const { composition, fetch } = fixture();
+    fetch.mockResolvedValueOnce(
+      Response.json({ ...active, locale: { preference: null, visitor: "ja" } }),
+    );
+    const controller = new RuntimeController(composition);
+    await controller.refresh();
+    const first = controller.getSnapshot();
+    expect(first.locale).toEqual({ preference: null, visitor: "ja" });
+    first.queryClient.setQueryData(["draft"], "keep me");
+    fetch.mockResolvedValueOnce(
+      Response.json({ ...active, locale: { preference: "ko", visitor: "ja" } }),
+    );
+    await controller.refresh();
+    expect(controller.getSnapshot().locale).toEqual({
+      preference: "ko",
+      visitor: "ja",
+    });
+    expect(controller.getSnapshot().scope).toBe(first.scope);
+    expect(controller.getSnapshot().queryClient).toBe(first.queryClient);
+    expect(first.queryClient.getQueryData(["draft"])).toBe("keep me");
+    controller.dispose();
+  });
+
+  it("accepts signed-out display hints without granting admission and ignores invalid individual hints", async () => {
+    const { composition, fetch } = fixture();
+    fetch.mockResolvedValueOnce(
+      Response.json({
+        ...active,
+        state: "session_required",
+        user_id: null,
+        locale: { preference: "en-US", visitor: "zh-Hant" },
+      }),
+    );
+    const controller = new RuntimeController(composition);
+    await controller.refresh();
+    expect(controller.getSnapshot().admission.status).toBe("sign-in-required");
+    expect(controller.getSnapshot().locale).toEqual({
+      preference: null,
+      visitor: "zh-Hant",
+    });
+    expect(controller.getSnapshot().scope).toBeNull();
+    controller.dispose();
+  });
+
+  it("reuses the original startup context response for admission", async () => {
+    const fetch = vi.fn();
+    const composition = createHostedComposition({
+      baseUrl: "https://app.example.test",
+      fetch,
+      navigate: vi.fn(),
+      initialContext: Response.json({
+        ...active,
+        locale: { preference: "ko", visitor: null },
+      }),
+    });
+    const controller = new RuntimeController(composition);
+    await controller.refresh();
+    expect(controller.getSnapshot().admission.status).toBe("ready");
+    expect(controller.getSnapshot().locale?.preference).toBe("ko");
+    expect(fetch).not.toHaveBeenCalled();
+    controller.dispose();
+  });
 
   it("recovers the original draft namespace after reload without persisting credentials", async () => {
     const rows = new Map<string, string>();
@@ -1005,6 +1094,8 @@ function hostedService() {
     loginReply: null as null | (() => Promise<Response>),
     /** Fails runtime-context reads, as during a brief outage. */
     contextFails: false,
+    contextReply: null as null | (() => Promise<Response>),
+    locale: { preference: "ja", visitor: "ja" } as HostedLocaleInput,
     calls: [] as Request[],
     paths: () => service.calls.map((call) => new URL(call.url).pathname),
     fetch: (async (input) => {
@@ -1013,15 +1104,22 @@ function hostedService() {
       const path = new URL(request.url).pathname;
       if (path === "/v1/hosted/runtime-context" && service.contextFails)
         throw new TypeError("Failed to fetch");
+      if (path === "/v1/hosted/runtime-context" && service.contextReply)
+        return service.contextReply();
       if (path === "/v1/hosted/runtime-context")
         return Response.json(
           service.session
-            ? { ...active, recovery_session_id: service.session }
+            ? {
+                ...active,
+                recovery_session_id: service.session,
+                locale: service.locale,
+              }
             : {
                 ...active,
                 state: "session_required",
                 user_id: null,
                 csrf_token: null,
+                locale: service.locale,
               },
         );
       if (path === "/api/cloud/auth/logout") {
@@ -1446,8 +1544,79 @@ describe("hosted sign-in and sign-out", () => {
       await tab.controller.signOut();
       expect(tab.incomplete()).toBe(false);
       service.session = "fixture-session-generation-two";
+      service.locale = { preference: "zh-Hant", visitor: "ko" };
+      page.focus();
+      await vi.waitFor(() =>
+        expect(tab.controller.getSnapshot().locale).toEqual({
+          preference: null,
+          visitor: "ko",
+        }),
+      );
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.controller.getSnapshot().scope).toBeNull();
+      service.locale = { preference: "zh-Hant", visitor: null };
+      page.focus();
+      await vi.waitFor(() =>
+        expect(tab.controller.getSnapshot().locale).toEqual({
+          preference: null,
+          visitor: null,
+        }),
+      );
+      expect(tab.status()).toBe("sign-in-required");
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("retains the signed-out visitor display and admission latch when its focus read fails", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      service.session = "fixture-session-generation-two";
+      service.contextFails = true;
       page.focus();
       await tab.controller.refresh();
+      expect(tab.controller.getSnapshot().locale).toEqual({
+        preference: null,
+        visitor: "ja",
+      });
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.controller.getSnapshot().scope).toBeNull();
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("does not apply an aborted signed-out display read", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      let finish!: (response: Response) => void;
+      service.contextReply = () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        });
+      const abort = new AbortController();
+      const read = tab.composition.readAdmission(abort.signal);
+      expect(finish).toBeTypeOf("function");
+      abort.abort();
+      finish(
+        Response.json({
+          ...active,
+          locale: { preference: "ko", visitor: "ko" },
+        }),
+      );
+      await expect(read).rejects.toMatchObject({ name: "AbortError" });
+      expect(tab.composition.localeInput!()).toEqual({
+        preference: null,
+        visitor: "ja",
+      });
       expect(tab.status()).toBe("sign-in-required");
     } finally {
       tab.close();

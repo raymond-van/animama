@@ -18,6 +18,9 @@ import {
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import { queryKeys } from "@/query/keys";
+import { useOptionalRuntimeController } from "@/app/runtime/RuntimeAdmissionProvider";
+import { isUiLocale } from "@animama/runtime-contracts/locale";
+import type { SessionRequestScope } from "@/app/runtime/session-requests";
 
 export type UpdateUserSettingsArgs = {
   body: PyUserSettingsUpdate;
@@ -29,23 +32,46 @@ export function useUpdateUserSettings() {
   const queryClient = useQueryClient();
   const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
+  const controller = useOptionalRuntimeController();
+  const currentSession = (scope?: SessionRequestScope | null) =>
+    !controller ||
+    (controller.getSnapshot().scope === scope && scope?.key === userId);
 
-  return useMutation<PyUserSettings, Error, UpdateUserSettingsArgs>({
+  return useMutation<
+    PyUserSettings,
+    Error,
+    UpdateUserSettingsArgs,
+    { scope: SessionRequestScope | null | undefined }
+  >({
+    onMutate: () => ({ scope: controller?.getSnapshot().scope }),
     mutationFn: async (args) => {
-      const { data } = await patchUserSettingsV1UsersMeSettingsPatch({
-        client: apiClient,
-        body: args.body,
-        responseValidator: undefined,
-        throwOnError: true,
-      });
-      return data;
+      const write = async () => {
+        const result = await patchUserSettingsV1UsersMeSettingsPatch({
+          client: apiClient,
+          body: args.body,
+          responseValidator: undefined,
+          throwOnError: false,
+        });
+        if (result.error)
+          throw { ...result.error, status: result.response.status };
+        if (!result.data) throw new Error("Settings response was empty");
+        return result.data;
+      };
+      // Omitted locale is unrelated settings work. Never infer intent from the
+      // server's full materialized settings response.
+      return controller &&
+        userId &&
+        "locale" in args.body &&
+        (args.body.locale === null || isUiLocale(args.body.locale))
+        ? controller.saveLocale(userId, args.body.locale, write)
+        : write();
     },
-    onSuccess: (settings) => {
-      if (!userId) return;
+    onSuccess: (settings, _args, context) => {
+      if (!userId || !currentSession(context?.scope)) return;
       queryClient.setQueryData(queryKeys.settings.user(userKey), settings);
     },
-    onSettled: () => {
-      if (!userId) return;
+    onSettled: (_data, _error, _args, context) => {
+      if (!userId || !currentSession(context?.scope)) return;
       queryClient.invalidateQueries({
         queryKey: queryKeys.settings.all(userKey),
       });

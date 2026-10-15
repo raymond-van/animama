@@ -1,11 +1,12 @@
 # Supply hosted locale preferences through public composition contracts
 
-Status: **Draft pending owner review**; implementation has not started.
+Status: **Approved; Phase 1 complete, Phase 2 next.**
 Source agreement: [#576](https://github.com/raymond-van/animama/issues/576), accepted
 revision `hosted-locale-contract-2026-10-15-r1`; [spec snapshot](hosted-locale-contract-spec.md)
 captured 2026-10-15T19:23:50Z. The issue remains authoritative.
-Authorized scope now: workspace setup and this plan only. Implementation of either
-phase requires plan approval; merge, billed validation and publication stay separate.
+Authorized scope: both phases, approved 2026-10-15, starting with this public
+prerequisite. The owner explicitly prohibited merge and deployment. Billed
+validation and artifact publication retain their separate gates.
 Branch: `feat/hosted-locale-contract`; starting source:
 `dca4af86da2ce21386b21ebed6d8175c674d58be`. Use one branch and PR for both phases.
 
@@ -23,12 +24,14 @@ Account storage, cookies, email, consumer migration and publication are outside 
 
 - [x] Accepted scope published; public task branch and phase issues prepared.
 - [x] Inspect startup, locale synchronization, settings writes and artifact contracts.
-- [ ] Owner review of this ExecPlan; implementation authorization remains outstanding.
-- [ ] Phase 1: [#577](https://github.com/raymond-van/animama/issues/577), contracts and app behavior.
+- [x] 2026-10-15: owner approved both ExecPlans for implementation; no merge/deploy.
+- [x] Phase 1: [#577](https://github.com/raymond-van/animama/issues/577), completed from planning commit `d630533df9d2ec7cf3db27a764b67a651bf5d4d9`; contracts and app behavior, checks and bounded review passed.
 - [ ] Phase 2: [#578](https://github.com/raymond-van/animama/issues/578), immutable artifacts and independent consumers; depends on #577.
 - [ ] Final integration review, owner acceptance and exact-candidate merge approval.
 
-No implementation checks or services have run; no task stack exists.
+The recorded task worktree/branch was reused and clean at implementation start.
+Frozen host dependencies and tracked LFS assets are ready; both optional speech
+sets verify from the existing shared store. No task stack exists yet.
 
 ## Surprises & Discoveries
 
@@ -48,6 +51,14 @@ No implementation checks or services have run; no task stack exists.
 ## Decision Log
 
 - 2026-10-15, owner: accepted the public prerequisite; requested setup and planning.
+- 2026-10-15, owner: approved both execution plans and instructed implementation
+  to start with this prerequisite; no merge or deployment is authorized.
+- 2026-10-15, implementation: the new required Python composition hook advances
+  `animama-backend` to 0.4.0; the additive locale declarations advance
+  `runtime-contracts` to 0.10.0. Keep local-http 9.0.0 and runtime-owner 1.0.0 if
+  offline schema comparison confirms unchanged wire schemas. Product-ui needs
+  no bump unless its emitted declarations change. A partial settings reset that
+  omits locale remains unrelated; full reset refers to the DELETE operation.
 - 2026-10-15, plan proposal: retain local persistence; consumers own remote authority,
   cookie effects and reconciliation. Interface spelling is proposed within H1–H6;
   record engineering changes here; accepted behavior changes need owner agreement.
@@ -185,12 +196,58 @@ Record revision, checks, limitations and `feat(locale)[p1]` commit here.
 
 #### Code Review #1 Findings
 
-Not run. Record reviewed revision, stable IDs, evidence and impact; no findings is valid.
+Independent analysis reviewed the frozen working tree against planning commit
+`d630533df9d2ec7cf3db27a764b67a651bf5d4d9`, including new files, against H1–H6.
+Result: blocked on two actionable findings; no additional backend, ownership,
+partial-outcome or version-contract findings.
+
+- R1 (P2, H3): with no saved preference and an active visitor choice, the picker
+  already selects System default. Radix suppresses unchanged values, so choosing
+  it again cannot send the explicit clear. Test actual pointer/keyboard activation.
+- R2 (P2, H2): a tab that signed out locally returns before reading locale hints
+  on focus. Preserve its admission latch while refreshing visitor display input
+  and keeping account preference cleared.
+
+Independent checks found three additional failures: generated English catalog
+ordering, an unused test argument, and the entrypoint import guard not admitting
+the new pure startup helper. The full backend gate passed (4,670 passed,
+29 skipped; formatting, Ruff and mypy passed). Frontend package build/check/tests
+passed; package browser tests needed an unrestricted local Chromium launch after
+the sandbox rejected startup. The first web suite reached 5,096 passed, one skipped
+and the entrypoint guard failure; subsequent browser fixtures were not reached.
 
 #### Code Review #1 Revisions
 
-Not started. Record dispositions, fixes and reruns; at most two repair rounds, then
-stop for owner review if supported blockers remain.
+R1 and R2 accepted and repaired. Four real Radix interaction cases first failed
+with zero writes, then passed for mouse/Enter/Space clearing and saved-language
+reselection. An ordinary change saves once; Space typeahead does not save. The
+signed-out focus regression first retained the stale visitor, then passed for
+changed/cleared visitors, read failure and abort while preserving the admission
+latch. Existing other-tab admission still passes. The shared Select is unchanged.
+The three check failures were corrected; extraction dry-run and the first repeated
+`pnpm check` and `pnpm web:lint` passed. Focused repair coverage passed 97 tests.
+
+#### Code Review #2 Findings and Revisions
+
+Independent targeted analysis passed R1/R2. The coordinator then reproduced a
+new repair regression, R3 (P2): the selected-option handler ignored an already
+prevented pointer release, bypassing Radix's opening-click cancellation and
+saving when the person only opened the picker. A capture-cancelled pointer test
+failed with one unintended clear. Repair round 2 adds `defaultPrevented` guards;
+all seven picker tests and targeted formatting pass. No findings were waived.
+Repair rounds used: 2 of 2; no further automatic repair round is available.
+
+#### Code Review #3 Findings and Revisions
+
+Independent R3-only analysis passed: prevented pointer/click/key events cannot
+save, and Space selection still waits for Radix's typeahead handling. R1/R2 remain
+resolved with no new repair regression found. All three findings are resolved;
+the frozen web suite passed 5,106 Vitest cases (one skipped), all 535 test files,
+and 115 browser-script cases with zero failures/skips. Final `pnpm check`,
+`pnpm web:lint`, `pnpm prettier:check`, `pnpm build` and
+`pnpm --filter animama-web build:hosted` all passed. Package build/check and 56
+package tests passed on unchanged package source. Build warnings concern large
+chunks only. Reviewers ran no duplicate suites. Phase 1 is complete.
 
 ### Phase 2: Prove the immutable emitted application
 
@@ -247,8 +304,9 @@ The PR links #576 and this plan at the reviewed revision and identifies outstand
 Planning verification covers document links/whitespace and independent interface
 review. That review clarified consumer validation before remote effects and
 ambiguous readback behavior; it does not constitute a phase implementation review.
-All runtime acceptance remains
-unperformed. Record commands, revision, environment and results. Finish local checks before
+Phase 1 source tests and source browser fixtures are recorded above; emitted-artifact
+and disposable built-stack acceptance remain unperformed. Record commands,
+revision, environment and results. Finish local checks before
 pushing; disabled/pending/reduced Validation is not full CI. Exact merge needs owner approval.
 Provider calls, physical microphone/heard audio, native release acceptance and publication
 are neither established by these public fixtures nor authorized here.
@@ -266,5 +324,16 @@ needs the measured compatibility evidence, not a version-number assumption.
 
 ## Outcomes & Retrospective
 
-Planning only: two phases and public acceptance paths are prepared; no behavior changed.
-Record delivered outcomes, evidence, remaining gates and lessons after implementation.
+Phase 1 is complete. The backend hook and partial-outcome mapping pass 46
+focused settings/ports/model-catalog tests and the full offline gate (4,670 passed,
+29 skipped), plus formatting, Ruff and mypy.
+The first exact-intent test failed before implementation and passed afterwards.
+The current offline OpenAPI export equals the verified baseline, so local-http
+remains 9.0.0. Repository boundary checks report zero private dependencies and
+zero forbidden Python edges. Final frontend validation passed 5,106 Vitest cases
+(one skipped), 115 source browser cases and all static/build gates. Package tests
+passed 56 cases. Independent review resolved R1–R3 within two repair rounds.
+Ignored logs and exact frontend command receipts live under this plan's `phase1/`.
+Emitted-artifact and disposable built-stack acceptance remain Phase 2 work.
+GitHub's Portable product validation workflow was read back as manually disabled;
+no hosted run, workflow dispatch, promotion or deployment is claimed.

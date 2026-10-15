@@ -5,7 +5,7 @@ import type { i18n as I18nInstance } from "i18next";
 import { AnimamaI18nProvider } from "@animama/product-ui/i18n";
 
 import { RuntimePlatformProvider } from "@/platform/RuntimePlatformProvider";
-import { LocaleSync } from "@/i18n/LocaleSync";
+import { HostedLocaleSync, LocaleSync } from "@/i18n/LocaleSync";
 import { Toaster } from "@/ui/components/sonner";
 import { ThemeProvider } from "@/ui/theme/theme-provider";
 import {
@@ -31,6 +31,7 @@ export function AppProviders({
       <ThemeProvider>
         <RuntimePlatformProvider>
           <RuntimeAdmissionProvider controller={controller}>
+            <HostedLocaleSync />
             <ApplicationSession>{children}</ApplicationSession>
           </RuntimeAdmissionProvider>
         </RuntimePlatformProvider>

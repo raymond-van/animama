@@ -28,6 +28,30 @@ inventory marks each route shared, local-only or withheld by a capability. Share
 byte routes answer GET only: a consumer that serves HEAD or Range for them adds
 those through its own delivery port or routes.
 
+Shared user-settings writes await
+`ProductPorts.prepare_user_settings_change(session, principal, mutation)` after
+shared request, model-role and create-conflict validation, before materializing
+or writing settings. `UserSettingsMutation` preserves the operation (`create`,
+`patch` or `reset`) and exact supplied fields: omitted `locale` has no language
+effect, explicit `null` clears the preference, and full reset expresses a clear.
+The local composition implements a no-op. A hosted consumer validates its own
+field and ownership constraints before any external preference write; validation
+deferred until repository upsert is too late to prevent a remote side effect.
+The hook uses the existing composition-owned session and does not commit it.
+The existing post-write notification remains separate.
+
+A consumer that stores language outside its settings transaction tracks whether
+the remote update was not attempted, confirmed or uncertain. It may refuse with
+`locale_conflict` (409), `locale_authority_unavailable` (503),
+`locale_save_outcome_unknown` (503), or `locale_saved_settings_failed` (409).
+The last result means the language saved but remaining settings did not complete.
+The function-scoped write session finishes before the HTTP response; a consumer
+can map a deferred commit failure to that result. Never compensate by restoring
+an old remote language. Readback reconciles current display state but cannot
+confirm which concurrent mutation committed without an operation receipt.
+Ambiguous results remain unknown, do not update visitor persistence as a confirmed
+save, and require fresh authority and current user intent before explicit retry.
+
 `POST /v1/animas/{anima_id}/chat:sse` asks the consumer's guard to admit each turn
 (`admit_chat_turn`) after the Anima ownership and runtime-revision checks and
 before any write or model call; a refusal is a `ProductRefusal` (reported as
@@ -90,6 +114,31 @@ rejects embedded credentials, and hides its Account controls (admission screens
 and the sidebar menu) while the URL is absent or invalid. This field does not
 authorize API calls or alter the immutable entry document. The consumer supplies
 its configured central account URL in every context response.
+
+The context may supply display-only
+`locale: {preference: UiLocale | null, visitor: UiLocale | null}` using the
+`HostedLocaleInput` exported by `@animama/runtime-contracts/locale`. A saved
+preference belongs only to the currently authenticated owner; a signed-out
+response may supply only the visitor choice. Supported tags are `en`, `ja`, `ko`,
+`zh-Hans` and `zh-Hant`. Resolve saved preference, explicit visitor choice,
+ordered browser languages, then English. This input grants no admission.
+
+The hosted entrypoint reads context through the original same-origin transport
+before initializing visible text and reuses that response for admission. When
+the field is present, the last-applied origin cache never outranks it; invalid
+individual values are ignored. A missing field retains the older consumer's
+fallback behavior. An unavailable initial read falls back to browser languages
+and the existing admission retry flow. Refresh on focus, sign-in and confirmed
+language changes updates text without replacing the admitted session, router,
+query client or in-progress work. Fence reads and save acknowledgements against
+owner/session replacement and newer language operations.
+
+The settings picker reflects nullable saved preference, not the resolved display
+language. Its System default choice clears both saved and visitor choices, so
+its label describes browser resolution after that clear. Unrelated settings
+writes and partial resets that omit locale leave both choices alone. The
+consumer owns persistence and any browser cookie; public artifacts contain no
+fixed cookie domain, private-service URL or credential.
 
 A hosted context with a verified session (in any state, including first-use
 setup) may also supply `recovery_session_id`, a URL-safe opaque
@@ -175,7 +224,7 @@ The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offlin
 in `local-http` version **9.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.9.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.10.0 and
 `product-ui` is version 0.14.0. Consumers explicitly admit
 the new contract major before adoption.
 

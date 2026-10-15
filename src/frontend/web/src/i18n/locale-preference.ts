@@ -7,6 +7,7 @@ import {
   isUiLocale,
   resolveLocale,
   type UiLocale,
+  type HostedLocaleInput,
 } from "@animama/runtime-contracts/locale";
 
 /** Last locale this browser applied, used only to paint before App settings load. */
@@ -76,8 +77,17 @@ function rememberedLocale(): UiLocale | null {
  * Locale for the first paint, before App settings are available: the pseudo-locale
  * when requested in development, else the last applied locale, else the system.
  */
-export function initialLocale(): ActiveLocale {
+export function initialLocale(hosted?: HostedLocaleInput | null): ActiveLocale {
   if (pseudoLocaleActive()) return PSEUDO_LOCALE;
+  // undefined means an older composition; null means its initial read failed.
+  // Neither a supplied extension nor a failed read may promote another
+  // account's last applied language to a preference.
+  if (hosted !== undefined)
+    return resolveLocale({
+      saved: hosted?.preference,
+      visitor: hosted?.visitor,
+      preferred: systemPreferredLanguages(),
+    });
   return (
     rememberedLocale() ??
     resolveLocale({ preferred: systemPreferredLanguages() })
