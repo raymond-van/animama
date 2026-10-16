@@ -25,8 +25,8 @@ separately records a noncommercial distribution basis, which release validation
 requires; changing it is a separate owner decision. Per-file terms are documented
 in the code/model notices; source-code licensing does not replace model terms.
 
-Annie's model uses VRoid preset terms. Caitlyn is authored by Raymond Van using
-VRoid Studio; component terms remain applicable. Their embedded metadata and
+Annie's model uses VRoid preset terms. Caitlyn is pixiv VRoid Project's unmodified
+sample model under CC BY 4.0. Their embedded metadata and
 renderer-captured portraits do not make all underlying material AGPL or CC0.
 Keep notices and exact file mappings with each candidate.
 
