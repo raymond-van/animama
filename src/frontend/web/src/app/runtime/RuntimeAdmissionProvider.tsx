@@ -65,3 +65,16 @@ export function useOptionalAccountAffordances(): AccountAffordances | null {
     )?.account ?? null
   );
 }
+
+/** Nullable saved choice from hosted authority, even while settings cache is stale. */
+export function useOptionalLocaleInput() {
+  const controller = useContext(RuntimeAdmissionContext);
+  const snapshot = () => controller?.getSnapshot() ?? null;
+  return (
+    useSyncExternalStore(
+      controller?.subscribe ?? withoutController,
+      snapshot,
+      snapshot,
+    )?.locale ?? null
+  );
+}

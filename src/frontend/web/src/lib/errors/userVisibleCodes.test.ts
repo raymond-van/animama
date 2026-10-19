@@ -33,6 +33,7 @@ describe("user-visible diagnostic codes", () => {
       "loadout",
       "modelConfiguration",
       "profile",
+      "settings",
       "sharing",
       "uploads",
       "webSearch",

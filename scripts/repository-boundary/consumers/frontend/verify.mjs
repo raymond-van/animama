@@ -41,6 +41,11 @@ try {
     return route.continue();
   });
   await page.goto(origin);
+  const locales = await page.evaluate(() => window.consumerLocales);
+  assert.deepEqual(locales, {
+    visitor: "ja", savedEnglish: "en", systemDefault: "zh-Hant",
+    invalidHints: "zh-Hans", fallback: "en",
+  });
   for (const scope of ["local", "hosted"]) {
     const pane = page.getByTestId(scope);
     await pane.getByRole("button", { name: `${scope === "local" ? "Local" : "Hosted"} Anima`, exact: true }).click();
@@ -88,7 +93,7 @@ try {
     if (request.body?.chat_id) assert.equal(request.body.chat_id, `${request.scope}-chat`);
   }
   assert.deepEqual(failures, []);
-  const report = { result: "passed", owners: 2, sourceImports: "packed packages only", styling, assetRequests, ...evidence };
+  const report = { result: "passed", owners: 2, sourceImports: "packed packages only", locales, styling, assetRequests, ...evidence };
   await writeFile("browser-evidence.json", JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report));
 } catch (error) {

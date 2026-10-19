@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ProductRuntimeProvider } from "@animama/product-ui";
+import { resolveLocale, type HostedLocaleInput } from "@animama/runtime-contracts/locale";
 import { useAnimas } from "@animama/product-ui/query";
 import { useProductChatSession, textOnlyChatEffects } from "@animama/product-ui/chat";
 import { AnimaSelection, ChatConversation, ChatInput, ChatInputTextArea, ChatInputSubmit } from "@animama/product-ui/components";
@@ -9,9 +10,20 @@ import "@animama/product-ui/styles.css";
 import { evidence, fixtureTransport, type Scope } from "./fixtures";
 
 declare global {
-  interface Window { consumerEvidence: typeof evidence }
+  interface Window { consumerEvidence: typeof evidence; consumerLocales: typeof consumerLocales }
 }
 window.consumerEvidence = evidence;
+
+// Both the declaration and runtime export must work from the installed tarball.
+const hostedLocale: HostedLocaleInput = { preference: null, visitor: "ja" };
+const consumerLocales = {
+  visitor: resolveLocale({ saved: hostedLocale.preference, visitor: hostedLocale.visitor, preferred: ["ko-KR"] }),
+  savedEnglish: resolveLocale({ saved: "en", visitor: hostedLocale.visitor, preferred: ["ko-KR"] }),
+  systemDefault: resolveLocale({ saved: null, visitor: null, preferred: ["fr-FR", "zh-TW"] }),
+  invalidHints: resolveLocale({ saved: "en-US", visitor: "ja-JP", preferred: ["zh-Hans-HK"] }),
+  fallback: resolveLocale({ preferred: ["fr-FR"] }),
+};
+window.consumerLocales = consumerLocales;
 
 /** The consumer owns routing and the issued fence; it contains no session implementation. */
 function Conversation({ scope, onStreaming }: { scope: Scope; onStreaming: (value: boolean) => void }) {

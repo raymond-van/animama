@@ -1291,6 +1291,26 @@ Conversation language. It is never the crisis region. `POST`/`PATCH` accept
 `null` to clear it; any other tag, including `en-US`, returns 422. Stored
 unsupported values read as `null`.
 
+Before `POST`, `PATCH` or `DELETE /v1/users/me/settings` writes, shared routes
+await `ProductPorts.prepare_user_settings_change(session, principal, mutation)`.
+The immutable `UserSettingsMutation` identifies `create`, `patch` or `reset` and
+preserves exactly the supplied fields, including omitted versus explicit `null`
+locale; reset has an empty patch. The hook runs after request validation, model
+role validation and the create-conflict check, before defaults are materialized
+or local settings are written. The local composition does nothing in this hook.
+A composition with an external preference authority validates its additional
+field and ownership rules before performing external effects, using the same
+composition-owned write session as the settings repositories.
+
+The composition may raise `ProductRefusal` from the hook or its deferred commit;
+the function-scoped session closes before the HTTP response is sent. Hosted
+locale errors distinguish conflict, authority unavailability, an unknown save
+outcome and a confirmed locale save followed by a failed settings write; see
+[the hosted contract](../../../contracts/hosted-web.md). A confirmed external
+save is not compensated by the shared routes. Compositions that defer commits
+also defer the existing `user_settings_changed` notification until their commit
+succeeds.
+
 Anima settings include runtime preferences such as memory influence, memory
 updates, emotional analysis, and presentation flags for animation or visual
 effects. Dispatch option resolution combines request-level overrides, settings,

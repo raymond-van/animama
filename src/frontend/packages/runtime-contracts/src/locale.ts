@@ -2,8 +2,8 @@
  * UI Locale contract shared by Animama and its consumers.
  *
  * A UI Locale chooses the language and regional conventions of the interface
- * text and of date, number and plural formatting. It never chooses what an Anima
- * says or hears (its conversation language) or the crisis-resource region.
+ * text and of date, number and plural formatting, and the Anima's conversation
+ * language (ADR 0024). It never chooses the crisis-resource region.
  */
 
 /** Canonical UI Locale tags, in picker order. English is the source locale. */
@@ -17,6 +17,14 @@ export const SUPPORTED_LOCALES = [
 
 /** A canonical UI Locale tag; the only values a saved preference may hold. */
 export type UiLocale = (typeof SUPPORTED_LOCALES)[number];
+
+/** Optional hosted runtime-context display hints; neither grants admission. */
+export interface HostedLocaleInput {
+  /** The account's nullable saved choice, distinct from the resolved language. */
+  readonly preference: UiLocale | null;
+  /** The nullable browser visitor choice, supplied by the hosting composition. */
+  readonly visitor: UiLocale | null;
+}
 
 /** The locale whose catalogs are authored and used as every fallback. */
 export const SOURCE_LOCALE: UiLocale = "en";
@@ -108,16 +116,20 @@ export function matchLocale(tag: string): UiLocale | null {
 export interface LocaleResolutionInput {
   /** The saved preference; anything other than a canonical tag means "System default". */
   readonly saved?: string | null;
+  /** A canonical visitor choice, below an account preference and above the browser. */
+  readonly visitor?: string | null;
   /** The OS or browser preferred-language list, most preferred first. */
   readonly preferred?: readonly string[];
 }
 
-/** Resolve the active UI Locale: saved preference, then preferred languages in order, then English. */
+/** Resolve saved preference, visitor choice, preferred languages in order, then English. */
 export function resolveLocale({
   saved,
+  visitor,
   preferred = [],
 }: LocaleResolutionInput): UiLocale {
   if (isUiLocale(saved)) return saved;
+  if (isUiLocale(visitor)) return visitor;
   for (const tag of preferred) {
     const match = matchLocale(tag);
     if (match) return match;

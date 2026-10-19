@@ -36,6 +36,7 @@ from animama.product_http.ports import (
     ReadContent,
     ReadRepositories,
     ReadSession,
+    UserSettingsMutation,
     WriteContent,
     WriteRepositories,
     WriteSession,
@@ -133,6 +134,11 @@ class RecordingPorts:
 
     async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
         return HOSTED_CAPABILITIES
+
+    async def prepare_user_settings_change(
+        self, session: AsyncSession, principal: RequestPrincipal, mutation: UserSettingsMutation
+    ) -> None:
+        pass
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         pass

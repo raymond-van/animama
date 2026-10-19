@@ -271,5 +271,11 @@
     "rate_limited": "搜索服务正在限制请求。请稍后重试。",
     "timeout": "搜索服务未能及时响应。",
     "unreachable": "无法连接到搜索服务。请检查地址并确认其正在运行。"
+  },
+  "settings": {
+    "locale_conflict": "语言偏好已在其他地方更改。请检查当前选择后重试。",
+    "locale_authority_unavailable": "语言偏好暂时不可用。请在连接恢复后重试。",
+    "locale_save_outcome_unknown": "无法确认语言是否已保存。请检查当前选择后重试。",
+    "locale_saved_settings_failed": "语言已保存，但其他设置未能保存。请检查这些设置后重试。"
   }
 }

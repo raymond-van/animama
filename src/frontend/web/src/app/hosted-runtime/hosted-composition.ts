@@ -23,6 +23,8 @@ import {
 } from "./recovery-identity";
 import { purgeHostedRecoverySessions } from "@/lib/content/recovery-session";
 import { WordedError } from "@/lib/errors/apiError";
+import type { HostedLocaleInput } from "@animama/runtime-contracts/locale";
+import { hostedLocaleInput } from "./hosted-context";
 
 type HostedContext = {
   schema_version: number;
@@ -38,6 +40,8 @@ type Options = {
   fetch: typeof globalThis.fetch;
   navigate: (url: string) => void;
   sessionKey?: () => string;
+  /** The original startup read, reused after i18n is ready. */
+  initialContext?: Response;
 };
 
 /**
@@ -64,12 +68,18 @@ const MAX_SETUP_POLLS = 24;
 const SETUP_PAUSE_MS = 2_000;
 const MAX_SETUP_PAUSE_MS = 60_000;
 
-/** A hosted runtime this application cannot use until it is updated (worded when reported). */
+/**
+ * Admission messages use getters: render-time reads follow the current language
+ * without rereading admission or consuming a one-shot sign-in failure again.
+ */
+/** A hosted runtime this application cannot use until it is updated. */
 function updateRequired(): RuntimeAdmission {
   const t = getI18n().getFixedT(null, "app");
   return {
     status: "unavailable",
-    message: t("admission.messages.updateRequired"),
+    get message() {
+      return t("admission.messages.updateRequired");
+    },
   };
 }
 
@@ -78,6 +88,14 @@ export function createHostedComposition(
   options: Options,
 ): AppComposition & { browserFetch: typeof globalThis.fetch } {
   const origin = new URL(options.baseUrl).origin;
+  let initialContext = options.initialContext;
+  let locale: HostedLocaleInput | null = null;
+  // A save acknowledgement or sign-out fences a context read already in flight.
+  let localeRevision = 0;
+  const clearLocalePreference = () => {
+    ++localeRevision;
+    if (locale) locale = { ...locale, preference: null };
+  };
   let csrf: string | null = null;
   let scope: SessionRequestScope | null = null;
   let session: {
@@ -167,7 +185,9 @@ export function createHostedComposition(
     return signInFailed
       ? {
           status: "sign-in-required",
-          message: t("admission.messages.signInNotFinished"),
+          get message() {
+            return t("admission.messages.signInNotFinished");
+          },
         }
       : { status: "sign-in-required" };
   };
@@ -254,6 +274,7 @@ export function createHostedComposition(
   }
 
   async function signOutOnce(): Promise<void> {
+    clearLocalePreference();
     loginRequest?.abort();
     const admitted = session;
     // The session to end: the admitted one, or the one a failed sign-out
@@ -338,7 +359,9 @@ export function createHostedComposition(
       const t = getI18n().getFixedT(null, "app");
       return {
         status: "loading",
-        message: t("admission.messages.accountSetupFinishing"),
+        get message() {
+          return t("admission.messages.accountSetupFinishing");
+        },
       };
     }
     const permitted = open
@@ -360,7 +383,9 @@ export function createHostedComposition(
     return setup.running
       ? {
           status: "loading",
-          message: t("admission.messages.accountSetupRunning"),
+          get message() {
+            return t("admission.messages.accountSetupRunning");
+          },
         }
       : { status: "recovery" };
   }
@@ -451,7 +476,9 @@ export function createHostedComposition(
       const t = getI18n().getFixedT(null, "app");
       return {
         status: "unavailable",
-        message: t("admission.messages.incompatibleCapabilities"),
+        get message() {
+          return t("admission.messages.incompatibleCapabilities");
+        },
       };
     }
     const recovery = recoveryGeneration(context.recovery_session_id);
@@ -489,7 +516,12 @@ export function createHostedComposition(
       // stays until that session ends or a newer sign-in replaces it.
       const retryView = (): RuntimeAdmission =>
         takeSignInError()
-          ? { status: "sign-in-required", message: signInErrorMessage() }
+          ? {
+              status: "sign-in-required",
+              get message() {
+                return signInErrorMessage();
+              },
+            }
           : { status: "sign-in-required" };
       try {
         await liveSession(signal);
@@ -499,14 +531,48 @@ export function createHostedComposition(
         return retryView();
       }
     }
-    if (signedOut || signedOutElsewhere) return { status: "sign-in-required" };
+    if (signedOut || signedOutElsewhere) {
+      // Sign-out keeps admission latched, but another site can still change or
+      // clear the browser's display choice. Never adopt its account preference
+      // or pass this display-only response through account admission.
+      const revision = localeRevision;
+      try {
+        const response = await authorizedFetch("/v1/hosted/runtime-context", {
+          signal,
+        });
+        if (response.ok) {
+          const context = (await response.json()) as HostedContext;
+          signal?.throwIfAborted();
+          if (revision === localeRevision && context.schema_version === 1) {
+            const input = hostedLocaleInput(context);
+            locale = input
+              ? { preference: null, visitor: input.visitor }
+              : null;
+          }
+        }
+      } catch {
+        // A failed display refresh preserves the last visitor choice and can
+        // never undo a local sign-out. An aborted read must remain superseded.
+        signal?.throwIfAborted();
+      }
+      signal?.throwIfAborted();
+      return { status: "sign-in-required" };
+    }
     if (takeSignInError())
-      return { status: "unavailable", message: signInErrorMessage() };
-    const response = await authorizedFetch("/v1/hosted/runtime-context", {
-      signal,
-    });
+      return {
+        status: "unavailable",
+        get message() {
+          return signInErrorMessage();
+        },
+      };
+    const revision = localeRevision;
+    const response =
+      initialContext ??
+      (await authorizedFetch("/v1/hosted/runtime-context", { signal }));
+    initialContext = undefined;
     signal?.throwIfAborted();
     if (response.status === 401 || response.status === 403) {
+      clearLocalePreference();
       session = null;
       csrf = null;
       void scope?.end();
@@ -521,7 +587,14 @@ export function createHostedComposition(
     signal?.throwIfAborted();
     if (context.state === "identity_unavailable" && session)
       throw new Error("Hosted identity is temporarily unavailable");
-    return contextAdmission(context, signal);
+    const admission = await contextAdmission(context, signal);
+    signal?.throwIfAborted();
+    if (revision === localeRevision) {
+      locale = hostedLocaleInput(context) ?? null;
+      if (locale && context.state === "session_required")
+        locale = { ...locale, preference: null };
+    }
+    return admission;
   }
 
   /** A person's retry permits one new setup attempt and restarts progress reads. */
@@ -632,6 +705,13 @@ export function createHostedComposition(
     browserFetch,
     readAdmission,
     repair,
+    localeInput: () => locale,
+    clearLocalePreference,
+    confirmLocale: (preference) => {
+      ++localeRevision;
+      // Older compositions keep the existing settings-driven behavior.
+      if (locale) locale = { preference, visitor: preference };
+    },
     bindSession: (next) => {
       stopEvents();
       scope = next;
@@ -792,6 +872,7 @@ export function createHostedComposition(
               // private work now and reads the server when it is next focused.
               signedOutElsewhere = true;
               session = null;
+              clearLocalePreference();
               notify(true);
             }
           };

@@ -271,5 +271,11 @@
     "rate_limited": "搜尋服務正在限制請求。請稍後重試。",
     "timeout": "搜尋服務未能及時回應。",
     "unreachable": "無法連線到搜尋服務。請檢查位址並確認其正在執行。"
+  },
+  "settings": {
+    "locale_conflict": "語言偏好已在其他地方變更。請檢查目前的選擇後再試。",
+    "locale_authority_unavailable": "語言偏好暫時無法使用。請在連線恢復後再試。",
+    "locale_save_outcome_unknown": "無法確認語言是否已儲存。請檢查目前的選擇後再試。",
+    "locale_saved_settings_failed": "語言已儲存，但其他設定未能儲存。請檢查這些設定後再試。"
   }
 }

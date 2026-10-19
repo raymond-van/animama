@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { initialLocale } from "./i18n/locale-preference";
 import { createWebI18n } from "./i18n/web-i18n";
+import { readHostedStartup } from "./app/hosted-runtime/hosted-context";
 // Product UI's stylesheet comes first so the app's own utilities override it;
 // it is CSS only, so loading it here runs no application code.
 import "@animama/product-ui/styles.css";
@@ -11,7 +12,13 @@ import "./index.css";
 // Text renders in the first-paint locale; App settings may switch it once loaded.
 // Application modules load only once i18n exists, so code that runs while a
 // module loads (such as a store's initial state) can translate.
-void createWebI18n(initialLocale()).then(async (i18n) => {
+void (async () => {
+  const originalFetch = window.fetch.bind(window);
+  const startup = await readHostedStartup(
+    window.location.origin,
+    originalFetch,
+  );
+  const i18n = await createWebI18n(initialLocale(startup.locale));
   const [
     { createHostedComposition },
     { RuntimeController },
@@ -27,7 +34,8 @@ void createWebI18n(initialLocale()).then(async (i18n) => {
   ]);
   const composition = createHostedComposition({
     baseUrl: window.location.origin,
-    fetch: window.fetch.bind(window),
+    fetch: originalFetch,
+    initialContext: startup.response,
     navigate: (url) => window.location.assign(url),
   });
   // Install authority before any component, SDK query, byte load or stream can dispatch.
@@ -41,4 +49,4 @@ void createWebI18n(initialLocale()).then(async (i18n) => {
       </AppProviders>
     </StrictMode>,
   );
-});
+})();

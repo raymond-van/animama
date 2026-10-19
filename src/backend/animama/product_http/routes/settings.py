@@ -12,7 +12,15 @@ from animama.app.services.model_role_resolver import unusable_role_preferences
 from animama.app.services.settings_service import SettingsService, default_anima_preferences
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings, UserSettings
-from animama.product_http.ports import Ports, ProductPorts, ProductRepositories, ReadRepositories, WriteRepositories
+from animama.product_http.ports import (
+    Ports,
+    ProductPorts,
+    ProductRepositories,
+    ReadRepositories,
+    UserSettingsMutation,
+    WriteRepositories,
+    WriteSession,
+)
 from animama.product_http.principal import get_current_principal
 from animama.product_http.routes._owner import require_owned_anima
 
@@ -55,6 +63,7 @@ async def get_user_settings(
 async def create_user_settings(
     ports: Ports,
     repositories: WriteRepositories,
+    session: WriteSession,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     req: PyUserSettingsUpdate | None = None,
 ) -> PyUserSettings:
@@ -64,6 +73,7 @@ async def create_user_settings(
         raise HTTPException(status_code=409, detail="User settings already exist")
     patch = req.model_dump(exclude_unset=True) if req is not None else {}
     await _refuse_unusable_model_roles(ports, repositories, patch)
+    await ports.prepare_user_settings_change(session, user, UserSettingsMutation("create", patch))
     settings = await service.patch_user_settings(user_id=user.id, **patch)
     ports.user_settings_changed(user)
     return user_settings_domain_to_schema(settings)
@@ -74,10 +84,12 @@ async def patch_user_settings(
     req: PyUserSettingsUpdate,
     ports: Ports,
     repositories: WriteRepositories,
+    session: WriteSession,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyUserSettings:
     patch = req.model_dump(exclude_unset=True)
     await _refuse_unusable_model_roles(ports, repositories, patch)
+    await ports.prepare_user_settings_change(session, user, UserSettingsMutation("patch", patch))
     settings = await _service(repositories).patch_user_settings(user_id=user.id, **patch)
     ports.user_settings_changed(user)
     return user_settings_domain_to_schema(settings)
@@ -87,8 +99,10 @@ async def patch_user_settings(
 async def delete_user_settings(
     ports: Ports,
     repositories: WriteRepositories,
+    session: WriteSession,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> Response:
+    await ports.prepare_user_settings_change(session, user, UserSettingsMutation("reset"))
     await _service(repositories).delete_user_settings(user.id)
     ports.user_settings_changed(user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -96,6 +96,26 @@ test("formatting uses the system region when its language matches the active loc
   assert.equal(formattingLocale("en", ["not a tag"]), "en");
 });
 
+test("a canonical visitor choice follows the saved preference and precedes browser languages", () => {
+  assert.equal(
+    resolveLocale({ saved: "ja", visitor: "ko", preferred: ["en-GB"] }),
+    "ja",
+  );
+  assert.equal(
+    resolveLocale({ saved: null, visitor: "zh-Hant", preferred: ["ko-KR"] }),
+    "zh-Hant",
+  );
+  assert.equal(
+    resolveLocale({
+      saved: "invalid",
+      visitor: "zh-TW",
+      preferred: ["fr", "ko-KR"],
+    }),
+    "ko",
+  );
+  assert.equal(resolveLocale({ visitor: null, preferred: ["fr"] }), "en");
+});
+
 test("current UI Locales are left-to-right; right-to-left languages are recognized", () => {
   for (const tag of SUPPORTED_LOCALES)
     assert.equal(localeDirection(tag), "ltr", tag);

@@ -40,6 +40,18 @@ afterEach(() => {
 });
 
 describe("first-paint UI Locale", () => {
+  it("uses hosted preference, visitor and browser order without promoting the applied cache", () => {
+    stubBrowser({ languages: ["fr-FR", "ko-KR"] });
+    rememberAppliedLocale("en");
+    expect(initialLocale({ preference: null, visitor: "zh-Hant" })).toBe(
+      "zh-Hant",
+    );
+    expect(initialLocale({ preference: "ja", visitor: "zh-Hant" })).toBe("ja");
+    expect(initialLocale({ preference: null, visitor: null })).toBe("ko");
+    expect(initialLocale(null)).toBe("ko");
+    // An older hosted server that omits the extension retains its fallback.
+    expect(initialLocale(undefined)).toBe("en");
+  });
   it("follows the system language list before anything was applied", () => {
     stubBrowser({ languages: ["fr-FR", "ko-KR"] });
     expect(initialLocale()).toBe("ko");

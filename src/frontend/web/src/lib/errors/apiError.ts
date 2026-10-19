@@ -45,6 +45,7 @@ export type ErrorArea =
   | "sharing"
   | "uploads"
   | "profile"
+  | "settings"
   | "modelConfiguration"
   | "webSearch";
 
