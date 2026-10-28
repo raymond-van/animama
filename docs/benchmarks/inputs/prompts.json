@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-26.1",
+  "version": "2026-10-28.1",
   "loadout": {
     "path": "loadout-starter-v1.json",
     "sha256": "ea77e820ede0b731cf5702c292d80e8953d886f80890d88d6269476e78be76e6"
@@ -33,6 +33,15 @@
         null,
         "virtual_hug"
       ],
+      "intensity": [
+        7,
+        8
+      ],
+      "tones": [
+        "sorrowful",
+        "sad",
+        "gentle"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -52,6 +61,16 @@
         "head_pat",
         "deflated_sigh",
         "virtual_hug"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "sad",
+        "gentle",
+        "sorrowful",
+        "affectionate"
       ],
       "tier": "full",
       "held_out": false
@@ -73,6 +92,16 @@
         "right-thumbs-down",
         "surprise_gasp"
       ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "irritated",
+        "angry",
+        "stern",
+        "gentle"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -93,6 +122,16 @@
         "right-thumbs-down",
         "single-hand-on-heart"
       ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "irritated",
+        "angry",
+        "stern",
+        "gentle"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -111,6 +150,13 @@
         "oh_no_cheeks_panic",
         "double-thumbs-down",
         "right-thumbs-down"
+      ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "disgusted"
       ],
       "tier": "full",
       "held_out": false
@@ -134,6 +180,14 @@
         "big_x_batsu",
         "pinch_nose_stinky"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "amused",
+        "disgusted"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -154,6 +208,15 @@
         "calm_down_pat",
         "oh_no_cheeks_panic"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "nervous",
+        "scared",
+        "gentle"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -172,6 +235,16 @@
         "surprise_gasp",
         "freezing_shiver",
         "spooky_ghost_hands"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "scared",
+        "nervous",
+        "excited",
+        "amused"
       ],
       "tier": "full",
       "held_out": false
@@ -196,6 +269,14 @@
         "tehepero",
         "flustered_fan"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "embarrassed",
+        "regretful"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -216,6 +297,13 @@
         "nervous_head_scratch",
         "pout_huff",
         "flustered_fan"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "embarrassed"
       ],
       "tier": "full",
       "held_out": false
@@ -240,6 +328,15 @@
         "nom_nom_eating",
         "sniff_sniff_curious"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "eager",
+        "excited",
+        "happy"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -257,6 +354,15 @@
         "please_hands",
         "shy-finger-poke-loop",
         "cat_paws_nya"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "eager",
+        "curious",
+        "amused"
       ],
       "tier": "full",
       "held_out": false
@@ -277,6 +383,15 @@
         "right-thumbs-up",
         "fingers_crossed",
         "fist_bump"
+      ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "hopeful",
+        "excited",
+        "eager"
       ],
       "tier": "full",
       "held_out": false
@@ -299,6 +414,15 @@
         "fingers_crossed",
         "fist_bump"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "hopeful",
+        "gentle",
+        "confident"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -317,6 +441,13 @@
         "polite_bow",
         "single-hand-on-heart"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "regretful"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -334,6 +465,13 @@
         "apology_bow",
         "polite_bow",
         "single-hand-on-heart"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "regretful"
       ],
       "tier": "full",
       "held_out": false
@@ -361,6 +499,16 @@
         "big_arm_heart",
         "aww_hands_to_chest"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "grateful",
+        "happy",
+        "affectionate",
+        "excited"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -387,6 +535,16 @@
         "aww_hands_to_chest",
         "heart_shot_oof"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "grateful",
+        "happy",
+        "affectionate",
+        "embarrassed"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -404,6 +562,16 @@
         "explain_open_palms",
         "count_on_fingers",
         null
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "happy",
+        "gentle",
+        "confident"
       ],
       "tier": "smoke",
       "held_out": false
@@ -427,6 +595,15 @@
         "pon_realization",
         "detective_squint"
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "amused",
+        "curious",
+        "happy"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -444,6 +621,16 @@
         "on_one_hand",
         "thinking-hand-on-chin-hold",
         "thinking_chin_rest"
+      ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "happy",
+        "neutral",
+        "curious"
       ],
       "tier": "full",
       "held_out": false
@@ -464,6 +651,16 @@
         "explain_open_palms",
         null
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "confident",
+        "gentle",
+        "happy"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -482,6 +679,16 @@
         "explain_open_palms",
         null
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "happy",
+        "neutral",
+        "confident",
+        "eager"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -498,6 +705,14 @@
       "acceptable": [
         "count_on_fingers",
         "explain_open_palms"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "neutral"
       ],
       "tier": "full",
       "held_out": false
@@ -519,6 +734,15 @@
         "enthusiastic_yes",
         "tut_tut_finger_wag"
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "stern",
+        "confident",
+        "gentle"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -539,6 +763,14 @@
         "head_shake_no",
         "big_yawn"
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "amused",
+        "gentle"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -557,6 +789,15 @@
         "shrug",
         "deflated_sigh",
         "big_yawn"
+      ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "amused",
+        "gentle",
+        "neutral"
       ],
       "tier": "full",
       "held_out": true
@@ -578,6 +819,16 @@
         "surprised_head_tilt",
         "calm_down_pat"
       ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "curious",
+        "nervous",
+        "excited",
+        "impressed"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -595,6 +846,15 @@
         "wait_stop_palm",
         "shh_finger",
         "big_x_batsu"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "curious",
+        "eager",
+        "excited"
       ],
       "tier": "full",
       "held_out": false
@@ -619,6 +879,15 @@
         "pinky_promise",
         "scheming_hands"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "excited",
+        "happy",
+        "eager"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -641,6 +910,14 @@
         "tiny_bit",
         "innocent_whistle"
       ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "amused",
+        "happy"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -662,6 +939,16 @@
         "fist_bump",
         "hand_hold_offer"
       ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "gentle",
+        "hopeful",
+        "affectionate",
+        "eager"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -681,6 +968,16 @@
         "right-face-palm",
         "deflated_sigh",
         "slow_sarcastic_clap"
+      ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "irritated",
+        "amused",
+        "gentle",
+        "disappointed"
       ],
       "tier": "full",
       "held_out": false
@@ -702,6 +999,14 @@
         "arms-crossed",
         "slow_sarcastic_clap"
       ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "amused",
+        "irritated"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -719,6 +1024,14 @@
         "shy_wave",
         "left-peace-sign",
         "double-peace-pop"
+      ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "happy",
+        "affectionate"
       ],
       "tier": "full",
       "held_out": false
@@ -743,6 +1056,15 @@
         "virtual_hug",
         "excited_two_arm_wave"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "happy",
+        "excited",
+        "affectionate"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -760,6 +1082,14 @@
         "shy_wave",
         "polite_bow",
         "left-peace-sign"
+      ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "happy",
+        "gentle"
       ],
       "tier": "full",
       "held_out": false
@@ -779,6 +1109,14 @@
         "blow_kiss",
         "wave_hello",
         "big_yawn"
+      ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "affectionate"
       ],
       "tier": "smoke",
       "held_out": false
@@ -803,6 +1141,14 @@
         "fist_bump",
         "excited_two_arm_wave"
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "happy",
+        "gentle"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -826,6 +1172,16 @@
         "virtual_hug",
         "excited_two_arm_wave",
         "big_arm_heart"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "affectionate",
+        "sad",
+        "gentle",
+        "happy"
       ],
       "tier": "full",
       "held_out": false
@@ -853,6 +1209,15 @@
         "flustered_fan",
         "brush_off_shoulders"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "happy",
+        "grateful",
+        "excited"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -876,6 +1241,15 @@
         "cheeky-finger-guns",
         "brush_off_shoulders",
         "sassy_hair_flip"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "happy",
+        "confident",
+        "amused"
       ],
       "tier": "full",
       "held_out": false
@@ -901,6 +1275,14 @@
         "virtual_hug",
         "raise_the_roof"
       ],
+      "intensity": [
+        9,
+        10
+      ],
+      "tones": [
+        "excited",
+        "happy"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -923,6 +1305,15 @@
         "high_five",
         "raise_the_roof"
       ],
+      "intensity": [
+        7,
+        10
+      ],
+      "tones": [
+        "excited",
+        "impressed",
+        "happy"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -943,6 +1334,13 @@
         "snicker_laugh",
         "pinch_nose_stinky"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "amused"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -962,6 +1360,13 @@
         "soul_leaves_body",
         "spit_take"
       ],
+      "intensity": [
+        7,
+        8
+      ],
+      "tones": [
+        "amused"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -980,6 +1385,15 @@
         "thinking-head-scratch",
         "have_idea",
         "one_moment_finger"
+      ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "curious",
+        "happy",
+        "eager"
       ],
       "tier": "full",
       "held_out": false
@@ -1001,6 +1415,15 @@
         "pon_realization",
         "one_moment_finger"
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "amused",
+        "curious",
+        "confident"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1020,6 +1443,15 @@
         "double_take",
         "spit_take"
       ],
+      "intensity": [
+        7,
+        10
+      ],
+      "tones": [
+        "excited",
+        "curious",
+        "impressed"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1038,6 +1470,16 @@
         "double_take",
         "surprised_head_tilt"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "impressed",
+        "curious",
+        "excited",
+        "amused"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1052,6 +1494,13 @@
       ],
       "acceptable": [
         null
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
       ],
       "tier": "smoke",
       "held_out": false
@@ -1068,6 +1517,13 @@
       "acceptable": [
         null
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1082,6 +1538,13 @@
       ],
       "acceptable": [
         null
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
       ],
       "tier": "full",
       "held_out": false
@@ -1098,6 +1561,13 @@
       "acceptable": [
         null
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1112,6 +1582,13 @@
       ],
       "acceptable": [
         null
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
       ],
       "tier": "full",
       "held_out": true
@@ -1128,6 +1605,13 @@
       "acceptable": [
         null
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1143,6 +1627,13 @@
       "acceptable": [
         null
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1157,6 +1648,13 @@
       ],
       "acceptable": [
         null
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
       ],
       "tier": "full",
       "held_out": true
@@ -1176,6 +1674,16 @@
         "attentive_lean_in",
         "hands_behind_head_relax"
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "gentle",
+        "happy",
+        "amused"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1193,6 +1701,15 @@
         "nod_yes",
         "left-ok-sign",
         "right-thumbs-up"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "gentle",
+        "happy"
       ],
       "tier": "full",
       "held_out": false
@@ -1214,6 +1731,16 @@
         "soldier-salute",
         "explain_open_palms"
       ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "happy",
+        "excited",
+        "eager",
+        "neutral"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -1232,6 +1759,14 @@
         "presenting",
         "explain_open_palms"
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "confident"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1249,6 +1784,14 @@
         null,
         "presenting",
         "explain_open_palms"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "happy"
       ],
       "tier": "smoke",
       "held_out": false
@@ -1269,6 +1812,14 @@
         "presenting",
         "explain_open_palms"
       ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "happy"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -1286,6 +1837,15 @@
         null,
         "presenting",
         "explain_open_palms"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "confident",
+        "happy"
       ],
       "tier": "full",
       "held_out": false
@@ -1307,6 +1867,15 @@
         "presenting",
         null
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "happy",
+        "excited",
+        "amused"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -1325,6 +1894,15 @@
         "presenting",
         "soldier-salute",
         "noted"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "happy",
+        "neutral",
+        "amused"
       ],
       "tier": "full",
       "held_out": false
@@ -1346,6 +1924,13 @@
         "laugh_hard",
         "laugh_hysterical",
         "snicker_laugh"
+      ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "amused"
       ],
       "tier": "smoke",
       "held_out": false
@@ -1369,6 +1954,15 @@
         "virtual_hug",
         null
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "sad",
+        "gentle",
+        "sorrowful"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -1389,6 +1983,16 @@
         "spit_take",
         "cower_hands_up",
         "surprised_head_tilt"
+      ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "excited",
+        "nervous",
+        "amused",
+        "curious"
       ],
       "tier": "full",
       "held_out": true
@@ -1411,6 +2015,15 @@
         "lean_in_coy",
         null
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "affectionate",
+        "amused"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -1430,6 +2043,15 @@
         "attentive_lean_in",
         "right-thumbs-up"
       ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "happy",
+        "curious",
+        "excited"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1447,6 +2069,14 @@
         null,
         "head_shake_no",
         "explain_open_palms"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "gentle"
       ],
       "tier": "full",
       "held_out": false
@@ -1468,6 +2098,15 @@
         null,
         "virtual_hug"
       ],
+      "intensity": [
+        7,
+        8
+      ],
+      "tones": [
+        "sorrowful",
+        "sad",
+        "gentle"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -1487,6 +2126,16 @@
         "double-thumbs-down",
         "right-thumbs-down",
         "surprise_gasp"
+      ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "irritated",
+        "angry",
+        "stern",
+        "gentle"
       ],
       "tier": "full",
       "held_out": false
@@ -1508,6 +2157,15 @@
         "calm_down_pat",
         "oh_no_cheeks_panic"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "nervous",
+        "scared",
+        "gentle"
+      ],
       "tier": "full",
       "held_out": true
     },
@@ -1528,6 +2186,13 @@
         "nervous_head_scratch",
         "pout_huff",
         "flustered_fan"
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "embarrassed"
       ],
       "tier": "full",
       "held_out": false
@@ -1555,6 +2220,16 @@
         "aww_hands_to_chest",
         "heart_shot_oof"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "grateful",
+        "happy",
+        "affectionate",
+        "embarrassed"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1575,6 +2250,15 @@
         "fingers_crossed",
         "fist_bump"
       ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "hopeful",
+        "excited",
+        "eager"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1592,6 +2276,16 @@
         "explain_open_palms",
         "count_on_fingers",
         null
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "happy",
+        "gentle",
+        "confident"
       ],
       "tier": "full",
       "held_out": false
@@ -1611,6 +2305,16 @@
         "thinking-hand-on-chin-hold",
         "thinking_chin_rest"
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "happy",
+        "neutral",
+        "curious"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1627,6 +2331,14 @@
       "acceptable": [
         "count_on_fingers",
         "explain_open_palms"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "neutral"
       ],
       "tier": "full",
       "held_out": false
@@ -1651,6 +2363,15 @@
         "pinky_promise",
         "scheming_hands"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "excited",
+        "happy",
+        "eager"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -1669,6 +2390,15 @@
         "shh_finger",
         "big_x_batsu"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "curious",
+        "eager",
+        "excited"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1686,6 +2416,14 @@
         "shy_wave",
         "left-peace-sign",
         "double-peace-pop"
+      ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "happy",
+        "affectionate"
       ],
       "tier": "full",
       "held_out": false
@@ -1710,6 +2448,15 @@
         "virtual_hug",
         "excited_two_arm_wave"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "happy",
+        "excited",
+        "affectionate"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -1728,6 +2475,14 @@
         "blow_kiss",
         "wave_hello",
         "big_yawn"
+      ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "affectionate"
       ],
       "tier": "full",
       "held_out": false
@@ -1752,6 +2507,14 @@
         "fist_bump",
         "excited_two_arm_wave"
       ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "happy",
+        "gentle"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1775,6 +2538,14 @@
         "high_five",
         "virtual_hug",
         "raise_the_roof"
+      ],
+      "intensity": [
+        9,
+        10
+      ],
+      "tones": [
+        "excited",
+        "happy"
       ],
       "tier": "full",
       "held_out": false
@@ -1802,6 +2573,15 @@
         "flustered_fan",
         "brush_off_shoulders"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "happy",
+        "grateful",
+        "excited"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1820,6 +2600,16 @@
         "double_take",
         "surprised_head_tilt"
       ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "impressed",
+        "curious",
+        "excited",
+        "amused"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1834,6 +2624,13 @@
       ],
       "acceptable": [
         null
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral"
       ],
       "tier": "full",
       "held_out": false
@@ -1852,6 +2649,15 @@
         "nod_yes",
         "left-ok-sign",
         "right-thumbs-up"
+      ],
+      "intensity": [
+        1,
+        4
+      ],
+      "tones": [
+        "neutral",
+        "gentle",
+        "happy"
       ],
       "tier": "full",
       "held_out": false
@@ -1873,6 +2679,16 @@
         "soldier-salute",
         "explain_open_palms"
       ],
+      "intensity": [
+        3,
+        6
+      ],
+      "tones": [
+        "happy",
+        "excited",
+        "eager",
+        "neutral"
+      ],
       "tier": "smoke",
       "held_out": false
     },
@@ -1892,6 +2708,15 @@
         "sniff_sniff_curious",
         "presenting",
         null
+      ],
+      "intensity": [
+        5,
+        6
+      ],
+      "tones": [
+        "happy",
+        "excited",
+        "amused"
       ],
       "tier": "full",
       "held_out": true
@@ -1914,6 +2739,13 @@
         "laugh_hysterical",
         "snicker_laugh"
       ],
+      "intensity": [
+        5,
+        8
+      ],
+      "tones": [
+        "amused"
+      ],
       "tier": "full",
       "held_out": false
     },
@@ -1934,6 +2766,15 @@
         "beckon_come_here",
         "lean_in_coy",
         null
+      ],
+      "intensity": [
+        3,
+        4
+      ],
+      "tones": [
+        "gentle",
+        "affectionate",
+        "amused"
       ],
       "tier": "full",
       "held_out": true

@@ -68,6 +68,9 @@ def test_an_included_avatar_prefers_an_exact_portrait_over_its_stem() -> None:
 
     assert portrait_matches(avatar, [local_named_like_it, by_stem]) == [by_stem]
     assert portrait_matches(avatar, [by_stem, _exact("exact", "avatar")]) == [_exact("exact", "avatar")]
+    # An Included portrait's URL names its digest; a Local one keeps its registration URL.
+    assert portrait_image_url(by_stem) == f"/v1/content/files/included-file/sha256/{'b' * 64}"
+    assert portrait_image_url(local_named_like_it) == "/v1/content/files/local-file"
 
 
 def test_matches_are_ordered_and_ignore_other_kinds() -> None:

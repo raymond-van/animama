@@ -177,7 +177,8 @@ class LocalChatTurnServices:
         return None
 
 
-# Bytes named by an exact runtime revision never change under that name (ADR 0028).
+# Bytes named by an exact runtime revision (ADR 0028) or an Included file's digest
+# (ADR 0033) never change under that name.
 IMMUTABLE_PRIVATE = "private, max-age=31536000, immutable"
 
 

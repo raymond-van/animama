@@ -11,15 +11,21 @@ from collections.abc import Hashable, Iterable, Mapping, Sequence
 from typing import Any
 
 from animama.app.main_structured_response import parse_main_structured_response
+from animama.app.primary_emotion_update import voice_intensity_to_reaction_intensity
+from animama.domain.audio_tags import NEUTRAL_AUDIO_TAGS
 
 from ..core.model_calls import reply_calls
 from ..core.pricing import sum_usage_json
 from ..core.stats import latency_summary, longest_run, rate, token_summary
 from ..core.turns import TurnOutcome
+from .prompt_set import Item
 
 __all__ = [
+    "AUDIO_TAG_KINDS",
+    "REACTION_INTENSITIES",
     "RECOVERY_PATHS",
     "STYLE_VIOLATIONS",
+    "expression_targets",
     "offered_tools",
     "recovery_path",
     "summarize_configuration",
@@ -28,6 +34,19 @@ __all__ = [
 
 RECOVERY_PATHS = ("strict", "lenient", "repaired", "salvaged", "plain_text")
 STYLE_VIOLATIONS = ("url", "email", "path", "code", "markdown", "list", "table", "emoji")
+REACTION_INTENSITIES = ("none", "mild", "moderate", "strong", "intense")
+"""The Reaction intensity each 1-10 intensity plays, in order (``voice_intensity_to_reaction_intensity``): 1-2 no
+Reaction, then 3-4 Mild, 5-6 Moderate, 7-8 Strong and 9-10 Intense."""
+_AUDIO_TAG_PREFIX = "audio-tag:"
+AUDIO_TAG_KINDS: Mapping[str, frozenset[str]] = {
+    "laughs": frozenset({"laugh", "chuckle", "giggle"}),
+    "sighs": frozenset({"sigh"}),
+    "gasps": frozenset({"gasp"}),
+    "whispers": frozenset({"whisper"}),
+    "none": frozenset(),
+}
+"""The neutral tags that answer each ``audio-tag:<kind>`` item; a ``none`` item is answered by a reply without tags."""
+_NEUTRAL_TAG_IDS = {alias: tag.id for tag in NEUTRAL_AUDIO_TAGS for alias in tag.aliases}
 _TOP = 3
 
 
@@ -80,6 +99,68 @@ def value_distribution(values: Sequence[Hashable | None]) -> dict[str, Any]:
         "top": [[value, count] for value, count in present[:_TOP]],
         "top_share": rate(sum(count for _, count in present[:_TOP]), total),
         "counts": {str(value): count for value, count in sorted(present, key=lambda pair: str(pair[0]))},
+    }
+
+
+def _tag_ids(labels: Iterable[str]) -> set[str]:
+    """The neutral tags among a reply's tag labels; a direction such as ``[whispering, playful]`` names one."""
+
+    ids: set[str] = set()
+    for label in labels:
+        words = label.strip("[]<>").lower().replace(",", " ").split()
+        ids.update(_NEUTRAL_TAG_IDS[word] for word in words if word in _NEUTRAL_TAG_IDS)
+    return ids
+
+
+def expression_targets(turns: Iterable[Mapping[str, Any]], items: Mapping[str, Item]) -> dict[str, Any]:
+    """One configuration's expression against the prompt set's intentions, from the recorded turns alone.
+
+    - ``reaction_intensity``: core turns (single-turn items and scripted chats) by the Reaction intensity
+      their intensity plays.
+    - ``intensity_band``: single-turn replies to items with an intended band, inside it, below it or above it.
+    - ``tones``: single-turn replies to items with listed tones, and how many chose one of them.
+    - ``audio_tags``: per ``audio-tag:<kind>`` item kind, the replies and how many carry an answering tag
+      (``none``: carry no tag at all).
+    """
+
+    ok = [turn for turn in turns if turn["kind"] in {"single", "chat"} and turn["error"] is None]
+    reactions = Counter(
+        REACTION_INTENSITIES[voice_intensity_to_reaction_intensity(turn["emotional_intensity"]) or 0] for turn in ok
+    )
+    band: Counter[str] = Counter()
+    tones: Counter[str] = Counter()
+    audio: dict[str, Counter[str]] = {}
+    for turn in ok:
+        item = items.get(turn["unit_id"]) if turn["kind"] == "single" else None
+        if item is None:
+            continue
+        value = turn["emotional_intensity"]
+        if item.intensity is not None and value is not None:
+            low, high = item.intensity
+            band["scored"] += 1
+            band["below" if value < low else "above" if value > high else "in_band"] += 1
+        if item.tones:
+            tones["scored"] += 1
+            tones["in_family"] += turn["emotional_tone"] in item.tones
+        for tag in item.tags:
+            kind = tag.removeprefix(_AUDIO_TAG_PREFIX)
+            if tag.startswith(_AUDIO_TAG_PREFIX) and kind in AUDIO_TAG_KINDS:
+                found = (turn["speech_check"] or {}).get("tags") or ()
+                answered = not found if kind == "none" else bool(_tag_ids(found) & AUDIO_TAG_KINDS[kind])
+                audio.setdefault(kind, Counter())["replies"] += 1
+                audio[kind]["hits"] += answered
+    return {
+        "reaction_intensity": {
+            "n": len(ok),
+            "counts": {level: reactions.get(level, 0) for level in REACTION_INTENSITIES},
+        },
+        "intensity_band": {key: band.get(key, 0) for key in ("scored", "in_band", "below", "above")},
+        "tones": {key: tones.get(key, 0) for key in ("scored", "in_family")},
+        "audio_tags": {
+            kind: {"replies": audio[kind]["replies"], "hits": audio[kind]["hits"]}
+            for kind in AUDIO_TAG_KINDS
+            if kind in audio
+        },
     }
 
 

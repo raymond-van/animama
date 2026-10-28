@@ -2514,7 +2514,8 @@ export const zPyContentFile = z.object({
     relative_path: z.string(),
     role: z.string(),
     sha256: z.string(),
-    size_bytes: z.int()
+    size_bytes: z.int(),
+    url: z.string()
 });
 
 /**
@@ -5255,7 +5256,8 @@ export const zPyTypedContentFile = z.object({
     ordinal: z.int().gte(1),
     role: z.string(),
     sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    size_bytes: z.int().gt(0)
+    size_bytes: z.int().gt(0),
+    url: z.string()
 });
 
 /**
@@ -7833,6 +7835,26 @@ export const zStreamContentFileV1ContentFilesFileRefGetData = z.object({
     body: z.optional(z.never()),
     path: z.object({
         file_ref: z.string()
+    }),
+    query: z.optional(z.object({
+        variant: z.optional(z.union([
+            z.literal('thumbnail'),
+            z.null()
+        ]))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
+
+export const zStreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        file_ref: z.string(),
+        sha256: z.string().regex(/^[0-9a-f]{64}$/)
     }),
     query: z.optional(z.object({
         variant: z.optional(z.union([

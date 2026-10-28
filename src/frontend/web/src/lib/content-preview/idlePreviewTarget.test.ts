@@ -25,6 +25,7 @@ function preview(kind: "vrma" | "anima_clip"): PyTypedContentPreview {
     media_type: "application/json",
     sha256: revision,
     size_bytes: 30,
+    url: "/v1/content/files/motion",
   };
   return {
     idle_playback: {

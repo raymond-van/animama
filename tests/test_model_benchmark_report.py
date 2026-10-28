@@ -183,6 +183,7 @@ def test_a_judged_run_reports_publicly_and_rerenders_byte_for_byte(
     assert "## Scorecard" in text and "3.00 [3.00, 3.00]" in text and report.family_caveat(None) in text
     assert "The judge, Claude Fable 5.1, shares a model family with Claude Haiku" in text
     assert "_to be written by the owner._" in text and "Not calibrated in this run." in text
+    assert "### Emotional intensity by Reaction intensity" in text and "### Intended intensity and tones" in text
     assert cli.main(_report_args(run_dir, "--effort", "medium", "--output", str(output), "--rerender")) == 0
 
     output.write_text(text + "\n", encoding="utf-8")

@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import PurePosixPath
 
+from animama.app.services.content_file_urls import content_file_url
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource
 
 
@@ -44,7 +45,9 @@ def portrait_matches(
 
 
 def portrait_image_url(portrait: CatalogContentEntry) -> str | None:
-    """The protected delivery URL of a portrait's image file."""
+    """The protected delivery URL of a portrait's image file, digest-keyed when Included."""
 
     image = next((file for file in portrait.files if file.role == "image"), None)
-    return f"/v1/content/files/{image.file_ref}" if image is not None else None
+    if image is None:
+        return None
+    return content_file_url(file_ref=image.file_ref, sha256=image.sha256, source=image.source)

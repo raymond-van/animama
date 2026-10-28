@@ -288,7 +288,7 @@ async def test_included_avatar_reports_its_shipped_portrait(async_session, tmp_p
         async with local_client(app) as client:
             included = await client.get(f"/v1/avatar-content/{fixture.items['included-avatar'].id}")
         assert included.json()["portrait"] == {
-            "url": f"/v1/content/files/{image.file_ref}",
+            "url": f"/v1/content/files/{image.file_ref}/sha256/{image.sha256}",
             "avatar_revision_sha256": None,
             "renderer_version": 1,
             "capture_preset_version": 2,

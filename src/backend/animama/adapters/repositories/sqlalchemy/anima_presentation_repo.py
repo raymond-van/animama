@@ -12,6 +12,7 @@ from sqlalchemy.orm import aliased
 
 from ....app.ports.anima_presentation_port import AnimaPresentationRepository
 from ....domain.anima_presentation import AnimaPresentationImageCandidate, AnimaPresentationRecord
+from ....domain.content_catalog import ContentSource
 from ....orm.anima import ORMAnima
 from ....orm.anima_loadout import ORMAnimaLoadout
 from ....orm.avatar import ORMAvatar
@@ -79,6 +80,7 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                 exact_avatar_item_id.label("avatar_item_id"),
                 exact_item.id.label("catalog_item_id"),
                 exact_item.content_metadata.label("metadata"),
+                exact_item.source.label("source"),
                 exact_file.file_ref.label("file_ref"),
                 exact_file.media_type.label("media_type"),
                 exact_file.size_bytes.label("size_bytes"),
@@ -109,18 +111,21 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                 profile_binding.catalog_item_id.label("profile_catalog_item_id"),
                 profile_binding.config.label("profile_config"),
                 profile_item.content_metadata.label("profile_metadata"),
+                profile_item.source.label("profile_source"),
                 ranked_files.c.file_ref.label("profile_file_ref"),
                 ranked_files.c.media_type.label("profile_content_type"),
                 ranked_files.c.size_bytes.label("profile_size_bytes"),
                 ranked_files.c.sha256.label("profile_sha256"),
                 portrait_item.id.label("portrait_catalog_item_id"),
                 portrait_item.content_metadata.label("portrait_metadata"),
+                portrait_item.source.label("portrait_source"),
                 portrait_file.file_ref.label("portrait_file_ref"),
                 portrait_file.media_type.label("portrait_content_type"),
                 portrait_file.size_bytes.label("portrait_size_bytes"),
                 portrait_file.sha256.label("portrait_sha256"),
                 exact_portraits.c.catalog_item_id.label("exact_portrait_catalog_item_id"),
                 exact_portraits.c.metadata.label("exact_portrait_metadata"),
+                exact_portraits.c.source.label("exact_portrait_source"),
                 exact_portraits.c.file_ref.label("exact_portrait_file_ref"),
                 exact_portraits.c.media_type.label("exact_portrait_content_type"),
                 exact_portraits.c.size_bytes.label("exact_portrait_size_bytes"),
@@ -211,6 +216,7 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                 sha256=row.profile_sha256,
                 width=width if type(width) is int else 1,
                 height=height if type(height) is int else 1,
+                source=ContentSource(row.profile_source),
             )
 
         primary_model: AnimaPresentationImageCandidate | None = None
@@ -242,6 +248,7 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                 sha256=getattr(row, f"{prefix}_sha256"),
                 width=width if type(width) is int else 1,
                 height=height if type(height) is int else 1,
+                source=ContentSource(getattr(row, f"{prefix}_source")),
             )
 
         return AnimaPresentationRecord(

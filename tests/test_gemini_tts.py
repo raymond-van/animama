@@ -336,7 +336,7 @@ async def test_stream_error_names_only_the_status_and_never_the_text_or_key(
     failure.status_code = status_code  # type: ignore[attr-defined]
     _install_client(monkeypatch, _FakeInteractions(error=failure))
     # Capture at the service logger itself: an earlier logging configuration in the
-    # same process (Alembic's fileConfig) can disable loggers that already exist.
+    # same process can disable loggers that already exist.
     service_logger = gemini_tts_service._log.logger
     monkeypatch.setattr(service_logger, "disabled", False)
     caplog.set_level(logging.WARNING, logger=service_logger.name)

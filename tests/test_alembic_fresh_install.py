@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -60,8 +61,11 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # n
     second_schema = f"migration_fresh_{uuid.uuid4().hex}"
     with admin_engine.begin() as connection:
         connection.exec_driver_sql(f'CREATE SCHEMA "{second_schema}"')
+    # Alembic runs in-process with the backend, so it must not silence loggers that already exist.
+    existing_logger = logging.getLogger("animama.tests.existing_before_migration")
     try:
         command.upgrade(config, "head")
+        assert not existing_logger.disabled
         engine = create_engine(migration_url)
         try:
             tables = set(inspect(engine).get_table_names())

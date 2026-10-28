@@ -156,6 +156,10 @@ def _write_set(tmp_path: Path, mutate: Callable[[dict[str, Any]], None]) -> Path
         (lambda data: data["loadout"].update(sha256="0" * 64), "pinned sha256"),
         (lambda data: data["personas"][1].update(starter="starter:nobody"), "unknown starter"),
         (lambda data: data["items"][0].update(tier="huge"), "'tier' must be one of"),
+        (lambda data: data["items"][0].update(intensity=[6, 4]), "'intensity' must be"),
+        (lambda data: data["items"][0].update(intensity=[0, 4]), "'intensity' must be"),
+        (lambda data: data["items"][0].update(intensity=[3]), "'intensity' must be"),
+        (lambda data: data["items"][0].update(tones=["grumpy"]), "tones the reply schema does not allow"),
     ],
 )
 def test_the_prompt_set_rejects_invalid_entries(
@@ -419,6 +423,46 @@ def test_distributions_and_chat_runs_are_summarised_side_by_side() -> None:
     assert chat["emotional_intensity"]["longest_run"] == 2
     assert summary["errors"] == 1 and summary["error_codes"] == {"provider_error": 1}
     assert summary["recovery"]["strict"] == 5 and summary["turns"] == 6
+
+
+def test_expression_is_measured_against_each_items_intended_band_tones_and_audio_tag() -> None:
+    def item(item_id: str, **fields: Any) -> prompt_set.Item:
+        return prompt_set.Item(id=item_id, area="core", language="en", message="m", acceptable=(None,), **fields)
+
+    items = {
+        "loss": item("loss", intensity=(7, 8), tones=("sorrowful", "gentle")),
+        "joke": item("joke", tags=("audio-tag:laughs",)),
+        "plain": item("plain", tags=("audio-tag:none",)),
+    }
+
+    def tagged(*tags: str) -> dict[str, Any]:
+        return {**_turn()["speech_check"], "tags": list(tags)}
+
+    turns = [
+        _turn(kind="warmup", emotional_intensity=10),
+        _turn(unit_id="loss", emotional_intensity=8, emotional_tone="sorrowful"),
+        _turn(unit_id="loss", emotional_intensity=5, emotional_tone="sad"),
+        _turn(unit_id="loss", emotional_intensity=9, emotional_tone="gentle"),
+        _turn(unit_id="joke", emotional_intensity=6, speech_check=tagged("[chuckles]")),
+        _turn(unit_id="joke", emotional_intensity=2, speech_check=tagged("[whispering, playful]")),
+        _turn(unit_id="plain", emotional_intensity=1),
+        _turn(unit_id="plain", speech_check=tagged("[sighs]")),
+        _turn(kind="chat", unit_id="loss", emotional_intensity=4),
+        # An unusable intensity plays no Reaction and is not held against the band.
+        _turn(unit_id="loss", emotional_intensity=None, emotional_tone="gentle"),
+        _turn(unit_id="loss", error="provider_error"),
+    ]
+
+    targets = measures.expression_targets(turns, items)
+
+    # Warm-ups and failed turns are left out; a chat turn counts for the Reaction intensities but not against an item.
+    assert targets["reaction_intensity"] == {
+        "n": 9,
+        "counts": {"none": 3, "mild": 2, "moderate": 2, "strong": 1, "intense": 1},
+    }
+    assert targets["intensity_band"] == {"scored": 3, "in_band": 1, "below": 1, "above": 1}
+    assert targets["tones"] == {"scored": 4, "in_family": 3}
+    assert targets["audio_tags"] == {"laughs": {"replies": 2, "hits": 1}, "none": {"replies": 2, "hits": 1}}
 
 
 # --- Dry run and CLI ------------------------------------------------------------------

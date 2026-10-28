@@ -244,7 +244,8 @@ async def test_catalog_hides_retired_defaults_and_uses_model_portraits(async_ses
             limit=50,
         )
         assert [item.avatar_id for item in page.items] == [avatar_id]
-        assert page.items[0].preview_url == f"/v1/content/files/{file_ref}"
+        # An Included portrait is named by its digest (ADR 0033); a Local one below is not.
+        assert page.items[0].preview_url == f"/v1/content/files/{file_ref}/sha256/{'a' * 64}"
         portrait = await async_session.get(ORMContentCatalogItem, portrait_id)
         model = await async_session.get(ORMContentCatalogItem, model_id)
         model.source = "local"

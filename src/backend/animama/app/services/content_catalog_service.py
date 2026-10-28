@@ -19,6 +19,7 @@ from animama.app.services.local_content_mutations import LocalContentMutations, 
 from animama.domain.content_catalog import (
     CONTENT_SOURCE_LOCK_ORDER,
     CatalogContentEntry,
+    CatalogContentFile,
     ContentConflictError,
     ContentKind,
     ContentNotFoundError,
@@ -248,6 +249,24 @@ class ContentCatalogService:
         registered = await self._catalog.get_visible_file(file_ref=file_ref, user_id=user_id)
         if registered is None:
             raise ContentNotFoundError("registered content file was not found")
+        return await self._open_registered(registered)
+
+    async def open_included_file(self, *, file_ref: str, sha256: str, user_id: str) -> VerifiedContentFile:
+        """Open an Included registration only while it still has the digest its URL names.
+
+        A digest URL may be kept as immutable, so a file with other bytes, or one that
+        is not Included, is not found under it (ADR 0033).
+        """
+
+        self.require_owner(user_id)
+        registered = await self._catalog.get_visible_file(file_ref=file_ref, user_id=user_id)
+        if registered is None or registered.source is not ContentSource.INCLUDED or registered.sha256 != sha256:
+            raise ContentNotFoundError("Included content file with this digest was not found")
+        return await self._open_registered(registered)
+
+    async def _open_registered(self, registered: CatalogContentFile) -> VerifiedContentFile:
+        """Contain and digest-check an authorized registration's bytes off the event loop."""
+
         return await asyncio.to_thread(
             self._store.open_verified_file,
             source=registered.source,

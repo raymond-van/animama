@@ -14,8 +14,9 @@ sections in ``memory_context``:
 - A short section describes the mid-conversation system message that carries
   the turn context, as the tagged-block paths describe their block.
 
-Every other section, and the Companion Guardrails, are shared with every
-provider unchanged.
+The Speech section also phrases how often to write audio tags per
+instruction style (``speech_tags``). Every other section, and the Companion
+Guardrails, are shared with every provider unchanged.
 """
 
 from __future__ import annotations

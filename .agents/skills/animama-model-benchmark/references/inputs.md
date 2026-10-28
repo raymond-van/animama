@@ -10,8 +10,8 @@ entries without an English `pair_id`, and files whose sha256 changed.
 
 Change inputs only when the owner asks, never to improve a result.
 
-- Any change to items, fixtures, checklists, guidance, acceptable lists or
-  rubrics needs a new `version`, and the owner's approval before a run uses it.
+- Any change to items, fixtures, checklists, guidance, acceptable lists,
+  intensity bands, tones or rubrics needs a new `version`, and the owner's approval before a run uses it.
 - Update the pinned `sha256` of a changed file in `prompts.json`.
 - Held-out entries (`held_out: true`, about a fifth of each area) are never
   used to tune prompts, Gesture descriptions, guidance or rubrics. Do not look

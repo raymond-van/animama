@@ -23,9 +23,10 @@ from animama.orm import Base  # type: ignore  # ruff: noqa: E402
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
+# Interpret the config file for Python logging. Alembic also runs inside backend
+# processes (database bootstrap, tests), so leave their existing loggers enabled.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 
 def _coerce_sync_url(url: str) -> str:

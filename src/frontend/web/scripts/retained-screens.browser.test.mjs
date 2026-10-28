@@ -526,6 +526,8 @@ const previewFile = (file_ref, logical_path, media_type, role, ordinal) => ({
   ordinal,
   size_bytes: 1,
   sha256: "0".repeat(64),
+  // These items are Local, so the server names them by registration alone.
+  url: `/v1/content/files/${file_ref}`,
 });
 const previewItems = {
   "/v1/particle-effects": {

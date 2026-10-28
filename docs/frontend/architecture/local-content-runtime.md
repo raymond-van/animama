@@ -19,6 +19,7 @@ GET    /v1/content/items/{item_id}
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}
 GET    /v1/content/files/{file_ref}
+GET    /v1/content/files/{file_ref}/sha256/{sha256}
 GET    /v1/content/previews/{preview_id}/revisions/{revision}/files/{file_ref}
 
 GET    /v1/{typed-family}
@@ -166,9 +167,13 @@ remount instead of serving replacement bytes.
 
 There is no application Cache Storage, IndexedDB, or OPFS copy of the content
 library. Chromium's HTTP cache may reuse runtime revision members and complete
-binary bundles without a request (ADR 0028) and revalidates other protected
-responses; a cache hit is never required for correctness, and every reused member
-is verified again. Browser memory and HTTP caches are disposable and are not
+binary bundles (ADR 0028), and Included files read at their digest URL (ADR 0033),
+without a request, and revalidates other protected responses; a cache hit is never
+required for correctness, and every reused member is verified again. Library
+thumbnails and particle manifests use the `url` each file descriptor names rather
+than building one from `file_ref`, and Anima presentation images are read with
+`cache: "default"`, so a later visit reuses Included files and a release that
+changes their bytes changes their URLs. Browser memory and HTTP caches are disposable and are not
 backed up.
 
 The manifest GET negotiates gzip with an identity fallback. Its

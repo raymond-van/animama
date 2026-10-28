@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from collections.abc import Awaitable
 from typing import Annotated, BinaryIO, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Request, Response, UploadFile
 
 from animama.app.contracts.content import PyContentCatalog, PyContentItem
 from animama.app.services.content_file_validation import ContentFileInvalidError
@@ -21,11 +22,12 @@ from animama.domain.content_catalog import (
     ContentPathError,
     ContentStatus,
     ContentValidationError,
+    VerifiedContentFile,
 )
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import DeferredJsonBody, negotiate_json_encoding
-from animama.product_http.ports import Ports, ReadContent, ReadRepositories, WriteContent
+from animama.product_http.ports import Ports, ProductPorts, ReadContent, ReadRepositories, WriteContent
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter(prefix="/v1/content", tags=["content"])
@@ -165,6 +167,31 @@ async def delete_content_item(
         raise_content_mutation(exc)
 
 
+async def _registered_file_response(
+    request: Request,
+    opening: Awaitable[VerifiedContentFile],
+    *,
+    ports: ProductPorts,
+    if_none_match: str | None,
+    variant: Literal["thumbnail"] | None,
+    immutable: bool,
+) -> Response:
+    """Answer an authorized registration's verified bytes, or their Library thumbnail."""
+
+    try:
+        file = await opening
+    except ContentNotFoundError as exc:
+        raise HTTPException(status_code=404, detail={"code": "content_file_not_found"}) from exc
+    except (ContentIntegrityError, ContentPathError) as exc:
+        raise HTTPException(status_code=409, detail={"code": "content_file_changed_rescan_required"}) from exc
+    if variant == "thumbnail":
+        try:
+            file = await asyncio.to_thread(thumbnail_file, file)
+        except ContentThumbnailError as exc:
+            raise HTTPException(status_code=422, detail={"code": "content_thumbnail_unsupported"}) from exc
+    return ports.file_response(request, file, if_none_match=if_none_match, revalidate=True, immutable=immutable)
+
+
 @router.get("/files/{file_ref}")
 async def stream_content_file(
     request: Request,
@@ -178,21 +205,46 @@ async def stream_content_file(
     """Authorize, contain, and digest-check an opaque registration in one response.
 
     ``variant=thumbnail`` answers an image with a Library-sized copy instead
-    (``content_thumbnails``); other files are refused with 422.
+    (``content_thumbnails``); other files are refused with 422. The bytes under a
+    ``file_ref`` can change, so the reply is revalidated by its digest ETag.
     """
 
-    try:
-        file = await content.catalog.open_registered_file(file_ref=file_ref, user_id=user.id)
-    except ContentNotFoundError as exc:
-        raise HTTPException(status_code=404, detail={"code": "content_file_not_found"}) from exc
-    except (ContentIntegrityError, ContentPathError) as exc:
-        raise HTTPException(status_code=409, detail={"code": "content_file_changed_rescan_required"}) from exc
-    if variant == "thumbnail":
-        try:
-            file = await asyncio.to_thread(thumbnail_file, file)
-        except ContentThumbnailError as exc:
-            raise HTTPException(status_code=422, detail={"code": "content_thumbnail_unsupported"}) from exc
-    return ports.file_response(request, file, if_none_match=if_none_match, revalidate=True)
+    return await _registered_file_response(
+        request,
+        content.catalog.open_registered_file(file_ref=file_ref, user_id=user.id),
+        ports=ports,
+        if_none_match=if_none_match,
+        variant=variant,
+        immutable=False,
+    )
+
+
+@router.get("/files/{file_ref}/sha256/{sha256}")
+async def stream_included_content_file(
+    request: Request,
+    file_ref: str,
+    sha256: Annotated[str, Path(pattern=r"^[0-9a-f]{64}$")],
+    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    content: ReadContent,
+    ports: Ports,
+    if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
+    variant: Annotated[Literal["thumbnail"] | None, Query()] = None,
+) -> Response:
+    """Stream an Included file, or its thumbnail, only under the digest it has now.
+
+    The URL names exact bytes, so the composition may let a client keep the reply
+    without revalidating (ADR 0033). A digest the file no longer has, or a file that
+    is not Included, is 404: the URL never answers with other bytes.
+    """
+
+    return await _registered_file_response(
+        request,
+        content.catalog.open_included_file(file_ref=file_ref, sha256=sha256, user_id=user.id),
+        ports=ports,
+        if_none_match=if_none_match,
+        variant=variant,
+        immutable=True,
+    )
 
 
 @router.get("/previews/{preview_id}/revisions/{revision_sha256}/files/{file_ref}")

@@ -25,6 +25,7 @@ from animama.app.contracts.avatar_effect import (
 from animama.app.contracts.avatar_face_parts import AvatarFacePartCorrection
 from animama.app.contracts.idle import PyIdlePlayback
 from animama.app.services.avatar_face_parts import local_face_parts
+from animama.app.services.content_file_urls import content_file_url
 from animama.app.services.content_portability import Portability, portability
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
 from animama.app.services.typed_content_batch_service import (
@@ -85,6 +86,8 @@ class PyTypedContentFile(BaseModel):
     media_type: str
     size_bytes: int = Field(gt=0)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    # Where to read the bytes: an Included file's URL names its digest (ADR 0033).
+    url: str
 
     @classmethod
     def from_domain(
@@ -103,6 +106,7 @@ class PyTypedContentFile(BaseModel):
             media_type=value.media_type,
             size_bytes=value.size_bytes,
             sha256=value.sha256,
+            url=content_file_url(file_ref=value.file_ref, sha256=value.sha256, source=value.source),
         )
 
 

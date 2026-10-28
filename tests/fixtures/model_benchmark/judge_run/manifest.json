@@ -5,8 +5,8 @@
   "note": "Hand-written replies for the judge tests and the Phase 6 smoke; no model wrote them.",
   "prompt_set": {
     "path": "docs/benchmarks/inputs/prompts.json",
-    "version": "2026-10-26.1",
-    "manifest": "b9ea565a60327f453f03bf820c973dbae1a551c09652922201cc16b5e7dce429",
+    "version": "2026-10-28.1",
+    "manifest": "1d38b96001236dbae0079b6fbe6b250ca142d945e2834ce7ddfd2365b3e075e3",
     "loadout": "ea77e820ede0b731cf5702c292d80e8953d886f80890d88d6269476e78be76e6",
     "episodic_guidance": "f96b071db722d1fb4ff2e37870aac36259c3db665d817ba5f71818fd488c927f"
   },

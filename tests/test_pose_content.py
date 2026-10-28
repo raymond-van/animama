@@ -345,12 +345,19 @@ async def test_catalog_responses_report_non_portable_included_content(pose_api) 
     assert saved.json()["portability"] == "portable"
     await service.rescan(user_id="package-owner")
 
-    typed = {row["source"]: row["portability"] for row in (await client.get("/v1/poses")).json()["items"]}
+    typed_items = (await client.get("/v1/poses")).json()["items"]
+    typed = {row["source"]: row["portability"] for row in typed_items}
     assert typed == {"included": "non-portable", "local": "portable"}
+    # Typed lists name an Included file by its digest URL and an owner's file by its registration.
+    for row in typed_items:
+        for file in row["files"]:
+            digest = f"/sha256/{file['sha256']}" if row["source"] == "included" else ""
+            assert file["url"] == f"/v1/content/files/{file['file_ref']}{digest}"
     listed = (await client.get("/v1/content/catalog")).json()["items"]
     assert {row["source"]: row["portability"] for row in listed if row["kind"] == "pose"} == typed
     # Playback bytes stay readable but are never offered as a download (R6).
     included = next(row for row in listed if row["kind"] == "pose" and row["source"] == "included")
-    served = await client.get(f"/v1/content/files/{included['files'][0]['file_ref']}")
+    served = await client.get(included["files"][0]["url"])
     assert served.status_code == 200
+    assert served.headers["cache-control"] == "private, max-age=31536000, immutable"
     assert "content-disposition" not in served.headers

@@ -163,8 +163,13 @@ The chat model may write short bracketed directions in `speech`, such as
   - **Every other turn** (speech off, Pocket TTS, browser speech) is told not
     to write tags.
 
-  Tag names stay in English in every language. Changing the voice changes the
-  stable prefix once ([prompt caching](../runtime/prompt-caching.md)).
+  Tag names stay in English in every language, and a sound is written as its
+  tag, never spelled out in words. How often to tag follows the row's
+  instruction style: Anthropic rows are asked to tag sparingly, while other
+  rows are told the moments a sound belongs to (a laugh, sigh, gasp or
+  whisper), since GPT-6 Luna read "sparingly" as almost never. Changing the
+  voice changes the stable prefix once
+  ([prompt caching](../runtime/prompt-caching.md)).
 - **Provider text.** `ProviderSpeechText(provider)`, one instance per reply:
   - respells neutral tags (`[laughs]` becomes `<laugh>` on Gemini and stays
     `[laughs]` on ElevenLabs);

@@ -1209,6 +1209,11 @@ class DirectChatTurnExecutor:
         memory_writes_enabled = native_memory_patch_enabled or any(
             spec.get("function", {}).get("name") in MEMORY_TOOL_WRITE_NAMES for spec in memory_tool_specs
         )
+        instruction_style = (
+            INSTRUCTION_STYLE_ANTHROPIC
+            if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
+            else INSTRUCTION_STYLE_DEFAULT
+        )
         return self._prompt_assembler.assemble(
             user_message=request.user_message,
             anima_identity=memory_context.anima_identity,
@@ -1245,13 +1250,9 @@ class DirectChatTurnExecutor:
                 model=model_provider.model,
             ),
             reasoning_effort=turn_reasoning_effort(request.options),
-            instruction_style=(
-                INSTRUCTION_STYLE_ANTHROPIC
-                if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
-                else INSTRUCTION_STYLE_DEFAULT
-            ),
+            instruction_style=instruction_style,
             conversation_language=request.conversation_language,
-            speech_guidance=speech_instruction(request.options.tts),
+            speech_guidance=speech_instruction(request.options.tts, instruction_style=instruction_style),
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,

@@ -16,8 +16,10 @@ defaults and embedding refresh status, the Memory Manager service, and the chat
 policy, chat-turn guard and turn collaborators) and sets its request-principal
 resolver as `app.state.request_principal_resolver`; without either, shared routes
 answer 503. Its byte delivery (`file_response`) receives `immutable=True` for
-revision-named runtime members and complete binary bundles and chooses its own
-cache policy for them ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md)).
+revision-named runtime members and complete binary bundles ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md))
+and for Included content files read at their digest URL,
+`/v1/content/files/{file_ref}/sha256/{sha256}` ([ADR 0033](../docs/adr/0033-digest-keyed-included-content-file-urls.md)),
+and chooses its own cache policy for them.
 A composition whose shared catalog rows never change at runtime sets
 `SHARED_CATALOG_ROWS_IMMUTABLE` (from `content_catalog_repo`) in the `info` of owner
 sessions that run the shared loadout services, so their reads lock only owner rows.
@@ -208,10 +210,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **19.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **20.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.19.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.20.0 and
 `product-ui` is version 0.18.0. Consumers explicitly admit
 the new contract major before adoption.
 
@@ -289,8 +291,8 @@ references fail closed. Runtime revisions retain lease/integrity checks and
 same-origin range semantics; private data is `Cache-Control: no-store` and never
 enters a shared CDN/service-worker cache. The only exceptions a hosted server may send
 are `private` policies for Included runtime revision members and complete bundles of
-them (ADR 0028), Included content files, and the owner's content catalog revalidated
-by ETag. The hosted transport keeps each request's own cache mode, so the browser keeps
+them (ADR 0028), Included content files (revalidated by ETag, or kept as immutable
+at their digest URLs, ADR 0033), and the owner's content catalog revalidated by ETag. The hosted transport keeps each request's own cache mode, so the browser keeps
 only such replies (and only for requests that allow it); its own session and admission
 reads always use `no-store`. A kept reply outlives the session in the browser's HTTP
 cache, so a server that lets owner data be kept clears that cache when the owner signs

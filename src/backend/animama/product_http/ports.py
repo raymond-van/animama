@@ -576,9 +576,10 @@ class ProductPorts(Protocol):
         """Deliver verified content bytes under this composition's caching policy.
 
         ``revalidate`` marks bytes a client may keep and revalidate by ETag; other
-        bytes must not be stored. ``immutable`` marks bytes named by an exact runtime
-        revision, which a composition may let a client reuse without revalidating
-        (ADR 0028). The response owns ``file`` and closes its handle. A binary runtime
+        bytes must not be stored. ``immutable`` marks bytes whose URL names them
+        exactly, by a runtime revision (ADR 0028) or by an Included file's digest
+        (ADR 0033), which a composition may let a client reuse without revalidating.
+        The response owns ``file`` and closes its handle. A binary runtime
         bundle arrives here too, as an in-memory frame whose digest is its ETag; it is
         revalidatable and immutable only when every member was read.
         """

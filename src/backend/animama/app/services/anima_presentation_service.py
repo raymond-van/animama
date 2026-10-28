@@ -8,7 +8,6 @@ import math
 import re
 import unicodedata
 from dataclasses import dataclass
-from urllib.parse import quote
 
 from ...domain.anima_presentation import (
     AnimaPresentation,
@@ -18,6 +17,7 @@ from ...domain.anima_presentation import (
     RuntimeImageReference,
 )
 from ..ports.anima_presentation_port import AnimaPresentationRepository
+from .content_file_urls import content_file_url
 
 PRESENTATION_REVISION_VERSION = 6
 _WHITESPACE = re.compile(r"\s+")
@@ -134,7 +134,9 @@ class AnimaPresentationService:
                 height=profile.height or 1,
                 content_revision=profile.sha256 or "",
                 presentation=normalize_runtime_image_presentation(profile.config),
-                url=f"/v1/content/files/{quote(profile.file_ref or '', safe='')}",
+                url=content_file_url(
+                    file_ref=profile.file_ref or "", sha256=profile.sha256 or "", source=profile.source
+                ),
             )
 
         portrait = record.avatar_portrait
@@ -150,7 +152,9 @@ class AnimaPresentationService:
                 height=portrait.height or 1,
                 content_revision=portrait.sha256 or "",
                 presentation=normalize_runtime_image_presentation({}),
-                url=f"/v1/content/files/{quote(portrait.file_ref or '', safe='')}",
+                url=content_file_url(
+                    file_ref=portrait.file_ref or "", sha256=portrait.sha256 or "", source=portrait.source
+                ),
             )
         return None
 

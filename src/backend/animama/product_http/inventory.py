@@ -174,6 +174,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(3, "GET", "/v1/content/items/{item_id}", "get_content_item", "read"),
     _shared(3, "DELETE", "/v1/content/items/{item_id}", "delete_content_item", "write"),
     _shared(3, "GET", "/v1/content/files/{file_ref}", "stream_content_file", "bytes"),
+    _shared(3, "GET", "/v1/content/files/{file_ref}/sha256/{sha256}", "stream_included_content_file", "bytes"),
     _shared(
         3,
         "GET",

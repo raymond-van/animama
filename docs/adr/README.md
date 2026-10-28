@@ -47,6 +47,7 @@ production readiness or publication rights.
 | 0030 | [An Anima's Gestures are its binding rows](0030-anima-gestures-are-binding-rows.md)                                                                | accepted                                                      |
 | 0031 | [The offline speech engine is the owner's choice](0031-offline-speech-engine-is-the-owners-choice.md)                                              | accepted; amends 0024 and 0029                                |
 | 0032 | [VRM stays the Avatar container; ARKit shapes are a face capability](0032-vrm-container-with-arkit-face-shapes.md)                                 | accepted                                                      |
+| 0033 | [Digest-keyed URLs for Included content files](0033-digest-keyed-included-content-file-urls.md)                                                    | proposed                                                      |
 
 ## When and how to record a decision
 

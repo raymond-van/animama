@@ -104,8 +104,10 @@ tagged block is used. Anthropic rows differ only where the transport needs it
 (`app/chat/anthropic_instructions.py`): the identity and `MEMORIES.md` are
 delimited with XML tags, the shared response guidance gains a line that keeps
 tool calls ahead of the JSON answer, and a short `# Turn Context` section
-describes the trailing system message. The directives and the guardrails are
-the same on every path.
+describes the trailing system message. Apart from how often the Speech section
+asks for audio tags, which follows the instruction style
+(`app/chat/speech_tags.py`), the directives and the guardrails are the same on
+every path.
 
 Anthropic chats compact on Anthropic's server, never through app compaction.
 Every request sends threshold compaction (`compact_20260112`) with a trigger

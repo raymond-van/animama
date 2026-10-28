@@ -417,7 +417,8 @@ sends that turn-context message as a mid-conversation `system` message after
 the user's message instead, and Anthropic rows delimit the identity and
 `MEMORIES.md` with XML tags, add a tools-first line to the shared response
 guidance and describe that turn-context message
-(`app/chat/anthropic_instructions.py`). The
+(`app/chat/anthropic_instructions.py`); their Speech section keeps asking for
+audio tags sparingly (`app/chat/speech_tags.py`). The
 [turn layout](prompt-caching.md#turn-layout) describes each provider path and
 its cache breakpoints.
 

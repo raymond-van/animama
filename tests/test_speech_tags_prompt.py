@@ -60,6 +60,19 @@ def test_elevenlabs_also_gets_the_extras_without_accents() -> None:
     assert "performs no other tags" not in rule
 
 
+@pytest.mark.parametrize("tts", [GEMINI, ELEVENLABS])
+def test_how_often_to_tag_is_phrased_per_instruction_style(tts: DirectChatTtsOptions) -> None:
+    anthropic = speech_instruction(tts, instruction_style=INSTRUCTION_STYLE_ANTHROPIC)
+    default = speech_instruction(tts)
+
+    # Claude keeps "sparingly"; the default phrasing names the moments a sound belongs to.
+    assert "Use them sparingly, only where a real sound belongs" in anthropic and "most replies need none" in anthropic
+    assert "sparingly" not in default and "most replies need none" not in default
+    assert "laugh or chuckle when something is funny" in default and "Other replies need none" in default
+    for rule in (anthropic, default):
+        assert 'never spelled out in words such as "haha"' in rule and "at most two sounds" in rule
+
+
 @pytest.mark.parametrize(
     "tts",
     [

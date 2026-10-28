@@ -43,6 +43,7 @@ const clone: PyVoiceContent = {
       size_bytes: 8,
       sha256: "source-hash",
       ordinal: 0,
+      url: "/v1/content/files/source-ref",
     },
     {
       file_ref: "descriptor-ref",
@@ -53,6 +54,7 @@ const clone: PyVoiceContent = {
       size_bytes: 200,
       sha256: "descriptor-hash",
       ordinal: 1,
+      url: "/v1/content/files/descriptor-ref",
     },
     {
       file_ref: "catalog-ref",
@@ -63,6 +65,7 @@ const clone: PyVoiceContent = {
       size_bytes: 7,
       sha256: "catalog-hash",
       ordinal: 2,
+      url: "/v1/content/files/catalog-ref",
     },
   ],
 };

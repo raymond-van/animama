@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from animama.domain.content_catalog import ContentSource
+
 
 @dataclass(frozen=True, slots=True)
 class RuntimeImagePresentation:
@@ -55,6 +57,8 @@ class AnimaPresentationImageCandidate:
     sha256: str | None = None
     width: int | None = None
     height: int | None = None
+    # The catalog source decides whether the image's URL names its digest.
+    source: ContentSource | None = None
 
 
 @dataclass(frozen=True, slots=True)

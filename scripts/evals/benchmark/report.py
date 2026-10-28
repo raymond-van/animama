@@ -22,7 +22,13 @@ from ..core.stats import TOKEN_STAT_KEYS
 from .calibrate import CALIBRATION_DIR
 from .intervals import MIN_GROUPS, Interval, bootstrap_mean, bootstrap_paired, comparable, distinguishable
 from .judge import JUDGE_NAME
-from .measures import STYLE_VIOLATIONS, summarize_configuration
+from .measures import (
+    AUDIO_TAG_KINDS,
+    REACTION_INTENSITIES,
+    STYLE_VIOLATIONS,
+    expression_targets,
+    summarize_configuration,
+)
 from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY
 from .prompt_set import PromptSet
 from .rubrics import RubricSet
@@ -145,6 +151,7 @@ def build_report(
     judged = {rubric: by_line(judge.items, rubric) for rubric in criteria}
     reply, transcripts = judged.get("reply", {}), judged.get("long_chat", {})
     priced = {label: rates is not None for label, rates in (manifest.get("price_source") or {}).items()}
+    items = {item.id: item for item in prompt_set.items}
     core: dict[str, Any] = {}
     for label in labels:
         lines = _lines(turns, configuration=label, kind=CORE_KINDS, error=None)
@@ -154,6 +161,7 @@ def build_report(
         costs = [turn.get("estimated_cost_usd") for turn in records if turn.get("kind") in CORE_KINDS]
         core[label] = {
             "summary": summary,
+            "targets": expression_targets(records, items),
             "priced": priced.get(label, False) and None not in costs,
             "gesture_fit": _fit(turns, label),
             "speech_length": _median([len(turns[ln].get("speech") or "") for ln in lines]),
@@ -643,6 +651,7 @@ def render_report(data: Mapping[str, Any], *, title: str, recommendations: str |
     out += ["Tag kinds: " + "; ".join(
         f"{label} {_tag_kinds(c['summary']['speech']['tag_kinds'])}" for label, c in core.items()
     ) + ".", ""]  # fmt: skip
+    out += _render_targets(core)
     out += ["### Operations", "",
             "Seconds are median / p90 / mean over successful turns; tokens are per-turn means over turns whose "
             "calls all reported usage.", ""]  # fmt: skip
@@ -683,6 +692,21 @@ def render_report(data: Mapping[str, Any], *, title: str, recommendations: str |
                 for label, c in core.items()
             ),
         )
+    out += ["### Emotional intensity by Reaction intensity", "",
+            "Core turns by the Reaction intensity their intensity plays: none for 1-2, then Mild for 3-4, Moderate "
+            "for 5-6, Strong for 7-8 and Intense for 9-10.", ""]  # fmt: skip
+    reactions = {label: c["targets"]["reaction_intensity"] for label, c in core.items()}
+    out += _table(
+        ["Configuration", "Turns", *(_REACTION_LABELS[level] for level in REACTION_INTENSITIES)],
+        (
+            [
+                label,
+                str(reactions[label]["n"]),
+                *(_share(reactions[label]["counts"][level], reactions[label]["n"]) for level in REACTION_INTENSITIES),
+            ]
+            for label, c in core.items()
+        ),
+    )
 
     out += ["## Long chats", ""]
     keys = list(next(iter(core.values()))["long_chat_criteria"]) if core else []
@@ -730,6 +754,58 @@ def render_report(data: Mapping[str, Any], *, title: str, recommendations: str |
                 "- **Default model:** _to be written by the owner._",
                 "- **Episodic-memory design:** _to be written by the owner._", ""]  # fmt: skip
     return "\n".join(out)
+
+
+_REACTION_LABELS = {
+    "none": "None (1-2)",
+    "mild": "Mild (3-4)",
+    "moderate": "Moderate (5-6)",
+    "strong": "Strong (7-8)",
+    "intense": "Intense (9-10)",
+}
+
+
+def _render_targets(core: Mapping[str, Mapping[str, Any]]) -> list[str]:
+    """Single-turn replies against the items' intended intensity bands, tones and audio tags.
+
+    Each table appears only when the prompt set gives what it measures.
+    """
+
+    targets = {label: c["targets"] for label, c in core.items()}
+    out: list[str] = []
+    if any(t["intensity_band"]["scored"] or t["tones"]["scored"] for t in targets.values()):
+        out += ["### Intended intensity and tones", "",
+                "Single-turn replies against each item's intended intensity band and the tones that fit it.",
+                ""]  # fmt: skip
+        out += _table(
+            ["Configuration", "Intensity in band", "Below band", "Above band", "Tone fits"],
+            (
+                [
+                    label,
+                    *(_share(t["intensity_band"][key], t["intensity_band"]["scored"])
+                      for key in ("in_band", "below", "above")),
+                    _share(t["tones"]["in_family"], t["tones"]["scored"]),
+                ]
+                for label, t in targets.items()
+            ),
+        )  # fmt: skip
+    kinds = [kind for kind in AUDIO_TAG_KINDS if any(kind in t["audio_tags"] for t in targets.values())]
+    if kinds:
+        out += ["### Audio-tag recall", "",
+                "Replies to each `audio-tag:<kind>` item that carry the tag it invites: any laugh (laughs, chuckles "
+                "or giggles), a sigh, a gasp or a whisper; for `none` items, replies without any tag.", ""]  # fmt: skip
+        out += _table(
+            ["Configuration", *(f"`{kind}`" for kind in kinds)],
+            (
+                [
+                    label,
+                    *(_share(t["audio_tags"][kind]["hits"], t["audio_tags"][kind]["replies"])
+                      if kind in t["audio_tags"] else "—" for kind in kinds),
+                ]
+                for label, t in targets.items()
+            ),
+        )  # fmt: skip
+    return out
 
 
 def _render_memory(memory: Mapping[str, Any], memory_criteria: Sequence[str]) -> list[str]:

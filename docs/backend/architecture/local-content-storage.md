@@ -302,6 +302,7 @@ DELETE /v1/content/items/{item_id}?expected_revision=...
 POST   /v1/content/evidence:resolve
 POST   /v1/content/previews:prepare
 GET    /v1/content/files/{file_ref}
+GET    /v1/content/files/{file_ref}/sha256/{sha256}
 GET    /v1/content/previews/{preview_id}/revisions/{revision}/files/{file_ref}
 
 GET    /v1/{typed-family}
@@ -327,10 +328,21 @@ Registered-byte routes resolve the admitted installation principal first, verify
 resolve the safe relative locator inside its configured root, reject links and
 non-regular files, and recheck exact size and SHA-256 before streaming. They
 accept no path. Digest ETags are evaluated after authorization and integrity
-checks. Local delivery uses private revalidation, except runtime revision members
-and complete binary bundles, which the browser may keep for a year
-(`private, max-age=31536000, immutable`, ADR 0028); authorization never depends on
+checks. Local delivery uses private revalidation, except runtime revision members,
+complete binary bundles (ADR 0028) and Included files read at their digest URL
+(ADR 0033), which the browser may keep for a year
+(`private, max-age=31536000, immutable`); authorization never depends on
 browser cache state for any request that reaches the server.
+
+Catalog and typed file descriptors carry each file's `url`. An Included file's
+`file_ref` survives a release that changes its bytes, so its URL also names its
+digest, `/v1/content/files/{file_ref}/sha256/{sha256}`, and a release that
+changes the bytes changes the URL. That route serves only Included files whose
+registered digest still matches, and answers anything else, including the old
+digest after a release, with `404 content_file_not_found`. Owner and
+installation-shared files keep `/v1/content/files/{file_ref}` and its
+revalidated policy. Anima presentation images and Avatar portraits follow the
+same rule.
 
 Mounted runtime-manifest JSON has gzip/identity content
 negotiation. Its full descriptor and current lease remain in each response;

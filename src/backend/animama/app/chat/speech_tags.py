@@ -6,10 +6,17 @@ like go to ``display``. Gemini and ElevenLabs perform audio tags; every other tu
 stable instruction section, so each voice setting keeps a byte-identical prompt
 prefix, and changing the voice changes it once. Whatever the prompt says, the
 speech paths prepare the text each voice receives (``animama.domain.audio_tags``).
+
+How often to tag is phrased per instruction style: Claude follows "sparingly"
+as meant, while the default phrasing names the moments a sound belongs to,
+since GPT-6 Luna read "sparingly" as almost never (benchmark run of
+2026-10-26: 2% of replies tagged, and no laugh, sigh or gasp where one was
+invited).
 """
 
 from __future__ import annotations
 
+from animama.app.chat.anthropic_instructions import INSTRUCTION_STYLE_ANTHROPIC, INSTRUCTION_STYLE_DEFAULT
 from animama.app.chat.options import DirectChatTtsOptions
 from animama.domain.audio_tags import SpeechTagProvider
 
@@ -28,28 +35,39 @@ _NEUTRAL_RULES = """\
 - Place a tag at a sentence or clause boundary, where the sound happens. A pause or a sigh works best at the start \
 of a sentence.
 - [whispers] goes at the start of a sentence, only when your mood really shifts, and whispers that sentence.
+- Write a sound you make as its tag, never spelled out in words such as "haha", "*sigh*" or "あはは".
 - `speech` always needs words; a tag never replaces them. Never put tags in `display`."""
 
-_GEMINI_TAGS = f"""\
-The selected voice performs audio tags in `speech`. Use them sparingly, only where a real sound belongs:
+# How often to tag, by instruction style: the opening line, and what follows the sound cap.
+_HOW_OFTEN = {
+    INSTRUCTION_STYLE_ANTHROPIC: ("Use them sparingly, only where a real sound belongs:", "; most replies need none."),
+    INSTRUCTION_STYLE_DEFAULT: (
+        "Use one wherever you would really make the sound: laugh or chuckle when something is funny, sigh at "
+        "something sad or tiring, gasp at a surprise, and whisper when the moment is hushed. Other replies need "
+        "none. Write them this way:",
+        ".",
+    ),
+}
 
-{_NEUTRAL_RULES}
+_GEMINI_TAGS = """\
+The selected voice performs audio tags in `speech`. {how_often}
+
+{rules}
 - This voice performs no other tags.
-- Use at most two sounds (laughs, chuckles, giggles, sighs, gasps, breaths and pauses) in a reply; most replies \
-need none."""
+- Use at most two sounds (laughs, chuckles, giggles, sighs, gasps, breaths and pauses) in a reply{cap_tail}"""
 
-_ELEVENLABS_TAGS = f"""\
-The selected voice performs audio tags in `speech`. Use them sparingly, only where a real sound belongs:
+_ELEVENLABS_TAGS = """\
+The selected voice performs audio tags in `speech`. {how_often}
 
-{_NEUTRAL_RULES}
+{rules}
 - This voice also follows other short directions in square brackets, in English:
   - an emotion or delivery change, such as [excited], [softly] or [whispering, playful], before the words it \
 affects and only when your mood really shifts. Your `emotional_tone` already sets how the reply begins;
   - other non-verbal sounds, such as [coughs] or [yawns];
   - sound effects, such as [applause] or [door knocks].
 - Never ask for an accent.
-- Use at most two sounds (laughs, sighs, gasps and other non-verbal sounds, sound effects and pauses) in a reply; \
-most replies need none.
+- Use at most two sounds (laughs, sighs, gasps and other non-verbal sounds, sound effects and pauses) in a \
+reply{cap_tail}
 - A direction lasts until the next one, so after a whispered sentence, return to your reply's tone with a direction \
 for it."""
 
@@ -72,11 +90,15 @@ def speech_tag_provider(tts: DirectChatTtsOptions | None) -> SpeechTagProvider |
     return None
 
 
-def speech_instruction(tts: DirectChatTtsOptions | None) -> str:
-    """The stable Speech section for the turn's speech options."""
+def speech_instruction(tts: DirectChatTtsOptions | None, *, instruction_style: str = INSTRUCTION_STYLE_DEFAULT) -> str:
+    """The stable Speech section for the turn's speech options, phrased for the row's instruction style."""
 
     provider = speech_tag_provider(tts)
-    tags = _GEMINI_TAGS if provider == "gemini" else _ELEVENLABS_TAGS if provider == "elevenlabs" else _NO_TAGS
+    template = _GEMINI_TAGS if provider == "gemini" else _ELEVENLABS_TAGS if provider == "elevenlabs" else None
+    how_often, cap_tail = _HOW_OFTEN.get(instruction_style, _HOW_OFTEN[INSTRUCTION_STYLE_DEFAULT])
+    tags = (
+        _NO_TAGS if template is None else template.format(how_often=how_often, rules=_NEUTRAL_RULES, cap_tail=cap_tail)
+    )
     # Without a voice, `speech` is read as text, so only the tag rule applies.
     parts = (_SPOKEN, tags) if _voice_on(tts) else (tags,)
     return _HEADING + "\n\n".join(parts)

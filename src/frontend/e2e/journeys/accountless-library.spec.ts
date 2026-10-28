@@ -87,6 +87,149 @@ test("accountless Library smoke @smoke @read-only", async ({
   });
 });
 
+test("accountless Library keeps Included files between visits @surface-library @read-only", async ({
+  page,
+  animamaEvidence,
+}) => {
+  // Included files are named by digest URLs that the browser keeps as
+  // immutable (ADR 0033), so a second visit reads them from its cache. The FX
+  // section shows Included thumbnails, particle manifests read with fetch()
+  // and the sidebar's presentation images. Chrome DevTools Protocol events
+  // tell a cache hit from a request that reached the server; Playwright's own
+  // request events do not.
+  type ContentFileRead = {
+    url: string;
+    fromCache: boolean;
+    finished: boolean;
+    status?: number;
+    cacheControl?: string;
+  };
+  const reads = new Map<string, ContentFileRead>();
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Network.enable");
+  cdp.on("Network.requestWillBeSent", ({ requestId, request }) => {
+    if (new URL(request.url).pathname.startsWith("/v1/content/files/")) {
+      reads.set(requestId, {
+        url: request.url,
+        fromCache: false,
+        finished: false,
+      });
+    }
+  });
+  cdp.on("Network.requestServedFromCache", ({ requestId }) => {
+    const read = reads.get(requestId);
+    if (read) read.fromCache = true;
+  });
+  cdp.on("Network.responseReceived", ({ requestId, response }) => {
+    const read = reads.get(requestId);
+    if (!read) return;
+    read.status = response.status;
+    read.fromCache ||= Boolean(response.fromDiskCache);
+    read.cacheControl = response.headers["cache-control"];
+  });
+  for (const event of [
+    "Network.loadingFinished",
+    "Network.loadingFailed",
+  ] as const) {
+    cdp.on(event, ({ requestId }) => {
+      const read = reads.get(requestId);
+      if (read) read.finished = true;
+    });
+  }
+  const isDigestUrl = (url: string) =>
+    /^\/v1\/content\/files\/[^/]+\/sha256\/[0-9a-f]{64}$/.test(
+      new URL(url).pathname,
+    );
+  // `/v1/content/files/{file_ref}[/sha256/{digest}]`: the registration a read names.
+  const fileRef = (url: string) =>
+    decodeURIComponent(new URL(url).pathname.split("/")[4] ?? "");
+
+  /** Open the Library's FX in a new document and wait until its file reads settle. */
+  async function visitLibrary(): Promise<ContentFileRead[]> {
+    reads.clear();
+    await page.goto("/library?section=fx", { waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByRole("heading", { name: "Library", exact: true }),
+    ).toBeVisible();
+    let previous = -1;
+    await expect
+      .poll(
+        () => {
+          const all = [...reads.values()];
+          const settled =
+            all.length > 0 &&
+            all.every((read) => read.finished) &&
+            all.length === previous;
+          previous = all.length;
+          return settled;
+        },
+        { intervals: [750], timeout: 30_000 },
+      )
+      .toBe(true);
+    return [...reads.values()];
+  }
+
+  const first = await test.step("Visit the Library", visitLibrary);
+  // Every read of an Included file counts, whatever URL names it, so a reader
+  // that still builds a URL from `file_ref` alone fails this journey.
+  const includedRefs = await page.evaluate(async () => {
+    const response = await fetch("/v1/content/catalog");
+    const catalog = (await response.json()) as {
+      items: Array<{ source: string; files: Array<{ file_ref: string }> }>;
+    };
+    return catalog.items
+      .filter((item) => item.source === "included")
+      .flatMap((item) => item.files.map((file) => file.file_ref));
+  });
+  const isIncluded = (read: ContentFileRead) =>
+    includedRefs.includes(fileRef(read.url));
+  const firstDigest = first.filter((read) => isDigestUrl(read.url));
+  await test.step("Assert Included files are read at kept digest URLs", async () => {
+    // An empty or misread catalog would make the guard below vacuous.
+    expect(firstDigest.filter((read) => !isIncluded(read))).toEqual([]);
+    expect(
+      first.filter((read) => isIncluded(read) && !isDigestUrl(read.url)),
+    ).toEqual([]);
+    expect(
+      firstDigest.filter(
+        (read) => new URL(read.url).searchParams.get("variant") === "thumbnail",
+      ).length,
+    ).toBeGreaterThan(0);
+    for (const read of firstDigest) {
+      expect(read.status, read.url).toBe(200);
+      expect(read.cacheControl, read.url).toBe(
+        "private, max-age=31536000, immutable",
+      );
+    }
+  });
+
+  // Leave the origin so the second visit is a new document, not a reload.
+  await page.goto("about:blank");
+  const second = await test.step("Visit the Library again", visitLibrary);
+  const secondDigest = second.filter((read) => isDigestUrl(read.url));
+  await test.step("Assert the second visit sends no Included file request", async () => {
+    expect(secondDigest.length).toBeGreaterThan(0);
+    expect(
+      second.filter(
+        (read) =>
+          (isIncluded(read) || isDigestUrl(read.url)) && !read.fromCache,
+      ),
+    ).toEqual([]);
+  });
+  await animamaEvidence.attachJson("accountless-library-kept-included-files", {
+    firstVisit: {
+      digestReads: firstDigest.length,
+      otherReads: first.length - firstDigest.length,
+    },
+    secondVisit: {
+      digestReads: secondDigest.length,
+      digestReadsFromCache: secondDigest.filter((read) => read.fromCache)
+        .length,
+      otherReads: second.length - secondDigest.length,
+    },
+  });
+});
+
 test("accountless built-in pose playback @surface-library @channel-pose-clip @read-only", async ({
   page,
   animamaEvidence,

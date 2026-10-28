@@ -5,7 +5,8 @@ manifest's directory, so a set and its files move together:
 
 ``version``
     The prompt-set version a report names; any change to items, fixtures,
-    checklists, guidance, acceptable lists or rubrics makes a new one.
+    checklists, guidance, acceptable lists, intensity bands, tones or rubrics
+    makes a new one.
 ``loadout``
     ``{"path", "sha256"}``: the equipped Gesture list every turn sees, a JSON
     list of ``{selector, name, description}`` sorted by selector, as chat lists
@@ -16,8 +17,11 @@ manifest's directory, so a set and its files move together:
     and identity text the app uses.
 ``items``
     Single-turn prompts: ``{"id", "area", "language", "pair_id", "message",
-    "tags", "acceptable", "held_out", "tier"}``. ``acceptable`` lists the
-    Gesture selectors (``null`` for no Gesture) that fit. A Japanese item's
+    "tags", "acceptable", "intensity", "tones", "held_out", "tier"}``.
+    ``acceptable`` lists the Gesture selectors (``null`` for no Gesture) that
+    fit. The optional ``intensity`` is the intended ``[low, high]`` band of the
+    1-10 emotional intensity, and the optional ``tones`` lists the emotional
+    tones that fit; reports measure replies against both. A Japanese item's
     ``pair_id`` names the English item it translates.
 ``scripted_chats``
     ``{"id", "area", "language", "pair_id", "persona", "turns", "held_out",
@@ -62,6 +66,7 @@ from typing import Any
 
 from animama.app.services.anima_identity_memory import ANIMA_SELF_MEMORIES_ALIAS
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
+from animama.app.voice_emotional_tone import ELEVENLABS_EMOTIONAL_TONE_VALUES
 
 from ..core.inputs import EvalInputError, read_json, require_unique, required_text
 from ..core.loadouts import Loadout, load_loadout
@@ -106,7 +111,7 @@ class Persona:
 
 @dataclass(frozen=True, slots=True)
 class Item:
-    """A single-turn prompt and the Gestures (``None`` for no Gesture) that fit it."""
+    """A single-turn prompt and the Gestures (``None`` for no Gesture), intensity band and tones that fit it."""
 
     id: str
     area: str
@@ -114,6 +119,10 @@ class Item:
     message: str
     acceptable: tuple[str | None, ...]
     tags: tuple[str, ...] = ()
+    intensity: tuple[int, int] | None = None
+    """The intended emotional intensity band, both ends included, or ``None`` when the item sets none."""
+    tones: tuple[str, ...] = ()
+    """The emotional tones that fit; empty when the item sets none."""
     pair_id: str | None = None
     held_out: bool = False
     tier: str = "full"
@@ -261,7 +270,9 @@ _RECALL_KEYS = frozenset({"id", "message", "expect", "checklist"})
 _MANAGER_KEYS = frozenset({"id", "kind", "persona", "fixture", "message", "episodes", "turns", "held_out", "tier"})
 _PINNED_FILE_KEYS = frozenset({"path", "sha256"})
 _PERSONA_KEYS = frozenset({"id", "name", "identity", "starter"})
-_ITEM_KEYS = frozenset({"id", "area", "language", "pair_id", "message", "tags", "acceptable", "held_out", "tier"})
+_ITEM_KEYS = frozenset(
+    {"id", "area", "language", "pair_id", "message", "tags", "acceptable", "intensity", "tones", "held_out", "tier"}
+)
 _CHAT_KEYS = frozenset({"id", "area", "language", "pair_id", "persona", "turns", "held_out", "tier"})
 
 
@@ -298,6 +309,28 @@ def _strings(entry: Mapping[str, Any], key: str, where: str) -> tuple[str, ...]:
     if not isinstance(values, list) or not all(isinstance(value, str) and value.strip() for value in values):
         raise EvalInputError(f"{where}: {key!r} must be a list of non-empty strings")
     return tuple(values)
+
+
+def _intensity_band(entry: Mapping[str, Any], where: str) -> tuple[int, int] | None:
+    band = entry.get("intensity")
+    if band is None:
+        return None
+    if (
+        not isinstance(band, list)
+        or len(band) != 2
+        or not all(isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 10 for value in band)
+        or band[0] > band[1]
+    ):
+        raise EvalInputError(f"{where}: 'intensity' must be [low, high] with 1 <= low <= high <= 10")
+    return band[0], band[1]
+
+
+def _tones(entry: Mapping[str, Any], where: str) -> tuple[str, ...]:
+    tones = _strings(entry, "tones", where)
+    unknown = [tone for tone in tones if tone not in ELEVENLABS_EMOTIONAL_TONE_VALUES]
+    if unknown:
+        raise EvalInputError(f"{where}: 'tones' names tones the reply schema does not allow: {unknown}")
+    return tones
 
 
 def _loadout(base: Path, entry: Any, where: str) -> Loadout:
@@ -349,6 +382,8 @@ def _item(entry: Any, where: str) -> Item:
         message=entry["message"],
         acceptable=tuple(value.strip() if isinstance(value, str) else None for value in acceptable),
         tags=_strings(entry, "tags", where),
+        intensity=_intensity_band(entry, where),
+        tones=_tones(entry, where),
         pair_id=_optional_text(entry, "pair_id", where),
         held_out=_flag(entry, "held_out", where),
         tier=_choice(entry, "tier", TIERS, where, "full"),

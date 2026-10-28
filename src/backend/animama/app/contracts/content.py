@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from animama.app.services.content_file_urls import content_file_url
 from animama.app.services.content_portability import Portability, portability
 from animama.domain.content_catalog import (
     CatalogContentEntry,
@@ -58,6 +59,8 @@ class PyContentFile(BaseModel):
     sha256: str
     ordinal: int
     filename: str
+    # Where to read the bytes: an Included file's URL names its digest (ADR 0033).
+    url: str
 
 
 class PyContentSelection(BaseModel):
@@ -137,6 +140,7 @@ class PyContentItem(BaseModel):
                     sha256=file.sha256,
                     ordinal=index,
                     filename=file.relative_path.rsplit("/", 1)[-1],
+                    url=content_file_url(file_ref=file.file_ref, sha256=file.sha256, source=file.source),
                 )
                 for index, file in enumerate(item.files, start=1)
             ],

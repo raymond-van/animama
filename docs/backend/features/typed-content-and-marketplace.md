@@ -110,6 +110,7 @@ GET    /v1/content/items/{item_id}
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}
 GET    /v1/content/files/{file_ref}
+GET    /v1/content/files/{file_ref}/sha256/{sha256}
 ```
 
 Product List/Get/Save/Preview uses one typed route family for each admitted

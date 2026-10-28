@@ -36,7 +36,9 @@ export function useAnimaPresentationImage(
       }
       const response = await transport.fetch(resolvedUrl, {
         credentials: "same-origin",
-        cache: "no-cache",
+        // The reply's policy decides reuse: an Included image's digest URL is
+        // kept, a Local image is revalidated (ADR 0033).
+        cache: "default",
         redirect: "error",
       });
       if (!response.ok) {

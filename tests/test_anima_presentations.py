@@ -16,6 +16,7 @@ from animama.domain.anima_presentation import (
     AnimaPresentationImageCandidate,
     AnimaPresentationRecord,
 )
+from animama.domain.content_catalog import ContentSource
 from animama.orm.anima import ORMAnima
 from animama.orm.anima_loadout import ORMAnimaLoadout
 from animama.orm.avatar import ORMAvatar
@@ -111,6 +112,7 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
         assert _required(records[anima_id].primary_model).builtin_id == "app:avatar_model:Andrew"
         assert records[anima_id].avatar_portrait is not None
         assert _required(records[anima_id].avatar_portrait).catalog_item_id == portrait_item_id
+        assert _required(records[anima_id].avatar_portrait).source is ContentSource.INCLUDED
     finally:
         # Included content is visible across this session-scoped test database.
         # A later real scan preserves logical identity, so this synthetic global
@@ -137,6 +139,7 @@ async def test_included_avatar_portrait_uses_registered_catalog_delivery() -> No
             sha256="9" * 64,
             width=256,
             height=256,
+            source=ContentSource.INCLUDED,
         ),
     )
     service = AnimaPresentationService(presentations=_PresentationRepository(record))
@@ -150,7 +153,8 @@ async def test_included_avatar_portrait_uses_registered_catalog_delivery() -> No
 
     assert projected.profile_thumbnail is not None
     assert projected.profile_thumbnail.source_type == "catalog"
-    assert projected.profile_thumbnail.url == "/v1/content/files/portrait-r1-file"
+    # The Included image is named by its digest, so the browser keeps it as immutable (ADR 0033).
+    assert projected.profile_thumbnail.url == f"/v1/content/files/portrait-r1-file/sha256/{'9' * 64}"
     assert projected.profile_thumbnail.content_revision == "9" * 64
 
 
@@ -375,6 +379,7 @@ async def test_local_avatar_presentation_uses_its_exact_owner_portrait(async_ses
 
         portrait = _required(records[anima_id].avatar_portrait)
         assert portrait.catalog_item_id == mine
+        assert portrait.source is ContentSource.LOCAL
         assert (portrait.width, portrait.height) == (512, 512)
         service = AnimaPresentationService(presentations=_PresentationRepository(records[anima_id]))
         thumbnail = _required(service._project(records[anima_id]).profile_thumbnail)

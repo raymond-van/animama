@@ -25,7 +25,9 @@ from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_image import derive_image_thumbnail
 from animama.domain.content_catalog import VerifiedContentFile
 
-# Twice the largest tile the Library draws, for high-density displays.
+# Twice the largest tile the Library draws, for high-density displays. Browsers keep
+# an Included image's thumbnail for a year under its digest URL (ADR 0033), so a
+# change to the size or encoding that must reach them needs a new variant name.
 THUMBNAIL_EDGE = 128
 THUMBNAIL_MEDIA_TYPE = "image/webp"
 _RASTER_EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}

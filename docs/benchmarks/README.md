@@ -59,9 +59,10 @@ smoke subset.
 
 - `prompts.json`: the prompt set (format v1, documented in
   [`prompt_set.py`](../../scripts/evals/benchmark/prompt_set.py)): personas,
-  single-turn items with their acceptable Gestures, scripted chats, memory
-  fixtures, memory chats with checklists and recall probes, and Memory Manager
-  runs. Files it names are pinned by sha256.
+  single-turn items with their acceptable Gestures, intended intensity band
+  and fitting tones, scripted chats, memory fixtures, memory chats with
+  checklists and recall probes, and Memory Manager runs. Files it names are
+  pinned by sha256.
 - `loadout-starter-v1.json`: the equipped Gestures every turn sees.
 - `episodic-guidance.md`: the candidate `MEMORIES.md` guidance for memory arm (b).
 - `rubrics.json`: the judge's rubrics, with 1–5 anchors and an example for each.
@@ -148,6 +149,12 @@ raw results stay in `.animama-drafts/`. The first is the
 - Configurations are ranked only when their intervals are apart and each rests
   on at least five items or conversations; otherwise the report says they are
   not distinguishable or too few to compare.
+- Expression is also measured without the judge: core turns by the Reaction
+  intensity their intensity plays (1–2 none, 3–4 Mild, 5–6 Moderate, 7–8
+  Strong, 9–10 Intense); single-turn replies inside, below or above the item's
+  intended band and with a fitting tone; and, for each `audio-tag:<kind>`
+  item kind, the replies carrying the tag it invites (any laugh for
+  `laughs`; no tag at all for `none`).
 - Missing judge scores, failed turns and unpriced costs are counted, never
   filled in. A run that stopped early is marked partial.
 - The report holds ids, labels, counts and scores only; it refuses to write if

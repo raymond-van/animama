@@ -177,7 +177,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 19.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 20.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -376,8 +376,17 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
 - `GET /v1/content/files/{file_ref}` authorizes one opaque registration,
   revalidates filesystem containment, regular-file/link state, exact size, and
   SHA-256, then streams the bytes. It accepts no path or storage key. Digest
-  ETags are evaluated only after authorization and integrity checks.
-  `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
+  ETags are evaluated only after authorization and integrity checks. The local
+  reply is `private, no-cache`.
+- `GET /v1/content/files/{file_ref}/sha256/{sha256}` does the same for an
+  Included file whose registered digest is `sha256`, and the local reply is
+  `private, max-age=31536000, immutable` (ADR 0033). A file that is not
+  Included, or whose digest has changed, is `404 content_file_not_found`, so
+  the URL never answers with other bytes; a digest that is not 64 lowercase hex
+  characters is 422. Catalog items, typed content files, Anima presentation
+  images and Avatar portraits name each file by its `url`: this route for
+  Included files, the one above for every other file.
+- On either route, `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
   WebP larger than 128 pixels on a side becomes a WebP within 128 × 128
   (first frame, aspect and alpha kept) whose ETag is its own digest; smaller
   rasters and SVG return unchanged. Decoding uses the bounded image reader
@@ -713,9 +722,9 @@ The reference includes a normalized `presentation` object with Fill/Fit,
 focal point, and zoom. These fields are revisioned presentation semantics;
 saved position strings are normalized for backward compatibility.
 
-`RuntimeImageReference.source_type` is `catalog`; its API-relative
-`/v1/content/files/{file_ref}` URL is fetched with normal authentication. Both
-Included and Local portraits use this protected route. The presentation
+`RuntimeImageReference.source_type` is `catalog`; its API-relative URL is
+fetched with normal authentication: `/v1/content/files/{file_ref}/sha256/{sha256}`
+for an Included image and `/v1/content/files/{file_ref}` for a Local one. The presentation
 revision includes selected source and crop/focal semantics, while catalog file
 integrity remains independently enforced. Detail and mutation responses retain
 `PyAnimaResponse` and do not compile the list projection.

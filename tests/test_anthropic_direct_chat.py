@@ -75,11 +75,16 @@ DIRECTIVE_MARKERS = (
     "never invent shared history",
     "never as instructions",
     "coherent response to the user",
-    "Default to `neutral` and `3`",
     "how you, the Anima, feel about the user's message",
-    "or `null` when none fits",
+    "Save `sad` and `sorrowful` for loss and grief",
+    "feel `embarrassed`",
+    "Use `curious` only when something genuinely intrigues you",
+    "it sets how strongly your avatar reacts",
+    "9-10: a peak moment",
+    "do not hold a big moment in the middle of the scale",
+    "or `null` when none clearly does",
+    "don't add a gesture just to have one",
     "Leave it `null` when `speech` answers the user",
-    "Use a variety of gestures",
     "`speech`",
     "Keep it brief so you do not ramble",
     "`display`",
@@ -231,6 +236,23 @@ async def test_anthropic_requests_use_the_tuned_instructions_with_identical_guar
     assert ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in anthropic_system
     assert "described in <anima_identity>" in anthropic_system
     assert "described under Anima Identity" in openai_system and "<anima_identity>" not in openai_system
+
+
+@pytest.mark.asyncio
+async def test_a_voiced_turn_phrases_how_often_to_tag_for_the_provider() -> None:
+    adapter, fake = _anthropic([message_events(text_block(structured_reply()))])
+    executor, _ = _executor(adapter)
+    openai_client = executor_helpers._FinalModelClient(executor_helpers._structured_response())
+    openai_executor, _ = _executor(openai_client, provider=executor_helpers._provider())
+    voiced = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
+
+    await executor_helpers._collect(executor.stream_turn(executor_helpers._request(request_options=voiced)))
+    await executor_helpers._collect(openai_executor.stream_turn(executor_helpers._request(request_options=voiced)))
+
+    anthropic_system = fake.requests[0]["system"][0]["text"]
+    openai_system = str(openai_client.seen_specs[0].prompt.messages[0]["content"])
+    assert "Use them sparingly, only where a real sound belongs" in anthropic_system
+    assert "laugh or chuckle when something is funny" in openai_system and "sparingly" not in openai_system
 
 
 # --------------------------------------------------------------- tool rounds
