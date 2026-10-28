@@ -239,7 +239,7 @@ Measure revisit reuse in a persistent browser profile (Playwright's
 `launchPersistentContext`); the desktop app's `persist:animama` partition and
 ordinary browser profiles cache on disk. Playwright's default context is off the
 record: Chromium caps its in-memory HTTP cache at 50 MB, which one starter Anima
-visit exceeds, so earlier bundles are evicted and refetched with a plain 200.
+visit can exceed, so earlier bundles are evicted and refetched with a plain 200.
 
 ## Fault isolation and no hot swap
 

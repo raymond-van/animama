@@ -245,7 +245,8 @@ async def _measure(
             read = await client.get(bundle["url"], headers={"Accept-Encoding": "gzip", "If-None-Match": etag})
             revalidation_wall.append(time.perf_counter() - started)
             revalidation_cpu.append(time.process_time() - started_cpu)
-            assert read.status_code == 304, read.status_code
+            if read.status_code != 304:
+                raise RuntimeError(f"JSON bundle revalidation returned {read.status_code}, not 304")
     print(f"  JSON bundle 304 wall: {_summary(revalidation_wall)} ({len(json_bundles)} bundles)")
     print(f"  JSON bundle 304 CPU:  {_summary(revalidation_cpu)}")
 

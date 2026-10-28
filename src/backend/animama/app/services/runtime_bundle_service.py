@@ -38,7 +38,11 @@ class RuntimeBundleRead:
     changed: dict[ContentSource, list[str]] = field(default_factory=dict)
 
     def encode(self) -> bytes:
-        """The JSON envelope, or the binary frame of the members read."""
+        """The JSON envelope, or the binary frame of the members read.
+
+        ``validator`` does not cover this serialization: bump the envelope version
+        whenever the bytes written here change for the same members.
+        """
 
         if self.format == "json":
             return json.dumps(self.envelope, ensure_ascii=False, separators=(",", ":")).encode("utf-8")

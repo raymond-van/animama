@@ -27,7 +27,7 @@ from animama.domain.runtime_bundles import (
     runtime_bundle_id,
     select_runtime_bundles,
 )
-from animama.product_http.delivery import encoded_json_response
+from animama.product_http.delivery import DeferredJsonBody, encoded_json_response
 from animama.product_http.ports import install_product_ports
 from animama.product_http.principal import get_current_principal
 from animama.product_http.routes import anima_runtime
@@ -244,7 +244,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
         def repositories(self, session: Any) -> Any:
             return SimpleNamespace(content_catalog=state.catalog_service)
 
-        async def json_response(self, request: Any, body: bytes, **options: Any) -> Any:
+        async def json_response(self, request: Any, body: bytes | DeferredJsonBody, **options: Any) -> Any:
             # The local delivery policy.
             return await encoded_json_response(body, **options)
 
@@ -314,9 +314,13 @@ async def test_a_revalidated_json_bundle_is_checked_but_not_rebuilt(
         for _ in range(2):
             again = await client.get(URL, headers={"Accept-Encoding": "gzip", "If-None-Match": first.headers["etag"]})
             assert (again.status_code, again.headers["etag"]) == (304, first.headers["etag"])
+        identity = await client.get(URL, headers={"Accept-Encoding": "identity"})
+        etag = identity.headers["etag"]
+        again = await client.get(URL, headers={"Accept-Encoding": "identity", "If-None-Match": etag})
+        assert (again.status_code, again.headers["etag"]) == (304, etag)
         assert len(compressed) == 1
         # Every conditional read still opened and verified both members on disk.
-        assert state.opens == 6 and state.queries == 3
+        assert state.opens == 10 and state.queries == 5
 
         # A member that changed on disk is still caught before any 304.
         state.paths[1].write_bytes(b"changed")
