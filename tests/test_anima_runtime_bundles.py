@@ -171,6 +171,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
         catalog=_catalog(),
         denied_ref=None,
         paths=[],
+        revision="revision",
     )
     authorizations = {}
     for member, raw in zip(state.catalog["content_descriptor"]["members"], state.raw, strict=True):
@@ -199,7 +200,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
 
         async def get_bundle(self, *, user_id: str, anima_id: str, revision: str, bundle_id: str):  # noqa: ANN202
             # The snapshot's refusals, over the bundles issuance stored for its catalog.
-            if (user_id, anima_id, revision) != ("owner", "anima", "revision"):
+            if (user_id, anima_id, revision) != ("owner", "anima", state.revision):
                 raise RuntimeSnapshotError("runtime_file_not_found")
             if state.expires <= datetime.now(UTC):
                 raise RuntimeSnapshotError("runtime_remount_required")
@@ -277,7 +278,7 @@ async def test_bundle_wire_integrity_revalidation_and_no_lease_renewal(bundle_ht
             wire = b"".join([chunk async for chunk in compressed.aiter_raw()])
         assert gzip.decompress(wire) == identity.content
         assert int(compressed.headers["content-length"]) == len(wire)
-        assert compressed.headers["etag"] == f'"{hashlib.sha256(wire).hexdigest()}"'
+        # Each content coding is its own representation with its own validator.
         assert compressed.headers["etag"] != identity.headers["etag"]
         assert compressed.headers["vary"] == "Accept-Encoding"
         assert identity.headers["cache-control"] == "private, no-cache"
@@ -286,9 +287,65 @@ async def test_bundle_wire_integrity_revalidation_and_no_lease_renewal(bundle_ht
         cached = await client.get(URL, headers={"Accept-Encoding": "gzip", "If-None-Match": compressed.headers["etag"]})
         assert cached.status_code == 304
         assert cached.content == b""
+        assert cached.headers["etag"] == compressed.headers["etag"]
         assert state.opens == 6 and state.queries == 3
         assert state.expires == expires
         state.session.commit.assert_not_awaited()
+
+
+async def test_a_revalidated_json_bundle_is_checked_but_not_rebuilt(
+    bundle_http: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A matching validator costs the authorization and file checks, not a compressed body."""
+
+    state = bundle_http
+    URL = _url(state)
+    compressed: list[int] = []
+    compress = gzip.compress
+
+    def counted(data: bytes, *args: Any, **kwargs: Any) -> bytes:
+        compressed.append(len(data))
+        return compress(data, *args, **kwargs)
+
+    monkeypatch.setattr(gzip, "compress", counted)
+    async with local_client(state.app) as client:
+        first = await client.get(URL, headers={"Accept-Encoding": "gzip"})
+        assert len(compressed) == 1
+        for _ in range(2):
+            again = await client.get(URL, headers={"Accept-Encoding": "gzip", "If-None-Match": first.headers["etag"]})
+            assert (again.status_code, again.headers["etag"]) == (304, first.headers["etag"])
+        assert len(compressed) == 1
+        # Every conditional read still opened and verified both members on disk.
+        assert state.opens == 6 and state.queries == 3
+
+        # A member that changed on disk is still caught before any 304.
+        state.paths[1].write_bytes(b"changed")
+        degraded = await client.get(URL, headers={"Accept-Encoding": "gzip", "If-None-Match": first.headers["etag"]})
+        assert degraded.status_code == 200
+        assert degraded.headers["cache-control"] == "no-store"
+        assert "etag" not in degraded.headers
+        assert state.catalog_service.mark_scan_required.await_count == 1
+
+
+async def test_a_json_bundle_validator_names_its_revision_and_member_bytes(bundle_http: SimpleNamespace) -> None:
+    state = bundle_http
+    async with local_client(state.app) as client:
+        first = await client.get(_url(state))
+        state.revision = "other-revision"
+        url = _url(state, "other-revision")
+        other_revision = await client.get(url, headers={"If-None-Match": first.headers["etag"]})
+        assert other_revision.status_code == 200
+        assert other_revision.headers["etag"] != first.headers["etag"]
+        # The same member set with different bytes is a different representation.
+        raw = b'{"tracks": [1]}\n'
+        state.paths[2].write_bytes(raw)
+        digest = hashlib.sha256(raw).hexdigest()
+        state.catalog["content_descriptor"]["members"][2].update(size_bytes=len(raw), sha256=digest)
+        state.authorizations["file-002"] = replace(state.authorizations["file-002"], size_bytes=len(raw), sha256=digest)
+        changed = await client.get(url, headers={"If-None-Match": other_revision.headers["etag"]})
+        assert changed.status_code == 200
+        assert changed.json()["members"][1]["text"].encode() == raw
+        assert changed.headers["etag"] not in {first.headers["etag"], other_revision.headers["etag"]}
 
 
 @pytest.mark.parametrize("failure", ["changed", "deleted", "catalog", "invalid_utf8"])

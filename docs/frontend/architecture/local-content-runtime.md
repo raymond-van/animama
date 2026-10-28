@@ -230,6 +230,12 @@ other 4xx, malformed or oversized envelopes and frames, and checksum failures do
 trigger fallback. Reload/remount
 to recover changed content; do not clear the installation or alter its owner.
 
+Measure revisit reuse in a persistent browser profile (Playwright's
+`launchPersistentContext`); the desktop app's `persist:animama` partition and
+ordinary browser profiles cache on disk. Playwright's default context is off the
+record: Chromium caps its in-memory HTTP cache at 50 MB, which one starter Anima
+visit exceeds, so earlier bundles are evicted and refetched with a plain 200.
+
 ## Fault isolation and no hot swap
 
 `canChat` is independent from optional playback preparation.

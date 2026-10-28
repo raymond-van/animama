@@ -3,9 +3,9 @@
 Starts a disposable PostgreSQL container, scans this checkout's Included content
 (pull its Git LFS files first), creates the supplied starter Animas and serves the
 shared runtime routes in process. For each starter it issues the runtime several
-times and reads every issued bundle, reporting wall time, process CPU time
-(worker threads included), SQL statements and how long issuance holds its
-loadout row lock.
+times, reads every issued bundle and revalidates each JSON bundle with its ETag,
+reporting wall time, process CPU time (worker threads included), SQL statements
+and how long issuance holds its loadout row lock.
 
     uv run --no-sync python scripts/perf/runtime_issuance.py --issues 8 --rtt-ms 2
 
@@ -233,6 +233,21 @@ async def _measure(
     print(f"  bundle wall:  {_summary(bundle_wall)}")
     print(f"  bundle CPU:   {_summary(bundle_cpu)}")
     print(f"  bundle statements: {statistics.median(bundle_statements):.0f}")
+
+    # A revisit revalidates each JSON bundle (ADR 0028) with the validator it holds.
+    revalidation_wall: list[float] = []
+    revalidation_cpu: list[float] = []
+    json_bundles = [bundle for bundle in runtime["bundles"] if bundle["format"] == "json"]
+    for bundle in json_bundles:
+        etag = (await client.get(bundle["url"], headers={"Accept-Encoding": "gzip"})).headers["etag"]
+        for _ in range(max(1, issues // 2)):
+            started, started_cpu = time.perf_counter(), time.process_time()
+            read = await client.get(bundle["url"], headers={"Accept-Encoding": "gzip", "If-None-Match": etag})
+            revalidation_wall.append(time.perf_counter() - started)
+            revalidation_cpu.append(time.process_time() - started_cpu)
+            assert read.status_code == 304, read.status_code
+    print(f"  JSON bundle 304 wall: {_summary(revalidation_wall)} ({len(json_bundles)} bundles)")
+    print(f"  JSON bundle 304 CPU:  {_summary(revalidation_cpu)}")
 
 
 async def main(arguments: argparse.Namespace) -> None:

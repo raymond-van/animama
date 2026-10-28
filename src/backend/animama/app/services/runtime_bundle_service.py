@@ -23,12 +23,26 @@ CHANGED = "runtime_file_changed_remount_required"
 
 @dataclass(slots=True)
 class RuntimeBundleRead:
-    """A bundle's body, whether every member was read, and members that drifted on disk."""
+    """A bundle's members as read, whether every member was read, and members that drifted on disk.
+
+    ``validator`` digests the envelope version, the revision and each member's
+    ``file_ref`` and SHA-256. A complete read's members are exactly those bytes, so
+    the validator names the encoded body before ``encode`` builds it.
+    """
 
     format: BundleFormat
-    body: bytes
+    envelope: dict[str, Any]
+    payloads: list[bytes]
     complete: bool
+    validator: str
     changed: dict[ContentSource, list[str]] = field(default_factory=dict)
+
+    def encode(self) -> bytes:
+        """The JSON envelope, or the binary frame of the members read."""
+
+        if self.format == "json":
+            return json.dumps(self.envelope, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        return binary_bundle_frame(self.envelope, self.payloads)
 
 
 def binary_bundle_frame(header: dict[str, Any], payloads: list[bytes]) -> bytes:
@@ -86,11 +100,16 @@ class RuntimeBundleService:
                 payloads.append(raw)
         complete = not any("error" in entry for entry in entries)
         envelope = {"version": 1, "revision": revision, "members": entries}
-        if bundle.format == "json":
-            body = json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        else:
-            body = binary_bundle_frame(envelope, payloads)
-        return RuntimeBundleRead(format=bundle.format, body=body, complete=complete, changed=dict(changed))
+        named = [envelope["version"], revision, [[member["file_ref"], member["sha256"]] for member in bundle.members]]
+        validator = hashlib.sha256(json.dumps(named, separators=(",", ":")).encode("utf-8")).hexdigest()
+        return RuntimeBundleRead(
+            format=bundle.format,
+            envelope=envelope,
+            payloads=payloads,
+            complete=complete,
+            validator=validator,
+            changed=dict(changed),
+        )
 
     def _read_member(
         self,
