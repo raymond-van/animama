@@ -44,6 +44,9 @@ export type AppearanceColorTokenKey =
  * catalog by `key`. `cssVar` is the token shown as the default;
  * `also` receives the same value (unless separately overridden) and `textVars`
  * receive black or white, whichever reads better on the colour.
+ * `glassOpacityVars` become 100% when that text is white: chat bubbles draw
+ * their tint as translucent glass, and a light backdrop showing through would
+ * lower white text's contrast.
  */
 export type AppearanceColorToken = {
   key: AppearanceColorTokenKey;
@@ -51,6 +54,7 @@ export type AppearanceColorToken = {
   cssVar: string;
   also?: readonly string[];
   textVars?: readonly string[];
+  glassOpacityVars?: readonly string[];
 };
 
 /** Basic tokens first; advanced ones override anything basic ones derived. */
@@ -59,14 +63,17 @@ export const APPEARANCE_COLOR_TOKENS: readonly AppearanceColorToken[] = [
     key: "primary",
     group: "basic",
     cssVar: "primary",
-    also: ["ring", "sidebar-primary", "sidebar-ring"],
+    also: ["ring", "sidebar-primary", "sidebar-ring", "bubble-user"],
     textVars: ["primary-foreground", "sidebar-primary-foreground"],
+    glassOpacityVars: ["bubble-user-opacity"],
   },
   {
     key: "secondary",
     group: "basic",
     cssVar: "secondary",
+    also: ["bubble-anima"],
     textVars: ["secondary-foreground"],
+    glassOpacityVars: ["bubble-anima-opacity"],
   },
   {
     key: "accent",
@@ -216,6 +223,9 @@ export function appearanceOverrideDeclarations(
     for (const name of token.also ?? []) set(name, color);
     const text = readableTextOn(color);
     for (const name of token.textVars ?? []) set(name, text);
+    if (text === "#ffffff") {
+      for (const name of token.glassOpacityVars ?? []) set(name, "100%");
+    }
   };
 
   const basic = APPEARANCE_COLOR_TOKENS.filter((t) => t.group === "basic");

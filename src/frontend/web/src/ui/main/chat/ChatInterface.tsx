@@ -343,6 +343,9 @@ export function ChatInterfaceView({
       ref={panelRef}
       className={cn(
         "pointer-events-auto relative flex h-full w-full flex-col",
+        // Quick Chat's window is transparent, so glass bubbles would show the
+        // desktop through unblurred; draw them solid there.
+        quickChatSurface && "animama-solid-bubbles",
         className,
       )}
     >

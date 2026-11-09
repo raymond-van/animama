@@ -54,7 +54,7 @@ export const Message = ({
 };
 
 const messageContentShellVariants = cva(
-  "is-user:dark relative isolate flex flex-col gap-2 overflow-hidden rounded-lg text-base",
+  "is-user:dark relative isolate flex flex-col gap-2 overflow-hidden rounded-xl text-base",
   {
     variants: {
       variant: {
@@ -76,9 +76,13 @@ const messageContentBackgroundVariants = cva(
   {
     variants: {
       variant: {
+        // Frosted glass (styles.css). The tint is solid wherever the glass
+        // cannot blur what is behind it, so the text keeps its contrast.
         contained: [
-          "group-[.is-user]:bg-primary/90 lg:group-[.is-user]:bg-primary",
-          "group-[.is-assistant]:bg-secondary/90 lg:group-[.is-assistant]:bg-secondary",
+          "animama-glass-bubble",
+          "group-[.is-user]:bg-bubble-user group-[.is-assistant]:bg-bubble-anima",
+          "supports-[backdrop-filter]:group-[.is-user]:bg-bubble-user/(--bubble-user-opacity)",
+          "supports-[backdrop-filter]:group-[.is-assistant]:bg-bubble-anima/(--bubble-anima-opacity)",
         ],
         flat: [
           "group-[.is-user]:bg-secondary/90 lg:group-[.is-user]:bg-secondary",

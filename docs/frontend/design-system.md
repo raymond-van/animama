@@ -60,6 +60,15 @@ as status dots. Palette colors remain acceptable for decorative illustration
 and data categories, such as diff lines, timeline track kinds or file-type
 icons.
 
+Chat bubbles are borderless frosted glass: `MessageContent` draws the
+`--bubble-user` and `--bubble-anima` tints at `--bubble-user-opacity` and
+`--bubble-anima-opacity` (62%) with the `.animama-glass-bubble` material from
+product-ui's `styles.css`. Glass needs something behind it to blur, so a
+surface over a transparent window (desktop Quick Chat) adds
+`.animama-solid-bubbles`. The tints are solid where `backdrop-filter` is
+unsupported, under `prefers-reduced-transparency`, and when a Primary or
+Secondary override needs white text.
+
 ## Typography
 
 - The root font size is 18px; rem-based Tailwind sizes scale with it.

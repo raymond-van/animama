@@ -82,6 +82,18 @@ describe("buildAppearanceOverrideCss", () => {
     expect(css).toContain("--accent-foreground: #000000;");
   });
 
+  it("tints the chat bubbles and keeps white-text bubbles solid", () => {
+    const css = buildAppearanceOverrideCss({
+      light: { primary: "#ffd166", secondary: "#1d3557" },
+    });
+    // A light colour with black text keeps the translucent glass.
+    expect(css).toContain("--bubble-user: #ffd166;");
+    expect(css).not.toContain("--bubble-user-opacity:");
+    // Glass over a light backdrop would wash out white text.
+    expect(css).toContain("--bubble-anima: #1d3557;");
+    expect(css).toContain("--bubble-anima-opacity: 100%;");
+  });
+
   it("lets advanced colours win over derived and basic values", () => {
     const css = buildAppearanceOverrideCss({
       dark: {
