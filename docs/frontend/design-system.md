@@ -21,7 +21,7 @@ design and visual-verification workflow.
 
 | Source | Owns |
 | --- | --- |
-| `src/frontend/packages/product-ui/src/theme.css` | Color, status, radius, shadow and `text-2xs` tokens for light and dark themes |
+| `src/frontend/packages/product-ui/src/theme.css` | Color, status, radius, shadow and `text-2xs` tokens for light and dark themes, and the chat bubble surface |
 | `src/frontend/web/src/styles/globals.css` | Typeface, body weight and app-wide base styles |
 | `src/frontend/web/src/lib/theme/appearance-overrides.ts` | Owner color overrides in Settings > Appearance |
 
