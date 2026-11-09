@@ -76,13 +76,12 @@ const messageContentBackgroundVariants = cva(
   {
     variants: {
       variant: {
-        // Frosted glass (styles.css). The tint is solid wherever the glass
-        // cannot blur what is behind it, so the text keeps its contrast.
+        // The bubble surface (theme.css) drawn with the role's tint, as
+        // frosted glass or as a solid fill.
         contained: [
           "animama-glass-bubble",
-          "group-[.is-user]:bg-bubble-user group-[.is-assistant]:bg-bubble-anima",
-          "supports-[backdrop-filter]:group-[.is-user]:bg-bubble-user/(--bubble-user-opacity)",
-          "supports-[backdrop-filter]:group-[.is-assistant]:bg-bubble-anima/(--bubble-anima-opacity)",
+          "group-[.is-user]:[--bubble-tint:var(--bubble-user)] group-[.is-user]:[--bubble-glass:var(--bubble-user-glass)]",
+          "group-[.is-assistant]:[--bubble-tint:var(--bubble-anima)] group-[.is-assistant]:[--bubble-glass:var(--bubble-anima-glass)]",
         ],
         flat: [
           "group-[.is-user]:bg-secondary/90 lg:group-[.is-user]:bg-secondary",

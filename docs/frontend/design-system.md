@@ -61,13 +61,13 @@ and data categories, such as diff lines, timeline track kinds or file-type
 icons.
 
 Chat bubbles are borderless frosted glass: `MessageContent` draws the
-`--bubble-user` and `--bubble-anima` tints at `--bubble-user-opacity` and
-`--bubble-anima-opacity` (62%) with the `.animama-glass-bubble` material from
-product-ui's `styles.css`. Glass needs something behind it to blur, so a
-surface over a transparent window (desktop Quick Chat) adds
-`.animama-solid-bubbles`. The tints are solid where `backdrop-filter` is
-unsupported, under `prefers-reduced-transparency`, and when a Primary or
-Secondary override needs white text.
+`--bubble-user` and `--bubble-anima` tints with the `.animama-glass-bubble`
+surface in `theme.css`. `--bubble-user-glass` and `--bubble-anima-glass` choose
+glass (1) or a plain solid fill (0). Bubbles are solid under
+`prefers-reduced-transparency`, inside `.animama-solid-bubbles` (Quick Chat's
+transparent window, where glass has nothing to blur) and for a Primary or
+Secondary override, whose text colour is chosen for a solid fill. Where
+`backdrop-filter` is unsupported the tint is opaque.
 
 ## Typography
 

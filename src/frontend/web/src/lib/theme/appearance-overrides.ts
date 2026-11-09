@@ -44,9 +44,9 @@ export type AppearanceColorTokenKey =
  * catalog by `key`. `cssVar` is the token shown as the default;
  * `also` receives the same value (unless separately overridden) and `textVars`
  * receive black or white, whichever reads better on the colour.
- * `glassOpacityVars` become 100% when that text is white: chat bubbles draw
- * their tint as translucent glass, and a light backdrop showing through would
- * lower white text's contrast.
+ * `solidBubbleVars` turn that role's chat bubble from frosted glass into a
+ * solid fill: the text colour is chosen for the solid colour, and translucency
+ * or the glass's white highlights could lower its contrast.
  */
 export type AppearanceColorToken = {
   key: AppearanceColorTokenKey;
@@ -54,7 +54,7 @@ export type AppearanceColorToken = {
   cssVar: string;
   also?: readonly string[];
   textVars?: readonly string[];
-  glassOpacityVars?: readonly string[];
+  solidBubbleVars?: readonly string[];
 };
 
 /** Basic tokens first; advanced ones override anything basic ones derived. */
@@ -65,7 +65,7 @@ export const APPEARANCE_COLOR_TOKENS: readonly AppearanceColorToken[] = [
     cssVar: "primary",
     also: ["ring", "sidebar-primary", "sidebar-ring", "bubble-user"],
     textVars: ["primary-foreground", "sidebar-primary-foreground"],
-    glassOpacityVars: ["bubble-user-opacity"],
+    solidBubbleVars: ["bubble-user-glass"],
   },
   {
     key: "secondary",
@@ -73,7 +73,7 @@ export const APPEARANCE_COLOR_TOKENS: readonly AppearanceColorToken[] = [
     cssVar: "secondary",
     also: ["bubble-anima"],
     textVars: ["secondary-foreground"],
-    glassOpacityVars: ["bubble-anima-opacity"],
+    solidBubbleVars: ["bubble-anima-glass"],
   },
   {
     key: "accent",
@@ -223,9 +223,7 @@ export function appearanceOverrideDeclarations(
     for (const name of token.also ?? []) set(name, color);
     const text = readableTextOn(color);
     for (const name of token.textVars ?? []) set(name, text);
-    if (text === "#ffffff") {
-      for (const name of token.glassOpacityVars ?? []) set(name, "100%");
-    }
+    for (const name of token.solidBubbleVars ?? []) set(name, "0");
   };
 
   const basic = APPEARANCE_COLOR_TOKENS.filter((t) => t.group === "basic");

@@ -154,7 +154,8 @@ shared `ChatInterfaceView` in `layout="chat-only"` mode inside a
 `SettingsProvider`.
 
 Quick Chat passes `quickChatSurface` to the shared chat view. That mode keeps
-the same message bubbles and `ChatInput`, but changes the vertical layout so the
+the same message bubbles, drawn solid because the transparent window gives the
+frosted glass nothing to blur, and `ChatInput`, but changes the vertical layout so the
 input is centered in the native window and the conversation viewport sits above
 it. Short message lists are bottom-aligned in that viewport, so messages appear
 directly above the input and grow upward toward the top. Once the message stack

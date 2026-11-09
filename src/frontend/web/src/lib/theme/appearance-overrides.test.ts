@@ -82,16 +82,21 @@ describe("buildAppearanceOverrideCss", () => {
     expect(css).toContain("--accent-foreground: #000000;");
   });
 
-  it("tints the chat bubbles and keeps white-text bubbles solid", () => {
+  it("draws custom-coloured chat bubbles solid", () => {
+    // Black text (light colour) and white text (dark colour) alike: the text
+    // colour is chosen for a solid fill, which glass could wash out.
     const css = buildAppearanceOverrideCss({
-      light: { primary: "#ffd166", secondary: "#1d3557" },
+      light: { primary: "#e05a9a", secondary: "#1d3557" },
     });
-    // A light colour with black text keeps the translucent glass.
-    expect(css).toContain("--bubble-user: #ffd166;");
-    expect(css).not.toContain("--bubble-user-opacity:");
-    // Glass over a light backdrop would wash out white text.
+    expect(css).toContain("--bubble-user: #e05a9a;");
+    expect(css).toContain("--bubble-user-glass: 0;");
     expect(css).toContain("--bubble-anima: #1d3557;");
-    expect(css).toContain("--bubble-anima-opacity: 100%;");
+    expect(css).toContain("--bubble-anima-glass: 0;");
+  });
+
+  it("keeps the default glass bubble for a role without an override", () => {
+    const css = buildAppearanceOverrideCss({ light: { accent: "#ffd166" } });
+    expect(css).not.toContain("--bubble-");
   });
 
   it("lets advanced colours win over derived and basic values", () => {
