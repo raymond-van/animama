@@ -699,9 +699,12 @@ disk, with bounded reads off the event loop. Physical changes mark the catalog
 scan-required in a write session of their own; independent good members remain
 usable.
 
-Complete JSON bundles use the same gzip/identity negotiation, wire ETag/length and
-`Vary: Accept-Encoding` as manifests, with the local `private, no-cache`; binary
-bundles are never compressed, carry an ETag of the frame's SHA-256 and, when
+Complete JSON bundles use the same gzip/identity negotiation, encoded length and
+`Vary: Accept-Encoding` as manifests, with the local `private, no-cache`. Their ETag
+is a digest of the envelope version, the revision and each member's `file_ref` and
+SHA-256, plus the content coding, so once every member is verified a matching
+`If-None-Match` gets 304 without the envelope being encoded, compressed or hashed.
+Binary bundles are never compressed, carry an ETag of the frame's SHA-256 and, when
 complete, the local `private, max-age=31536000, immutable` (ADR 0028), like runtime
 file responses. Unlike
 issuance, bundle GET does not change a lease, so it may return 304 **after all

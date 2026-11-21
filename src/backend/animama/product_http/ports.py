@@ -605,10 +605,11 @@ class ProductPorts(Protocol):
         under this composition's caching policy.
 
         ``encoding`` is the negotiated ``gzip`` or ``identity``; ``cacheable`` marks a
-        body a client may keep and revalidate by ETag. The content catalog arrives as
-        a ``DeferredJsonBody``: ``encoded_json_response`` answers a matching validator
-        with a 304 before building it. Building it reads the request's session, so
-        keep that session and its read transaction open until this returns.
+        body a client may keep and revalidate by ETag. The content catalog and complete
+        runtime JSON bundles arrive as a ``DeferredJsonBody``: ``encoded_json_response``
+        answers a matching validator with a 304 before building it. Building the
+        catalog reads the request's session, so keep that session and its read
+        transaction open until this returns.
         """
         ...
 

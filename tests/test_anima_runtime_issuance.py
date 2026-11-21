@@ -161,7 +161,7 @@ async def test_a_bundle_read_loads_only_its_own_members(async_session, tmp_path:
                 bundle_id=advertised["id"],
             )
         assert read.complete and read.format == "json"
-        assert [member["file_ref"] for member in json.loads(read.body)["members"]] == advertised["file_refs"]
+        assert [member["file_ref"] for member in json.loads(read.encode())["members"]] == advertised["file_refs"]
         assert len(statements) == 2
         assert not any(re.search(r"anima_runtime_snapshots\.catalog\b", statement) for statement in statements)
 
