@@ -590,7 +590,9 @@ else {
             });
           },
           exit: (code) => {
+            // Also stops a failed message from opening the recovery window.
             allowQuit = true;
+            quitting = true;
             app.exit(code);
           },
         })

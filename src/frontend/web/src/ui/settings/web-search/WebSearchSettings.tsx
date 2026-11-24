@@ -25,7 +25,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
-import { useDesktopCredentialsAvailable } from "@/ui/settings/DesktopCredentialsPanel";
+import {
+  DesktopKeyStorageNote,
+  useDesktopCredentialsAvailable,
+} from "@/ui/settings/DesktopCredentialsPanel";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import {
   applyCredentialChanges,
@@ -348,9 +351,9 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
                 disabled={busy}
                 onChange={(event) => change({ key: event.target.value })}
               />
-              <p className="text-muted-foreground text-xs">
+              <DesktopKeyStorageNote className="text-muted-foreground text-xs">
                 {t("keys.encrypted")}
-              </p>
+              </DesktopKeyStorageNote>
             </div>
           ) : (
             <div className="space-y-2">

@@ -849,6 +849,43 @@ pass; `pnpm exec vitest run src/ui/settings` from `web` passes with 20 files,
 
 Repair budget: one of two rounds used.
 
+#### Code Review #2 Findings
+
+Targeted recheck of repair commits `5738192d2` and `4f8a9f8c1`. Result: one
+blocking finding remains.
+
+- **P3-F1: not resolved.** The web search settings have a third key field
+  (`web-search/WebSearchSettings.tsx`, the Brave key) that still printed
+  `keys.encrypted` directly. The other four "encrypted" sentences reach the
+  screen only through the panel's description, as claimed.
+- P3-F2 to P3-F7 and the Linux-host fix: resolved. The reviewer forced
+  `process.platform` to `linux` in an export: the supervisor suite passed
+  (62 passed, 1 skipped) and its pre-repair version failed 52 tests, so the
+  simulation reproduces the original failure.
+- Optional: after a failed sandbox message the rethrown error reaches the
+  ready handler's `catch`, which would construct a recovery window in the
+  exiting process, because only `allowQuit` was set.
+- The reviewer reran, on an export of `4f8a9f8c1`: `pnpm desktop:test` (46
+  files passed, 2 skipped; 761 passed, 16 skipped), `pnpm check`, and the
+  panel and model settings web tests (6 files, 126 tests).
+
+#### Code Review #2 Revisions
+
+- **P3-F1: accepted.** The Brave key field uses `DesktopKeyStorageNote`. A
+  new test reads every component source and fails if `keys.encrypted` is
+  rendered outside that note; it failed on the web search file before the
+  fix.
+- **Optional: accepted.** The refusal's exit also sets `quitting`, which
+  `showRecovery` checks first.
+
+Repair check (macOS arm64, working directory `src/frontend`, in the worktree,
+which also held unstaged Phase 5 files that no test below reads):
+`pnpm desktop:test` passes with 46 files passed, 2 skipped; 763 tests passed,
+16 skipped; `pnpm check` passes; `pnpm exec vitest run src/ui/settings` from
+`web` passes with 20 files, 214 tests.
+
+Repair budget: two of two rounds used.
+
 ### Phase 4: desktop integration
 
 Review tier: standard. New settings and window behavior with no change to a

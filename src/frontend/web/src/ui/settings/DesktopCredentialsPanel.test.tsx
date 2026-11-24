@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -389,6 +392,28 @@ describe("feature-local key fields", () => {
         </DesktopKeyStorageNote>,
       ),
     ).toContain("Encrypted on this computer.");
+  });
+
+  it("lets no key field state that keys are encrypted except through the storage note", () => {
+    // `keys.encrypted` is the sentence under a feature's own key field. Shown
+    // raw it would be false on a Linux desktop without a secret store.
+    const root = fileURLToPath(new URL("../..", import.meta.url));
+    const sources = readdirSync(root, { recursive: true, encoding: "utf8" })
+      .filter((name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"))
+      .map((name) => ({
+        name,
+        text: readFileSync(path.join(root, name), "utf8"),
+      }));
+    const uses = sources.flatMap(({ name, text }) =>
+      [...text.matchAll(/t\("keys\.encrypted"\)/gu)].map((match) => ({
+        name,
+        wrapped: /<DesktopKeyStorageNote[^<]*$/u.test(
+          text.slice(0, match.index),
+        ),
+      })),
+    );
+    expect(uses.length).toBeGreaterThanOrEqual(2);
+    expect(uses.filter((use) => !use.wrapped)).toEqual([]);
   });
 
   it("reports only its own keys' failures", () => {
