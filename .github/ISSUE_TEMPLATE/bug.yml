@@ -3,39 +3,65 @@ description: Something in Animama does not work as it should.
 body:
   - type: markdown
     attributes:
-      value: "Thanks for reporting. Report security problems privately, as the [security policy](https://github.com/raymond-van/animama/security/policy) describes, never here. Leave out API keys, chats, memories and other personal content."
+      value: |
+        Thanks for reporting. Search [existing issues](https://github.com/raymond-van/animama/issues?q=is%3Aissue) first, and report one problem at a time.
+
+        Report security problems privately, as the [security policy](https://github.com/raymond-van/animama/security/policy) describes, never here. Leave out API keys, chats, memories and other personal content.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where are you running Animama?
+      options:
+        - macOS desktop app
+        - Windows desktop app
+        - Self-hosted in a browser (Docker)
+        - Desktop app built from source
+        - Something else
+    validations:
+      required: true
   - type: input
     id: version
     attributes:
-      label: Animama version or commit
+      label: Animama version
+      description: "App Settings → About shows it, for example 0.1.6. If Animama does not start, use the version in the installer's file name. For a source build or a self-hosted server, give the commit too."
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened, and what did you expect?
+      description: Copy any error message or error code exactly. Say so if you are unsure about something.
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
       label: Steps to reproduce
-      description: Include the smallest known local reproduction and whether it is intermittent.
+      description: The shortest steps that make it happen, and whether it happens every time.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. ...
     validations:
       required: true
   - type: textarea
-    id: behavior
+    id: diagnostics
     attributes:
-      label: Expected and actual behavior
-      description: Explain what should happen and what you observed. State uncertainty explicitly.
-    validations:
-      required: true
+      label: Diagnostics summary
+      description: "In Animama, open App Settings → About, select Copy summary beside Diagnostics and paste it here. It lists versions, your platform, component status, which providers have a key set, and recent activity, warnings and errors with their times. It never includes keys, file paths, chats or memories. Skip this if Animama does not start."
+      render: text
+  - type: input
+    id: model
+    attributes:
+      label: Chat provider and model
+      description: "For problems with replies, memory or voice: the provider and model you use, for example OpenAI GPT-6 Luna or Ollama with its model name. If speech is involved, name the Speech-to-Text or Text-to-Speech provider too."
   - type: textarea
     id: environment
     attributes:
-      label: Environment and evidence
-      description: OS, serving mode, relevant configuration and sanitized logs or screenshots. Do not attach databases, credentials or personal content.
+      label: Anything else
+      description: "Your OS version, screenshots, a short recording or a few relevant log lines. The desktop app opens its logs from App Settings → About → Open logs folder; [desktop troubleshooting](https://github.com/raymond-van/animama/blob/main/docs/frontend/desktop/troubleshooting.md) says where they are when the app does not start. Do not attach databases, credentials or personal content."
   - type: textarea
     id: assignment
     attributes:
-      label: Scope, approach and acceptance (maintainer)
-      description: Maintainer or agent follow-up after triage. Record the bounded fix, brief approach, regression checks, review disposition and any explicit owner verification gate. Reporters may leave this blank.
-  - type: textarea
-    id: links
-    attributes:
-      label: Related work and blockers
-      description: Existing issues, PRs, confirmed investigation results or unresolved questions. Search before creating a duplicate.
+      label: Maintainer notes
+      description: "Reporters: leave this blank. After triage, the maintainer or an agent records the bounded fix, brief approach, acceptance and regression checks, review disposition, any explicit owner verification gate, and related issues or blockers."

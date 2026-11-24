@@ -40,12 +40,16 @@ export const RELEASE_TARGETS = {
     ],
   },
   "win32-x64": {
-    label: "Windows 11",
+    label: "Windows",
     platform: "win32",
     architecture: "x64",
-    minimumOs: "10.0.22000",
-    // On Windows os.release() is the kernel version, which matches the build.
+    // Windows 10 version 1903; os.release() reports 10.0.<build>.
+    minimumOs: "10.0.18362",
+    // Frozen. Installed 0.1.6 apps reject a feed unless this is exactly
+    // 10.0.22000, so it no longer follows the floor. The release's real floor
+    // travels as `animama.minimum_os`, which newer apps enforce instead.
     minimumSystemVersion: "10.0.22000",
+    feedCarriesMinimumOs: true,
     feed: "latest.yml",
     runtime: "resources/runtime",
     measurement: "signed-app-and-installer",
@@ -79,7 +83,9 @@ export async function updateFeed(
   if (!/^\d+\.\d+\.\d+$/u.test(version))
     throw new Error("Invalid release version");
   if (manifest.minimum_os !== spec.minimumOs)
-    throw new Error(`Update feed requires the ${spec.label} runtime manifest`);
+    throw new Error(
+      `Update feed requires the ${spec.label} runtime manifest (minimum_os ${spec.minimumOs})`,
+    );
   if (!["r2", "github"].includes(distribution?.kind))
     throw new Error("Update feed requires the selected release distribution");
   const folder = distribution.kind === "r2" ? `v${version}/` : "";
@@ -114,6 +120,7 @@ export async function updateFeed(
       architecture: spec.architecture,
       installed_bytes: installedBytes,
       runtime_build_id: manifest.build_id,
+      ...(spec.feedCarriesMinimumOs ? { minimum_os: manifest.minimum_os } : {}),
       packs: catalog.entries.map((pack) => ({
         id: pack.id,
         manifest_sha256: createHash("sha256")

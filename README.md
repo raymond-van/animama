@@ -14,6 +14,12 @@
   <a href="README.zh-Hans.md">简体中文</a>
 </p>
 
+<p align="center">
+  <b>News</b>
+  <br>
+  November 18, 2026 · Animama has officially launched and is now open source
+</p>
+
 # Animama
 
 Your new desk buddy is an Anima.
@@ -157,7 +163,8 @@ pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:win:installer
 ```
 
-The installer is written to `src/frontend/desktop/release/`.
+The installer is written to `src/frontend/desktop/release/`. It installs on
+Windows 10 22H2 and on Windows 11.
 
 </details>
 
@@ -188,6 +195,13 @@ your own TLS and authentication in front of it.
 
 </details>
 
+## Contributing
+
+Bug reports, feature ideas and pull requests are welcome. Found a bug? Use the
+[bug report form](https://github.com/raymond-van/animama/issues/new?template=bug.yml).
+Read the [contributing guide](.github/CONTRIBUTING.md) before you open a pull
+request.
+
 ## Acknowledgements
 
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) by Kyutai: on-device
@@ -206,7 +220,3 @@ your own TLS and authentication in front of it.
 - [three.quarks](https://github.com/Alchemist0823/three.quarks): particle
   effects
 - [Lapwing](https://booth.pm/ja/items/4993931) ©kuji
-
-## Star history
-
-[![Star history chart](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)

@@ -57,7 +57,9 @@ const PLATFORMS = {
   win32: {
     architecture: "x64",
     feed: "latest.yml",
-    // Windows 11 is build 22000 and later.
+    // Frozen. Installed 0.1.6 apps reject a feed unless this is exactly
+    // 10.0.22000, so it no longer follows the floor. A release names its real
+    // floor in `animama.minimum_os`; see `windowsUpdateSupported`.
     minimumSystemVersion: "10.0.22000",
     files: (version: string) => [`Animama-${version}-x64-setup.exe`],
   },
@@ -65,6 +67,8 @@ const PLATFORMS = {
 
 const VERSION = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})$/u;
 const HASH = /^[a-f0-9]{64}$/u;
+/** Windows 10 and 11 report `10.0.<build>`; a feed names its floor the same way. */
+const WINDOWS_RELEASE = /^10\.0\.(\d{1,6})$/u;
 const repositoryPart = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/u;
 
 /** A stable release folder name: `v<major>.<minor>.<patch>`. */
@@ -196,6 +200,25 @@ export async function openSealedUpdates<T>({
   return create(policy);
 }
 
+/**
+ * Whether a Windows system meets the floor a feed names in
+ * `animama.minimum_os`. It stands in for electron-updater's own check, which
+ * reads the frozen top-level minimum and would refuse every Windows 10 system.
+ * Only a well-formed floor above the running build withholds the update;
+ * anything malformed passes, so `validateUpdateCandidate` reports it.
+ */
+export function windowsUpdateSupported(
+  info: unknown,
+  kernelRelease: string,
+): boolean {
+  const floor = (info as { animama?: { minimum_os?: unknown } } | null)?.animama
+    ?.minimum_os;
+  const required =
+    typeof floor === "string" ? WINDOWS_RELEASE.exec(floor) : null;
+  const running = WINDOWS_RELEASE.exec(kernelRelease);
+  return !required || !running || Number(running[1]) >= Number(required[1]);
+}
+
 /** Gate untrusted feed data before disk estimates, downloads, or pack preflight. */
 export function validateUpdateCandidate(
   value: unknown,
@@ -260,6 +283,9 @@ export function validateUpdateCandidate(
     Number(metadata.installed_bytes) > MAX_INSTALLED_BYTES ||
     typeof metadata.runtime_build_id !== "string" ||
     !HASH.test(metadata.runtime_build_id) ||
+    (platform === "win32" &&
+      (typeof metadata.minimum_os !== "string" ||
+        !WINDOWS_RELEASE.test(metadata.minimum_os))) ||
     !Array.isArray(metadata.packs) ||
     metadata.packs.length > featurePackIds.length
   ) {

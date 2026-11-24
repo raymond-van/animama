@@ -20,7 +20,9 @@ private installation state or tooling output: `data/`, `cache/`, `backups/`,
 `.animama/`, `.animama-stacks/`, `node_modules/`, `.venv/`, `.codex/`, `.env`
 files other than `.env.example`, or Local content. When you add, move
 or delete files, update their entries in the same change: a new original file
-takes the original-work attestation entry its neighbours use, and third-party
+takes the original-work attestation entry its neighbours use, a file from an
+outside contributor names them as
+[Source licensing review](../../licenses/README.md) describes, and third-party
 material records its upstream licence, source and notice.
 
 A passing check is not publication approval. Recording a licence does not grant

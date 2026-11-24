@@ -65,5 +65,6 @@ admits only the app's own windows.
 
 ## Ordinary bugs
 
-For ordinary bugs, open an issue with the version, the steps to reproduce and
-the expected behavior, with private data removed.
+For ordinary bugs, use the
+[bug report form](https://github.com/raymond-van/animama/issues/new?template=bug.yml),
+with private data removed.

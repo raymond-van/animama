@@ -37,10 +37,11 @@ decision below.
 | Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation (for the final release, removal and dictation after upgrading the previous release with offline speech installed), packs when a pack is active, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised. |
 | Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt, required-name smoke/network reports and a rerun dependency audit, then runs the final publisher command.                                                                                                                                                                                                              |
 
-Windows 11 x64 passes the same gates with its own commands; see
-[Windows candidates](#windows-candidates). macOS 15 and Windows build 22000 are
-the declared minimums; actual minimum-OS, clean-machine and signed acceptance
-require separate evidence. Run native audits against matching current inputs
+Windows x64 passes the same gates with its own commands; see
+[Windows candidates](#windows-candidates). macOS 15 and Windows 10 version 1903
+(build 18362) are the enforced minimums. Windows minimum-OS acceptance runs on
+Windows 10 22H2, the oldest supported version, not on the floor build. Actual
+minimum-OS, clean-machine and signed acceptance require separate evidence. Run native audits against matching current inputs
 and preserve their receipts.
 
 Use a separate macOS test account, or a disposable clone of the golden smoke VM

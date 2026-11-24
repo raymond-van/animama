@@ -172,7 +172,16 @@ defaults to keeping it.
 
 ## What to send for support
 
-Share the app version/build, macOS or Windows version, CPU architecture, error code,
+Report a problem with the
+[bug report form](https://github.com/raymond-van/animama/issues/new?template=bug.yml).
+When Animama starts, paste the diagnostics summary: in **App Settings**, open
+**About** and select **Copy summary** beside **Diagnostics**. It lists the
+version, platform, component status, which providers have a key set, and
+recent activity, warnings and errors with their times. It leaves out keys, file
+paths, chats and memories.
+
+When it does not start, or the summary is not enough, share the app
+version/build, macOS or Windows version, CPU architecture, error code,
 approximate time, recent action and a short reviewed log excerpt. Mention
 whether this was a packaged app or an unpackaged development run. Redaction is
 defensive, not permission to share all logs: remove personal content and paths.

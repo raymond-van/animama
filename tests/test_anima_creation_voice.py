@@ -104,6 +104,53 @@ async def test_creation_binds_shared_clone_at_revision_one(async_session, tmp_pa
         assert (fixture.paths.local_root / "voices/narrator/original.wav").exists()
 
 
+async def test_cloned_voice_draft_passes_with_the_evidence_route_revisions(async_session, tmp_path, monkeypatch):
+    """The creator submits the evidence route's map unchanged, so it must pin a cloned voice."""
+    from tests.local_http_client import local_client
+
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        clone = await saved_clone(fixture, async_session)
+        pinned = {"kind": "voice", "revision_sha256": clone.revision_sha256}
+        body = fixture.request().model_dump()
+        body["voice"] = {
+            "provider": "pocket_tts",
+            "pocket": {"type": "clone", "source": {"item_id": clone.id, "revision_sha256": clone.revision_sha256}},
+            "elevenlabs_voice_id": None,
+        }
+        client = local_client(fixture.app(async_session, monkeypatch))
+        try:
+            evidence = await client.post(
+                "/v1/content/evidence:resolve",
+                json={
+                    "schema_version": 1,
+                    "roots": [
+                        {"kind": "voice", "source": body["voice"]["pocket"]["source"]},
+                        {"kind": "avatar", "source": body["avatar"]},
+                    ],
+                },
+            )
+            assert evidence.status_code == 200, evidence.text
+            resolved = evidence.json()
+            assert resolved["complete"] is True
+            assert resolved["combined_expected_source_revisions"][clone.id] == pinned
+            body["expected_source_revisions"] = resolved["combined_expected_source_revisions"]
+
+            spec = {key: value for key, value in body.items() if key != "idempotency_key"}
+            validated = await client.post("/v1/animas:validate", json=spec)
+            assert validated.status_code == 200, validated.text
+            created = await client.post("/v1/animas", json=body)
+            assert created.status_code == 201, created.text
+
+            by_root = {root["source"]["item_id"]: root["expected_source_revisions"] for root in resolved["roots"]}
+            assert by_root[clone.id] == {clone.id: pinned}
+            # Reviewing a changed source reloads its preview, which must pin the voice too.
+            preview = await client.post(f"/v1/voice-content/{clone.id}:preview")
+            assert preview.status_code == 200, preview.text
+            assert preview.json()["expected_source_revisions"] == {clone.id: pinned}
+        finally:
+            await client.aclose()
+
+
 @pytest.mark.parametrize("change", ["stale", "foreign", "preset"])
 async def test_invalid_voice_prevents_the_whole_creation(async_session, tmp_path, change):
     from sqlalchemy import func, update

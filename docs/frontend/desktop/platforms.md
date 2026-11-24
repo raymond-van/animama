@@ -158,12 +158,19 @@ no tool download, so the build host needs no Developer Mode.
 
 The installer puts Animama in `%LOCALAPPDATA%\Programs\Animama` without a UAC
 prompt and adds Start menu and Desktop shortcuts; it refuses Windows builds
-below 22000. The data lives separately in `%LOCALAPPDATA%\Animama` and
+below 18362 (Windows 10 version 1903). The data lives separately in `%LOCALAPPDATA%\Animama` and
 survives uninstall, updates and reinstall. Only an uninstall that a person
 starts offers to delete it: after the uninstall confirmation it shows that exact
 path and defaults to keeping it; removal deletes links inside it without
 following them. Uninstalls run with `/S`, including those an installer runs
 during an upgrade, never ask and never delete data.
+
+The installer, the app's startup check and the staged runtime manifest share
+one floor: Windows 10 version 1903 (build 18362), the oldest build a shipped
+component needs. Windows 10 22H2 and Windows 11 are the supported versions;
+builds between 1903 and 22H2 are not blocked and are untested.
+`tests/windows-native.test.mjs` fails if the installer, the Windows lock, the
+source manifest, the app and the release target name different floors.
 
 To test an upgrade, build two installers. An upgrade is the newer installer
 run over the installed app. A signed release build updates itself through the
@@ -245,7 +252,7 @@ The output is deterministic, so an unchanged source reproduces identical files.
 | Target                             | Current status                                                                                  |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Development package, installer and signed release tooling implemented; 0.1.6 stable published after a signed upgrade from 0.1.5; clean-machine acceptance remains |
+| Windows 10 22H2 and Windows 11, x64 | Development package, installer and signed release tooling implemented; 0.1.6 stable, which requires Windows 11, published after a signed upgrade from 0.1.5; clean-machine and Windows 10 acceptance remain |
 | Linux                              | External-stack development only; packaging deferred beyond the current supported release        |
 | Intel/universal macOS, Windows ARM | Not supported                                                                                   |
 

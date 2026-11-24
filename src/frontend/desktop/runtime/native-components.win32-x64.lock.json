@@ -1,7 +1,7 @@
 {
   "schema": "animama-native-components/1",
   "target": "win32-x64",
-  "minimum_os": "10.0.22000",
+  "minimum_os": "10.0.18362",
   "toolchain": {
     "msvc_tools": "14.44.35207",
     "cl_version": "19.44.35222",

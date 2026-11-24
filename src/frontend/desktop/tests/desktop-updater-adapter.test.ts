@@ -26,6 +26,7 @@ const fixture = vi.hoisted(() => ({
     logger: unknown;
     downloadUpdate(): Promise<void>;
     quitAndInstall: ReturnType<typeof vi.fn>;
+    isUpdateSupported?: (info: unknown) => boolean;
   },
   options: undefined as unknown,
   info: undefined as unknown,
@@ -314,12 +315,13 @@ describe("Windows updater adapter", () => {
     const info = fixture.info as {
       minimumSystemVersion: string;
       files: { url: string }[];
-      animama: { platform: string; architecture: string };
+      animama: { platform: string; architecture: string; minimum_os: string };
     };
     info.minimumSystemVersion = "10.0.22000";
     info.files[0].url = "v0.2.0/Animama-0.2.0-x64-setup.exe";
     info.animama.platform = "win32";
     info.animama.architecture = "x64";
+    info.animama.minimum_os = "10.0.18362";
     return validateUpdateCandidate(
       info,
       "0.1.0",
@@ -436,6 +438,32 @@ describe("Windows updater adapter", () => {
     expect(() => createWindowsUpdateAdapter(policy, "0.1.0", vi.fn())).toThrow(
       "updates_not_configured",
     );
+  });
+
+  it("offers an update by the release's own floor, not the frozen feed minimum", () => {
+    windowsCandidate();
+    const info = fixture.info as { animama: { minimum_os?: unknown } };
+    // Windows 10 22H2: below the feed's frozen 10.0.22000.
+    createWindowsUpdateAdapter(windowsPolicy, "0.1.0", vi.fn(), "10.0.19045");
+    const supported = () => fixture.mac.isUpdateSupported!(fixture.info);
+    expect(supported()).toBe(true);
+    info.animama.minimum_os = "10.0.19045";
+    expect(supported()).toBe(true);
+    // A later release that needs a newer build is not offered here.
+    info.animama.minimum_os = "10.0.19046";
+    expect(supported()).toBe(false);
+    // Malformed metadata is left for validation to report.
+    for (const minimum_os of [undefined, "10.0", 19046]) {
+      info.animama.minimum_os = minimum_os;
+      expect(supported()).toBe(true);
+    }
+  });
+});
+
+describe("update support check on macOS", () => {
+  it("keeps electron-updater's own minimum system version check", () => {
+    createMacUpdateAdapter(policy, "0.1.0", vi.fn());
+    expect(fixture.mac.isUpdateSupported).toBeUndefined();
   });
 });
 

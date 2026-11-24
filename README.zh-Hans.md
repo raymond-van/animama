@@ -14,6 +14,12 @@
   <a href="README.ko.md">한국어</a>
 </p>
 
+<p align="center">
+  <b>最新动态</b>
+  <br>
+  2026年11月18日 · Animama 正式发布并开源
+</p>
+
 # Animama
 
 你的新桌面伙伴，就是 Anima。
@@ -151,6 +157,13 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 
 </details>
 
+## 参与贡献
+
+欢迎提交 Bug 报告、功能建议和 Pull Request。发现 Bug 时，请使用
+[Bug 报告表单](https://github.com/raymond-van/animama/issues/new?template=bug.yml)（英文）。
+提交 Pull Request 之前，请先阅读
+[贡献指南](.github/CONTRIBUTING.md)（英文）。
+
 ## 致谢
 
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts)（Kyutai）：在设备上运行的语音合成
@@ -160,7 +173,3 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 - [Mochiya Avatar Tools](https://github.com/mochiya-labs/unity-avatar-tools) 和 [three-liltoon](https://github.com/mochiya-labs/three-liltoon)（Mochiya Labs）：VRChat 虚拟形象转换和 lilToon 材质
 - [three.quarks](https://github.com/Alchemist0823/three.quarks)：粒子特效
 - [Lapwing](https://booth.pm/zh-cn/items/4993931) ©kuji
-
-## Star 历史
-
-[![Star 数量变化图](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)

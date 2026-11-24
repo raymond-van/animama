@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
+import { release } from "node:os";
 import path from "node:path";
 import { RuntimeError } from "../runtime/errors.js";
 import { runCommand } from "../runtime/processes.js";
@@ -16,6 +17,7 @@ import {
   allowedUpdateUrl,
   updatePlatform,
   validateUpdateCandidate,
+  windowsUpdateSupported,
   type UpdateCandidate,
   type UpdatePolicy,
   type WindowsPublisher,
@@ -329,14 +331,20 @@ export function createWindowsUpdateAdapter(
   policy: UpdatePolicy,
   currentVersion: string,
   permitQuit: () => void,
+  kernelRelease: string = release(),
 ): UpdateAdapter {
   if ("team_id" in policy) throw new RuntimeError("updates_not_configured");
   const publisher = policy.windows_publisher;
   const verify = (file: string) => verifyWindowsPublisher(file, publisher);
+  const updater = new NsisUpdater(providerOptions(policy));
+  // electron-updater would compare this system with the feed's frozen
+  // top-level minimum and offer Windows 10 nothing.
+  updater.isUpdateSupported = (info) =>
+    windowsUpdateSupported(info, kernelRelease);
   return createUpdateAdapter(
     policy,
     currentVersion,
-    new NsisUpdater(providerOptions(policy)),
+    updater,
     verify,
     async (file, expected) => {
       // The same approved bytes and publisher as at download.

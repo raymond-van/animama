@@ -4,6 +4,14 @@ Raymond Van is the recorded owner of original Animama code, documentation and
 original artwork, which is licensed AGPL-3.0-only under the root
 [LICENSE](../LICENSE). Third-party code and assets keep their own terms.
 
+Outside contributions arrive under the
+[Contributor Licence Agreement](../.github/CLA.md): contributors keep their
+copyright, and their work is published AGPL-3.0-only with the rest. A file
+that an outside contributor adds or substantially rewrites names them in its
+entry: `copyright` lists them, beside Raymond Van for a rewritten file, and
+`basis` reads "Outside contribution under the Contributor Licence Agreement".
+Git authorship records smaller edits.
+
 [source-review.json](source-review.json) gives every tracked file its licence,
 the basis for it and, for third-party material, its source, evidence and
 notices; [the coverage check](../scripts/public-release/README.md) keeps it

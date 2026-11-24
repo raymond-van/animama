@@ -489,8 +489,8 @@ on port `9229`. Packaged builds offer neither
 
 See [Platform builds](platforms.md) for packaging commands.
 
-The unsigned development package targets macOS 15+ arm64 and Windows 11 x64 and
-requires a fresh, complete audited stage. Windows has the same signed
+The unsigned development package targets macOS 15+ arm64 and Windows x64
+(Windows 10 22H2 or later), and requires a fresh, complete audited stage. Windows has the same signed
 candidate, update, smoke and publication tooling as macOS (no Windows feature
 packs yet), and Linux self-contained packaging is deferred; external-stack
 `desktop:dev` is available on Linux. Signed releases

@@ -89,7 +89,7 @@
       "unsupported_postgresql_major": "此数据库需要升级到受支持的版本。你现有的数据已保留。",
       "runtime_manifest_invalid": "运行环境缺失或已损坏。请重新安装完整的 Animama 版本；你的用户数据是单独存放的。",
       "runtime_file_invalid": "某个已安装的运行环境文件缺失或已损坏。请在不删除数据的情况下重新安装 Animama。",
-      "unsupported_runtime_platform": "此 Animama 版本需要搭载 Apple 芯片的 macOS 15 或更高版本，或 x64 上的 Windows 11。你的数据未被更改。",
+      "unsupported_runtime_platform": "此 Animama 版本需要搭载 Apple 芯片的 macOS 15 或更高版本，或 x64 上的 Windows 10 版本 1903 或更高版本。你的数据未被更改。",
       "runtime_busy": "Animama 仍在完成本地工作。之前的配置已保留；请等待恢复完成后再重试此更改。",
       "runtime_quiesce_failed": "无法安全地停止本地工作。之前的配置已保留。重试前请打开日志或重新启动 Animama。",
       "migration_failed": "数据库升级失败。原始快照保留在下方。请打开日志，解决问题后使用此版本重试。不要重置、降级或自动恢复：这可能会丢弃较新的数据。",

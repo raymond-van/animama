@@ -97,8 +97,10 @@ permission or an explicitly approved equivalent replacement.
 
 Project-owned material is licensed AGPL-3.0-only under the root
 [LICENSE](../../LICENSE), with third-party terms preserved. The repository is
-published as it is, including its Git history. Outside code contributions are
-not accepted for now.
+published as it is, including its Git history. Outside contributions are
+accepted under the [Contributor Licence Agreement](../../.github/CLA.md), which
+keeps the owner able to license the whole source
+([ADR 0037](../adr/0037-outside-contributions-under-a-cla.md)).
 
 ## Verification
 

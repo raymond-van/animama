@@ -9,7 +9,8 @@ establishes common meanings between Raymond and agents.
 
 Records 0001–0005 document foundational decisions retrospectively; records 0006–0007
 record lifecycle and planning ownership decisions; later records document product
-decisions, except 0027, which amends the lifecycle with risk-tiered review. Each record states its decision basis
+decisions, except 0027, which amends the lifecycle with risk-tiered review, and
+0037, which opens the repository to outside contributions. Each record states its decision basis
 and dates. Acceptance is not proof of unknown historical human approval,
 production readiness or publication rights.
 
@@ -51,6 +52,8 @@ production readiness or publication rights.
 | 0034 | [Automatic episode processing and the profile in every turn](0034-automatic-episode-processing-and-profile-context.md)                             | accepted; partly supersedes 0009                              |
 | 0035 | [Released schemas change only through forward migrations](0035-released-schema-changes-use-forward-migrations.md)                                 | accepted                                                      |
 | 0036 | [Uploads are processed in the core server without Docling](0036-uploads-processed-in-core-server.md)                                               | accepted; partly supersedes 0010 and 0012                     |
+| 0037 | [Outside contributions are accepted under a contributor licence agreement](0037-outside-contributions-under-a-cla.md)                              | accepted                                                      |
+| 0038 | [The Windows update feed's minimum system version is frozen](0038-windows-update-feed-minimum-is-frozen.md)                                        | accepted                                                      |
 
 ## When and how to record a decision
 

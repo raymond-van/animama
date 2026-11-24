@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import PurePosixPath
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -603,13 +603,23 @@ class PyTypedBatchDiagnostic(BaseModel):
         return cls(**{field: getattr(value, field) for field in cls.model_fields})
 
 
+_SOURCE_KINDS = frozenset(get_args(SourceKind))
+
+
 def _source_revisions(values: tuple[TypedCatalogItem, ...]) -> dict[str, SourceRevision]:
+    """Pin every item an Anima creation request can name.
+
+    Creation rebuilds the closure of each selected source and requires the
+    submitted map to name exactly the same items, so this reports every kind the
+    creation contract accepts. Other kinds have no ``SourceRevision``.
+    """
+
     return {
         value.item.id: SourceRevision.model_validate(
             {"kind": value.item.kind.value, "revision_sha256": value.item.revision_sha256}
         )
         for value in values
-        if value.item.kind.value not in {"voice", "music_track", "anima"}
+        if value.item.kind.value in _SOURCE_KINDS
     }
 
 

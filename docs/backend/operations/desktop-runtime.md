@@ -1,6 +1,6 @@
 # Embedded desktop backend operations
 
-This is the desktop composition (macOS arm64 and Windows 11 x64) of the same
+This is the desktop composition (macOS arm64 and Windows x64) of the same
 accountless backend used by the local Compose stack. Electron supervises private PostgreSQL 16, the frozen
 FastAPI application and upload cleanup. FastAPI processes uploaded files itself
 and serves the production React files on the saved loopback origin;

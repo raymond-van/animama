@@ -1,3 +1,8 @@
+<!-- Outside contributors: fill in Summary, Related work, Local validation, UI
+evidence, Risks and limitations, and Contributor agreement. Write "Not applicable"
+under the other sections unless the maintainer asked for them. See
+https://github.com/raymond-van/animama/blob/main/.github/CONTRIBUTING.md -->
+
 ## Summary
 
 <!-- Describe the problem and resulting behavior. -->
@@ -56,6 +61,13 @@ Before requesting merge: refer to the revision reference above, record current c
 and owner approval status. Default: ordinary
 merge commit. Approval is pending until explicitly given for the candidate;
 AI review or a passing check is not owner approval. Refresh after material edits. -->
+
+## Contributor agreement
+
+<!-- Outside contributors: tick the box to agree. A pull request cannot be merged
+without it. Maintainer pull requests: replace the box with "Not applicable". -->
+
+- [ ] I have read the [Contributor Licence Agreement](https://github.com/raymond-van/animama/blob/main/.github/CLA.md) and agree to it for this and my later contributions to Animama.
 
 ## Checklist
 

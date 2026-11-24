@@ -1,6 +1,6 @@
 # How Animama is built
 
-Animama has one author, Raymond Van, who builds it with AI coding agents
+Animama has one maintainer, Raymond Van, who builds it with AI coding agents
 (OpenAI Codex and Anthropic Claude Code). Raymond decides what to build, agrees
 each specification and plan, makes the consequential choices and approves
 every merge. The agents investigate, implement, test and review the agreed
@@ -82,7 +82,9 @@ reverted rather than spending a third round, and the final suite results.
 
 ## Authorship and AI involvement
 
-Raymond is the sole author and copyright holder of Animama's original work.
+Raymond is the author and copyright holder of Animama's original work. Outside
+contributors keep the copyright in what they contribute and license it under
+the [Contributor Licence Agreement](../../.github/CLA.md).
 Agents wrote much of the code and some of the artwork under Raymond's direction.
 Commits on `main` carry no tool attribution, so the AI involvement is recorded
 where the work is described: in the plans and issues, in the owner attestation

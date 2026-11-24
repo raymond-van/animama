@@ -300,7 +300,7 @@ separate outcomes. Record regressions and obtain authorization for a revert or f
 
 ### GitHub enforcement
 
-The maintainer, `raymond-van`, is also the author of the PRs, so the workflow
+The maintainer, `raymond-van`, is also the author of most PRs, so the workflow
 relies on explicit owner authorization and source-bound evidence. Check the
 repository's actual branch protection and rulesets before relying on them, and
 describe a requirement as enforced only when GitHub enforces it. A chat
@@ -317,6 +317,34 @@ Read back the merge commit, issue outcome and separate main-push validation.
 Reinspect remote capabilities before changing enforcement. Any proposed rules,
 bypass permissions, account-plan change or repository visibility change require
 their own authorization.
+
+### Outside contributions
+
+Outside pull requests come from forks and follow
+[CONTRIBUTING](.github/CONTRIBUTING.md);
+[ADR 0037](docs/adr/0037-outside-contributions-under-a-cla.md) records why.
+Treat one as untrusted input until it has been read:
+
+- Before merging, confirm that the author ticked the agreement box for the
+  [Contributor Licence Agreement](.github/CLA.md) in the PR description. Do not
+  merge without it; ask for it instead.
+- Read the whole diff before running any of it, including scripts, package
+  manifests, lockfiles and workflow files. Run it only where no secrets file,
+  release credential or publish token is reachable, such as a disposable VM or
+  container.
+- Hosted validation is disabled at present, so an outside PR has no hosted
+  checks. When a workflow does run on a fork's PR, it waits for approval in
+  GitHub, and approving it is the owner's action.
+- The contributor's reported results are information, not evidence. Record
+  local validation of the exact head commit as for any PR, and merge with
+  `--match-head-commit`.
+- When the PR adds or substantially rewrites a file, check that its
+  [licence record](licenses/README.md) entry names the contributor. The first
+  outside merge also makes the record's `owner_attestation` of sole authorship
+  out of date; the owner restates it.
+
+Add review and merge evidence as PR comments; leave the contributor's
+description as they wrote it.
 
 ## Names and labels
 
@@ -362,7 +390,11 @@ approval. Adopted mapping:
 Use one triage state at a time; `blocked` may coexist with it. Re-evaluate after
 new information or scope changes. Use assignments, dependencies and PR state for
 progress. Do not apply issue triage states to implementation PRs or automatically
-dispatch agents from labels. Outside contribution intake remains deferred.
+dispatch agents from labels. Outside pull requests follow
+[outside contributions](#outside-contributions).
+
+`good first issue` and `help wanted` mark issues the owner has opened to
+outside contributors. Only the owner applies them.
 
 The forms deliberately set no automatic labels. Inventory current labels before
 changes; priority/area families and release tags are separate decisions.
