@@ -166,9 +166,10 @@ export type LocaleBridge = {
   setApplied(locale: string): Promise<void>;
 };
 /**
- * Whether the OS opens the app at login. Only packaged macOS and Windows apps
- * offer it; `blockedBySystem` means the app asked to open at login but the OS
- * will not run it until the user allows it there.
+ * Whether the OS opens the app at login. Packaged macOS and Windows apps and
+ * a Linux AppImage offer it. `blockedBySystem` means the app asked to open at
+ * login but that will not happen yet: the OS waits for the user to allow it,
+ * or, on Linux, the AppImage has moved since the setting was turned on.
  */
 export type LoginItemStatus =
   | { available: false }
@@ -177,6 +178,19 @@ export type LoginItemStatus =
 export type LoginItemBridge = {
   status(): Promise<LoginItemStatus>;
   setEnabled(enabled: boolean): Promise<LoginItemStatus>;
+};
+/**
+ * A Linux AppImage's application-menu entry, which exists only if the owner
+ * turns it on. `stale` means the entry names a file that is no longer the
+ * running AppImage; turning it on again repoints it.
+ */
+export type MenuEntryStatus =
+  | { available: false }
+  | { available: true; enabled: boolean; stale: boolean };
+/** Main-window only: the entry file itself is the stored state. */
+export type MenuEntryBridge = {
+  status(): Promise<MenuEntryStatus>;
+  setEnabled(enabled: boolean): Promise<MenuEntryStatus>;
 };
 export type UpdatesBridge = {
   status(): Promise<UpdateStatus>;

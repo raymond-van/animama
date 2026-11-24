@@ -16,6 +16,7 @@ import {
   type PipPlacement,
 } from "./pip-placement.js";
 import {
+  clickThroughSupported,
   floatingWindowType,
   floatOnAllWorkspaces,
 } from "../window/floating-window.js";
@@ -404,7 +405,7 @@ export class PipWindowManager {
   private readonly preloadPath: string;
   private readonly runtimeMessageChannel: string;
   private readonly stateChangedChannel: string;
-  private readonly clickThroughSupported = process.platform !== "linux";
+  private readonly clickThroughSupported = clickThroughSupported();
   private ownerContents: WebContents | null = null;
   /** Owners already watched for destruction; each needs one listener, not one per PiP window. */
   private readonly ownersWatchedForDestroy = new Set<number>();

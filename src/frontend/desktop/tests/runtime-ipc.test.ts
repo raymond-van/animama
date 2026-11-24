@@ -448,6 +448,37 @@ describe("privileged runtime IPC", () => {
     );
   });
 
+  it("changes the application-menu entry only from the main window and only with a boolean", async () => {
+    await expect(invoke("menu-entry:status", main.event)).resolves.toEqual({
+      available: false,
+    });
+    await expect(invoke("menu-entry:set", main.event, true)).rejects.toThrow(
+      "feature_unavailable",
+    );
+    const enabled = { available: true, enabled: true, stale: false } as const;
+    const setMenuEntry = vi.fn(() => enabled);
+    operations.menuEntry = () => ({ ...enabled, stale: true });
+    operations.setMenuEntry = setMenuEntry;
+    await expect(invoke("menu-entry:status", main.event)).resolves.toEqual({
+      ...enabled,
+      stale: true,
+    });
+    await expect(invoke("menu-entry:set", main.event, true)).resolves.toEqual(
+      enabled,
+    );
+    expect(setMenuEntry).toHaveBeenCalledWith(true);
+    for (const invalid of ["true", 1, null, "/tmp/other.AppImage"])
+      await expect(
+        invoke("menu-entry:set", main.event, invalid),
+      ).rejects.toThrow("ipc_arguments_invalid");
+    // The renderer never names a path: the entry is for the running file.
+    await expect(
+      invoke("menu-entry:set", main.event, true, "/tmp/other.AppImage"),
+    ).rejects.toThrow("ipc_arguments_invalid");
+    for (const operation of ["menu-entry:status", "menu-entry:set"])
+      await expect(invoke(operation, recovery.event, true)).rejects.toThrow();
+  });
+
   it("changes the login item only from the main window and only with a boolean", async () => {
     await expect(invoke("login-item:status", main.event)).resolves.toEqual({
       available: false,

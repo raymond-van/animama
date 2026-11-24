@@ -156,8 +156,9 @@ specifications.
       made, recheck #2 pending.
 - [ ] Phase 3: credential storage and the sandbox. Implemented from
       `c42246a40`; phase checks pass; review pending.
-- [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Not started;
-      R9 and R10 need the owner's feasibility decision.
+- [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Implemented
+      from `9a3bc9171`; phase checks pass; review pending. The owner accepted
+      PD10 with the plan.
 - [ ] Phase 5: stage, audit and package tooling. Not started.
 - [ ] Phase 6: Press to talk on X11. Not started; needs the owner's
       feasibility decision.
@@ -791,7 +792,55 @@ Recovery: source-only. The entries are plain files the setting removes.
 
 Completion: the checks pass and the review finds no open blocker.
 
-Check record: none yet.
+Starting source: `9a3bc9171` (Phase 2 repair, on top of Phase 3).
+
+Results:
+
+- `window/floating-window.ts`: `linuxSessionType` and
+  `clickThroughSupported`; both managers read the latter in place of their
+  Linux constant.
+- `login-item/linux-desktop-entry.ts`: `desktopEntry`, `entryTarget`,
+  `entryState`, `xdgFolder` and `LinuxDesktopEntries`, which serves both
+  Launch at login and the menu entry for a packaged app whose launcher set
+  `APPIMAGE`. Both entries are named `com.animama.desktop.desktop`.
+- `main.ts` uses `LinuxDesktopEntries` for the login-item operations on
+  Linux. The `LoginItem` class stays macOS and Windows only, so its existing
+  test is unchanged; this differs from step 4's wording, not its outcome.
+- New IPC channels `animama:menu-entry:status` and `animama:menu-entry:set`
+  (main window, one boolean); `menuEntry` on the preload bridge.
+- Web: `useDesktopMenuEntry`, `ApplicationMenuEntrySetting` beside Launch at
+  login, the Linux "moved" hint for Launch at login, and the rebuild line in
+  About for a Linux desktop build.
+- Repointing a stale menu entry is the same call as turning it on, so there
+  is no separate repoint operation.
+
+Deviation from step 2: the click-through tests cover the gate function for
+each platform and session type, not the two window managers, whose
+constructors need a live Electron.
+
+Test order: steps 1, 3, 4 and 5 (desktop side and IPC) were written test
+first and seen failing. The web tests for steps 4–6 were written with their
+components.
+
+Check record (2026-11-24, macOS arm64 host; run on an export of the staged
+tree, `git archive f93e49da80ff`, unless noted; working directory
+`src/frontend`):
+
+| Command | Result | Tree |
+| --- | --- | --- |
+| `pnpm desktop:test` | Pass: 46 files passed, 2 skipped; 757 tests passed, 16 skipped | `f93e49da80ff` |
+| `pnpm check` | Pass | `f93e49da80ff` |
+| `pnpm desktop:build` | Pass | `f93e49da80ff` |
+| `pnpm prettier:check` | Pass | `f93e49da80ff` |
+| `pnpm exec vitest run src/ui/settings src/hooks` (from `web`, in the worktree, whose tracked files equal the staged tree) | Pass: 38 files, 355 tests | `f93e49da80ff` |
+
+The web hook tests cannot run in an export: Vite refuses the ONNX runtime
+file reached through the linked `node_modules`, so six `useDictation` tests
+fail there for that reason only. They pass in the worktree.
+
+Not run: the full pre-push suite, including the rest of `pnpm web:test`, by
+the owner's standing instruction; anything on Linux. No desktop entry has
+been read by a real session, and no window has been driven.
 
 ### Phase 5: stage, audit and package tooling
 

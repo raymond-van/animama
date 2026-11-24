@@ -4,6 +4,7 @@ import type {
   FeaturePacksBridge,
   LocaleBridge,
   LoginItemBridge,
+  MenuEntryBridge,
   RuntimeBridge,
   RuntimeStatus,
   UpdatesBridge,
@@ -72,6 +73,13 @@ export function createUpdatesBridge(): UpdatesBridge {
 export function createLocaleBridge(): LocaleBridge {
   return {
     setApplied: (locale) => ipcRenderer.invoke("animama:locale:set", locale),
+  };
+}
+export function createMenuEntryBridge(): MenuEntryBridge {
+  return {
+    status: () => ipcRenderer.invoke("animama:menu-entry:status"),
+    setEnabled: (enabled) =>
+      ipcRenderer.invoke("animama:menu-entry:set", enabled),
   };
 }
 export function createLoginItemBridge(): LoginItemBridge {

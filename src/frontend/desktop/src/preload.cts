@@ -10,6 +10,7 @@ import {
   createFeaturePacksBridge,
   createLocaleBridge,
   createLoginItemBridge,
+  createMenuEntryBridge,
   createRuntimeBridge,
   createUpdatesBridge,
 } from "./main-process/runtime/runtime-preload.cjs";
@@ -38,4 +39,5 @@ contextBridge.exposeInMainWorld("animamaDesktop", {
   updates: createUpdatesBridge(),
   locale: createLocaleBridge(),
   loginItem: createLoginItemBridge(),
+  menuEntry: createMenuEntryBridge(),
 });

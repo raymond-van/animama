@@ -19,6 +19,7 @@
       "desktopOs": "桌面版（{{os}}）",
       "web": "網頁瀏覽器"
     },
+    "sourceBuild": "此版本透過拉取原始碼並重新建置來更新。",
     "version": "版本"
   },
   "actions": {
@@ -318,10 +319,18 @@
     "label": "登入時啟動",
     "description": "登入電腦時自動開啟 Animama。",
     "blocked": {
+      "linux": "開啟此設定後 AppImage 已被移動，因此登入時不會開啟 Animama。請先關閉此設定，再重新開啟。",
       "macos": "在「系統設定 → 一般 → 登入項目與延伸功能」中允許之前，Animama 不會在登入時開啟。",
       "windows": "在「設定 → 應用程式 → 啟動」中開啟之前，Animama 不會在登入時開啟。"
     },
     "updateFailed": "無法變更「登入時啟動」。"
+  },
+  "menuEntry": {
+    "description": "將 Animama 加入桌面的應用程式選單。該項目會啟動這個 AppImage 檔案。",
+    "label": "在應用程式選單中顯示",
+    "repoint": "指向此檔案",
+    "stale": "加入項目後 AppImage 已被移動，因此該項目不再有效。",
+    "updateFailed": "無法變更應用程式選單項目。"
   },
   "modal": {
     "close": "關閉應用程式設定",

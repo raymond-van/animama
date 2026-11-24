@@ -83,6 +83,7 @@ import {
   verifyUpdaterPublisher,
 } from "./main-process/updates/electron-adapter.js";
 import { LoginItem } from "./main-process/login-item/login-item.js";
+import { LinuxDesktopEntries } from "./main-process/login-item/linux-desktop-entry.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const preloadPath = join(currentDir, "preload.cjs");
@@ -429,6 +430,18 @@ else {
   }
 
   const loginItem = new LoginItem(app);
+  // A Linux AppImage keeps Launch at login and its menu entry as desktop
+  // entries naming the file the launcher reports in APPIMAGE.
+  const linuxEntries =
+    process.platform === "linux"
+      ? new LinuxDesktopEntries({
+          isPackaged: app.isPackaged,
+          appImage: process.env.APPIMAGE,
+          env: process.env,
+          home: app.getPath("home"),
+          iconSource: join(process.resourcesPath, "icon.png"),
+        })
+      : undefined;
   installRuntimeIpc(callers, {
     status: () => currentStatus,
     retry: async () => {
@@ -484,8 +497,16 @@ else {
       return updates.restart();
     },
     setLocale: (locale) => shellLocale.apply(locale),
-    loginItem: () => loginItem.status(),
-    setLoginItem: (enabled) => loginItem.setEnabled(enabled),
+    loginItem: () => linuxEntries?.loginItem() ?? loginItem.status(),
+    setLoginItem: (enabled) =>
+      linuxEntries
+        ? linuxEntries.setLoginItem(enabled)
+        : loginItem.setEnabled(enabled),
+    menuEntry: () => linuxEntries?.menuEntry() ?? { available: false },
+    setMenuEntry: (enabled) => {
+      if (!linuxEntries) throw new RuntimeError("feature_unavailable");
+      return linuxEntries.setMenuEntry(enabled);
+    },
   });
 
   /** A menu failure must never block startup or recovery. */

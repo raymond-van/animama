@@ -12,6 +12,7 @@ import {
   type FeaturePackStatus,
   type FeaturePackId,
   type LoginItemStatus,
+  type MenuEntryStatus,
   type UpdateStatus,
 } from "../../../../shared/desktop-runtime.js";
 import { isUiLocale, type UiLocale } from "@animama/runtime-contracts/locale";
@@ -44,6 +45,9 @@ export type RuntimeIpcOperations = {
   setLocale?(locale: UiLocale): void;
   loginItem?(): LoginItemStatus;
   setLoginItem?(enabled: boolean): LoginItemStatus;
+  /** A Linux AppImage's application-menu entry. */
+  menuEntry?(): MenuEntryStatus;
+  setMenuEntry?(enabled: boolean): MenuEntryStatus;
 };
 type Caller = {
   contents: WebContents;
@@ -236,5 +240,19 @@ export function installRuntimeIpc(
       throw new RuntimeError("ipc_arguments_invalid");
     if (!operations.setLoginItem) throw new RuntimeError("feature_unavailable");
     return operations.setLoginItem(enabled);
+  });
+  // The same rule for the application-menu entry: the renderer turns it on or
+  // off and never names a file; main writes it for the running AppImage.
+  handle(
+    "menu-entry:status",
+    0,
+    false,
+    () => operations.menuEntry?.() ?? { available: false },
+  );
+  handle("menu-entry:set", 1, false, (enabled) => {
+    if (typeof enabled !== "boolean")
+      throw new RuntimeError("ipc_arguments_invalid");
+    if (!operations.setMenuEntry) throw new RuntimeError("feature_unavailable");
+    return operations.setMenuEntry(enabled);
   });
 }

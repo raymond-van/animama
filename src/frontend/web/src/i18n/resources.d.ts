@@ -6069,6 +6069,7 @@ export default interface Resources {
         "desktopOs": "Desktop ({{os}})",
         "web": "Web browser"
       },
+      "sourceBuild": "This build is updated by pulling the source and rebuilding.",
       "version": "Version"
     },
     "actions": {
@@ -6343,12 +6344,20 @@ export default interface Resources {
     },
     "launchAtLogin": {
       "blocked": {
+        "linux": "The AppImage has moved since this was turned on, so Animama will not open at login. Turn the setting off and on again.",
         "macos": "Animama will not open at login until you allow it in System Settings → General → Login Items & Extensions.",
         "windows": "Animama will not open at login until you turn it on in Settings → Apps → Startup."
       },
       "description": "Open Animama automatically when you log in to your computer.",
       "label": "Launch at login",
       "updateFailed": "Could not change Launch at login."
+    },
+    "menuEntry": {
+      "description": "Add Animama to your desktop's application menu. The entry starts this AppImage file.",
+      "label": "Show in application menu",
+      "repoint": "Point it at this file",
+      "stale": "The AppImage has moved since the entry was added, so the entry no longer works.",
+      "updateFailed": "Could not change the application menu entry."
     },
     "modal": {
       "close": "Close App Settings",

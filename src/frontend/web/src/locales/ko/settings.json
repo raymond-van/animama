@@ -19,6 +19,7 @@
       "desktopOs": "데스크톱({{os}})",
       "web": "웹 브라우저"
     },
+    "sourceBuild": "이 빌드는 소스를 받아 다시 빌드하여 업데이트합니다.",
     "version": "버전"
   },
   "actions": {
@@ -318,10 +319,18 @@
     "label": "로그인 시 실행",
     "description": "컴퓨터에 로그인하면 Animama를 자동으로 엽니다.",
     "blocked": {
+      "linux": "이 설정을 켠 뒤 AppImage가 이동되어 로그인 시 Animama가 열리지 않습니다. 설정을 껐다가 다시 켜세요.",
       "macos": "시스템 설정 → 일반 → 로그인 항목 및 확장 프로그램에서 허용할 때까지 Animama는 로그인 시 열리지 않습니다.",
       "windows": "설정 → 앱 → 시작 프로그램에서 켤 때까지 Animama는 로그인 시 열리지 않습니다."
     },
     "updateFailed": "로그인 시 실행 설정을 변경하지 못했습니다."
+  },
+  "menuEntry": {
+    "description": "데스크톱의 애플리케이션 메뉴에 Animama를 추가합니다. 이 항목은 이 AppImage 파일을 실행합니다.",
+    "label": "애플리케이션 메뉴에 표시",
+    "repoint": "이 파일로 다시 지정",
+    "stale": "항목을 추가한 뒤 AppImage가 이동되어 이 항목이 더 이상 작동하지 않습니다.",
+    "updateFailed": "애플리케이션 메뉴 항목을 변경할 수 없습니다."
   },
   "modal": {
     "close": "앱 설정 닫기",
