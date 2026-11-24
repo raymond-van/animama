@@ -70,7 +70,8 @@ export function dynamicEntries(dynamic) {
     if (library) needed.push(library[1]);
     const runpath =
       /\((?:RUNPATH|RPATH)\)\s+Library r(?:un)?path: \[(.*)\]/u.exec(line);
-    if (runpath) runpaths.push(...runpath[1].split(":").filter(Boolean));
+    // An empty element means the current directory; keep it for the audit.
+    if (runpath) runpaths.push(...runpath[1].split(":"));
   }
   return { needed, runpaths };
 }
@@ -148,7 +149,11 @@ export function auditLinuxStage(
         if (/^\$(?:ORIGIN|\{ORIGIN\})/u.test(runpath)) {
           if (insideStage(name, runpath) === null)
             throw new Error(`${name}: run path ${runpath} leaves the stage`);
-        } else if (strict || !SYSTEM_LIBRARY_FOLDER.test(runpath))
+        } else if (
+          strict ||
+          // Judge where the path leads, not how it is spelled.
+          !SYSTEM_LIBRARY_FOLDER.test(path.posix.normalize(runpath))
+        )
           throw new Error(
             `${name}: run path ${runpath} is not relative to the stage`,
           );

@@ -170,6 +170,13 @@ Version needs section '.gnu.version_r' contains 2 entries:
         " 0x000000000000000f (RPATH)              Library rpath: [$ORIGIN:/usr/lib/x]",
       ).runpaths,
     ).toEqual(["$ORIGIN", "/usr/lib/x"]);
+    // An empty element is the current directory; it is kept so the audit can
+    // refuse it.
+    expect(
+      dynamicEntries(
+        " 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN::/usr/lib]",
+      ).runpaths,
+    ).toEqual(["$ORIGIN", "", "/usr/lib"]);
   });
 });
 
@@ -296,6 +303,11 @@ describe("Linux stage audit", () => {
       "/usr/libexec/x",
       "/libfoo",
       "relative/lib",
+      // A system prefix does not excuse where the path really leads.
+      "/usr/lib/../../tmp/evil",
+      "/lib/../home/builder/lib",
+      // An empty element means the current directory.
+      "",
     ]) {
       const odd = stage({
         "backend/_internal/libodd.so": { runpaths: [runpath] },
@@ -458,7 +470,12 @@ describe("Linux native lock and packaging", () => {
     });
     expect(record.source).toContain("electron-builder-binaries");
     expect(record.source).toContain("1.0.3");
-    for (const name of ["type2-runtime", "libnotify", "libappindicator"])
+    for (const name of [
+      "type2-runtime",
+      "libfuse",
+      "libnotify",
+      "libappindicator",
+    ])
       expect(`${record.name} ${record.license}`).toContain(name);
   });
 

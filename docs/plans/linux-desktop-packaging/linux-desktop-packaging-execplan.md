@@ -1276,6 +1276,43 @@ measured the same `glibc-2.34`.
 
 Repair budget: one of two rounds used.
 
+#### Code Review #2 Findings
+
+Targeted recheck of repair commit `a60f968ab`. Result: pass, no regression.
+
+- P5-F1 to P5-F8: resolved. For P5-F1 the reviewer generated a French locale
+  in a container: `readelf` then prints translated headings that the parsers
+  miss, and `LC_ALL=C` restores the English ones even with `LANGUAGE` set.
+  The implementer's German run proved nothing, because binutils ships no
+  German catalogue. For P5-F4 the reviewer inspected Electron 45.3.1's six
+  Linux x64 ELF files and the 146 in the locked x64 wheels: all carry only
+  `$ORIGIN` run paths that stay inside the stage.
+- Reran on an export of the commit: `pnpm desktop:test` (47 files passed, 2
+  skipped; 785 passed, 16 skipped), `pnpm desktop:check`, and three packaging
+  test files (117 tests).
+- Optional notes: the system-folder rule did not normalise the path, so
+  `/usr/lib/../../tmp/x` passed; an empty run-path element, which means the
+  current directory, was dropped instead of refused; the licence record
+  understated the launcher, a static binary that includes libfuse, squashfuse
+  and musl; the toolset pattern could read across a blank line; a doc comment
+  had moved; the entry guard would throw if the script path were not a file.
+
+#### Code Review #2 Revisions
+
+All six notes are applied, the first three with tests seen failing first:
+the run path is normalised before it is judged; an empty element is kept and
+refused; the record names the launcher's static contents and says the archive
+carries no licence files; the pattern reads only the indented lines below
+`toolsets:`; the comment is back on `writeLicenses`; the guard treats an
+unreadable script path as "not run as a script".
+
+Repair check (macOS arm64, working directory `src/frontend`, worktree with
+only this repair on top of `0ecb7dcac`): `pnpm desktop:test` passes with 47
+files passed, 2 skipped; 785 tests passed, 16 skipped; `pnpm desktop:check`
+and the desktop `prettier:check` pass.
+
+Repair budget: two of two rounds used.
+
 ### Phase 6: Press to talk on X11
 
 Review tier: high risk. Native code that listens to input from other

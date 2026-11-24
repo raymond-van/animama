@@ -188,11 +188,21 @@ async function main() {
   );
 }
 
-// Tests import the descriptions above without building anything. Real paths
-// on both sides: started through a symlinked checkout, a plain comparison
-// would skip the build and exit successfully.
-if (
-  process.argv[1] &&
-  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
-)
-  await main();
+/**
+ * Whether this file is the script being run, not a module a test imported.
+ * Real paths on both sides: started through a symlinked checkout, a plain
+ * comparison would skip the build and exit successfully.
+ */
+function runAsScript() {
+  try {
+    return (
+      realpathSync(process.argv[1]) ===
+      realpathSync(fileURLToPath(import.meta.url))
+    );
+  } catch {
+    // No script path, or one that is not a file: something else is running.
+    return false;
+  }
+}
+
+if (runAsScript()) await main();
