@@ -80,6 +80,30 @@ export function dataRootFits(platform: string, root: string): boolean {
 }
 
 /**
+ * Where the installation owner's data lives. Windows uses the local, not the
+ * roaming, profile folder. Linux uses the XDG data home, the place for a
+ * database and content, not the configuration folder Electron defaults to;
+ * the XDG specification makes a relative `XDG_DATA_HOME` invalid, so it is
+ * ignored.
+ */
+export function desktopDataRoot(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  folders: { appData: string; home: string },
+): string {
+  if (platform === "win32")
+    return path.join(env.LOCALAPPDATA || folders.appData, "Animama");
+  if (platform === "linux")
+    return path.join(
+      env.XDG_DATA_HOME && path.isAbsolute(env.XDG_DATA_HOME)
+        ? env.XDG_DATA_HOME
+        : path.join(folders.home, ".local", "share"),
+      "Animama",
+    );
+  return path.join(folders.appData, "Animama");
+}
+
+/**
  * Call before creating sessions, logs or safeStorage; no packaged URL overrides.
  * A packaged app takes the development profile override only while its Node
  * inspector runs, which the shipped fuse wire never allows: the release
@@ -88,21 +112,19 @@ export function dataRootFits(platform: string, root: string): boolean {
 export function prepareDesktopIdentity(
   application: App,
   inspecting = inspectorUrl() !== undefined,
+  platform: NodeJS.Platform = process.platform,
 ): RuntimePaths {
   application.setName("Animama");
-  const root =
-    process.platform === "win32"
-      ? path.join(
-          process.env.LOCALAPPDATA || application.getPath("appData"),
-          "Animama",
-        )
-      : path.join(application.getPath("appData"), "Animama");
+  const root = desktopDataRoot(platform, process.env, {
+    appData: application.getPath("appData"),
+    home: application.getPath("home"),
+  });
   const profileOverride = !application.isPackaged || inspecting;
   const override = profileOverride
     ? process.env.ANIMAMA_DESKTOP_DEV_USER_DATA || undefined
     : undefined;
   const paths = runtimePaths(override || root);
-  if (!dataRootFits(process.platform, paths.base))
+  if (!dataRootFits(platform, paths.base))
     throw new RuntimeError("data_path_too_long");
   if (
     application.isPackaged &&
@@ -120,7 +142,10 @@ export function prepareDesktopIdentity(
   // Electron requires an existing directory for setPath. Rename the legacy tree
   // before creating the destination; the instance lock still precedes services,
   // sessions, logs and safeStorage. Concurrent cold starts never merge profiles.
-  if (!override) migrateLegacyIdentity(application, paths);
+  // No packaged Linux build ever wrote the earlier profile, so Linux adopts
+  // nothing from the configuration folder.
+  if (!override && platform !== "linux")
+    migrateLegacyIdentity(application, paths);
   privateDirectory(paths.base);
   application.setPath("userData", paths.base);
   return paths;

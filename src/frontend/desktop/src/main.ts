@@ -67,6 +67,7 @@ import type { RuntimeStatus } from "../../shared/desktop-runtime.js";
 import { readBoundedJson } from "./main-process/feature-packs/catalog.js";
 import { DesktopUpdateController } from "./main-process/updates/controller.js";
 import {
+  hostUpdatePlatform,
   openSealedUpdates,
   type UpdatePlatform,
   type UpdatePolicy,
@@ -161,12 +162,7 @@ else {
 
   /** Updates are optional, packaged-only infrastructure and never delay application readiness. */
   function initializeUpdates(): Promise<void> {
-    const platform =
-      process.platform === "darwin" && process.arch === "arm64"
-        ? "darwin"
-        : process.platform === "win32" && process.arch === "x64"
-          ? "win32"
-          : undefined;
+    const platform = hostUpdatePlatform(process.platform, process.arch);
     if (!app.isPackaged || !platform || !supervisor) return Promise.resolve();
     updateInitialization ??= (async () => {
       // A build that seals updates off (the final release) opens nothing, so

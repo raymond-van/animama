@@ -282,8 +282,26 @@ export async function isPublicReleaseRepository({ owner, repo }) {
   }
 }
 
+/**
+ * Targets that are only ever built from source. They are not release targets:
+ * no publisher, no redistribution review and no update feed.
+ */
+const SOURCE_BUILD_TARGETS = ["linux-x64"];
+
+/**
+ * The policy a source build seals: the distribution its pack catalog names,
+ * updates ended, and no publisher to accept an update from.
+ */
+export function sourceBuildUpdatePolicy({ schema, distribution, channel }) {
+  return { schema, distribution, channel, updates: "ended" };
+}
+
 /** Staging seals the selected distribution and the target's publisher; it needs no redistribution review yet. */
 export function stagedUpdatePolicy(target) {
+  if (SOURCE_BUILD_TARGETS.includes(target))
+    return sourceBuildUpdatePolicy(
+      loadReleasePolicy({ requireReview: false }).updatePolicy,
+    );
   return loadReleasePolicy({ requireReview: false, target }).updatePolicy;
 }
 

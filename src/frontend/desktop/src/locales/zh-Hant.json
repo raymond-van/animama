@@ -89,7 +89,7 @@
       "unsupported_postgresql_major": "此資料庫需要升級至支援的版本。你現有的資料已保留。",
       "runtime_manifest_invalid": "執行環境遺失或已損毀。請重新安裝完整的 Animama 版本；你的使用者資料是分開存放的。",
       "runtime_file_invalid": "某個已安裝的執行環境檔案遺失或已損毀。請在不刪除資料的情況下重新安裝 Animama。",
-      "unsupported_runtime_platform": "此 Animama 版本需要搭載 Apple 晶片的 macOS 15 或以上版本，或 x64 的 Windows 10 版本 1903 或以上版本。你的資料未變更。",
+      "unsupported_runtime_platform": "此 Animama 版本需要搭載 Apple 晶片的 macOS 15 或以上版本、x64 的 Windows 10 版本 1903 或以上版本，或不早於建置所用系統的 x64 Linux。你的資料未變更。",
       "runtime_busy": "Animama 仍在完成本機工作。先前的設定已保留；請等待復原完成後再重試此變更。",
       "runtime_quiesce_failed": "無法安全地停止本機工作。先前的設定已保留。重試前請開啟記錄檔或重新啟動 Animama。",
       "migration_failed": "資料庫升級失敗。原始快照保留於下方。請開啟記錄檔，解決問題後以此版本重試。請勿重設、降級或自動還原：這可能會捨棄較新的資料。",

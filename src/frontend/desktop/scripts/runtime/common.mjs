@@ -62,8 +62,17 @@ export function writeJson(file, value) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-/** No user-controlled path or unknown target can reach downloads or deletion. */
-export function parseTarget(argv = process.argv.slice(2)) {
+/** Every target the embedded runtime can be staged, audited and packaged for. */
+export const RUNTIME_TARGETS = ["darwin-arm64", "win32-x64", "linux-x64"];
+
+/**
+ * No user-controlled path or unknown target can reach downloads or deletion.
+ * `host` is the machine running the build; tests pass another one.
+ */
+export function parseTarget(
+  argv = process.argv.slice(2),
+  host = { platform: process.platform, arch: process.arch },
+) {
   const args = argv.filter((arg) => arg !== "--");
   const values = {};
   for (let i = 0; i < args.length; i += 2) {
@@ -72,21 +81,18 @@ export function parseTarget(argv = process.argv.slice(2)) {
       !args[i + 1] ||
       values[args[i]]
     ) {
-      throw new Error("Expected --platform <darwin|win32> --arch <arm64|x64>");
+      throw new Error(
+        "Expected --platform <darwin|win32|linux> --arch <arm64|x64>",
+      );
     }
     values[args[i]] = args[i + 1];
   }
   const platform = values["--platform"];
   const arch = values["--arch"];
-  if (
-    !(
-      (platform === "darwin" && arch === "arm64") ||
-      (platform === "win32" && arch === "x64")
-    )
-  ) {
-    throw new Error("Supported targets are darwin-arm64 and win32-x64");
+  if (!RUNTIME_TARGETS.includes(`${platform}-${arch}`)) {
+    throw new Error(`Supported targets are ${RUNTIME_TARGETS.join(", ")}`);
   }
-  if (platform !== process.platform || arch !== process.arch) {
+  if (platform !== host.platform || arch !== host.arch) {
     throw new Error(
       "Runtime builds and audits must run on the native target; cross-building is unsupported",
     );
@@ -260,14 +266,17 @@ export function assertFrontendDependenciesCurrent(root = frontendRoot) {
   );
 }
 
+const NATIVE_LOCKS = {
+  "darwin-arm64": "native-components.lock.json",
+  "win32-x64": "native-components.win32-x64.lock.json",
+  "linux-x64": "native-components.linux-x64.lock.json",
+};
+
 /** Each native target has its own pinned compiler inputs and minimum OS. */
 export function nativeLockFile(target) {
-  return path.join(
-    sourceRoot,
-    target.platform === "win32"
-      ? "native-components.win32-x64.lock.json"
-      : "native-components.lock.json",
-  );
+  const name = NATIVE_LOCKS[`${target.platform}-${target.arch}`];
+  if (!name) throw new Error("No native component lock for this target");
+  return path.join(sourceRoot, name);
 }
 
 /** Windows tools (curl, bsdtar, cmd, icacls) come from System32, never PATH. */
@@ -332,10 +341,16 @@ const hostTarget = `${process.platform}-${process.arch}`;
 // The frozen runtime embeds the interpreter's sysconfig paths, and native
 // builds embed their prefix. uv's default install directory is inside the
 // builder's home, so pin a neutral one.
-export const buildRoot =
-  process.platform === "win32"
-    ? "C:\\animama-build"
+export function buildRootFor(platform) {
+  if (platform === "win32") return "C:\\animama-build";
+  // /var/tmp survives a reboot, unlike /tmp, and needs no administrator.
+  // systemd still ages out files unused for about 30 days there; a stage that
+  // then fails on its interpreter recovers by deleting this folder.
+  return platform === "linux"
+    ? "/var/tmp/animama-build"
     : "/Users/Shared/animama-build";
+}
+export const buildRoot = buildRootFor(process.platform);
 const PYTHON_INSTALL_DIR = path.join(buildRoot, "uv-python");
 
 /**
@@ -369,15 +384,33 @@ export function assertPrivatePythonInstallDir() {
   }
 }
 
+/**
+ * uv's download cache for staging. macOS purges files from old entries under
+ * /private/tmp, which leaves uv a cache that fails installs, so each host uses
+ * its persistent, private cache folder.
+ */
+export function uvCacheDir(
+  platform = process.platform,
+  env = process.env,
+  home = homedir(),
+) {
+  if (env.UV_CACHE_DIR) return env.UV_CACHE_DIR;
+  if (platform === "win32")
+    return path.join(buildRootFor(platform), "uv-cache");
+  if (platform === "linux")
+    return path.join(
+      path.isAbsolute(env.XDG_CACHE_HOME ?? "")
+        ? env.XDG_CACHE_HOME
+        : path.join(home, ".cache"),
+      "animama",
+      "uv-cache",
+    );
+  return path.join(home, "Library", "Caches", "Animama", "uv-cache");
+}
+
 export function pythonEnvironment() {
   return {
-    // macOS purges files from old entries under /private/tmp, which leaves uv
-    // a cache that fails installs; ~/Library/Caches is persistent and private.
-    UV_CACHE_DIR:
-      process.env.UV_CACHE_DIR ||
-      (process.platform === "win32"
-        ? path.join(buildRoot, "uv-cache")
-        : path.join(homedir(), "Library", "Caches", "Animama", "uv-cache")),
+    UV_CACHE_DIR: uvCacheDir(),
     UV_PYTHON_INSTALL_DIR: PYTHON_INSTALL_DIR,
     UV_PROJECT_ENVIRONMENT: path.join(cacheRoot, "build-venv", hostTarget),
     PYTHONHASHSEED: "0",

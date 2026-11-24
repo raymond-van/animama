@@ -72,10 +72,13 @@ import {
 } from "../src/main-process/runtime/postgres.js";
 import { readBackendReadiness } from "../src/main-process/runtime/readiness.js";
 import {
+  meetsCLibrary,
+  runningCLibrary,
   verifyRuntime,
   supportsRuntimePlatform,
   type RuntimeManifest,
   runtimePlatform,
+  validMinimumOs,
 } from "../src/main-process/runtime/manifest.js";
 
 const roots: string[] = [];
@@ -1136,7 +1139,79 @@ describe("runtime platform support boundary", () => {
     for (const release of ["10.0.18361", "10.0.17763", "6.3.9600", "10.0", ""])
       expect(supportsRuntimePlatform("win32", "x64", release)).toBe(false);
     expect(supportsRuntimePlatform("win32", "arm64", "10.0.26200")).toBe(false);
-    expect(supportsRuntimePlatform("linux", "x64", "6.18.0")).toBe(false);
+  });
+
+  it("admits Linux on x64 whatever the kernel, and no other Linux architecture", () => {
+    for (const release of ["6.18.0", "6.12.1-arch1-1", "5.15.0-91-generic", ""])
+      expect(supportsRuntimePlatform("linux", "x64", release)).toBe(true);
+    expect(supportsRuntimePlatform("linux", "arm64", "6.18.0")).toBe(false);
+    expect(supportsRuntimePlatform("freebsd", "x64", "14.0")).toBe(false);
+  });
+
+  it("accepts only the minimum each platform's manifest may carry", () => {
+    expect(validMinimumOs("darwin", "15.0")).toBe(true);
+    expect(validMinimumOs("darwin", "14.0")).toBe(false);
+    expect(validMinimumOs("win32", "10.0.18362")).toBe(true);
+    expect(validMinimumOs("win32", "10.0.22000")).toBe(false);
+    // A Linux stage measures the C library its binaries need.
+    expect(validMinimumOs("linux", "glibc-2.38")).toBe(true);
+    for (const value of [
+      "glibc",
+      "2.38",
+      "glibc-2",
+      "glibc-2.38.1",
+      "glibc-2.38 ",
+      "musl-1.2",
+      "15.0",
+      "",
+      undefined,
+    ])
+      expect(validMinimumOs("linux", value)).toBe(false);
+  });
+
+  it("holds a Linux build to the C library its binaries were built against", () => {
+    expect(meetsCLibrary("glibc-2.38", "2.42")).toBe(true);
+    expect(meetsCLibrary("glibc-2.38", "2.38")).toBe(true);
+    expect(meetsCLibrary("glibc-2.38", "3.0")).toBe(true);
+    expect(meetsCLibrary("glibc-2.38", "2.37")).toBe(false);
+    // Versions compare as numbers: 2.9 is older than 2.38.
+    expect(meetsCLibrary("glibc-2.38", "2.9")).toBe(false);
+    expect(meetsCLibrary("glibc-2.38", "1.99")).toBe(false);
+    // An unknown C library (musl, or no report) is never assumed to be enough.
+    for (const running of [undefined, "", "unknown", "2", "2.38.1"])
+      expect(meetsCLibrary("glibc-2.38", running)).toBe(false);
+    expect(meetsCLibrary("glibc", "2.42")).toBe(false);
+  });
+
+  it("reads the running C library from the process report, else from getconf", () => {
+    expect(
+      runningCLibrary(
+        () => ({ header: { glibcVersionRuntime: "2.42" } }),
+        () => "glibc 2.30\n",
+      ),
+    ).toBe("2.42");
+    expect(
+      runningCLibrary(
+        () => undefined,
+        () => "glibc 2.39\n",
+      ),
+    ).toBe("2.39");
+    expect(
+      runningCLibrary(
+        () => ({ header: {} }),
+        () => {
+          throw new Error("getconf missing");
+        },
+      ),
+    ).toBeUndefined();
+    expect(
+      runningCLibrary(
+        () => {
+          throw new Error("no report");
+        },
+        () => "musl",
+      ),
+    ).toBeUndefined();
   });
 
   it("names each platform's minimum OS and native executables", () => {
@@ -1148,14 +1223,25 @@ describe("runtime platform support boundary", () => {
       minimumOs: "10.0.18362",
       executableSuffix: ".exe",
     });
+    // The lock and source manifest carry this marker; a stage measures the
+    // real value (`glibc-<major>.<minor>`) into its manifest.
+    expect(runtimePlatform("linux")).toEqual({
+      minimumOs: "glibc",
+      executableSuffix: "",
+    });
   });
 });
 
-// Runs on each supported host: macOS on Apple silicon and Windows x64.
+// Runs on each supported host: macOS on Apple silicon, Windows x64 and Linux x64.
 describe.skipIf(
   !supportsRuntimePlatform(process.platform, process.arch, release()),
 )("runtime manifest custody", () => {
-  const { executableSuffix, minimumOs } = runtimePlatform(process.platform);
+  const { executableSuffix } = runtimePlatform(process.platform);
+  // A Linux manifest names a measured C library; any host's is at least 2.17.
+  const minimumOs =
+    process.platform === "linux"
+      ? "glibc-2.17"
+      : runtimePlatform(process.platform).minimumOs;
   const backend = `backend/animama-runtime${executableSuffix}`;
 
   async function manifestFixture() {
@@ -1306,6 +1392,19 @@ describe.skipIf(
       "runtime_manifest_invalid",
     );
   });
+
+  // The running C library is real here, so only a Linux host can show this.
+  it.skipIf(process.platform !== "linux")(
+    "refuses a Linux build made for a newer C library than this system's",
+    async () => {
+      const { root, manifest } = await manifestFixture();
+      manifest.minimum_os = "glibc-999.0";
+      writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
+      await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+        "unsupported_runtime_platform",
+      );
+    },
+  );
 
   it("refuses a stale manifest advertising the earlier OS target", async () => {
     const { root, manifest } = await manifestFixture();

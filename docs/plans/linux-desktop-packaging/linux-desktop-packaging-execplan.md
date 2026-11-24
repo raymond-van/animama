@@ -3,8 +3,8 @@
 Source agreement: [#920](https://github.com/raymond-van/animama/issues/920), published
 2026-11-24T18:42:42Z and accepted by the owner that day;
 [linux-desktop-packaging-spec.md](linux-desktop-packaging-spec.md) is its snapshot.
-Authorized scope: none yet. This plan awaits the owner's review, the decisions
-PD1–PD10 below and a phase range.
+Authorized scope: Phases 1–6 (owner, 2026-11-24). Gates G1–G4 are the owner's
+on the reference system, and Phase 7 waits for G1.
 
 ## Purpose and context
 
@@ -147,7 +147,10 @@ specifications.
 
 ## Progress
 
-- [ ] Phase 1: Linux admitted as a runtime target. Not started.
+- [x] Phase 1: Linux admitted as a runtime target. Implemented from
+      `b7c69ecca`. Phase checks pass; review #1 found one required and four
+      optional items, all dispositioned; recheck #2 passed. The full pre-push
+      suite has not been run.
 - [ ] Phase 2: process ownership. Not started.
 - [ ] Phase 3: credential storage and the sandbox. Not started.
 - [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Not started;
@@ -194,7 +197,16 @@ specifications.
   on the final candidate and with the owner's go-ahead, rather than before
   each phase review. Phases run the checks their changes affect.
 
-Agent proposals awaiting the owner's review of this plan:
+- 2026-11-24, owner. Agreed this plan as written, including PD1–PD10 below,
+  and authorized Phases 1–6.
+- 2026-11-24, agent, from review finding P1-F3. systemd ages out files in
+  `/var/tmp` that go unused for about 30 days, so PD7's build root can lose
+  parts of the build interpreter between builds. The root stays; a stage that
+  fails on its interpreter recovers by deleting `/var/tmp/animama-build`.
+  Phase 7 documents that. Raised for the owner in case another root is
+  preferred.
+
+Agent proposals, accepted by the owner with the plan on 2026-11-24:
 
 - **PD1, starting before Windows 10 merges.** Stack on
   `origin/build/windows-10-support` as described above, so the macOS-side
@@ -323,7 +335,122 @@ Completion: the checks pass on a committed tree, the review finds no open
 blocker, and the macOS and Windows expectations in the touched tests are
 unchanged except where Linux was listed as refused.
 
-Check record: none yet.
+Starting source: `b7c69ecca`, the merge of `origin/build/windows-10-support`
+(`9d3cb6491`) into this branch under PD1.
+
+Results:
+
+- `parseTarget` takes an injectable host; `RUNTIME_TARGETS` in `common.mjs`
+  is the one list the staging and packaging gates read.
+- `manifest.ts` gained `validMinimumOs`, `meetsCLibrary` and
+  `runningCLibrary`. `runtimePlatform("linux").minimumOs` is the marker
+  `glibc`; a staged Linux manifest carries `glibc-<major>.<minor>`.
+- `desktopDataRoot` in `paths.ts` holds the per-platform rule;
+  `prepareDesktopIdentity` takes the platform as a parameter for tests.
+- `hostUpdatePlatform` in `updates/policy.ts` replaces the inline choice in
+  `main.ts`.
+- `stagedUpdatePolicy("linux-x64")` returns `sourceBuildUpdatePolicy(...)`.
+
+Test order: steps 2–8 were written test first and seen failing. Step 1's
+`common.mjs` change was written before its tests, which were added
+immediately after.
+
+Check record (2026-11-24, macOS arm64 host, working directory `src/frontend`,
+staged uncommitted work; trees are index hashes):
+
+| Command | Result | Tree |
+| --- | --- | --- |
+| `pnpm desktop:test` | Pass: 41 files passed, 2 skipped; 692 tests passed, 14 skipped | `475c4c1a5eca` |
+| `pnpm desktop:check` | Pass | `475c4c1a5eca` |
+| `pnpm --filter animama-desktop prettier:check` | Pass | `475c4c1a5eca` |
+| `python3 scripts/public-release/check_source.py` (repository root) | Pass | `475c4c1a5eca` |
+| `pnpm check` | Pass | before a formatting-only change to `common.mjs` |
+| `pnpm desktop:build` | Pass | same earlier tree |
+| `pnpm exec vitest run tests/linux-storage.test.ts tests/linux-target.test.mjs tests/runtime-state.test.ts` (from `desktop`) | Pass: 3 files; 92 tests passed, 4 skipped | repair, see below |
+
+The 14 skipped tests are suites that need a Windows host or a staged Windows
+runtime (`process-guard.test.ts`, `windows-storage.test.ts`, three cases in
+`runtime-state.test.ts`).
+
+The repair check ran in the working tree while it also held Phase 2's
+unstaged edits; the two repaired test files were identical in the index and
+the working tree. The repaired Phase 1 index is tree `828f28bb3624`. Phase 2's
+full run covers the combined tree.
+
+Not run: the full pre-push suite (`make check-test`, `pnpm verify`,
+`pnpm web:test:browser`), by the owner's standing instruction; any stage,
+which needs the reference system.
+
+#### Code Review #1 Findings
+
+Reviewed source: staged tree `475c4c1a5eca` against `b7c69ecca`. High-risk
+tier: one analysis reviewer and one checks reviewer.
+
+Checks reviewer: confirmed the tree and reran `pnpm desktop:test`,
+`pnpm desktop:check`, `pnpm check`, `pnpm desktop:build` and
+`check_source.py`. All passed with the recorded counts.
+
+Analysis reviewer:
+
+- **P1-F1 (required).** `tests/linux-storage.test.ts` and
+  `tests/linux-target.test.mjs` asserted POSIX path literals, while
+  `desktopDataRoot` and `uvCacheDir` join with the host's separator. The two
+  tests would fail on a Windows host, against C7 and A11.
+- **P1-F2 (optional).** No test shows `verifyRuntime` raising
+  `unsupported_runtime_platform` for an older C library; removing the Linux
+  clause would leave every test green.
+- **P1-F3 (optional, for the owner).** systemd ages `/var/tmp` at 30 days, so
+  the build interpreter under PD7's root can be partly deleted.
+- **P1-F4 (note).** `source-manifest.json`'s hash enters every target's
+  licence inventory, so macOS and Windows inventories change by one hash. The
+  Windows 10 work already changed that file.
+- **P1-F5 (optional).** The schema test asserts the schema's JSON text, not a
+  validation. The reviewer validated it separately: Linux x64 passes the rule
+  and Linux arm64 fails it.
+
+Checked without finding: macOS and Windows parity of the startup check, data
+roots and uv cache; R3's four `XDG_DATA_HOME` cases; the single update gate;
+the sealed Linux policy and its one reader; the refusals of R1; the
+translations.
+
+#### Code Review #1 Revisions
+
+- **P1-F1: accepted.** The Linux expectations are built with `path.join`.
+  Verified by the repair check above.
+- **P1-F2: accepted.** A Linux-host-only case with a minimum of `glibc-999.0`
+  was added to the manifest custody suite. It is skipped on macOS and Windows
+  and first runs at G1.
+- **P1-F3: partly accepted.** The comment in `common.mjs` states the limit and
+  the recovery, and the Decision Log raises it for the owner. The root is
+  unchanged.
+- **P1-F4: recorded.** No change. No macOS or Windows stage output is claimed
+  byte-identical; C7 concerns behavior.
+- **P1-F5: rejected.** The desktop package has no JSON Schema validator, and
+  adding a dependency for one test is not warranted. The reviewer's
+  validation is the evidence.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of the repair, staged tree `828f28bb3624` against
+`475c4c1a5eca`. Result: pass, no regression.
+
+- P1-F1 resolved: every expectation in both files matches under Windows path
+  rules; the reviewer mirrored the two functions with `path.win32` and
+  compared all 14 cases.
+- P1-F2 resolved: `glibc-999.0` passes the manifest's validity block and
+  reaches the C library comparison. The comparison against a real C library
+  first runs on the reference system.
+- P1-F3 resolved as dispositioned: the change is a comment.
+
+The reviewer reran the three repaired test files on an export of the exact
+tree: 3 files passed; 91 tests passed, 4 skipped. The implementer's count of
+92 included one Phase 2 test in the working tree.
+
+#### Code Review #2 Revisions
+
+None needed.
 
 ### Phase 2: process ownership
 

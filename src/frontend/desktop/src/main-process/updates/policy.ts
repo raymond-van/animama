@@ -141,6 +141,19 @@ function isWindowsPublisher(value: unknown): value is WindowsPublisher {
   );
 }
 
+/**
+ * The update platform of a host, or none where the app is never updated in
+ * place: a Linux build is rebuilt from source and never requests a feed.
+ */
+export function hostUpdatePlatform(
+  platform: string,
+  architecture: string,
+): UpdatePlatform | undefined {
+  if (platform === "darwin" && architecture === "arm64") return "darwin";
+  if (platform === "win32" && architecture === "x64") return "win32";
+  return undefined;
+}
+
 /** The platform whose publisher a policy names. */
 export function updatePlatform(policy: UpdatePolicy): UpdatePlatform {
   return "team_id" in policy ? "darwin" : "win32";
