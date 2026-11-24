@@ -117,6 +117,13 @@ int main() {
 
   Require(!HoldMatcher(KeyBinding("NotAKey", 0)).Valid(),
           "an unknown key is not a valid binding");
+  for (int button = -1; button <= 33; ++button) {
+    HookConfig config;
+    config.mouse = true;
+    config.button = button;
+    Require(HoldMatcher(config).Valid() == (button >= 1 && button <= 5),
+            "only the five reportable buttons are valid mouse bindings");
+  }
 
   {
     HookConfig config;

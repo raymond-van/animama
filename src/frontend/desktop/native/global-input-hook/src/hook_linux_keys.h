@@ -90,8 +90,13 @@ class HoldMatcher {
       : config_(std::move(config)),
         key_(config_.mouse ? std::nullopt : XKeyCode(config_.code)) {}
 
-  // A keyboard binding must name a key this table knows.
-  bool Valid() const { return config_.mouse || key_.has_value(); }
+  // A keyboard binding must name a key this table knows, and a mouse binding
+  // one of the five buttons X can report as buttons. Anything else would
+  // start and then never fire.
+  bool Valid() const {
+    return config_.mouse ? config_.button >= 1 && config_.button <= 5
+                         : key_.has_value();
+  }
   bool Down() const { return down_; }
 
   // `modifiers` is asked only for a press of the bound key or button.
@@ -104,8 +109,8 @@ class HoldMatcher {
 
   Transition OnButton(int x_button, bool press,
                       const std::function<Modifiers()> &modifiers) {
-    if (!config_.mouse || AnimamaMouseButton(x_button) != config_.button ||
-        config_.button == 0)
+    if (!config_.mouse || !Valid() ||
+        AnimamaMouseButton(x_button) != config_.button)
       return Transition::kNone;
     return Apply(press, modifiers);
   }

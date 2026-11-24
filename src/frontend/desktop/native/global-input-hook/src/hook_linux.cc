@@ -6,6 +6,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/XInput2.h>
 
+#include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 
@@ -38,9 +39,13 @@ bool startup_ok = false;
 std::string startup_error;
 HookEventCallback emit_event;
 
-// Xlib's default handler ends the process on any protocol error. Nothing this
-// hook asks for is worth that: ignore the error and carry on.
-int IgnoreXError(Display *, XErrorEvent *) { return 0; }
+// Xlib's default answer to a lost connection is to end the process, from
+// whichever thread noticed. This display is the hook's alone, so note the loss
+// and let the thread finish; the app decides for itself what a lost session
+// means. Needs libX11 1.7 or later.
+void NoteConnectionLost(Display *, void *lost) {
+  *static_cast<bool *>(lost) = true;
+}
 
 void Emit(Transition transition) {
   if (transition == Transition::kDown)
@@ -60,10 +65,14 @@ void Fail(const std::string &message) {
 }
 
 void RunHook(HookConfig config, int stop_read) {
-  XSetErrorHandler(IgnoreXError);
+  // No Xlib error handler is installed here: that handler is process-wide,
+  // and Electron's own (Chromium ignores protocol errors, GDK swaps it inside
+  // its error traps) must stay as the host set it.
   Display *display = XOpenDisplay(nullptr);
   if (!display)
     return Fail("Animama could not connect to the X server.");
+  bool connection_lost = false;
+  XSetIOErrorExitHandler(display, NoteConnectionLost, &connection_lost);
   int opcode = 0;
   int event = 0;
   int error = 0;
@@ -110,8 +119,8 @@ void RunHook(HookConfig config, int stop_read) {
 
   pollfd watched[2] = {{ConnectionNumber(display), POLLIN, 0},
                        {stop_read, POLLIN, 0}};
-  for (;;) {
-    while (XPending(display) > 0) {
+  while (!connection_lost) {
+    while (!connection_lost && XPending(display) > 0) {
       XEvent next;
       XNextEvent(display, &next);
       XGenericEventCookie *cookie = &next.xcookie;
@@ -135,16 +144,20 @@ void RunHook(HookConfig config, int stop_read) {
       }
       XFreeEventData(display, cookie);
     }
-    if (poll(watched, 2, -1) < 0)
+    if (connection_lost || poll(watched, 2, -1) < 0)
       continue;
+    if ((watched[0].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)
+      connection_lost = true;
     // Asked to stop, or the X connection is gone: either way the hold ends.
-    if (watched[1].revents != 0 ||
-        (watched[0].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0)
+    if (watched[1].revents != 0)
       break;
   }
   // Fail closed: never leave a microphone hold active behind a dead hook.
   Emit(matcher.Reset());
-  XCloseDisplay(display);
+  // Closing a display whose connection is gone would run Xlib's fatal IO
+  // path on this thread. Leave it: the server that owned it no longer exists.
+  if (!connection_lost)
+    XCloseDisplay(display);
 }
 
 } // namespace
@@ -167,12 +180,15 @@ bool PlatformStartHook(const HookConfig &config, HookEventCallback callback,
     return false;
   }
   if (!HoldMatcher(config).Valid()) {
-    *error = "The selected keyboard key is not supported on Linux.";
+    *error = config.mouse
+                 ? "The selected mouse button is not supported on Linux."
+                 : "The selected keyboard key is not supported on Linux.";
     return false;
   }
   PlatformStopHook();
   int pipe_ends[2];
-  if (pipe(pipe_ends) != 0) {
+  // Close-on-exec: the services Animama starts must not inherit the pipe.
+  if (pipe2(pipe_ends, O_CLOEXEC) != 0) {
     *error = "Animama could not start the global input monitor.";
     return false;
   }
@@ -205,7 +221,7 @@ void PlatformStopHook() {
   }
   if (write_end >= 0) {
     const char byte = 's';
-    // The thread also wakes if this write fails: closing the pipe ends poll.
+    // One byte wakes the thread's poll; the pipe is closed after the join.
     (void)!write(write_end, &byte, 1);
   }
   if (hook_thread.joinable())

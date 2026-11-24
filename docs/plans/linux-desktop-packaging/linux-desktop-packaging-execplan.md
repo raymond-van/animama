@@ -174,7 +174,8 @@ specifications.
       the PostgreSQL build, the guard build and the ELF audit also ran in a
       Linux container. No stage, audit or package has run.
 - [ ] Phase 6: Press to talk on X11. Implemented from `13f63b958`; phase
-      checks pass; review pending. The owner accepted PD10 with the plan. The
+      checks pass; review #1 found one required and three optional items;
+      repairs made, recheck #2 pending. The owner accepted PD10 with the plan. The
       hook also ran against a virtual X server in a Linux container.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
 - [ ] Phase 7: documentation and decision record. Not started; after G1.
@@ -1371,6 +1372,61 @@ and injected input with `xdotool`:
 Not run: the full pre-push suite, by the owner's standing instruction; the
 addon build through `node-gyp` on Linux; the hook inside Electron; a real
 keyboard, i3 or another focused application. Those are G1 and G4.
+
+#### Code Review #1 Findings
+
+Reviewed source: commit `3ccb908f0` against `13f63b958`. High-risk tier: one
+analysis reviewer and one checks reviewer.
+
+Checks reviewer, on an export of the commit: `pnpm desktop:test` (47 files
+passed, 2 skipped; 781 passed, 16 skipped), `pnpm desktop:check`,
+`pnpm desktop:build` and `pnpm desktop:test:native-input` pass and match the
+record. In Linux containers, on both arm64 and x64, `hook_linux.cc` compiled
+with `-Wall -Wextra -Werror -Wpedantic`, `node-gyp rebuild` produced the
+addon without warnings, the addon needs `libX11`, `libXi`, `libstdc++` and
+`libc`, and loading it with no display reports unsupported without throwing.
+
+Analysis reviewer, who built the addon with node-gyp and drove it in Node
+under Xvfb:
+
+- **P6-F1 (required).** When the X connection was lost, the hook thread
+  called `XCloseDisplay` on the dead display. Xlib's fatal IO path then ran
+  on that thread and ended the process: with a key held and the X server
+  killed, the host aborted in 2 of 2 runs and JavaScript never got the
+  release.
+- **P6-F2 (optional).** The stop pipe was not close-on-exec, so a service
+  started while the hook ran inherited both ends.
+- **P6-F3 (optional).** A mouse binding for buttons 6 to 32 started without
+  error and never fired.
+- **P6-F4 (note).** The process-wide Xlib error handler the hook installed is
+  redundant in Electron, where Chromium already installs one and GDK swaps it
+  inside its error traps.
+
+Confirmed sound: only raw key or raw button events are selected and only a
+boolean leaves the native layer; start and stop run on the JavaScript thread
+and 700 restarts left no descriptor behind; master devices deliver each event
+once; the key table matches the kernel's codes and equals Windows' set; the
+compile line resolves to C++20; no permission prompt path exists on Linux.
+
+#### Code Review #1 Revisions
+
+- **P6-F1: accepted.** The display gets its own IO-error exit handler
+  (libX11 1.7 or later), which only notes the loss; the loop then stops,
+  releases a held binding and does not close a dead display.
+- **P6-F2: accepted.** `pipe2` with `O_CLOEXEC`.
+- **P6-F3: accepted.** A mouse binding outside buttons 1 to 5 is refused at
+  start with its own message, and the matcher test covers every button.
+- **P6-F4: accepted.** The hook installs no Xlib error handler.
+
+Repair check: on macOS, `pnpm desktop:test:native-input` passes with 1046
+macOS and 589 Linux matcher assertions, inside the full run recorded under
+Phase 5's repair. In the Linux container the repaired hook compiled with
+`-Wall -Wextra -Werror -Wpedantic` and the driven test repeated its eleven
+cases as before, then: button 6 refused; the X server killed while the key
+was held gave one down and one up with the process alive; stopping
+afterwards returned; a new start with no server was refused with a message.
+
+Repair budget: one of two rounds used.
 
 ### Owner and hardware gates
 
