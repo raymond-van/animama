@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createGlobalInputHook,
   nativeGlobalInputBindingPath,
+  pressToTalkUnsupportedReason,
   validateNativeGlobalInputBinding,
   type NativeGlobalInputBinding,
 } from "../src/main-process/shortcuts/global-input-hook.js";
@@ -97,5 +98,18 @@ describe("first-party global input hook", () => {
     hook.start(keyboard, vi.fn());
 
     expect(current.binding.start).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("unsupported global Press to talk", () => {
+  it("tells a Linux owner that the session, not the app, is the limit", () => {
+    const linux = pressToTalkUnsupportedReason("linux");
+    expect(linux).toContain("X11 session");
+    expect(linux).toContain("Wayland");
+    // The old wording named macOS and Windows as the only platforms.
+    for (const platform of ["linux", "darwin", "win32"] as const)
+      expect(pressToTalkUnsupportedReason(platform)).not.toMatch(
+        /only on macOS and Windows/u,
+      );
   });
 });

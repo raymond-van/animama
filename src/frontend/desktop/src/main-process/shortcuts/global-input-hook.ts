@@ -114,3 +114,16 @@ export function createGlobalInputHook(
     },
   };
 }
+
+/**
+ * Why the native hook reports itself unsupported, for the status the renderer
+ * shows. On Linux the hook exists but only for an X11 session: a Wayland
+ * session does not let an app listen for a key held in another application.
+ */
+export function pressToTalkUnsupportedReason(
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return platform === "linux"
+    ? "Global Press to talk needs an X11 session on Linux. A Wayland session does not let an app listen for a held key."
+    : "Global Press to talk is not available on this system.";
+}

@@ -8,16 +8,68 @@ import { fileURLToPath } from "node:url";
 // a skipped native test as acceptance. Ordinary wrapper tests remain portable.
 if (process.platform === "win32" && process.arch === "x64") {
   testPackagedWindowsAddon();
+} else if (process.platform === "linux" && process.arch === "x64") {
+  testLinuxMatcher("c++");
 } else if (
   process.platform !== "darwin" ||
   process.arch !== "arm64" ||
   Number.parseInt(release(), 10) < 24
 ) {
   throw new Error(
-    "Native input tests require macOS 15+ on Apple silicon or Windows x64.",
+    "Native input tests require macOS 15+ on Apple silicon, Windows x64 or Linux x64.",
   );
 } else {
   testMacHook();
+  // The Linux hook's key table and matcher are plain C++ and run anywhere.
+  testLinuxMatcher("xcrun", ["clang++"]);
+}
+
+/**
+ * Build and run the Linux hook's portable decisions: its key table, button
+ * mapping, session check and press/release matching. It includes no X11
+ * header and starts no hook, so it also runs on macOS.
+ */
+function testLinuxMatcher(compiler, prefix = []) {
+  const source = fileURLToPath(
+    new URL(
+      "../../native/global-input-hook/tests/hook_linux_test.cc",
+      import.meta.url,
+    ),
+  );
+  const directory = mkdtempSync(
+    path.join(tmpdir(), "animama-native-input-test-"),
+  );
+  const executable = path.join(directory, "hook-linux-test");
+  try {
+    for (const [command, args] of [
+      [
+        compiler,
+        [
+          ...prefix,
+          "-std=c++20",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-o",
+          executable,
+          source,
+        ],
+      ],
+      [executable, []],
+    ]) {
+      const result = spawnSync(command, args, {
+        stdio: "inherit",
+        timeout: 60_000,
+      });
+      if (result.error) throw result.error;
+      if (result.status !== 0)
+        throw new Error(
+          `${command} failed (${result.signal ?? result.status}).`,
+        );
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
 
 /**

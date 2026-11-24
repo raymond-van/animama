@@ -10,6 +10,7 @@ import {
 import { writeLog } from "../logging.js";
 import {
   createGlobalInputHook,
+  pressToTalkUnsupportedReason,
   type GlobalInputHook,
   type GlobalInputShortcut,
 } from "./global-input-hook.js";
@@ -571,8 +572,7 @@ class DesktopShortcutManager {
       const hook = this.ensureGlobalInputHook();
       if (!hook.supported) {
         this.pressToTalkListening = false;
-        this.pressToTalkError =
-          "Global Press to talk is supported only on macOS and Windows.";
+        this.pressToTalkError = pressToTalkUnsupportedReason();
         return;
       }
       if (hook.requiresPermission) {

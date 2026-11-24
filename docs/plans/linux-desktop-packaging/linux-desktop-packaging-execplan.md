@@ -172,8 +172,9 @@ specifications.
       `3eed0188d`; phase checks pass; review pending. Unit-tested on macOS;
       the PostgreSQL build, the guard build and the ELF audit also ran in a
       Linux container. No stage, audit or package has run.
-- [ ] Phase 6: Press to talk on X11. Not started; needs the owner's
-      feasibility decision.
+- [ ] Phase 6: Press to talk on X11. Implemented from `13f63b958`; phase
+      checks pass; review pending. The owner accepted PD10 with the plan. The
+      hook also ran against a virtual X server in a Linux container.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
 - [ ] Phase 7: documentation and decision record. Not started; after G1.
 - [ ] Final integration review and the single full pre-push run.
@@ -1225,7 +1226,67 @@ Recovery: source-only.
 
 Completion: the checks pass and the review finds no open blocker.
 
-Check record: none yet.
+Starting source: `13f63b958` (Phase 5).
+
+Results:
+
+- `src/hook_linux_keys.h`: the key table (X key code is the evdev scan code
+  plus 8), the button mapping, the modifier mask, the session check and
+  `HoldMatcher`, which turns raw presses and releases into at most one down
+  and one up. No X11 header.
+- `src/hook_linux.cc`: its own thread and display connection; XInput 2.1 raw
+  key or button events on the root window for all master devices; modifier
+  state from `XkbGetState`, asked only when the bound key goes down; a pipe
+  to stop the thread. A lost X connection or a stop releases a held binding.
+  It installs an Xlib error handler that ignores protocol errors, because
+  Xlib's default ends the process.
+- `binding.gyp` builds it on Linux against `libX11` and `libXi`.
+  `hook_unsupported.cc` now serves other systems only.
+- `pressToTalkUnsupportedReason()` gives the renderer the Linux reason.
+- `test-global-input-hook.mjs` builds and runs `tests/hook_linux_test.cc` on
+  Linux x64, and on macOS beside the macOS test.
+
+The audit's library list for the hook was already in Phase 5's lock.
+
+Test order: the matcher test and the header were written together; the
+TypeScript reason was written test first. `hook_linux.cc` itself has no test
+in the repository: it needs an X server.
+
+Check record (2026-11-24, macOS arm64 host, working directory
+`src/frontend`, in the worktree with exactly this phase's changes on top of
+`13f63b958`):
+
+| Command | Result |
+| --- | --- |
+| `pnpm desktop:test` | Pass: 47 files passed, 2 skipped; 781 tests passed, 16 skipped |
+| `pnpm desktop:check` | Pass |
+| `pnpm desktop:build` | Pass |
+| `pnpm prettier:check` | Pass |
+| `pnpm desktop:test:native-input` | Pass: 1046 macOS matcher assertions, then 554 Linux matcher assertions |
+| `python3 scripts/public-release/check_source.py` (repository root) | Pass |
+
+Linux container run (2026-11-24, `node:24-bookworm`, aarch64, g++ 12.2,
+Xvfb; not the reference system). A scratch driver, not in the repository,
+compiled `hook_linux.cc` with `-Wall -Wextra -Werror`, started the real hook
+and injected input with `xdotool`:
+
+| Case | Downs, ups |
+| --- | --- |
+| Tap the bound key | 1, 1 |
+| Another key | 0, 0 |
+| Bound key with Shift held, binding without Shift | 0, 0 |
+| Bound key held 1.5 seconds, through the server's auto-repeat | 1, 1 |
+| Ctrl+key binding with Ctrl held | 1, 1 |
+| Ctrl+key binding without Ctrl | 0, 0 |
+| Ctrl+key binding, Ctrl released before the key | 1, 1 |
+| Left mouse button binding | 1, 1 |
+| Right button against a left-button binding | 0, 0 |
+| Hook stopped while the key is held | 1, 1 |
+| A key the table does not know | refused |
+
+Not run: the full pre-push suite, by the owner's standing instruction; the
+addon build through `node-gyp` on Linux; the hook inside Electron; a real
+keyboard, i3 or another focused application. Those are G1 and G4.
 
 ### Owner and hardware gates
 
