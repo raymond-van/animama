@@ -174,13 +174,20 @@ specifications.
       the ELF audit also ran in a Linux container. No stage, audit or package
       has run. The full pre-push suite has not been run.
 - [ ] Phase 6: Press to talk on X11. Implemented from `13f63b958`; phase
-      checks pass; review #2 resolved three of four findings and left one
-      correction, made in the second and last repair round; recheck #3
-      pending. The owner accepted PD10 with the plan. The hook also ran
-      against a virtual X server in a Linux container.
+      checks pass. Review #3, the last the review bound allows, found the
+      code and its comments accurate and one sentence of this plan's
+      Decision Log overstated. That sentence is corrected, but no recheck
+      remains to confirm it, so the phase waits for the owner: accept the
+      correction or ask for one more recheck. The owner accepted PD10 with
+      the plan. The hook also ran against a virtual X server in a Linux
+      container.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
+- [ ] Gate G5, macOS and Windows unchanged. Added by the integration review
+      (FI-F1); proposed, awaiting the owner's agreement.
 - [ ] Phase 7: documentation and decision record. Not started; after G1.
-- [ ] Final integration review and the single full pre-push run.
+- [ ] Final integration review and the single full pre-push run. The review
+      of Phases 1–6 is recorded below: no code finding, one plan amendment
+      (gate G5). The folded Phase 7 and the pre-push run remain.
 
 ## Surprises & Discoveries
 
@@ -231,13 +238,16 @@ specifications.
   fails on its interpreter recovers by deleting `/var/tmp/animama-build`.
   Phase 7 documents that. Raised for the owner in case another root is
   preferred.
-- 2026-11-24, agent, from review finding P6-F1. Press to talk survives a
-  lost X connection only when the loss is seen while the hook is idle, which
-  is the usual case: the binding is released and the app keeps running. A
-  loss met inside an Xlib call ends the app, because Xlib then runs the
-  process-wide IO error handler, which is Electron's and exits. The hook does
-  not replace that handler. The embedded services stop either way through
-  the process guard. Raised for the owner; an xcb rewrite would close it.
+- 2026-11-24, agent, from review finding P6-F1. The Press to talk hook
+  survives a lost X connection only when the loss is seen while the hook is
+  idle, which is the usual case: the binding is released and the hook does
+  not end the process. Whether the app then keeps running was not tested;
+  Electron handles the loss of its own connection separately. A loss met
+  inside an Xlib call ends the process at once, because Xlib then runs the
+  process-wide IO error handler, which is the host's (Xlib's default or
+  GDK's) and exits. The hook does not replace that handler. The embedded
+  services stop either way through the process guard. Raised for the owner;
+  an xcb rewrite would close the second case.
 
 Agent proposals, accepted by the owner with the plan on 2026-11-24:
 
@@ -1551,6 +1561,36 @@ Repair check: the change is a comment. On macOS, working directory
 
 Repair budget: two of two rounds used.
 
+#### Code Review #3 Findings
+
+Reviewed source `b44f183c3` (tree `81941d902cd7`), baseline `f1c296866`,
+high-risk tier, final targeted recheck. No checks rerun: the commit changes
+comment lines only in `hook_linux.cc`.
+
+Accurate: the comment above `NoteConnectionLost` against libX11 1.8.4's
+`_XIOError` order; the two other comments in `RunHook`; the sentence that
+the process guard stops the services however the app ends, whose Linux-only
+parts first run at gate G2; the Phase 6 review #2 record. No other
+overstatement in the plan or the desktop sources.
+
+- **Blocking: one sentence of the Decision Log entry.** "The binding is
+  released and the app keeps running" claims more than was tested: the runs
+  used a Node driver under a virtual X server, and upstream Electron
+  registers its own exit for the loss of Chromium's X connection, so the app
+  probably ends in that case too.
+
+Result: one blocking finding remains, a sentence in this plan.
+
+#### Code Review #3 Revisions
+
+- **Accepted.** The entry now says the hook does not end the process, that
+  whether the app keeps running was not tested, and that Electron handles
+  the loss of its own connection separately.
+
+The review bound is spent, so this correction has no independent recheck
+and the phase is not marked passed. The owner decides: accept the corrected
+sentence, or ask for one more recheck.
+
 ### Owner and hardware gates
 
 Each gate runs on the reference system at a recorded commit of this branch.
@@ -1586,7 +1626,10 @@ result. They carry no personal data, host names or home paths.
    build from a later commit that adds a migration. If the branch has no
    later migration by then, the second build adds a throwaway no-op revision
    that is never committed, and the receipt says so.
-3. `pnpm desktop:test:termination`. Also check review finding P2-F5: with
+3. `pnpm desktop:test:termination`, after G3 step 1 has shown a protected
+   vault: the harness treats the consent page as a failure, so without a
+   working secret store it stops at the vault stage. Also check review
+   finding P2-F5: with
    the AppImage killed outright, start it again at once and record whether
    the second launch waits for the first launch's services. A lazily
    detached AppImage mount makes their images read differently from the
@@ -1602,7 +1645,9 @@ result. They carry no personal data, host names or home paths.
 1. `pnpm desktop:test:vault` with the secret store running; record the
    selected store and that the vault is protected.
 2. Stop the secret store and run the consent checks of A5 on a fresh data
-   directory. Start the store again and record the vault moving under it.
+   directory. D-Bus activation can start a stopped keyring again; the
+   receipt says how it was kept down. Start the store again and record the
+   vault moving under it.
 3. Open a protected vault with the store stopped and record the recovery.
 
 **G4, features (A8, A12).** For each of R8–R10 that was implemented, and for
@@ -1619,6 +1664,23 @@ R14.
    desktop's own autostart tool, if any, does to the entry file.
 4. Menu entry: on, launch from the desktop's launcher, moved file and
    repoint, off.
+
+**G5, macOS and Windows unchanged (A11).** Proposed after the integration
+review (FI-F1); not part of the plan the owner agreed. The branch rewrites
+code that only a Windows host or a real package exercises: service spawning
+and ownership in `processes.ts`, the guard test fixture, and the macOS and
+Windows branches of `package-development.mjs`. The Windows suites skip off
+Windows, so macOS test runs cannot show those paths unchanged.
+
+1. On this Mac, at the final candidate and with the pre-push run:
+   `pnpm desktop:mac` from `src/frontend`, recording that the stage, the
+   audit and the package complete. No window is opened.
+2. On the Windows 10 x64 host, at the final candidate after Windows 10
+   support is on `main`: `pnpm desktop:test` with a staged Windows runtime,
+   recording the passed and skipped counts. Owner and hardware.
+
+The owner may instead accept the review's reading as the evidence for A11:
+it found no difference in those paths.
 
 ### Phase 7: documentation and decision record
 
@@ -1659,6 +1721,75 @@ the pull request.
 Before any push or `gh pr create`, check `gh workflow list --all`: the hosted
 Validation workflow stays disabled unless the owner enables it.
 
+### Integration Review #1 Findings (Phases 1–6)
+
+Reviewed source `b44f183c3` (tree `81941d902cd7`), baseline `b7c69ecca`,
+phase-subset mode: Phase 7 and the gates are outside it. Code and history
+were read; no checks were run. Reused evidence: `pnpm desktop:test` and
+`pnpm desktop:check` at `f1c296866`, from which the reviewed source differs
+by one comment and this plan, and `pnpm desktop:test:native-input` at the
+reviewed tree.
+
+- **FI-F1 (blocking, plan only).** A11 had no evidence path for Windows and
+  none for a real macOS package: the Windows suites skip off Windows, every
+  record is from macOS or a Linux container, and G1–G4 are Linux only. The
+  reviewer's reading found no difference in the rewritten paths. It does
+  not block the pre-push run or G1–G4.
+
+Cross-phase traces, all holding: the startup order (store switch before
+ready, sandbox refusal first at ready, C library check before the vault
+gate, process ownership created only after the vault opens); at the consent
+page or with the store gone nothing is spawned and no vault, process record
+or state file exists, and Continue re-enters the serialized start once; the
+guard path agrees across the manifest, stage, audit and harness; no path
+starts the app unsandboxed without the refusal, and no app-written entry can
+carry a switch; updates are sealed ended with one gate in the shell; the
+shell and the hook decide Wayland identically. Phase 4's repairs pass. No
+macOS or Windows regression found by reading. All 24 added files have
+licence review entries; no personal data, home paths or attribution lines.
+
+Not blocking:
+
+- The termination harness cannot pass the consent page, so G2 step 3
+  depends on G3 step 1.
+- D-Bus activation may restart a stopped keyring during G3 step 2.
+- The comment in `useDesktopMenuEntry.ts` said a move while running is seen
+  on focus; the shell compares with the path captured at launch.
+- A second click on Continue is rejected with `consent_not_requested`, and
+  the page shows a failed action until the next status.
+- `startup.freshProfile.linux` names `~/.local/share/Animama` although the
+  root follows `XDG_DATA_HOME`; `xdgFolder` repeats the rule in `paths.ts`.
+- `pressToTalkUnsupportedReason` blames Wayland for every unsupported Linux
+  session.
+- Phase 6's check table and several repair checks record no tree.
+
+Missing for the pre-push run, as planned: the full web tests, lint, build
+and browser tests, `make check-test`, and `prettier:check` and
+`check_source.py` at the head.
+
+Result: blocked on FI-F1; Phases 1–6 are fit for the pre-push run and the
+gates.
+
+### Integration Review #1 Revisions
+
+- **FI-F1: accepted.** Gate G5 is added as a proposal for the owner, with
+  the alternative of accepting the reading; A11's row below names it.
+- **Gate notes: accepted.** G2 step 3 and G3 step 2 now carry them.
+- **Menu-entry comment: accepted** and corrected.
+- **Second click on Continue: deferred to G3,** where the page is first
+  seen in a window; the fix is to ignore a repeat while the first is
+  running.
+- **Fresh-profile wording and the duplicated XDG rule: deferred to Phase
+  7,** which reviews the Linux wording against the documentation. The
+  default path is right unless `XDG_DATA_HOME` is set.
+- **Press to talk reason: deferred to G4.** A Linux session that is neither
+  X11 nor Wayland has no display for the app at all.
+- **Trees in check records: accepted going forward;** the affected records
+  name their commit in the surrounding text.
+
+Repair check (macOS arm64, working directory `src/frontend`): the code
+change is one comment; the head's checks are recorded in the pull request.
+
 ## Validation and acceptance
 
 | Criterion | Established by | Evidence |
@@ -1673,7 +1804,7 @@ Validation workflow stays disabled unless the owner enables it.
 | A8 | Feasibility notes and PD10; Phases 4 and 6; G4 | Decision; tests; recorded checks |
 | A9 | Phases 1 and 4 | Tests |
 | A10 | Phase 7 | Reviewed documents |
-| A11 | Every phase's `pnpm desktop:test` | Check records |
+| A11 | Every phase's `pnpm desktop:test` on macOS; G5 (proposed) | Check records; pack and Windows-host receipts |
 | A12 | Phase 4 tests; G4 step 4 | Tests; recorded checks |
 
 A criterion with a gate is open until that gate's receipt exists, whatever
