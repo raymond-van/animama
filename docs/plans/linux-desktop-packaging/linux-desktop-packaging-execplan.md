@@ -173,14 +173,14 @@ specifications.
       rounds. Unit-tested on macOS; the PostgreSQL build, the guard build and
       the ELF audit also ran in a Linux container. No stage, audit or package
       has run. The full pre-push suite has not been run.
-- [ ] Phase 6: Press to talk on X11. Implemented from `13f63b958`; phase
+- [x] Phase 6: Press to talk on X11. Implemented from `13f63b958`; phase
       checks pass. Review #3, the last the review bound allows, found the
       code and its comments accurate and one sentence of this plan's
-      Decision Log overstated. That sentence is corrected, but no recheck
-      remains to confirm it, so the phase waits for the owner: accept the
-      correction or ask for one more recheck. The owner accepted PD10 with
-      the plan. The hook also ran against a virtual X server in a Linux
-      container.
+      Decision Log overstated. That sentence was corrected after it, and the
+      owner accepted the correction on 2026-11-24 in place of a further
+      recheck. The owner accepted PD10 with the plan. The hook also ran
+      against a virtual X server in a Linux container. The full pre-push
+      suite has not been run.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
 - [ ] Gate G5, macOS and Windows unchanged. Added by the integration review
       (FI-F1); proposed, awaiting the owner's agreement.
@@ -248,6 +248,8 @@ specifications.
   GDK's) and exits. The hook does not replace that handler. The embedded
   services stop either way through the process guard. Raised for the owner;
   an xcb rewrite would close the second case.
+- 2026-11-24, owner. Accepted the corrected wording of the entry above in
+  place of a further recheck, which closes Phase 6's review.
 
 Agent proposals, accepted by the owner with the plan on 2026-11-24:
 
@@ -1587,9 +1589,9 @@ Result: one blocking finding remains, a sentence in this plan.
   whether the app keeps running was not tested, and that Electron handles
   the loss of its own connection separately.
 
-The review bound is spent, so this correction has no independent recheck
-and the phase is not marked passed. The owner decides: accept the corrected
-sentence, or ask for one more recheck.
+The review bound is spent, so this correction has no independent recheck.
+The owner accepted the corrected sentence on 2026-11-24 instead of asking
+for one more recheck, and the phase is complete on that acceptance.
 
 ### Owner and hardware gates
 
