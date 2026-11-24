@@ -238,6 +238,8 @@ specifications.
   fails on its interpreter recovers by deleting `/var/tmp/animama-build`.
   Phase 7 documents that. Raised for the owner in case another root is
   preferred.
+- 2026-11-24, owner. The build root stays `/var/tmp/animama-build`, as PD7
+  proposed.
 - 2026-11-24, agent, from review finding P6-F1. The Press to talk hook
   survives a lost X connection only when the loss is seen while the hook is
   idle, which is the usual case: the binding is released and the hook does
