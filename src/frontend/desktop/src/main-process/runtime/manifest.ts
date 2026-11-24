@@ -32,6 +32,14 @@ export type RuntimeManifest = {
 
 /** Windows runs every owned process inside this guard's kill-on-close job. */
 export const PROCESS_GUARD_PATH = "bin/animama-process-guard.exe";
+/** Linux runs every owned process under this guard, which watches a lifeline. */
+export const LINUX_PROCESS_GUARD_PATH = "bin/animama-process-guard";
+
+/** The staged process guard of a platform that has one; macOS has none. */
+export function processGuardPath(platform: string): string | undefined {
+  if (platform === "win32") return PROCESS_GUARD_PATH;
+  return platform === "linux" ? LINUX_PROCESS_GUARD_PATH : undefined;
+}
 
 /**
  * The lowest Windows build Animama accepts: Windows 10 version 1903, the
@@ -240,6 +248,7 @@ export async function verifyRuntime(
       const critical =
         file.critical ||
         file.path.startsWith("backend/") ||
+        file.path.startsWith("bin/") ||
         file.path.startsWith("postgres/") ||
         file.path.startsWith("content/included-core/") ||
         /\.(?:json|sql|js|mjs|cjs|html|wasm)$/u.test(file.path);
@@ -278,7 +287,9 @@ export async function verifyRuntime(
         "postgres/bin/pg_dump",
         "postgres/bin/pg_restore",
       ].map((name) => `${name}${executableSuffix}`),
-      ...(process.platform === "win32" ? [PROCESS_GUARD_PATH] : []),
+      ...[processGuardPath(process.platform)].filter(
+        (name) => name !== undefined,
+      ),
       "web/index.html",
       "content/included-core/inventory.json",
       "pack-catalog.json",

@@ -728,6 +728,24 @@ describe("runtime supervision", () => {
     }
   });
 
+  it("selects the Linux process guard too, and none on macOS", async () => {
+    const platform = vi.spyOn(process, "platform", "get");
+    try {
+      platform.mockReturnValue("linux");
+      const linux = create();
+      await linux.runtime.start();
+      expect(useProcessGuard).toHaveBeenLastCalledWith(
+        path.join(linux.options.runtimeRoot, "bin/animama-process-guard"),
+      );
+      vi.mocked(useProcessGuard).mockClear();
+      platform.mockReturnValue("darwin");
+      await create().runtime.start();
+      expect(useProcessGuard).not.toHaveBeenCalled();
+    } finally {
+      platform.mockRestore();
+    }
+  });
+
   it("shows stable-port collision recovery without starting a database or changing the saved origin", async () => {
     const current = create();
     atomicWrite(

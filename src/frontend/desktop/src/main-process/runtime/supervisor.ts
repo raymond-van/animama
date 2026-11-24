@@ -28,7 +28,7 @@ import {
 import { atomicWrite } from "./atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
 import {
-  PROCESS_GUARD_PATH,
+  processGuardPath,
   runtimePlatform,
   verifyRuntime,
   type RuntimeManifest,
@@ -282,11 +282,9 @@ export class RuntimeSupervisor {
           this.options.runtimeRoot,
           this.options.appVersion,
         );
-        // The verified manifest includes the guard on Windows.
-        if (process.platform === "win32")
-          useProcessGuard(
-            path.join(this.options.runtimeRoot, PROCESS_GUARD_PATH),
-          );
+        // The verified manifest includes the guard where the platform has one.
+        const guard = processGuardPath(process.platform);
+        if (guard) useProcessGuard(path.join(this.options.runtimeRoot, guard));
         if (!this.packs) {
           const catalog = await loadPackCatalog({
             runtimeRoot: this.options.runtimeRoot,

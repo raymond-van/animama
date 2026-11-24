@@ -151,7 +151,8 @@ specifications.
       `b7c69ecca`. Phase checks pass; review #1 found one required and four
       optional items, all dispositioned; recheck #2 passed. The full pre-push
       suite has not been run.
-- [ ] Phase 2: process ownership. Not started.
+- [ ] Phase 2: process ownership. Implemented from `af1994f91`; phase checks
+      pass; review pending.
 - [ ] Phase 3: credential storage and the sandbox. Not started.
 - [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Not started;
       R9 and R10 need the owner's feasibility decision.
@@ -499,7 +500,50 @@ Recovery: source-only.
 Completion: the checks pass, the review finds no open blocker, and macOS and
 Windows launches are shown unchanged by their existing tests.
 
-Check record: none yet.
+Starting source: `af1994f91` (Phase 1).
+
+Results:
+
+- `native/process-guard/process_guard_linux.c` is the guard. It checks that
+  the executable can be run before forking, so a missing service exits 3 with
+  no handshake, and it holds the service behind a pipe until the handshake
+  line is written, so that line is always first.
+- `processes.ts` uses the guard whenever one is selected and requires one on
+  Windows and Linux (`guardedPlatform`). macOS selects none and launches
+  directly, as before. The process record compares images through an
+  `ImageLookup`: Windows as before, Linux from `/proc/<pid>/exe`.
+- `processGuardPath(platform)` in `manifest.ts` names the staged guard; the
+  manifest check requires it on both guarded platforms and treats `bin/` as
+  critical.
+- The test fixture compiles the guard for the host on demand
+  (`posixProcessGuard`), with a 1.5 second grace period. Generic launch tests
+  use `hostProcessGuard`: the staged guard on Windows, the compiled one on
+  Linux, none on macOS.
+
+Test order: the guard's C source was drafted and exercised by hand before its
+test file existed, while Phase 1's tree was frozen for review; the suite was
+written next and passed on first run. The `processes.ts` and `manifest.ts`
+changes were made against failing or newly added tests.
+
+Check record (2026-11-24, macOS arm64 host; run on an export of the staged
+tree, `git archive 05f00ef7fd13`, with the worktree's `node_modules` linked
+in; working directory `src/frontend` of that export):
+
+| Command | Result | Tree |
+| --- | --- | --- |
+| `pnpm desktop:test` | Pass: 43 files passed, 2 skipped; 706 tests passed, 16 skipped | `05f00ef7fd13` |
+| `pnpm desktop:check` | Pass | `05f00ef7fd13` |
+| `pnpm desktop:build` | Pass | `05f00ef7fd13` |
+| `pnpm --filter animama-desktop prettier:check` | Pass | `05f00ef7fd13` |
+| `python3 scripts/public-release/check_source.py` (repository root, worktree index) | Pass | `05f00ef7fd13` |
+
+The two skips beyond Phase 1's fourteen are Linux-host-only: the guard being
+killed outright, and Phase 1's older-C-library case.
+
+Not run: the full pre-push suite, by the owner's standing instruction;
+`pnpm check`, because no web, package or locale file changed; anything on
+Linux. The parent-death signal, the child subreaper and the `/proc` lookup
+have not run anywhere yet.
 
 ### Phase 3: credential storage and the sandbox
 

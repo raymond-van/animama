@@ -57,7 +57,7 @@ import {
 import { reportsAddressInUse } from "../src/main-process/runtime/ports.js";
 import {
   ownedProcessesLaunchable,
-  stagedProcessGuard,
+  hostProcessGuard,
 } from "./fixtures/process-guard.js";
 import {
   createRendererCapability,
@@ -73,6 +73,7 @@ import {
 import { readBackendReadiness } from "../src/main-process/runtime/readiness.js";
 import {
   meetsCLibrary,
+  processGuardPath,
   runningCLibrary,
   verifyRuntime,
   supportsRuntimePlatform,
@@ -1230,6 +1231,12 @@ describe("runtime platform support boundary", () => {
       executableSuffix: "",
     });
   });
+
+  it("names the process guard of each platform that has one", () => {
+    expect(processGuardPath("win32")).toBe("bin/animama-process-guard.exe");
+    expect(processGuardPath("linux")).toBe("bin/animama-process-guard");
+    expect(processGuardPath("darwin")).toBeUndefined();
+  });
 });
 
 // Runs on each supported host: macOS on Apple silicon, Windows x64 and Linux x64.
@@ -1243,15 +1250,15 @@ describe.skipIf(
       ? "glibc-2.17"
       : runtimePlatform(process.platform).minimumOs;
   const backend = `backend/animama-runtime${executableSuffix}`;
+  // Windows and Linux runtimes carry a process guard; macOS has none.
+  const guard = processGuardPath(process.platform);
 
   async function manifestFixture() {
     const root = fixture();
     const id = "a".repeat(64);
     const executables = Object.fromEntries(
       [
-        ...(executableSuffix
-          ? [["bin/animama-process-guard", "fixture-guard"]]
-          : []),
+        ...(guard ? [["bin/animama-process-guard", "fixture-guard"]] : []),
         ["backend/animama-runtime", "fixture-backend"],
         ["postgres/bin/postgres", "fixture-postgres"],
         ["postgres/bin/initdb", "fixture-initdb"],
@@ -1347,13 +1354,11 @@ describe.skipIf(
     },
   );
 
-  it.skipIf(!executableSuffix)(
-    "requires the process guard in a Windows runtime",
+  it.skipIf(!guard)(
+    "requires the process guard in a Windows or Linux runtime",
     async () => {
       const { root, manifest } = await manifestFixture();
-      manifest.files = manifest.files.filter(
-        (file) => file.path !== "bin/animama-process-guard.exe",
-      );
+      manifest.files = manifest.files.filter((file) => file.path !== guard);
       manifest.build_id = createHash("sha256")
         .update(JSON.stringify(manifest.files))
         .digest("hex");
@@ -1626,7 +1631,7 @@ describe("owned processes and secret-safe logs", () => {
   it.skipIf(!ownedProcessesLaunchable)(
     "stops only an exact owned child handle and clears the ownership record",
     async () => {
-      useProcessGuard(stagedProcessGuard);
+      useProcessGuard(hostProcessGuard);
       const root = fixture();
       const file = path.join(root, "processes.json");
       const owned = new OwnedProcesses(file);
@@ -1653,7 +1658,7 @@ describe("owned processes and secret-safe logs", () => {
   it.skipIf(!ownedProcessesLaunchable)(
     "does not inherit unrelated developer credentials into commands",
     async () => {
-      useProcessGuard(stagedProcessGuard);
+      useProcessGuard(hostProcessGuard);
       vi.stubEnv("ANIMAMA_TEST_PRIVATE_SENTINEL", "must-not-leak");
       const output = await runCommand(
         process.execPath,
