@@ -39,10 +39,13 @@ bool startup_ok = false;
 std::string startup_error;
 HookEventCallback emit_event;
 
-// Xlib's default answer to a lost connection is to end the process, from
-// whichever thread noticed. This display is the hook's alone, so note the loss
-// and let the thread finish; the app decides for itself what a lost session
-// means. Needs libX11 1.7 or later.
+// The last step of Xlib's answer to a lost connection is to end the process.
+// This display is the hook's alone, so that step only notes the loss and lets
+// the thread finish. It is reached only when the process-wide IO error handler
+// returns, and that handler is the host's: Xlib's default and GDK's both exit
+// from inside it, so a loss met in the middle of an Xlib call still ends the
+// process. The loop below sees a loss while idle without calling Xlib at all.
+// Needs libX11 1.7 or later.
 void NoteConnectionLost(Display *, void *lost) {
   *static_cast<bool *>(lost) = true;
 }

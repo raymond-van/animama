@@ -168,15 +168,16 @@ specifications.
       from `9a3bc9171`; phase checks pass; review #1 passed with six optional
       items, four of them applied. The owner accepted PD10 with the plan. The
       full pre-push suite has not been run.
-- [ ] Phase 5: stage, audit and package tooling. Implemented from
-      `3eed0188d`; phase checks pass; review #1 found two required and six
-      optional items; repairs made, recheck #2 pending. Unit-tested on macOS;
-      the PostgreSQL build, the guard build and the ELF audit also ran in a
-      Linux container. No stage, audit or package has run.
+- [x] Phase 5: stage, audit and package tooling. Implemented from
+      `3eed0188d`; phase checks pass; review #3 passed after two repair
+      rounds. Unit-tested on macOS; the PostgreSQL build, the guard build and
+      the ELF audit also ran in a Linux container. No stage, audit or package
+      has run. The full pre-push suite has not been run.
 - [ ] Phase 6: Press to talk on X11. Implemented from `13f63b958`; phase
-      checks pass; review #1 found one required and three optional items;
-      repairs made, recheck #2 pending. The owner accepted PD10 with the plan. The
-      hook also ran against a virtual X server in a Linux container.
+      checks pass; review #2 resolved three of four findings and left one
+      correction, made in the second and last repair round; recheck #3
+      pending. The owner accepted PD10 with the plan. The hook also ran
+      against a virtual X server in a Linux container.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
 - [ ] Phase 7: documentation and decision record. Not started; after G1.
 - [ ] Final integration review and the single full pre-push run.
@@ -230,6 +231,13 @@ specifications.
   fails on its interpreter recovers by deleting `/var/tmp/animama-build`.
   Phase 7 documents that. Raised for the owner in case another root is
   preferred.
+- 2026-11-24, agent, from review finding P6-F1. Press to talk survives a
+  lost X connection only when the loss is seen while the hook is idle, which
+  is the usual case: the binding is released and the app keeps running. A
+  loss met inside an Xlib call ends the app, because Xlib then runs the
+  process-wide IO error handler, which is Electron's and exits. The hook does
+  not replace that handler. The embedded services stop either way through
+  the process guard. Raised for the owner; an xcb rewrite would close it.
 
 Agent proposals, accepted by the owner with the plan on 2026-11-24:
 
@@ -1313,6 +1321,34 @@ and the desktop `prettier:check` pass.
 
 Repair budget: two of two rounds used.
 
+#### Code Review #3 Findings
+
+Reviewed source `f1c296866`, baseline `0ecb7dcac`, high-risk tier, final
+targeted recheck. No blocking finding; all six notes resolved. A path such as
+`/usr/lib/../../tmp/x` is refused and the `$ORIGIN` rule is unchanged; an
+empty run-path element is refused for compiled and other files alike; the
+toolset pattern returns `1.0.3` and yields nothing when the key is absent,
+nested, under another block or after a blank line; the entry guard runs
+`main()` for a direct and a symlinked invocation and nothing on import.
+
+Not blocking: a wholly empty run path is now refused where it was dropped
+before, which fails closed and matches no known staged file; no test covers
+an empty element on a compiled file or the missing-key error. The reviewer
+could not inspect Linux binaries on its host, so whether any Electron or
+wheel library carries a trailing colon stays for gate G1's audit to show.
+
+Checks, rerun independently on an export of the commit (macOS arm64,
+working directory `src/frontend`): `pnpm desktop:test` with 47 files passed,
+2 skipped; 785 tests passed, 16 skipped; `pnpm desktop:check` passes;
+`node scripts/runtime/package-development.mjs --platform linux --arch x64`
+stops with the cross-build refusal.
+
+Result: pass.
+
+#### Code Review #3 Revisions
+
+None needed. The two untested cases are left: both paths fail closed.
+
 ### Phase 6: Press to talk on X11
 
 Review tier: high risk. Native code that listens to input from other
@@ -1464,6 +1500,56 @@ was held gave one down and one up with the process alive; stopping
 afterwards returned; a new start with no server was refused with a message.
 
 Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Reviewed source `0ecb7dcac`, baseline `a60f968ab`, high-risk tier, recheck
+after repair round 1. Checks rerun in a `node:24-bookworm` container
+(aarch64, g++ 12.2, libX11 1.8.4) on an export: the hook compiles with
+`-std=c++20 -Wall -Wextra -Werror -Wpedantic`; `node-gyp rebuild` succeeds
+without warnings; the matcher test passes its 589 assertions there and on
+macOS.
+
+- **P6-F1: resolved for the reported case, with one blocking correction.**
+  The X server killed while a binding was held gave one down and one up, the
+  process alive, `stop()` returning at once and a restart refused with a
+  message, 15 times of 15. But the per-display exit handler is not what
+  achieves it: Xlib calls the process-wide IO error handler first, and both
+  its default and GDK's exit from inside it. The idle case works because the
+  loop sees the hang-up through `poll` and never closes the dead display.
+  With the hook thread held inside `XkbGetState` while the server was
+  killed, the process ended, 3 times of 3; with a returning process-wide
+  handler preloaded, it survived. The comment in `hook_linux.cc` and this
+  plan's revision record claimed more than that. Smallest fix: correct both
+  and record the remaining window as accepted; a real fix needs xcb or a
+  process-wide handler, which the reviewer would not add.
+- **P6-F2: resolved.** A spawned child sees no pipe; 300 restarts leak no
+  descriptor.
+- **P6-F3: resolved.** Buttons 1 to 5 start; 6, 9 and 32 are refused with the
+  Linux message; 0 and 33 fail argument validation, as on Windows.
+- **P6-F4: resolved.** No `XSetErrorHandler` remains.
+
+Result: one blocking finding remains.
+
+#### Code Review #2 Revisions
+
+- **P6-F1 correction: accepted.** The comment now says what the handler does
+  and does not cover, and the limit is recorded in the Decision Log: a
+  connection lost while the hook is inside an Xlib call ends the process
+  through the host's IO error handler. The hook does not replace that
+  handler, for the reason it installs no error handler (P6-F4): it is
+  process-wide and belongs to Electron. Rewriting the hook on xcb, which
+  reports a lost connection instead of exiting, is out of proportion to the
+  case: the embedded services are stopped by the process guard however the
+  app ends (Phase 2), and whether Electron itself outlives its X server was
+  not tested. No behaviour changed in this round, so no test was added.
+
+Repair check: the change is a comment. On macOS, working directory
+`src/frontend`, `pnpm desktop:test:native-input` passes with 1046 macOS and
+589 Linux matcher assertions; in the Linux container the hook compiles with
+`-std=c++20 -Wall -Wextra -Werror -Wpedantic`.
+
+Repair budget: two of two rounds used.
 
 ### Owner and hardware gates
 
