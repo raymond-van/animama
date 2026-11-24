@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { atomicWrite } from "../src/main-process/runtime/atomic-file.js";
 import {
   guardedPlatform,
+  stopTimeout,
   imageLookup,
   linuxImages,
   OwnedProcesses,
@@ -32,6 +33,13 @@ describe("Linux process ownership", () => {
     expect(guardedPlatform("darwin")).toBe(false);
   });
 
+  it("gives the Linux guard time to finish before its handle is killed", () => {
+    // The guard's own 15-second grace, then up to 5 seconds for orphans.
+    expect(stopTimeout("linux", true)).toBeGreaterThan(20_000);
+    expect(stopTimeout("win32", true)).toBe(15_000);
+    expect(stopTimeout("darwin", false)).toBe(15_000);
+  });
+
   it("refuses to launch a Linux service without the process guard", async () => {
     vi.spyOn(process, "platform", "get").mockReturnValue("linux");
     const owned = new OwnedProcesses(path.join(fixture(), "processes.json"));
@@ -47,7 +55,7 @@ describe("Linux process ownership", () => {
     const links: Record<string, string> = {
       "/proc/self/exe": "/usr/bin/electron",
       "/proc/10/exe": "/mnt/app/resources/runtime/bin/animama-process-guard",
-      // The kernel marks an image whose file was replaced or unmounted.
+      // The kernel marks an image whose file was unlinked or replaced.
       "/proc/11/exe":
         "/mnt/app/resources/runtime/postgres/bin/postgres (deleted)",
     };

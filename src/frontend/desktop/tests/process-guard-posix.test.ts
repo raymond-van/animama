@@ -24,8 +24,16 @@ if (!guard && process.platform !== "win32")
   );
 const roots: string[] = [];
 const started: ChildProcess[] = [];
+/** Services and grandchildren a test started, so a failure leaves none behind. */
+const descendants: number[] = [];
 afterEach(() => {
   for (const child of started.splice(0)) child.kill("SIGKILL");
+  for (const pid of descendants.splice(0))
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Already gone, as it should be.
+    }
   for (const root of roots.splice(0))
     rmSync(root, { recursive: true, force: true });
   useProcessGuard(undefined);
@@ -84,8 +92,10 @@ function startGuarded(mode: string): Guarded {
         pending = pending.slice(newline + 1);
         lines.push(line);
         const match = /^ready pid=(\d+) grandchild=(\d+)/u.exec(line);
-        if (match)
+        if (match) {
+          descendants.push(Number(match[1]), Number(match[2]));
           resolve({ pid: Number(match[1]), grandchild: Number(match[2]) });
+        }
       }
     });
   });
@@ -153,7 +163,9 @@ describe.skipIf(!guard)("POSIX process guard", () => {
     expect((await run.exit).code).toBe(7);
   });
 
-  // The kernel's parent-death signal does this; macOS has no equivalent.
+  // The kernel's parent-death signal does this; macOS has no equivalent. It
+  // reaches the service only: its grandchild is a known limit of the guard,
+  // which the cleanup above removes.
   it.skipIf(process.platform !== "linux")(
     "takes the service with it when the guard is killed",
     async () => {
@@ -164,6 +176,23 @@ describe.skipIf(!guard)("POSIX process guard", () => {
       expect(await waitUntil(() => !alive(pid), 5000)).toBe(true);
     },
   );
+
+  it("stops a service at once when the stop arrives as the guard starts", async () => {
+    // With no lifeline at all the guard must stop the service immediately,
+    // even though the request can land before the service has replaced the
+    // guard's own signal handlers. A swallowed signal would cost the full
+    // grace period and end in SIGKILL (137).
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const started = Date.now();
+      const result = spawnSync(guard!, ["--", "/bin/sleep", "30"], {
+        stdio: ["ignore", "pipe", "pipe"],
+        encoding: "utf8",
+      });
+      // 128 + SIGINT.
+      expect(result.status).toBe(130);
+      expect(Date.now() - started).toBeLessThan(POSIX_GUARD_TEST_GRACE_MS / 2);
+    }
+  });
 
   it("refuses anything but one absolute executable after --", () => {
     for (const args of [

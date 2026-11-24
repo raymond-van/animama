@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,24 +18,40 @@ export const stagedProcessGuard = path.join(
   "bin/animama-process-guard.exe",
 );
 
-/** The grace period compiled into the test build of the POSIX guard. */
-export const POSIX_GUARD_TEST_GRACE_MS = 1500;
+/**
+ * The grace period compiled into the test build of the POSIX guard: short
+ * enough to test the deadline, long enough for a loaded host to stop a
+ * graceful service first.
+ */
+export const POSIX_GUARD_TEST_GRACE_MS = 3000;
 
 let posixGuard: string | undefined | null = null;
 
 /**
  * The Linux process guard, compiled from source for this host with a short
  * grace period. Linux and macOS only; undefined on Windows and where no C
- * compiler is installed. A source that does not compile is an error.
+ * compiler is installed. A source that does not compile is an error. The
+ * binary is kept in the ignored build cache under a name made from the source
+ * and the grace period, so test runs neither rebuild it nor leave it behind.
  */
 export function posixProcessGuard(): string | undefined {
   if (process.platform === "win32") return undefined;
   if (posixGuard !== null) return posixGuard;
-  const folder = mkdtempSync(
-    path.join(realpathSync(tmpdir()), "animama-test-guard-"),
+  const source = path.resolve(
+    here,
+    "../../native/process-guard/process_guard_linux.c",
   );
-  process.once("exit", () => rmSync(folder, { recursive: true, force: true }));
-  const output = path.join(folder, "animama-process-guard");
+  const digest = createHash("sha256")
+    .update(readFileSync(source))
+    .update(String(POSIX_GUARD_TEST_GRACE_MS))
+    .digest("hex")
+    .slice(0, 16);
+  const folder = path.resolve(here, "../../.desktop-runtime/test-guard");
+  const output = path.join(folder, `animama-process-guard-${digest}`);
+  if (existsSync(output)) return (posixGuard = output);
+  mkdirSync(folder, { recursive: true });
+  // Test files compile concurrently; each renames its own complete binary.
+  const pending = `${output}.${process.pid}`;
   const result = spawnSync(
     "cc",
     [
@@ -46,19 +62,19 @@ export function posixProcessGuard(): string | undefined {
       "-Werror",
       `-DGUARD_GRACE_MS=${POSIX_GUARD_TEST_GRACE_MS}`,
       "-o",
-      output,
-      path.resolve(here, "../../native/process-guard/process_guard_linux.c"),
+      pending,
+      source,
     ],
     { encoding: "utf8" },
   );
   if ((result.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT")
-    posixGuard = undefined;
-  else if (result.error || result.status !== 0)
+    return (posixGuard = undefined);
+  if (result.error || result.status !== 0)
     throw new Error(
       `The Linux process guard does not compile: ${result.error?.message ?? result.stderr}`,
     );
-  else posixGuard = output;
-  return posixGuard;
+  renameSync(pending, output);
+  return (posixGuard = output);
 }
 
 /**

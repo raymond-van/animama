@@ -80,6 +80,17 @@ static int fail(int code, const char* message) {
   return code;
 }
 
+// The signals the guard handles. They are blocked across fork, so a stop that
+// arrives before the service has reset them is delivered to the service with
+// its default action instead of being swallowed by the guard's handler.
+static void handled_signals(sigset_t* set) {
+  sigemptyset(set);
+  sigaddset(set, SIGCHLD);
+  sigaddset(set, SIGTERM);
+  sigaddset(set, SIGINT);
+  sigaddset(set, SIGHUP);
+}
+
 // The service: wait for the guard's go-ahead, then become the executable.
 static void run_service(pid_t guard, int go_read, char** arguments) {
   static const int handled[] = {SIGCHLD, SIGTERM, SIGINT, SIGHUP, SIGPIPE};
@@ -87,6 +98,7 @@ static void run_service(pid_t guard, int go_read, char** arguments) {
   setpgid(0, 0);
   for (size_t i = 0; i < sizeof handled / sizeof handled[0]; ++i)
     signal(handled[i], SIG_DFL);
+  // Only now may a pending stop reach the service: it ends it at once.
   sigemptyset(&none);
   sigprocmask(SIG_SETMASK, &none, NULL);
 #ifdef __linux__
@@ -145,12 +157,18 @@ int main(int argc, char** argv) {
 #endif
 
   const pid_t guard = getpid();
+  sigset_t handled;
+  handled_signals(&handled);
+  sigprocmask(SIG_BLOCK, &handled, NULL);
   const pid_t service = fork();
   if (service < 0) return fail(kStartError, "cannot start the service");
   if (service == 0) {
     close(go_pipe[1]);
     run_service(guard, go_pipe[0], argv + 2);
   }
+  // Unblock rather than restore: a mask inherited with these signals blocked
+  // would leave the guard deaf to its service's exit.
+  sigprocmask(SIG_UNBLOCK, &handled, NULL);
   close(go_pipe[0]);
   // Also set here, so the group exists whichever process runs first.
   setpgid(service, service);
@@ -175,8 +193,10 @@ int main(int argc, char** argv) {
       timeout = left > 0 ? (int)left : 0;
     }
     const int ready = poll(watched, 2, timeout);
-    if (ready < 0 && errno != EINTR)
+    if (ready < 0 && errno != EINTR) {
+      kill(-service, SIGKILL);
       return fail(kStartError, "cannot watch its lifeline");
+    }
 
     int stop_requested = 0;
     if (ready > 0 && watched[0].revents) {

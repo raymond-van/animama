@@ -1589,9 +1589,11 @@ describe("owned processes and secret-safe logs", () => {
     },
   );
 
-  it.skipIf(process.platform === "win32")(
+  it.skipIf(process.platform === "win32" || !ownedProcessesLaunchable)(
     "reports PostgreSQL's refusal of an elevated token from its own output",
     async () => {
+      // A Linux host launches the stand-in through its guard, as it must.
+      useProcessGuard(hostProcessGuard);
       const runtime = fixture();
       const postgres = path.join(runtime, "postgres/bin/postgres");
       mkdirSync(path.dirname(postgres), { recursive: true });

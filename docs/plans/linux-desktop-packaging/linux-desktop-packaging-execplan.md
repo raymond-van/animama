@@ -152,7 +152,8 @@ specifications.
       optional items, all dispositioned; recheck #2 passed. The full pre-push
       suite has not been run.
 - [ ] Phase 2: process ownership. Implemented from `af1994f91`; phase checks
-      pass; review pending.
+      pass; review #1 found five required and five optional items; repairs
+      made, recheck #2 pending.
 - [ ] Phase 3: credential storage and the sandbox. Implemented from
       `c42246a40`; phase checks pass; review pending.
 - [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Not started;
@@ -552,6 +553,97 @@ Not run: the full pre-push suite, by the owner's standing instruction;
 Linux. The parent-death signal, the child subreaper and the `/proc` lookup
 have not run anywhere yet.
 
+#### Code Review #1 Findings
+
+Reviewed source: commit `c42246a40` against `af1994f91`. High-risk tier: one
+analysis reviewer and one checks reviewer.
+
+Checks reviewer, on an export of the commit: `pnpm desktop:test` (43 files
+passed, 2 skipped; 706 passed, 16 skipped), `pnpm desktop:check` and
+`pnpm desktop:build` pass and match the record; the two guard suites passed
+three times in a row; the guard compiles without diagnostics under
+`-std=c11 -O2 -Wall -Wextra -Werror`. It noted that the test fixture left a
+temporary folder behind on every run.
+
+Analysis reviewer, who also compiled and ran the guard in a Linux container
+(gcc 12.2, glibc 2.36):
+
+- **P2-F1 (required).** `tests/runtime-state.test.ts`, "reports PostgreSQL's
+  refusal of an elevated token", starts a service with no guard selected, so
+  it fails on a Linux host, where a guard is now required.
+- **P2-F2 (required).** The Linux image comparison used the host's
+  `path.resolve`, so the new process-record test fails on a Windows host.
+- **P2-F3 (required).** The guard forked with its handlers installed and its
+  signals unblocked. A stop arriving before the service reset them ran the
+  guard's handler inside the service and was lost, so the service was killed
+  at the deadline instead of stopping at once. Measured in the container:
+  with the lifeline already closed, 15 of 30 runs.
+- **P2-F4 (required).** The Linux-only test that kills the guard left the
+  service's grandchild running, and no test cleaned up services or
+  grandchildren after a failure.
+- **P2-F5 (required).** A comment in `processes.ts` and in its test said an
+  unmounted image reads as "(deleted)". It does not: only an unlinked file
+  does; a lazily detached mount gives a mount-relative path.
+- **P2-F6 (optional).** `terminate` waited 15 seconds, the guard's own grace,
+  so Electron could kill the guard just as the guard was about to kill the
+  service's group.
+- **P2-F7 (optional).** Adopted orphans are waited for, never signalled.
+- **P2-F8 (optional).** A `poll` failure returned without killing the
+  service's group.
+- **P2-F9 (optional).** A file that passes the run check but cannot be
+  executed still gets a handshake before exit 127.
+- **P2-F10 (optional).** A 1.5 second test grace could turn an expected
+  graceful exit into a kill on a loaded host.
+
+Confirmed sound: the handler is async-signal-safe; the handshake is always
+the first line; the look, kill, reap sequence is safe against process ID
+reuse; SIGINT to the service alone is right for the postmaster and for the
+server; every former Windows branch in `processes.ts` is equivalent and
+macOS never selects a guard; existing manifests are unaffected.
+
+#### Code Review #1 Revisions
+
+- **P2-F1: accepted.** The test selects `hostProcessGuard` and is skipped
+  where no guard can be built.
+- **P2-F2: accepted.** `path.posix.resolve`.
+- **P2-F3: accepted.** The guard blocks its four signals across `fork`. The
+  service restores default actions and then unblocks, so a pending stop ends
+  it at once; the guard unblocks rather than restores its mask. New test:
+  with no lifeline, 20 starts in a row must each end with 130 in under half
+  the grace period. The old guard managed 1 of 20 on macOS; the repaired one
+  20 of 20, and 30 of 30 twice in a Linux container.
+- **P2-F4: accepted.** The suite records every service and grandchild it
+  starts and kills them after each test.
+- **P2-F5: accepted.** Both comments corrected. The consequence is a G2
+  check: whether a lazily detached AppImage mount lets a second launch start
+  while an earlier launch's services are still stopping.
+- **P2-F6: accepted.** `stopTimeout()` gives a stop 22 seconds under the
+  Linux guard and 15 elsewhere.
+- **P2-F7: recorded.** PD2 states this limit. G2's termination harness is
+  the check, including the server's parser child, which starts its own
+  session.
+- **P2-F8: accepted.** The group is killed before that return.
+- **P2-F9: recorded.** No change: the main process sees the service exit
+  127 at once.
+- **P2-F10: accepted.** The test grace is 3 seconds.
+- **Fixture leak (checks reviewer): accepted.** The compiled test guard is
+  kept in the ignored build cache under a name made from its source, not in
+  a new temporary folder per run.
+
+Linux container run of the repaired guard (2026-11-24, `node:22-bookworm`,
+aarch64, gcc 12.2, glibc 2.36, 1.5 second grace; not the reference system):
+closed lifeline 30 of 30 and pipe closed after spawn 30 of 30 ended with 130;
+a graceful service exited 7 after the handshake; a service ignoring the
+signal was killed with its group after 1.8 seconds; killing the guard took
+the service with it; an orphan in its own session was waited for.
+
+Repair check (macOS arm64, export of staged tree `5ccde6a34b95`, working
+directory `src/frontend`): `pnpm desktop:test` passes with 45 files passed,
+2 skipped; 735 tests passed, 16 skipped. `pnpm desktop:check` and the desktop
+`prettier:check` pass.
+
+Repair budget: one of two rounds used.
+
 ### Phase 3: credential storage and the sandbox
 
 Review tier: high risk. It changes how keys are protected and adds a refusal
@@ -831,7 +923,11 @@ result. They carry no personal data, host names or home paths.
    build from a later commit that adds a migration. If the branch has no
    later migration by then, the second build adds a throwaway no-op revision
    that is never committed, and the receipt says so.
-3. `pnpm desktop:test:termination`.
+3. `pnpm desktop:test:termination`. Also check review finding P2-F5: with
+   the AppImage killed outright, start it again at once and record whether
+   the second launch waits for the first launch's services. A lazily
+   detached AppImage mount makes their images read differently from the
+   record.
 4. Confirm the renderers run sandboxed. Start the AppImage with
    `--no-sandbox` and record the message, the exit and that no service
    started.

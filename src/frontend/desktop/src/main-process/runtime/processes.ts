@@ -231,7 +231,9 @@ export function linuxImages(
   const images = new Map<number, string>();
   for (const pid of pids)
     try {
-      // The kernel marks an image whose file was replaced or unmounted.
+      // The kernel marks an image whose file was unlinked or replaced. An
+      // image on a lazily detached mount reads as a mount-relative path
+      // instead and so does not match its record.
       images.set(pid, read(`/proc/${pid}/exe`).replace(/ \(deleted\)$/u, ""));
     } catch {
       // Not readable: another account's process, or one that just exited.
@@ -252,7 +254,8 @@ export function imageLookup(
   if (platform === "linux")
     return {
       images: linuxImages,
-      sameImage: (running, recorded) => running === path.resolve(recorded),
+      sameImage: (running, recorded) =>
+        running === path.posix.resolve(recorded),
     };
   return undefined;
 }
@@ -287,6 +290,19 @@ function windowsImages(pids: number[]): Map<number, string> | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * How long a stop waits before the retained handle is killed. The Linux guard
+ * needs its own 15-second grace and then up to 5 seconds for orphans; killing
+ * it sooner would leave the service's process group to the kernel's
+ * parent-death signal, which reaches only the service itself.
+ */
+export function stopTimeout(
+  platform: NodeJS.Platform = process.platform,
+  guarded = Boolean(processGuard),
+): number {
+  return platform === "linux" && guarded ? 22_000 : 15_000;
 }
 
 /** Track exact handles. A stale persisted PID is evidence, never kill authority. */
@@ -418,7 +434,10 @@ export class OwnedProcesses {
     });
     return item;
   }
-  async terminate(item: OwnedProcess, timeoutMs = 15_000): Promise<void> {
+  async terminate(
+    item: OwnedProcess,
+    timeoutMs = stopTimeout(),
+  ): Promise<void> {
     if (!this.children.has(item)) return;
     const started = Date.now();
     // Closing the guard's lifeline asks the service to stop (Ctrl+Break on
