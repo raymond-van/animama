@@ -183,7 +183,8 @@ specifications.
       suite has not been run.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
 - [ ] Gate G5, macOS and Windows unchanged. Added by the integration review
-      (FI-F1); proposed, awaiting the owner's agreement.
+      (FI-F1) and taken up by the owner on 2026-11-24. Step 1, the macOS
+      build, passed at `6a77da29f`. Step 2 waits for the Windows host.
 - [ ] Phase 7: documentation and decision record. Not started; after G1.
 - [ ] Final integration review and the single full pre-push run. The review
       of Phases 1–6 is recorded below: no code finding, one plan amendment
@@ -240,6 +241,8 @@ specifications.
   preferred.
 - 2026-11-24, owner. The build root stays `/var/tmp/animama-build`, as PD7
   proposed.
+- 2026-11-24, owner. Took up gate G5 and had its macOS step run at once
+  rather than with the pre-push run.
 - 2026-11-24, agent, from review finding P6-F1. The Press to talk hook
   survives a lost X connection only when the loss is seen while the hook is
   idle, which is the usual case: the binding is released and the hook does
@@ -1670,23 +1673,33 @@ R14.
 4. Menu entry: on, launch from the desktop's launcher, moved file and
    repoint, off.
 
-**G5, macOS and Windows unchanged (A11).** Proposed after the integration
-review (FI-F1); not part of the plan the owner agreed. The branch rewrites
+**G5, macOS and Windows unchanged (A11).** Added after the integration
+review (FI-F1) and taken up by the owner on 2026-11-24. The branch rewrites
 code that only a Windows host or a real package exercises: service spawning
 and ownership in `processes.ts`, the guard test fixture, and the macOS and
 Windows branches of `package-development.mjs`. The Windows suites skip off
 Windows, so macOS test runs cannot show those paths unchanged.
 
-1. On this Mac, at the final candidate and with the pre-push run:
-   `pnpm desktop:mac:build` from `src/frontend`, recording that the stage,
-   the audit and the package complete. No window is opened.
+1. On the macOS development host: `pnpm desktop:mac:build` from
+   `src/frontend`, recording that the stage, the audit and the package
+   complete. No window is opened. It is run again at the final candidate
+   only if runtime, packaging or shell code shared with macOS changes after
+   the recorded run.
 2. On the Windows 10 x64 host, at the final candidate after Windows 10
    support is on `main`: `pnpm desktop:test` with a staged Windows runtime,
    recording the passed and skipped counts, then `pnpm desktop:win` for the
    packaging script's Windows branch. Owner and hardware.
 
-The owner may instead accept the review's reading as the evidence for A11:
-it found no difference in those paths.
+Step 1 receipt, 2026-11-24: commit `6a77da29f` (tree `a759c7359ca9`), clean
+worktree after `git lfs pull`, macOS arm64, working directory
+`src/frontend`, `pnpm desktop:mac:build` through `scripts/heavy-slot.py`.
+Exit 0 in a little over three minutes with warm build caches: the stage
+built the backend and completed; `runtime audit: OK`; the package step
+ended with `Unsigned development app: release/mac/Animama.app; runtime
+inventory: OK`. The app was not started, so this shows the macOS stage,
+audit and packaging paths unchanged, not the running app.
+
+Step 2 is open.
 
 ### Phase 7: documentation and decision record
 
@@ -1835,7 +1848,7 @@ wording only, verified against the package scripts by reading them.
 | A8 | Feasibility notes and PD10; Phases 4 and 6; G4 | Decision; tests; recorded checks |
 | A9 | Phases 1 and 4 | Tests |
 | A10 | Phase 7 | Reviewed documents |
-| A11 | Every phase's `pnpm desktop:test` on macOS; G5 (proposed) | Check records; pack and Windows-host receipts |
+| A11 | Every phase's `pnpm desktop:test` on macOS; G5 | Check records; pack and Windows-host receipts |
 | A12 | Phase 4 tests; G4 step 4 | Tests; recorded checks |
 
 A criterion with a gate is open until that gate's receipt exists, whatever
