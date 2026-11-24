@@ -46,8 +46,10 @@ export function posixProcessGuard(): string | undefined {
     .update(String(POSIX_GUARD_TEST_GRACE_MS))
     .digest("hex")
     .slice(0, 16);
+  // A checkout shared between hosts must not hand one host another's binary.
+  const host = `${process.platform}-${process.arch}`;
   const folder = path.resolve(here, "../../.desktop-runtime/test-guard");
-  const output = path.join(folder, `animama-process-guard-${digest}`);
+  const output = path.join(folder, `animama-process-guard-${host}-${digest}`);
   if (existsSync(output)) return (posixGuard = output);
   mkdirSync(folder, { recursive: true });
   // Test files compile concurrently; each renames its own complete binary.

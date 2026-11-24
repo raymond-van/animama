@@ -229,12 +229,14 @@ function create(
     runtimeRoot: path.join(paths.base, "fixture-runtime"),
     appVersion: "0.1.0",
     paths,
-    // Fake encryption isolates orchestration; vault tests exercise encryption separately.
+    // Fake encryption isolates orchestration; vault tests exercise encryption
+    // separately. The `v11` prefix is what Electron writes under a secret
+    // store, so a Linux host runs these tests as a protected system would.
     encryption: {
       isAsyncEncryptionAvailable: async () => true,
-      encryptStringAsync: async (value: string) => Buffer.from(value),
+      encryptStringAsync: async (value: string) => Buffer.from(`v11${value}`),
       decryptStringAsync: async (value: Buffer) => ({
-        result: value.toString(),
+        result: value.toString().slice(3),
         shouldReEncrypt: false,
       }),
     },
@@ -821,16 +823,22 @@ describe("runtime supervision", () => {
       }));
   });
 
-  it("reports system protection on macOS and Windows without probing", async () => {
-    const current = create();
-    const encrypt = vi.spyOn(current.options.encryption, "encryptStringAsync");
-    await current.runtime.start();
-    expect(current.runtime.credentialStorage()).toEqual({
-      protection: "system",
-    });
-    // One write of the new vault; no protection probe.
-    expect(encrypt).toHaveBeenCalledTimes(1);
-  });
+  it.skipIf(process.platform === "linux")(
+    "reports system protection on macOS and Windows without probing",
+    async () => {
+      const current = create();
+      const encrypt = vi.spyOn(
+        current.options.encryption,
+        "encryptStringAsync",
+      );
+      await current.runtime.start();
+      expect(current.runtime.credentialStorage()).toEqual({
+        protection: "system",
+      });
+      // One write of the new vault; no protection probe.
+      expect(encrypt).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("refuses an elevated Windows launch before verifying or creating anything", async () => {
     const platform = vi.spyOn(process, "platform", "get");

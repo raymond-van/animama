@@ -91,6 +91,7 @@ function fixture(prefix = "animama-runtime-state-"): string {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
+  useProcessGuard(undefined);
   for (const root of roots.splice(0))
     rmSync(root, { recursive: true, force: true });
 });

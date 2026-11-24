@@ -130,20 +130,24 @@ describe.skipIf(!guard)("POSIX process guard", () => {
     );
   });
 
-  it("kills a service that ignores the signal once the grace period ends", async () => {
-    const run = startGuarded("stubborn");
-    const { pid, grandchild } = await run.ready;
-    const closed = Date.now();
-    run.child.stdin!.end();
-    // 128 + SIGKILL.
-    expect(await run.exit).toEqual({ code: 137, signal: null });
-    expect(Date.now() - closed).toBeGreaterThanOrEqual(
-      POSIX_GUARD_TEST_GRACE_MS - 100,
-    );
-    expect(await waitUntil(() => !alive(pid) && !alive(grandchild), 5000)).toBe(
-      true,
-    );
-  });
+  it(
+    "kills a service that ignores the signal once the grace period ends",
+    async () => {
+      const run = startGuarded("stubborn");
+      const { pid, grandchild } = await run.ready;
+      const closed = Date.now();
+      run.child.stdin!.end();
+      // 128 + SIGKILL.
+      expect(await run.exit).toEqual({ code: 137, signal: null });
+      expect(Date.now() - closed).toBeGreaterThanOrEqual(
+        POSIX_GUARD_TEST_GRACE_MS - 100,
+      );
+      expect(
+        await waitUntil(() => !alive(pid) && !alive(grandchild), 5000),
+      ).toBe(true);
+    },
+    POSIX_GUARD_TEST_GRACE_MS + 10_000,
+  );
 
   it("treats a termination signal like a closed lifeline", async () => {
     const run = startGuarded("graceful");

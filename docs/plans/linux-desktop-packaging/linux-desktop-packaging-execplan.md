@@ -151,9 +151,10 @@ specifications.
       `b7c69ecca`. Phase checks pass; review #1 found one required and four
       optional items, all dispositioned; recheck #2 passed. The full pre-push
       suite has not been run.
-- [ ] Phase 2: process ownership. Implemented from `af1994f91`; phase checks
-      pass; review #1 found five required and five optional items; repairs
-      made, recheck #2 pending.
+- [x] Phase 2: process ownership. Implemented from `af1994f91`; phase checks
+      pass; review #1 found five required and five optional items, all
+      dispositioned; recheck #2 passed. The full pre-push suite has not been
+      run.
 - [ ] Phase 3: credential storage and the sandbox. Implemented from
       `c42246a40`; phase checks pass; review #1 found two required and five
       optional items; repairs made, recheck #2 pending.
@@ -646,6 +647,32 @@ directory `src/frontend`): `pnpm desktop:test` passes with 45 files passed,
 
 Repair budget: one of two rounds used.
 
+#### Code Review #2 Findings
+
+Targeted recheck of repair commit `9a3bc9171`. Result: pass, no regression.
+
+- P2-F1 to P2-F6, P2-F8, P2-F10 and the fixture leak: resolved. P2-F7 and
+  P2-F9: recorded, defensible.
+- P2-F3 measured on Linux (`node:22-bookworm`, aarch64, 1.5 second grace):
+  closed lifeline 60 of 60 ended with 130; a stop signal 0 to 3 milliseconds
+  after spawn 178 of 180, the other two before the guard had installed its
+  handlers and none slow; a service that exits at once 300 of 300 with no
+  hang; an inherited blocked mask 80 of 80.
+- The reviewer reran `pnpm desktop:test` on a macOS export (45 files passed,
+  2 skipped; 735 passed, 16 skipped) and, in the Linux container, the guard,
+  process-record and runtime-state suites, which passed.
+- Three optional notes: the fixture's cache name should include the host; the
+  deadline test should carry its own timeout; `runtime-state.test.ts` should
+  reset the guard selection after each test.
+- Outside Phase 2: at this commit 52 of 63 tests in
+  `tests/runtime-supervisor.test.ts` fail on a Linux host, because Phase 3's
+  gate sees that suite's fake encryption as unprotected.
+
+#### Code Review #2 Revisions
+
+The three optional notes are applied. The Linux-host failure belongs to
+Phase 3 and is repaired there.
+
 ### Phase 3: credential storage and the sandbox
 
 Review tier: high risk. It changes how keys are protected and adds a refusal
@@ -804,6 +831,10 @@ expects it to appear as the `no-sandbox` switch.
   `--no-sandbox`, the case the launcher produces.
 - **P3-F7: accepted.** Recovery section corrected.
 - G2 step 4 now also starts the AppImage with `ELECTRON_DISABLE_SANDBOX=1`.
+- **Linux-host failure (from Phase 2's recheck): accepted.** The supervisor
+  suite's fake encryption now writes the `v11` prefix a secret store gives,
+  so a Linux host runs those tests as a protected system. The one test that
+  counts encryption calls on macOS and Windows is skipped on Linux.
 
 Repair check (macOS arm64, working directory `src/frontend`, in the worktree
 with the repairs staged): `pnpm desktop:test` passes with 46 files passed, 2
