@@ -1593,7 +1593,8 @@ sentence, or ask for one more recheck.
 
 ### Owner and hardware gates
 
-Each gate runs on the reference system at a recorded commit of this branch.
+Gates G1–G4 run on the reference system, and G5 on the hosts it names, each
+at a recorded commit of this branch.
 A failure is repaired on the branch, reviewed at the tier of the code it
 touches, and the affected steps are run again. Receipts name the commit, the
 distribution, kernel, session and desktop, and give each command with its
@@ -1673,11 +1674,12 @@ Windows branches of `package-development.mjs`. The Windows suites skip off
 Windows, so macOS test runs cannot show those paths unchanged.
 
 1. On this Mac, at the final candidate and with the pre-push run:
-   `pnpm desktop:mac` from `src/frontend`, recording that the stage, the
-   audit and the package complete. No window is opened.
+   `pnpm desktop:mac:build` from `src/frontend`, recording that the stage,
+   the audit and the package complete. No window is opened.
 2. On the Windows 10 x64 host, at the final candidate after Windows 10
    support is on `main`: `pnpm desktop:test` with a staged Windows runtime,
-   recording the passed and skipped counts. Owner and hardware.
+   recording the passed and skipped counts, then `pnpm desktop:win` for the
+   packaging script's Windows branch. Owner and hardware.
 
 The owner may instead accept the review's reading as the evidence for A11:
 it found no difference in those paths.
@@ -1787,8 +1789,33 @@ gates.
 - **Trees in check records: accepted going forward;** the affected records
   name their commit in the surrounding text.
 
-Repair check (macOS arm64, working directory `src/frontend`): the code
-change is one comment; the head's checks are recorded in the pull request.
+Repair check (macOS arm64, working directory `src/frontend`, tree
+`82f3d31096a2`): `pnpm desktop:test` passes with 47 files passed, 2 skipped;
+785 tests passed, 16 skipped; `pnpm desktop:check` and `pnpm prettier:check`
+pass; `python3 scripts/public-release/check_source.py` passes from the
+repository root.
+
+### Integration Review #2 Findings
+
+Reviewed source `b9f34c84a` (tree `82f3d31096a2`), baseline `b44f183c3`,
+targeted recheck of the revisions above; no checks run. The record of the
+first review is faithful, the corrected comment matches the code, and G5
+step 2 un-skips the Windows suites the finding cited.
+
+- **FI-F1: resolved pending the owner's agreement to G5,** once one command
+  is corrected: step 1 named the pack-only `pnpm desktop:mac`, which refuses
+  to run without a current stage and audit. `pnpm desktop:mac:build` stages,
+  audits and packs, and opens no window.
+- Not blocking: step 2 did not pack on Windows; the gates' opening line no
+  longer fitted G5.
+
+Result: no code finding; one plan wording correction.
+
+### Integration Review #2 Revisions
+
+All three accepted: step 1 names `pnpm desktop:mac:build`, step 2 adds
+`pnpm desktop:win`, and the gates' opening line covers G5. These are plan
+wording only, verified against the package scripts by reading them.
 
 ## Validation and acceptance
 
