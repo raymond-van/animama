@@ -23,9 +23,10 @@ const NO_RETRY_CODES = [
  * renderer, so main chooses the platform's wording here.
  */
 function pageText({ text }: ShellStrings, platform: NodeJS.Platform) {
-  const system = platform === "win32" ? "windows" : "macos";
-  // Development profiles only: macOS has an archiving helper; on Windows the
-  // data folder is renamed by hand, which keeps everything in it.
+  const system =
+    platform === "win32" ? "windows" : platform === "linux" ? "linux" : "macos";
+  // Development profiles only: macOS has an archiving helper; on Windows and
+  // Linux the data folder is renamed by hand, which keeps everything in it.
   const freshProfile = text(`startup.freshProfile.${system}`);
   const advice: Record<string, string> = {
     secure_storage_unavailable: text(`startup.secureStorage.${system}`),
@@ -37,6 +38,7 @@ function pageText({ text }: ShellStrings, platform: NodeJS.Platform) {
   return {
     title: {
       error: text("startup.title.error"),
+      consent: text("startup.title.consent"),
       updating: text("startup.title.updating"),
       stopping: text("startup.title.stopping"),
     },
@@ -56,6 +58,7 @@ function pageText({ text }: ShellStrings, platform: NodeJS.Platform) {
     },
     actions: {
       retry: text("startup.actions.retry"),
+      continue: text("startup.actions.continue"),
       openLogs: text("startup.actions.openLogs"),
       openBackups: text("startup.actions.openBackups"),
       quit: text("startup.actions.quit"),
@@ -172,21 +175,23 @@ export function createRuntimePage(
       ? [...NO_RETRY_CODES, "secure_storage_unavailable"]
       : NO_RETRY_CODES;
   return `<!doctype html><html lang="${strings.locale}" dir="${strings.dir}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; script-src 'nonce-${nonce}'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Animama</title>
-<style>${styles}</style></head><body data-state="starting"><main><img class="mark" src="${mark}" alt=""><h1 id="title">Animama</h1><p id="message" role="status">${escapeHtml(text.status.preparing)}</p><div class="bar" id="bar" aria-hidden="true"><span></span></div><p class="detail" id="detail" hidden><span id="code"></span><br><span id="backup"></span></p><div class="actions" id="actions" hidden><button id="retry" class="primary" hidden>${escapeHtml(text.actions.retry)}</button><button id="logs" class="outline">${escapeHtml(text.actions.openLogs)}</button><button id="backups" class="outline" hidden>${escapeHtml(text.actions.openBackups)}</button><button id="quit" class="ghost">${escapeHtml(text.actions.quit)}</button></div></main>
+<style>${styles}</style></head><body data-state="starting"><main><img class="mark" src="${mark}" alt=""><h1 id="title">Animama</h1><p id="message" role="status">${escapeHtml(text.status.preparing)}</p><div class="bar" id="bar" aria-hidden="true"><span></span></div><p class="detail" id="detail" hidden><span id="code"></span><br><span id="backup"></span></p><div class="actions" id="actions" hidden><button id="retry" class="primary" hidden>${escapeHtml(text.actions.retry)}</button><button id="continue" class="primary" hidden>${escapeHtml(text.actions.continue)}</button><button id="logs" class="outline">${escapeHtml(text.actions.openLogs)}</button><button id="backups" class="outline" hidden>${escapeHtml(text.actions.openBackups)}</button><button id="quit" class="ghost">${escapeHtml(text.actions.quit)}</button></div></main>
 <script nonce="${nonce}">
 const runtime=window.animamaDesktop?.runtime;
 const $=(id)=>document.getElementById(id);
 const text=${scriptJson(text)};
 const noRetry=${scriptJson(noRetry)};
+// A question, not a failure: Linux without a secret store asks before saving keys.
+const CONSENT='unprotected_storage_consent_required';
 // Startup normally finishes well within this; past it, offer Logs and Quit.
 const STALL_MS=20000;
 let state='starting',stalled=false,stallTimer;
 // Each start (first launch, a restart or Retry) gets its own stall window.
 function watchStall(){clearTimeout(stallTimer);stalled=false;stallTimer=setTimeout(()=>{stalled=true;if(state==='starting')$('actions').hidden=false;},STALL_MS);}
 watchStall();
-function render(value){if(value.state==='starting'&&state!=='starting')watchStall();state=value.state;const error=value.state==='error';document.body.dataset.state=value.state;$('title').textContent=error?text.title.error:value.state==='updating'?text.title.updating:value.state==='stopping'?text.title.stopping:'Animama';$('message').textContent=error?(Object.hasOwn(text.advice,value.code)?text.advice[value.code]:text.genericError):value.state==='starting'?text.stages[value.stage]:value.state==='ready'?text.status.ready:value.state==='updating'?text.status.updating:value.state==='stopping'?text.status.stopping:text.status.preparing;$('bar').hidden=error;$('code').textContent=error?value.code:'';$('backup').textContent=error&&value.backup?text.snapshot.replace('{{path}}',()=>value.backup):'';$('detail').hidden=!error;$('backups').hidden=!(error&&value.backup);$('retry').hidden=!error||noRetry.includes(value.code);$('actions').hidden=!(error||(stalled&&value.state==='starting'));}
+function render(value){if(value.state==='starting'&&state!=='starting')watchStall();state=value.state;const error=value.state==='error';const asking=error&&value.code===CONSENT;document.body.dataset.state=value.state;$('title').textContent=asking?text.title.consent:error?text.title.error:value.state==='updating'?text.title.updating:value.state==='stopping'?text.title.stopping:'Animama';$('message').textContent=error?(Object.hasOwn(text.advice,value.code)?text.advice[value.code]:text.genericError):value.state==='starting'?text.stages[value.stage]:value.state==='ready'?text.status.ready:value.state==='updating'?text.status.updating:value.state==='stopping'?text.status.stopping:text.status.preparing;$('bar').hidden=error;$('code').textContent=error?value.code:'';$('backup').textContent=error&&value.backup?text.snapshot.replace('{{path}}',()=>value.backup):'';$('detail').hidden=!error||asking;$('backups').hidden=!(error&&value.backup);$('retry').hidden=!error||asking||noRetry.includes(value.code);$('continue').hidden=!asking;$('logs').hidden=asking;$('actions').hidden=!(error||(stalled&&value.state==='starting'));}
 async function invoke(action){try{await runtime[action]();}catch{$('message').textContent=text.actionFailed;$('actions').hidden=false;}}
-for(const [id,action] of [['retry','retry'],['logs','openLogs'],['backups','openBackups'],['quit','quit']])$(id).onclick=()=>invoke(action);
+for(const [id,action] of [['retry','retry'],['continue','acceptUnprotectedStorage'],['logs','openLogs'],['backups','openBackups'],['quit','quit']])$(id).onclick=()=>invoke(action);
 if(runtime){runtime.onStatus(render);runtime.status().then(render).catch(()=>{});}
 </script></body></html>`;
 }

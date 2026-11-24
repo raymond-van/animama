@@ -4,6 +4,7 @@ import "./main-process/security/debugging-guard.js";
 import {
   app,
   BrowserWindow,
+  dialog,
   nativeImage,
   safeStorage,
   session,
@@ -55,7 +56,11 @@ import {
   reloadRecoveryWindow,
 } from "./main-process/runtime/recovery.js";
 import { RuntimeSupervisor } from "./main-process/runtime/supervisor.js";
-import { awaitDurableEncryptionKey } from "./main-process/runtime/vault.js";
+import {
+  awaitDurableEncryptionKey,
+  linuxPasswordStore,
+} from "./main-process/runtime/vault.js";
+import { refuseDisabledSandbox } from "./main-process/security/sandbox-guard.js";
 import {
   closeProductSession,
   destroyProductWindows,
@@ -133,6 +138,14 @@ else {
   }
   if (process.platform === "linux")
     app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
+  // Before `ready`, when Electron chooses where its encryption key lives.
+  const passwordStore = linuxPasswordStore(
+    process.platform,
+    process.env,
+    process.argv,
+  );
+  if (passwordStore)
+    app.commandLine.appendSwitch("password-store", passwordStore);
 
   const callers = new RuntimeIpcCallers();
   // Shell text follows the locale the app last applied, else the OS languages.
@@ -436,6 +449,14 @@ else {
         throw new RuntimeError("backups_unavailable");
     },
     quit: () => app.quit(),
+    acceptUnprotectedStorage: async () => {
+      if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
+      await supervisor.acceptUnprotectedStorage();
+    },
+    credentialStorage: () => {
+      if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
+      return supervisor.credentialStorage();
+    },
     credentials: () => {
       if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
       return supervisor.credentials();
@@ -529,6 +550,29 @@ else {
   void app
     .whenReady()
     .then(async () => {
+      // Nothing opens or starts in a packaged Linux app whose sandbox is off.
+      if (
+        refuseDisabledSandbox({
+          isPackaged: app.isPackaged,
+          platform: process.platform,
+          hasSwitch: (name) => app.commandLine.hasSwitch(name),
+          text: shellLocale.strings.text,
+          show: (title, message) => {
+            writeLog("error", "chromium_sandbox_disabled_refused");
+            dialog.showMessageBoxSync({
+              type: "error",
+              title: app.name,
+              message: title,
+              detail: message,
+            });
+          },
+          exit: (code) => {
+            allowQuit = true;
+            app.exit(code);
+          },
+        })
+      )
+        return;
       showDevelopmentIcon();
       // Replaces Electron's English default menu before any window opens.
       applyApplicationMenu(shellLocale.strings);

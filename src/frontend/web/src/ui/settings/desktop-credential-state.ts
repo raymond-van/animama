@@ -69,6 +69,9 @@ export async function refreshCredentialDependents(
   ]);
 }
 
+/** The part of the bridge that saves keys; key helpers need no more. */
+export type CredentialWrites = Pick<CredentialsBridge, "list" | "apply">;
+
 /**
  * Save a batch and apply it to the running backend. Resolves with every status
  * only when each change is confirmed by main's saved status; otherwise rejects
@@ -77,7 +80,7 @@ export async function refreshCredentialDependents(
  * them.
  */
 export async function applyCredentialChanges(
-  bridge: CredentialsBridge,
+  bridge: CredentialWrites,
   changes: readonly CredentialChange[],
 ): Promise<CredentialStatus[]> {
   const statuses = await bridge.apply([...changes]);
@@ -113,7 +116,7 @@ export async function applyCredentialChanges(
 export async function saveCredentialChanges(
   queryClient: QueryClient,
   ownerId: string | null | undefined,
-  bridge: CredentialsBridge,
+  bridge: CredentialWrites,
   changes: readonly CredentialChange[],
 ): Promise<{ ok: true } | { ok: false; failed: string[] }> {
   const key = queryKeys.desktopCredentials.statuses(ownerId ?? "__anon__");

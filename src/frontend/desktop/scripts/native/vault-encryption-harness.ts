@@ -9,6 +9,9 @@ import { RuntimeError } from "../../src/main-process/runtime/errors.js";
 import {
   awaitDurableEncryptionKey,
   CredentialVault,
+  currentProtection,
+  linuxPasswordStore,
+  storedProtection,
 } from "../../src/main-process/runtime/vault.js";
 
 /**
@@ -16,6 +19,12 @@ import {
  * storage (DPAPI on Windows, Keychain on macOS). The runner passes a disposable
  * folder for both the vault and Electron's profile, and removes it afterwards.
  * On macOS, safeStorage still adds an "Electron Safe Storage" Keychain item.
+ *
+ * On Linux the harness selects the secret store as the app does and reports
+ * the store Electron chose and whether the vault it wrote is protected. Set
+ * `ANIMAMA_VAULT_HARNESS_EXPECT` to `system` or `unprotected` to fail on any
+ * other outcome. Linux has no earlier release, so the legacy phases are
+ * macOS and Windows only.
  *
  * Usage: `vault-encryption-harness [phase] <disposable folder>`. The default
  * phase, `all`, runs every check in one Electron. `write-legacy` and
@@ -93,6 +102,7 @@ async function check(root: string): Promise<void> {
   const bytes = readFileSync(file).toString("latin1");
   if (bytes.includes(providerKey) || bytes.includes(vault.databasePassword()))
     throw new Error("the vault file contains plaintext secrets");
+  if (process.platform === "linux") await reportLinuxProtection(file);
   writeFileSync(file, Buffer.from("not an encrypted vault"));
   try {
     await CredentialVault.open(file, safeStorage, true);
@@ -103,10 +113,25 @@ async function check(root: string): Promise<void> {
   }
 }
 
+/** Say which store Electron chose and whether the written vault is protected. */
+async function reportLinuxProtection(file: string): Promise<void> {
+  const stored = storedProtection(file);
+  process.stdout.write(
+    `selected store: ${safeStorage.getSelectedStorageBackend()}\n` +
+      `new ciphertext: ${await currentProtection(safeStorage)}\n` +
+      `vault file: ${stored}\n`,
+  );
+  const expected = process.env.ANIMAMA_VAULT_HARNESS_EXPECT;
+  if (expected && stored !== expected)
+    throw new Error(`expected a ${expected} vault, found ${stored}`);
+}
+
 const phases: Record<string, (root: string) => Promise<void>> = {
   all: async (root) => {
-    await writeLegacy(root);
-    await checkLegacy(root);
+    if (process.platform !== "linux") {
+      await writeLegacy(root);
+      await checkLegacy(root);
+    }
     await check(root);
   },
   "write-legacy": writeLegacy,
@@ -122,6 +147,14 @@ if (!phase || !Object.hasOwn(phases, phase) || !root || !path.isAbsolute(root))
     "usage: vault-encryption-harness [phase] <disposable folder>",
   );
 app.setPath("userData", path.join(root, "electron"));
+// As main.ts does, before `ready`.
+const passwordStore = linuxPasswordStore(
+  process.platform,
+  process.env,
+  process.argv,
+);
+if (passwordStore)
+  app.commandLine.appendSwitch("password-store", passwordStore);
 
 void app.whenReady().then(async () => {
   try {

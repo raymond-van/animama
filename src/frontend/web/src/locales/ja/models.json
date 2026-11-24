@@ -134,7 +134,8 @@
     },
     "title": "API キー",
     "unavailable": "保護された設定を利用できません。ランタイムの復旧を開いて、もう一度お試しください。",
-    "undoRemoveNamed": "{{name}} のキーの削除を取り消す"
+    "undoRemoveNamed": "{{name}} のキーの削除を取り消す",
+    "unprotected": "このコンピューターにはシークレットストアがないため、キーはシステムの保護なしで保存され、あなたのアカウントで動くどのプログラムからも読み取れます。保護するには、GNOME Keyring、KeePassXC、KWallet などのシークレットストアを起動してから Animama を開き直してください。"
   },
   "defaults": {
     "current": "現在は {{model}} です。",

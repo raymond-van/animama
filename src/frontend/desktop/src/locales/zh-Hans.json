@@ -46,7 +46,8 @@
     "title": {
       "error": "Animama 需要处理",
       "updating": "正在安装更新",
-      "stopping": "正在关闭 Animama"
+      "stopping": "正在关闭 Animama",
+      "consent": "你的密钥将不受系统保护"
     },
     "status": {
       "preparing": "正在准备你的私有本地运行环境…",
@@ -66,18 +67,25 @@
       "retry": "重试",
       "openLogs": "打开日志",
       "openBackups": "打开备份",
-      "quit": "退出"
+      "quit": "退出",
+      "continue": "继续"
     },
     "snapshot": "快照：{{path}}",
     "actionFailed": "操作无法完成。请打开日志，或在解决问题后退出并重新打开 Animama。",
     "genericError": "启动无法完成。请打开日志查看详情，解决问题后重试。你的本地数据已保留。",
     "secureStorage": {
       "macos": "macOS 安全存储不可用。请解锁登录钥匙串并允许 Animama 访问，然后退出并重新打开 Animama。",
-      "windows": "此账户无法使用 Windows 受保护存储。请使用你自己的账户（而非临时配置文件）登录 Windows 后重试。"
+      "windows": "此账户无法使用 Windows 受保护存储。请使用你自己的账户（而非临时配置文件）登录 Windows 后重试。",
+      "linux": "保护你密钥的密钥存储服务已锁定或未运行。请解锁或启动它（例如 GNOME Keyring、KeePassXC 或 KWallet），然后重试。你的数据未被更改。"
     },
     "freshProfile": {
       "macos": "退出 Animama 并运行 pnpm desktop:mac:reset，归档此配置文件后重新开始",
-      "windows": "退出 Animama 并将 %LOCALAPPDATA%\\Animama 重命名（例如改为 Animama.backup），保留此配置文件后重新开始"
+      "windows": "退出 Animama 并将 %LOCALAPPDATA%\\Animama 重命名（例如改为 Animama.backup），保留此配置文件后重新开始",
+      "linux": "退出 Animama，并重命名 Animama 数据文件夹（~/.local/share/Animama，例如改为 Animama.backup），以保留此配置并重新开始"
+    },
+    "sandbox": {
+      "title": "没有沙盒，Animama 无法启动",
+      "message": "Animama 是在关闭 Chromium 沙盒（--no-sandbox）的情况下启动的。这通常是因为系统阻止了非特权用户命名空间（Ubuntu 23.10 及更高版本默认如此），AppImage 启动器因此关闭了沙盒。Animama 不会在没有沙盒的情况下运行网页内容。请通过 AppArmor 配置文件允许 Animama 使用用户命名空间，或设置 kernel.apparmor_restrict_unprivileged_userns=0，然后重新启动 Animama。你的数据未被更改。"
     },
     "advice": {
       "gateway_port_in_use": "已保存的应用端口被占用。请关闭正在使用该端口的其他应用后重试。你的数据未被更改。",
@@ -98,7 +106,8 @@
       "update_install_timeout": "安装程序未能按时完成。为安全起见，服务仍保持停止。请退出并重新打开 Animama，或重新安装已签名的版本。不要重置你的数据。",
       "owned_services_stop_failed": "部分 Animama 服务无法停止。更新前请再次退出或重新启动电脑。你的数据已保留。",
       "database_schema_mismatch": "你的本地数据库结构与此版本 Animama 所需的结构不一致，因此在使用前已停止启动。你的本地数据已保留，重试也不会改变这一情况。如果是开发版本，请{{freshProfile}}。否则，请重新打开创建此数据的 Animama 版本。",
-      "content_startup_failed": "Animama 无法协调其内容资源库，因此停止启动，而不是以不完整的状态运行。你的本地数据已保留。请打开日志查看详情，然后重试。如果开发版本持续在此失败，请{{freshProfile}}。"
+      "content_startup_failed": "Animama 无法协调其内容资源库，因此停止启动，而不是以不完整的状态运行。你的本地数据已保留。请打开日志查看详情，然后重试。如果开发版本持续在此失败，请{{freshProfile}}。",
+      "unprotected_storage_consent_required": "Animama 在此系统上未找到密钥存储服务。如果继续，你的提供商密钥和数据库密码将在没有系统保护的情况下保存：以此账户运行的任何程序都能读取它们。若要保护它们，请退出，启动 GNOME Keyring、KeePassXC 或 KWallet 等密钥存储服务，然后重新打开 Animama。此问题只会询问一次。"
     }
   },
   "windows": {

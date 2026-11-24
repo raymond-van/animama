@@ -9,6 +9,7 @@ import type {
 import {
   DesktopCredentialFailures,
   DesktopCredentialsPanel,
+  desktopCredentialStorageKey,
 } from "./DesktopCredentialsPanel";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { queryKeys } from "@/query/keys";
@@ -73,6 +74,7 @@ function bridge(status = configured): CredentialsBridge {
   return {
     list: vi.fn(async () => [status]),
     apply: vi.fn(async () => [status]),
+    storage: vi.fn(async () => ({ protection: "system" as const })),
   };
 }
 
@@ -337,6 +339,37 @@ describe("feature-local key fields", () => {
     expect(full).toContain(
       "Keys are encrypted with this computer’s secure storage",
     );
+  });
+
+  it("says so wherever keys are entered when no secret store protects them", () => {
+    const client = credentialClient(unset);
+    const claim = "Keys are encrypted with this computer’s secure storage";
+    const notice = "keys are saved without system protection";
+    client.setQueryData(desktopCredentialStorageKey("owner-1"), {
+      protection: "unprotected",
+    });
+    const full = renderWith(client, <DesktopCredentialsPanel />);
+    expect(full).toContain(notice);
+    // The usual statement would be false here.
+    expect(full).not.toContain(claim);
+    // Feature-local panels show no general copy, but still show the notice.
+    expect(
+      renderWith(
+        client,
+        <DesktopCredentialsPanel
+          providers={["elevenlabs"]}
+          showTitle={false}
+          description={null}
+        />,
+      ),
+    ).toContain(notice);
+
+    client.setQueryData(desktopCredentialStorageKey("owner-1"), {
+      protection: "system",
+    });
+    const protectedPanel = renderWith(client, <DesktopCredentialsPanel />);
+    expect(protectedPanel).not.toContain(notice);
+    expect(protectedPanel).toContain(claim);
   });
 
   it("reports only its own keys' failures", () => {

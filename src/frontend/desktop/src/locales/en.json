@@ -46,7 +46,8 @@
     "title": {
       "error": "Animama needs attention",
       "updating": "Installing update",
-      "stopping": "Closing Animama"
+      "stopping": "Closing Animama",
+      "consent": "Your keys will not be protected by the system"
     },
     "status": {
       "preparing": "Preparing your private local runtime…",
@@ -66,18 +67,25 @@
       "retry": "Retry",
       "openLogs": "Open Logs",
       "openBackups": "Open Backups",
-      "quit": "Quit"
+      "quit": "Quit",
+      "continue": "Continue"
     },
     "snapshot": "Snapshot: {{path}}",
     "actionFailed": "The action could not finish. Open Logs, or quit and reopen Animama after fixing the problem.",
     "genericError": "Startup could not finish. Open Logs for details, fix the problem, and retry. Your local data has been preserved.",
     "secureStorage": {
       "macos": "macOS secure storage is unavailable. Unlock your login keychain and allow Animama to use it, then quit and reopen Animama.",
-      "windows": "Windows protected storage is unavailable for this account. Sign in to Windows with your own account, not a temporary profile, and retry."
+      "windows": "Windows protected storage is unavailable for this account. Sign in to Windows with your own account, not a temporary profile, and retry.",
+      "linux": "The secret store that protects your keys is locked or not running. Unlock or start it (for example GNOME Keyring, KeePassXC or KWallet), then retry. Your data has not changed."
     },
     "freshProfile": {
       "macos": "quit Animama and run pnpm desktop:mac:reset to archive this profile and start fresh",
-      "windows": "quit Animama and rename %LOCALAPPDATA%\\Animama (for example to Animama.backup) to keep this profile and start fresh"
+      "windows": "quit Animama and rename %LOCALAPPDATA%\\Animama (for example to Animama.backup) to keep this profile and start fresh",
+      "linux": "quit Animama and rename the Animama data folder (~/.local/share/Animama, for example to Animama.backup) to keep this profile and start fresh"
+    },
+    "sandbox": {
+      "title": "Animama cannot start without its sandbox",
+      "message": "Animama was started with Chromium's sandbox turned off (--no-sandbox). This usually means the system blocks unprivileged user namespaces, as Ubuntu 23.10 and later do by default, and the AppImage launcher turned the sandbox off in response. Animama does not run web content unsandboxed. Allow user namespaces for Animama with an AppArmor profile, or set kernel.apparmor_restrict_unprivileged_userns=0, then start Animama again. Your data has not changed."
     },
     "advice": {
       "gateway_port_in_use": "The saved application port is occupied. Close the other application using it and retry. Your data has not changed.",
@@ -98,7 +106,8 @@
       "update_install_timeout": "The installer did not finish in time. Services remain stopped for safety. Quit and reopen Animama, or reinstall the signed version. Do not reset your data.",
       "owned_services_stop_failed": "Some Animama services could not stop. Quit again or restart your computer before updating. Your data is preserved.",
       "database_schema_mismatch": "Your local database does not match the structure this version of Animama expects, so startup stopped before using it. Your local data is preserved, and retrying will not change this. For a development build, {{freshProfile}}. Otherwise, reopen the Animama version that created this data.",
-      "content_startup_failed": "Animama could not reconcile its content library, so startup stopped instead of running incomplete. Your local data is preserved. Open Logs for details, then retry. If a development build keeps failing here, {{freshProfile}}."
+      "content_startup_failed": "Animama could not reconcile its content library, so startup stopped instead of running incomplete. Your local data is preserved. Open Logs for details, then retry. If a development build keeps failing here, {{freshProfile}}.",
+      "unprotected_storage_consent_required": "Animama found no secret store on this system. If you continue, your provider keys and the database password are saved without system protection: any program running under this account can read them. To protect them instead, quit, start a secret store such as GNOME Keyring, KeePassXC or KWallet, and reopen Animama. You are asked this once."
     }
   },
   "windows": {

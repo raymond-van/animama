@@ -690,6 +690,148 @@ describe("runtime supervision", () => {
     expect(current.runtime.status().state).toBe("ready");
   });
 
+  describe("Linux credential storage", () => {
+    /** Electron on Linux: `v11` under a secret store, `v10` under its built-in key. */
+    const linuxEncryption = (store: { available: boolean }) => ({
+      isAsyncEncryptionAvailable: async () => true,
+      encryptStringAsync: async (value: string) =>
+        Buffer.from(`${store.available ? "v11" : "v10"}${value}`),
+      decryptStringAsync: async (value: Buffer) => {
+        const text = value.toString();
+        if (text.startsWith("v11") && !store.available)
+          throw new Error("Error while decrypting the ciphertext");
+        return { result: text.slice(3), shouldReEncrypt: false };
+      },
+    });
+    const onLinux = async (run: () => Promise<void>) => {
+      const platform = vi.spyOn(process, "platform", "get");
+      platform.mockReturnValue("linux");
+      try {
+        await run();
+      } finally {
+        platform.mockRestore();
+      }
+    };
+    const consent = {
+      state: "error",
+      code: "unprotected_storage_consent_required",
+    };
+
+    it("creates a protected vault without asking when a secret store is in use", () =>
+      onLinux(async () => {
+        const current = create();
+        current.options.encryption = linuxEncryption({ available: true });
+        await current.runtime.start();
+        expect(current.runtime.status().state).toBe("ready");
+        expect(current.runtime.credentialStorage()).toEqual({
+          protection: "system",
+        });
+      }));
+
+    it("asks once before saving keys without a secret store, and writes nothing on Quit", () =>
+      onLinux(async () => {
+        const first = create();
+        first.options.encryption = linuxEncryption({ available: false });
+        await first.runtime.start();
+        expect(first.runtime.status()).toEqual(consent);
+        // Quit here: no vault, no database, no service.
+        expect(existsSync(first.options.paths.vault)).toBe(false);
+        expect(fixture.postgresStarts).not.toHaveBeenCalled();
+        // Retry alone is not consent.
+        await first.runtime.start();
+        expect(first.runtime.status()).toEqual(consent);
+
+        await first.runtime.acceptUnprotectedStorage();
+        expect(first.runtime.status().state).toBe("ready");
+        expect(existsSync(first.options.paths.vault)).toBe(true);
+        expect(first.runtime.credentialStorage()).toEqual({
+          protection: "unprotected",
+        });
+        await first.runtime.stop();
+
+        // The next launch on the same data does not ask again.
+        const next = create(first.options.paths);
+        next.options.encryption = linuxEncryption({ available: false });
+        await next.runtime.start();
+        expect(next.runtime.status().state).toBe("ready");
+        expect(next.runtime.credentialStorage()).toEqual({
+          protection: "unprotected",
+        });
+      }));
+
+    it("accepts consent only while the question is on screen", () =>
+      onLinux(async () => {
+        const current = create();
+        current.options.encryption = linuxEncryption({ available: true });
+        await expect(
+          current.runtime.acceptUnprotectedStorage(),
+        ).rejects.toThrow("consent_not_requested");
+        await current.runtime.start();
+        await expect(
+          current.runtime.acceptUnprotectedStorage(),
+        ).rejects.toThrow("consent_not_requested");
+      }));
+
+    it("moves the vault under a secret store that has become available", () =>
+      onLinux(async () => {
+        const store = { available: false };
+        const first = create();
+        first.options.encryption = linuxEncryption(store);
+        await first.runtime.start();
+        await first.runtime.acceptUnprotectedStorage();
+        await first.runtime.stop();
+
+        store.available = true;
+        const next = create(first.options.paths);
+        next.options.encryption = linuxEncryption(store);
+        await next.runtime.start();
+        expect(next.runtime.status().state).toBe("ready");
+        expect(next.runtime.credentialStorage()).toEqual({
+          protection: "system",
+        });
+        expect(
+          readFileSync(next.options.paths.vault).subarray(0, 3).toString(),
+        ).toBe("v11");
+      }));
+
+    it("shows recovery, never the fallback, when a protected vault's store is gone", () =>
+      onLinux(async () => {
+        const store = { available: true };
+        const first = create();
+        first.options.encryption = linuxEncryption(store);
+        await first.runtime.start();
+        await first.runtime.stop();
+        const vault = readFileSync(first.options.paths.vault);
+        const postgresStarts = fixture.postgresStarts.mock.calls.length;
+
+        store.available = false;
+        const next = create(first.options.paths);
+        next.options.encryption = linuxEncryption(store);
+        await next.runtime.start();
+        expect(next.runtime.status()).toEqual({
+          state: "error",
+          code: "secure_storage_unavailable",
+        });
+        expect(readFileSync(next.options.paths.vault)).toEqual(vault);
+        expect(fixture.postgresStarts).toHaveBeenCalledTimes(postgresStarts);
+        // The store comes back: Retry opens the same vault.
+        store.available = true;
+        await next.runtime.start();
+        expect(next.runtime.status().state).toBe("ready");
+      }));
+  });
+
+  it("reports system protection on macOS and Windows without probing", async () => {
+    const current = create();
+    const encrypt = vi.spyOn(current.options.encryption, "encryptStringAsync");
+    await current.runtime.start();
+    expect(current.runtime.credentialStorage()).toEqual({
+      protection: "system",
+    });
+    // One write of the new vault; no protection probe.
+    expect(encrypt).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses an elevated Windows launch before verifying or creating anything", async () => {
     const platform = vi.spyOn(process, "platform", "get");
     platform.mockReturnValue("win32");

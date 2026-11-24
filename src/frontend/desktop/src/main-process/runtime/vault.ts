@@ -1,5 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, lstatSync, readFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+} from "node:fs";
 import {
   connectionCredentialPattern,
   connectionOriginVariable,
@@ -61,6 +68,100 @@ export type Encryption = {
     value: Buffer,
   ): Promise<{ result: string; shouldReEncrypt: boolean }>;
 };
+/** Whether a secret store holds the vault's key, or only Electron's built-in one. */
+export type VaultProtection = "system" | "unprotected";
+
+/**
+ * Chromium begins Linux ciphertext with `v11` when the key came from a secret
+ * store and `v10` when it is the key built into every Chromium. Electron
+ * reports encryption as available either way, so this prefix is the only
+ * evidence of protection. It is Chromium's format, not a documented API:
+ * recheck it (`components/os_crypt/async`, the key providers) on every
+ * Electron upgrade.
+ */
+const SECRET_STORE_PREFIX = "v11";
+function underSecretStore(ciphertext: Buffer): boolean {
+  return ciphertext.subarray(0, 3).toString("latin1") === SECRET_STORE_PREFIX;
+}
+
+/**
+ * The secret store Animama asks Electron for on Linux. Electron chooses by the
+ * desktop's name and uses its built-in key on any desktop it does not know,
+ * such as i3, Sway or Hyprland, even when a Secret Service is running. Naming
+ * the Secret Service makes a running one count everywhere. KDE keeps Electron's
+ * own KWallet choice, and a switch the user passed is left alone.
+ */
+export function linuxPasswordStore(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  argv: readonly string[],
+): string | undefined {
+  if (platform !== "linux") return undefined;
+  if (argv.some((arg) => /^--password-store(?:=|$)/u.test(arg)))
+    return undefined;
+  const desktops = (env.XDG_CURRENT_DESKTOP ?? "").toLowerCase().split(":");
+  return desktops.includes("kde") ? undefined : "gnome-libsecret";
+}
+
+/** What would protect a value encrypted now (Linux). */
+export async function currentProtection(
+  encryption: Encryption,
+): Promise<VaultProtection> {
+  let probe: Buffer;
+  try {
+    probe = await encryption.encryptStringAsync("animama-protection-probe");
+  } catch {
+    throw new RuntimeError("secure_storage_unavailable");
+  }
+  return underSecretStore(probe) ? "system" : "unprotected";
+}
+
+/** How the vault file on disk was encrypted (Linux); null when there is none. */
+export function storedProtection(file: string): VaultProtection | null {
+  if (!existsSync(file)) return null;
+  const prefix = Buffer.alloc(3);
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(file, "r");
+    readSync(descriptor, prefix, 0, 3, 0);
+  } catch {
+    // Opening the vault reports an unreadable file as it always has.
+    return "unprotected";
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+  return underSecretStore(prefix) ? "system" : "unprotected";
+}
+
+/**
+ * Linux only: stop before the vault is opened or created when the protection
+ * available now does not allow it.
+ *
+ * - A vault protected by a secret store is never opened without one: the app
+ *   shows recovery and leaves the file alone.
+ * - A first vault is not created under the built-in key until the owner has
+ *   accepted that (`consented`). An existing unprotected vault is the record
+ *   of that answer, so the question is asked once per data directory.
+ * - A missing vault beside a database stays the existing recovery case.
+ */
+export async function linuxVaultGate({
+  file,
+  encryption,
+  databaseExists,
+  consented,
+}: {
+  file: string;
+  encryption: Encryption;
+  databaseExists: boolean;
+  consented: boolean;
+}): Promise<void> {
+  if ((await currentProtection(encryption)) === "system") return;
+  const stored = storedProtection(file);
+  if (stored === "system") throw new RuntimeError("secure_storage_unavailable");
+  if (stored === null && !databaseExists && !consented)
+    throw new RuntimeError("unprotected_storage_consent_required");
+}
+
 type VaultEntry = { value: string; updatedAt: string };
 /** A connection key and the origin it may be sent to; entries without one stay unused. */
 type ConnectionEntry = VaultEntry & { origin?: string };
@@ -356,6 +457,10 @@ export class CredentialVault {
     });
     this.writes = write.catch(() => undefined);
     return write;
+  }
+  /** Encrypt the vault again with the key available now, such as a secret store that appeared. */
+  protect(): Promise<void> {
+    return this.write((current) => current);
   }
   databasePassword(): string {
     return this.data.postgresPassword;

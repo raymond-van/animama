@@ -134,7 +134,8 @@
     },
     "title": "API 密钥",
     "unavailable": "受保护的设置不可用。请打开运行时恢复后重试。",
-    "undoRemoveNamed": "撤销移除 {{name}} 密钥"
+    "undoRemoveNamed": "撤销移除 {{name}} 密钥",
+    "unprotected": "这台电脑没有密钥存储服务，因此密钥在没有系统保护的情况下保存：以你的账户运行的任何程序都能读取它们。若要保护它们，请启动 GNOME Keyring、KeePassXC 或 KWallet 等密钥存储服务，然后重新打开 Animama。"
   },
   "defaults": {
     "current": "当前为 {{model}}。",

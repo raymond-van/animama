@@ -168,7 +168,7 @@ function draftFromConnection(connection: PyModelConnection): Draft {
  * nothing else lists the key once the connection no longer names it.
  */
 export async function deleteConnectionKey(
-  bridge: CredentialsBridge,
+  bridge: Pick<CredentialsBridge, "list" | "apply">,
   env: string,
 ): Promise<void> {
   await applyCredentialChanges(bridge, [{ connection: env }]).catch(() => {

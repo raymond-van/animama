@@ -153,7 +153,8 @@ specifications.
       suite has not been run.
 - [ ] Phase 2: process ownership. Implemented from `af1994f91`; phase checks
       pass; review pending.
-- [ ] Phase 3: credential storage and the sandbox. Not started.
+- [ ] Phase 3: credential storage and the sandbox. Implemented from
+      `c42246a40`; phase checks pass; review pending.
 - [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Not started;
       R9 and R10 need the owner's feasibility decision.
 - [ ] Phase 5: stage, audit and package tooling. Not started.
@@ -200,6 +201,12 @@ specifications.
 
 - 2026-11-24, owner. Agreed this plan as written, including PD1–PD10 below,
   and authorized Phases 1–6.
+- 2026-11-24, agent, revising PD3 within the accepted outcome. Consent is
+  not written to a separate `secrets/unprotected-storage.json`. Continue is
+  held in memory for that launch and the vault it creates is the lasting
+  record: an existing vault under the built-in key means the question was
+  answered. One file fewer to keep consistent, and the spec's "asked once per
+  data directory" still holds.
 - 2026-11-24, agent, from review finding P1-F3. systemd ages out files in
   `/var/tmp` that go unused for about 30 days, so PD7's build root can lose
   parts of the build interpreter between builds. The root stays; a stage that
@@ -594,12 +601,58 @@ switch is set is unverified until G3. If it does not, the reference session
 runs the consent path, and the owner decides whether that is acceptable or a
 different mechanism is needed.
 
-Recovery: source-only. The consent record is one file in the data directory
-and is safe to delete.
+Recovery: source-only. Consent leaves no file of its own (see the Decision
+Log).
 
 Completion: the checks pass and the review finds no open blocker.
 
-Check record: none yet.
+Starting source: `c42246a40` (Phase 2).
+
+Results:
+
+- `vault.ts`: `linuxPasswordStore`, `currentProtection`, `storedProtection`,
+  `linuxVaultGate` and `CredentialVault.protect()`.
+- The supervisor's vault stage runs the gate on Linux, moves a vault under a
+  secret store that has appeared, and exposes `acceptUnprotectedStorage()`
+  and `credentialStorage()`.
+- The startup page has a consent state for
+  `unprotected_storage_consent_required`: its own title, Continue and Quit,
+  no Retry, Logs or error code. `secure_storage_unavailable` and the
+  fresh-profile advice have Linux wording.
+- New IPC channels `animama:runtime:accept-unprotected-storage` (recovery
+  and main callers, no arguments) and `animama:credentials:storage` (main
+  window only, status only).
+- `DesktopCredentialsPanel`, which the first-run key step also uses, shows
+  the notice and withholds its "encrypted with secure storage" sentence when
+  the vault is unprotected. Its query key is built from
+  `queryKeys.desktopCredentials.all`, so `product-ui` is unchanged.
+- `security/sandbox-guard.ts`; `main.ts` refuses first thing after `ready`
+  with a native message box.
+- The vault harness reports the selected store and the vault's protection on
+  Linux; `ANIMAMA_VAULT_HARNESS_EXPECT=system|unprotected` makes it fail on
+  any other outcome. It skips the legacy phases on Linux, which has no
+  earlier release.
+
+Test order: steps 1–3 and 5 were written test first and seen failing. The web
+notice test (step 4) was written with the component change. The harness
+(step 6) has no test: it runs only inside Electron on the gate host.
+
+Check record (2026-11-24, macOS arm64 host; run on an export of the staged
+tree, `git archive fff3afd02866`, with the worktree's `node_modules` linked
+in; working directory `src/frontend` of that export):
+
+| Command | Result | Tree |
+| --- | --- | --- |
+| `pnpm desktop:test` | Pass: 45 files passed, 2 skipped; 733 tests passed, 16 skipped | `fff3afd02866` |
+| `pnpm check` | Pass | `fff3afd02866` |
+| `pnpm desktop:build` | Pass | `fff3afd02866` |
+| `pnpm prettier:check` | Pass | `fff3afd02866` |
+| `pnpm exec vitest run src/ui/settings` (from `web`) | Pass: 18 files, 208 tests | `fff3afd02866` |
+| `python3 scripts/public-release/check_source.py` (repository root, worktree index) | Pass | `fff3afd02866` |
+
+Not run: the full pre-push suite, including the rest of `pnpm web:test`, by
+the owner's standing instruction; anything on Linux. No real secret store,
+`--password-store` switch or message box has been exercised.
 
 ### Phase 4: desktop integration
 

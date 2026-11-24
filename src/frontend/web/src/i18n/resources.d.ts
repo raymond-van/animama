@@ -4683,7 +4683,8 @@ export default interface Resources {
       },
       "title": "API keys",
       "unavailable": "Protected settings are unavailable. Open runtime recovery and try again.",
-      "undoRemoveNamed": "Undo removing {{name}} key"
+      "undoRemoveNamed": "Undo removing {{name}} key",
+      "unprotected": "This computer has no secret store, so keys are saved without system protection: any program running under your account can read them. To protect them, start a secret store such as GNOME Keyring, KeePassXC or KWallet and reopen Animama."
     },
     "defaults": {
       "current": "Currently {{model}}.",

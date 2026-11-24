@@ -46,7 +46,8 @@
     "title": {
       "error": "Animama에 확인이 필요합니다",
       "updating": "업데이트 설치 중",
-      "stopping": "Animama 종료 중"
+      "stopping": "Animama 종료 중",
+      "consent": "키가 시스템의 보호를 받지 않습니다"
     },
     "status": {
       "preparing": "비공개 로컬 런타임을 준비하는 중…",
@@ -66,18 +67,25 @@
       "retry": "다시 시도",
       "openLogs": "로그 열기",
       "openBackups": "백업 열기",
-      "quit": "종료"
+      "quit": "종료",
+      "continue": "계속"
     },
     "snapshot": "스냅샷: {{path}}",
     "actionFailed": "작업을 완료할 수 없습니다. 로그를 열거나, 문제를 해결한 후 Animama를 종료하고 다시 여세요.",
     "genericError": "시작을 완료할 수 없습니다. 로그를 열어 자세한 내용을 확인하고 문제를 해결한 후 다시 시도하세요. 로컬 데이터는 보존되었습니다.",
     "secureStorage": {
       "macos": "macOS 보안 저장소를 사용할 수 없습니다. 로그인 키체인의 잠금을 해제하고 Animama의 접근을 허용한 다음 Animama를 종료했다가 다시 여세요.",
-      "windows": "이 계정에서는 Windows 보호 저장소를 사용할 수 없습니다. 임시 프로필이 아닌 본인 계정으로 Windows에 로그인한 후 다시 시도하세요."
+      "windows": "이 계정에서는 Windows 보호 저장소를 사용할 수 없습니다. 임시 프로필이 아닌 본인 계정으로 Windows에 로그인한 후 다시 시도하세요.",
+      "linux": "키를 보호하는 비밀 저장소가 잠겨 있거나 실행 중이 아닙니다. 잠금을 해제하거나 실행한 다음(예: GNOME Keyring, KeePassXC, KWallet) 다시 시도하세요. 데이터는 변경되지 않았습니다."
     },
     "freshProfile": {
       "macos": "Animama를 종료하고 pnpm desktop:mac:reset을 실행하여 이 프로필을 보관한 후 새로 시작하세요",
-      "windows": "Animama를 종료하고 %LOCALAPPDATA%\\Animama의 이름을 바꿔(예: Animama.backup) 이 프로필을 보존한 채 새로 시작하세요"
+      "windows": "Animama를 종료하고 %LOCALAPPDATA%\\Animama의 이름을 바꿔(예: Animama.backup) 이 프로필을 보존한 채 새로 시작하세요",
+      "linux": "Animama를 종료하고 Animama 데이터 폴더(~/.local/share/Animama)의 이름을 바꿔(예: Animama.backup) 이 프로필을 보존한 채 새로 시작하세요"
+    },
+    "sandbox": {
+      "title": "샌드박스 없이는 Animama를 시작할 수 없습니다",
+      "message": "Animama가 Chromium 샌드박스를 끈 상태(--no-sandbox)로 시작되었습니다. 대개 Ubuntu 23.10 이상의 기본 설정처럼 시스템이 비특권 사용자 네임스페이스를 차단하고, AppImage 실행기가 그에 따라 샌드박스를 끈 경우입니다. Animama는 샌드박스 없이 웹 콘텐츠를 실행하지 않습니다. AppArmor 프로필로 Animama에 사용자 네임스페이스를 허용하거나 kernel.apparmor_restrict_unprivileged_userns=0을 설정한 다음 Animama를 다시 시작하세요. 데이터는 변경되지 않았습니다."
     },
     "advice": {
       "gateway_port_in_use": "저장된 애플리케이션 포트가 사용 중입니다. 해당 포트를 사용하는 다른 애플리케이션을 닫고 다시 시도하세요. 데이터는 변경되지 않았습니다.",
@@ -98,7 +106,8 @@
       "update_install_timeout": "설치 프로그램이 제시간에 완료되지 않았습니다. 안전을 위해 서비스는 중지된 상태로 유지됩니다. Animama를 종료하고 다시 열거나 서명된 버전을 다시 설치하세요. 데이터는 재설정하지 마세요.",
       "owned_services_stop_failed": "일부 Animama 서비스를 중지할 수 없습니다. 업데이트하기 전에 다시 종료하거나 컴퓨터를 다시 시작하세요. 데이터는 보존되었습니다.",
       "database_schema_mismatch": "로컬 데이터베이스의 구조가 이 버전의 Animama가 예상하는 구조와 일치하지 않아 사용하기 전에 시작을 중지했습니다. 로컬 데이터는 보존되었으며, 다시 시도해도 달라지지 않습니다. 개발 빌드라면 {{freshProfile}}. 그렇지 않다면 이 데이터를 만든 Animama 버전을 다시 여세요.",
-      "content_startup_failed": "Animama가 콘텐츠 라이브러리를 조정할 수 없어 불완전한 상태로 실행하지 않고 시작을 중지했습니다. 로컬 데이터는 보존되었습니다. 로그를 열어 자세한 내용을 확인한 후 다시 시도하세요. 개발 빌드에서 이 단계가 계속 실패하면 {{freshProfile}}."
+      "content_startup_failed": "Animama가 콘텐츠 라이브러리를 조정할 수 없어 불완전한 상태로 실행하지 않고 시작을 중지했습니다. 로컬 데이터는 보존되었습니다. 로그를 열어 자세한 내용을 확인한 후 다시 시도하세요. 개발 빌드에서 이 단계가 계속 실패하면 {{freshProfile}}.",
+      "unprotected_storage_consent_required": "이 시스템에서 비밀 저장소를 찾지 못했습니다. 계속하면 제공자 키와 데이터베이스 비밀번호가 시스템 보호 없이 저장되어, 이 계정으로 실행되는 모든 프로그램이 읽을 수 있습니다. 보호하려면 종료한 뒤 GNOME Keyring, KeePassXC, KWallet 같은 비밀 저장소를 실행하고 Animama를 다시 여세요. 이 질문은 한 번만 표시됩니다."
     }
   },
   "windows": {

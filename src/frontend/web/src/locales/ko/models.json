@@ -134,7 +134,8 @@
     },
     "title": "API 키",
     "unavailable": "보호된 설정을 사용할 수 없습니다. 런타임 복구를 열고 다시 시도하세요.",
-    "undoRemoveNamed": "{{name}} 키 삭제 취소"
+    "undoRemoveNamed": "{{name}} 키 삭제 취소",
+    "unprotected": "이 컴퓨터에는 비밀 저장소가 없어 키가 시스템 보호 없이 저장되며, 내 계정으로 실행되는 모든 프로그램이 읽을 수 있습니다. 보호하려면 GNOME Keyring, KeePassXC, KWallet 같은 비밀 저장소를 실행한 뒤 Animama를 다시 여세요."
   },
   "defaults": {
     "current": "현재 {{model}}입니다.",

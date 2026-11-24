@@ -7,6 +7,7 @@ import {
 import {
   featurePackIds,
   type CredentialStatus,
+  type CredentialStorage,
   type RuntimeStatus,
   type FeaturePackStatus,
   type FeaturePackId,
@@ -24,7 +25,10 @@ export type RuntimeIpcOperations = {
   openLogs(): Promise<void>;
   openBackups?(): Promise<void>;
   quit(): void;
+  /** The owner accepted saving keys without a secret store (Linux). */
+  acceptUnprotectedStorage?(): Promise<void>;
   credentials(): CredentialStatus[];
+  credentialStorage?(): CredentialStorage;
   /** Save several key changes and apply them to the running backend. */
   changeCredentials?(changes: unknown): Promise<CredentialStatus[]>;
   featurePacks?(): FeaturePackStatus[];
@@ -154,7 +158,17 @@ export function installRuntimeIpc(
     return operations.openBackups();
   });
   handle("runtime:quit", 0, true, () => operations.quit());
+  handle("runtime:accept-unprotected-storage", 0, true, () => {
+    if (!operations.acceptUnprotectedStorage)
+      throw new RuntimeError("embedded_runtime_unavailable");
+    return operations.acceptUnprotectedStorage();
+  });
   handle("credentials:list", 0, false, () => operations.credentials());
+  handle("credentials:storage", 0, false, () => {
+    if (!operations.credentialStorage)
+      throw new RuntimeError("embedded_runtime_unavailable");
+    return operations.credentialStorage();
+  });
   handle("credentials:apply", 1, false, (changes) => {
     if (!operations.changeCredentials)
       throw new RuntimeError("embedded_runtime_unavailable");

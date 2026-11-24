@@ -84,8 +84,19 @@ export type RuntimeBridge = {
   openLogs(): Promise<void>;
   openBackups(): Promise<void>;
   quit(): Promise<void>;
+  /**
+   * The owner's Continue when startup stops with
+   * `unprotected_storage_consent_required` (Linux without a secret store):
+   * save keys without system protection and carry on starting.
+   */
+  acceptUnprotectedStorage(): Promise<void>;
   onStatus(callback: (status: RuntimeStatus) => void): () => void;
 };
+/**
+ * What protects saved keys: the operating system's secret store, or, on a
+ * Linux desktop without one, only the vault file's permissions.
+ */
+export type CredentialStorage = { protection: "system" | "unprotected" };
 /**
  * One key change in a batch, for a built-in provider or a model connection;
  * an omitted value removes the saved key. A connection key is saved with the
@@ -109,6 +120,8 @@ export type CredentialsBridge = {
    * a restart. Returns every status; failed entries carry their own `error`.
    */
   apply(changes: CredentialChange[]): Promise<CredentialStatus[]>;
+  /** How saved keys are protected, for a notice where keys are entered. */
+  storage(): Promise<CredentialStorage>;
 };
 export const featurePackIds = ["expanded-included-content"] as const;
 export type FeaturePackId = (typeof featurePackIds)[number];

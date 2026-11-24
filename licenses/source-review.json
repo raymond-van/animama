@@ -20527,6 +20527,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/desktop/src/main-process/security/sandbox-guard.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/desktop/src/main-process/shortcuts/global-input-hook.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -20730,6 +20737,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/desktop/tests/linux-vault.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/desktop/tests/login-item.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -20899,6 +20913,13 @@
     },
     {
       "path": "src/frontend/desktop/tests/runtime-supervisor.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/tests/sandbox-guard.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

@@ -46,7 +46,8 @@
     "title": {
       "error": "Animama 需要處理",
       "updating": "正在安裝更新",
-      "stopping": "正在關閉 Animama"
+      "stopping": "正在關閉 Animama",
+      "consent": "你的金鑰將不受系統保護"
     },
     "status": {
       "preparing": "正在準備你的私人本機執行環境…",
@@ -66,18 +67,25 @@
       "retry": "重試",
       "openLogs": "開啟記錄檔",
       "openBackups": "開啟備份",
-      "quit": "結束"
+      "quit": "結束",
+      "continue": "繼續"
     },
     "snapshot": "快照：{{path}}",
     "actionFailed": "無法完成此動作。請開啟記錄檔，或在解決問題後結束並重新開啟 Animama。",
     "genericError": "無法完成啟動。請開啟記錄檔查看詳細資訊，解決問題後再重試。你的本機資料已保留。",
     "secureStorage": {
       "macos": "無法使用 macOS 安全儲存空間。請解鎖登入鑰匙圈並允許 Animama 存取，然後結束並重新開啟 Animama。",
-      "windows": "此帳號無法使用 Windows 受保護的儲存空間。請以你自己的帳號（而非暫時設定檔）登入 Windows 後重試。"
+      "windows": "此帳號無法使用 Windows 受保護的儲存空間。請以你自己的帳號（而非暫時設定檔）登入 Windows 後重試。",
+      "linux": "保護你金鑰的密鑰儲存服務已鎖定或未執行。請解鎖或啟動它（例如 GNOME Keyring、KeePassXC 或 KWallet），然後重試。你的資料未變更。"
     },
     "freshProfile": {
       "macos": "結束 Animama 並執行 pnpm desktop:mac:reset，封存此設定檔後重新開始",
-      "windows": "結束 Animama 並將 %LOCALAPPDATA%\\Animama 重新命名（例如改為 Animama.backup），保留此設定檔後重新開始"
+      "windows": "結束 Animama 並將 %LOCALAPPDATA%\\Animama 重新命名（例如改為 Animama.backup），保留此設定檔後重新開始",
+      "linux": "結束 Animama，並重新命名 Animama 資料夾（~/.local/share/Animama，例如改為 Animama.backup），以保留此設定檔並重新開始"
+    },
+    "sandbox": {
+      "title": "沒有沙箱，Animama 無法啟動",
+      "message": "Animama 是在關閉 Chromium 沙箱（--no-sandbox）的情況下啟動的。這通常是因為系統封鎖了非特權使用者命名空間（Ubuntu 23.10 及以上版本預設如此），AppImage 啟動器因此關閉了沙箱。Animama 不會在沒有沙箱的情況下執行網頁內容。請透過 AppArmor 設定檔允許 Animama 使用使用者命名空間，或設定 kernel.apparmor_restrict_unprivileged_userns=0，然後重新啟動 Animama。你的資料未變更。"
     },
     "advice": {
       "gateway_port_in_use": "已儲存的應用程式連接埠正被占用。請關閉使用該連接埠的其他應用程式後重試。你的資料未變更。",
@@ -98,7 +106,8 @@
       "update_install_timeout": "安裝程式未能及時完成。為了安全，服務會保持停止。請結束並重新開啟 Animama，或重新安裝已簽署的版本。請勿重設你的資料。",
       "owned_services_stop_failed": "部分 Animama 服務無法停止。更新前請再次結束或重新啟動電腦。你的資料已保留。",
       "database_schema_mismatch": "你的本機資料庫結構與此版本 Animama 預期的結構不符，因此在使用前已停止啟動。你的本機資料已保留，重試也不會改變此狀況。若是開發版本，請{{freshProfile}}。否則，請重新開啟建立此資料的 Animama 版本。",
-      "content_startup_failed": "Animama 無法協調其內容資源庫，因此停止啟動，而不是以不完整的狀態執行。你的本機資料已保留。請開啟記錄檔查看詳細資訊，然後重試。若開發版本持續在此失敗，請{{freshProfile}}。"
+      "content_startup_failed": "Animama 無法協調其內容資源庫，因此停止啟動，而不是以不完整的狀態執行。你的本機資料已保留。請開啟記錄檔查看詳細資訊，然後重試。若開發版本持續在此失敗，請{{freshProfile}}。",
+      "unprotected_storage_consent_required": "Animama 在此系統上找不到密鑰儲存服務。如果繼續，你的供應商金鑰和資料庫密碼將在沒有系統保護的情況下儲存：以此帳號執行的任何程式都能讀取它們。若要保護它們，請結束 Animama，啟動 GNOME Keyring、KeePassXC 或 KWallet 等密鑰儲存服務，然後重新開啟 Animama。此問題只會詢問一次。"
     }
   },
   "windows": {

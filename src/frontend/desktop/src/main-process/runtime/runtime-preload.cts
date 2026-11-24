@@ -19,6 +19,8 @@ export function createRuntimeBridge(): RuntimeBridge {
     openLogs: () => ipcRenderer.invoke("animama:runtime:open-logs"),
     openBackups: () => ipcRenderer.invoke("animama:runtime:open-backups"),
     quit: () => ipcRenderer.invoke("animama:runtime:quit"),
+    acceptUnprotectedStorage: () =>
+      ipcRenderer.invoke("animama:runtime:accept-unprotected-storage"),
     onStatus: (callback) => {
       const listener = (_event: IpcRendererEvent, status: RuntimeStatus) =>
         callback(status);
@@ -34,6 +36,7 @@ export function createCredentialsBridge(): CredentialsBridge {
     list: () => ipcRenderer.invoke("animama:credentials:list"),
     apply: (changes) =>
       ipcRenderer.invoke("animama:credentials:apply", changes),
+    storage: () => ipcRenderer.invoke("animama:credentials:storage"),
   };
 }
 export function createFeaturePacksBridge(): FeaturePacksBridge {
