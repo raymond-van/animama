@@ -58,7 +58,10 @@ export function desktopEntry({
   extra?: Record<string, string>;
 }): string {
   // A control character cannot be written on one line of a desktop entry.
-  if (!path.isAbsolute(exec) || /[\x00-\x1f\x7f]/u.test(exec))
+  if (
+    !path.isAbsolute(exec) ||
+    [exec, icon ?? ""].some((value) => /[\x00-\x1f\x7f]/u.test(value))
+  )
     throw new RuntimeError("desktop_entry_path_invalid");
   const quoted = `"${exec.replace(/%/gu, "%%").replace(/["`$\\]/gu, "\\$&")}"`;
   return [
@@ -66,7 +69,7 @@ export function desktopEntry({
     "Type=Application",
     `Name=${name}`,
     `Exec=${quoted.replace(/\\/gu, "\\\\")}`,
-    ...(icon ? [`Icon=${icon}`] : []),
+    ...(icon ? [`Icon=${icon.replace(/\\/gu, "\\\\")}`] : []),
     "Terminal=false",
     ...Object.entries(extra).map(([key, value]) => `${key}=${value}`),
     "",
@@ -118,8 +121,10 @@ function writeEntry(file: string, text: string): void {
  * Launch at login and the application-menu entry of a Linux AppImage. Both are
  * plain desktop entries naming the AppImage's own path, which the launcher
  * gives in `APPIMAGE`; nothing is installed. Each is available only to a
- * packaged app running from an AppImage, and each shows when the file it names
- * is no longer the running one.
+ * packaged app that runs from inside the launcher's mount (`APPDIR`): child
+ * processes inherit both variables, so an unpacked build started from another
+ * AppImage must not write an entry for that other file. Each shows when the
+ * file it names is no longer the running one.
  */
 export class LinuxDesktopEntries {
   private readonly appImage: string | undefined;
@@ -131,6 +136,8 @@ export class LinuxDesktopEntries {
   constructor({
     isPackaged,
     appImage,
+    appDir,
+    execPath,
     env,
     home,
     iconSource,
@@ -138,13 +145,22 @@ export class LinuxDesktopEntries {
     isPackaged: boolean;
     /** The running AppImage, from the launcher's `APPIMAGE` variable. */
     appImage: string | undefined;
+    /** Where the launcher mounted it, from `APPDIR`. */
+    appDir: string | undefined;
+    /** This process's executable, which a real AppImage run has inside `appDir`. */
+    execPath: string;
     env: NodeJS.ProcessEnv;
     home: string;
     /** The app icon shipped in the packaged resources. */
     iconSource: string;
   }) {
     this.appImage =
-      isPackaged && appImage && path.isAbsolute(appImage)
+      isPackaged &&
+      appImage &&
+      path.isAbsolute(appImage) &&
+      appDir &&
+      path.isAbsolute(appDir) &&
+      execPath.startsWith(`${appDir.replace(/\/+$/u, "")}/`)
         ? appImage
         : undefined;
     const name = `${DESKTOP_ENTRY_ID}.desktop`;
@@ -155,11 +171,8 @@ export class LinuxDesktopEntries {
       name,
     );
     this.menuFile = path.join(data, "applications", name);
-    this.iconFile = path.join(
-      data,
-      "icons/hicolor/512x512/apps",
-      `${DESKTOP_ENTRY_ID}.png`,
-    );
+    // Named by its path in the entry, so no theme size folder has to match.
+    this.iconFile = path.join(data, "icons", `${DESKTOP_ENTRY_ID}.png`);
     this.iconSource = iconSource;
   }
 
@@ -219,7 +232,7 @@ export class LinuxDesktopEntries {
         desktopEntry({
           name: "Animama",
           exec: appImage,
-          icon: DESKTOP_ENTRY_ID,
+          icon: this.iconFile,
           extra: { Categories: "Utility;", StartupWMClass: "Animama" },
         }),
       );

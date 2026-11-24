@@ -85,6 +85,24 @@ describe("Linux desktop entries", () => {
     ).toContain('Exec="/tmp/100%%done.AppImage"');
   });
 
+  it("refuses an icon path a desktop entry cannot carry", () => {
+    expect(() =>
+      desktopEntry({
+        name: "Animama",
+        exec: "/tmp/Animama.AppImage",
+        icon: "/tmp/icon\nExec=/bin/sh",
+      }),
+    ).toThrow("desktop_entry_path_invalid");
+    // A backslash is doubled, as in any desktop-entry string.
+    expect(
+      desktopEntry({
+        name: "Animama",
+        exec: "/tmp/Animama.AppImage",
+        icon: "/tmp/odd\\name.png",
+      }),
+    ).toContain("\nIcon=/tmp/odd\\\\name.png\n");
+  });
+
   it("carries an icon and extra keys when given", () => {
     const text = desktopEntry({
       name: "Animama",
@@ -121,6 +139,9 @@ describe("Linux desktop entries", () => {
 });
 
 describe("Linux autostart and application-menu entries", () => {
+  // The launcher mounts the AppImage and runs the app from inside the mount.
+  const mount = "/tmp/.mount_Animama";
+  const execPath = `${mount}/animama`;
   function entries(appImage: string | undefined, isPackaged = true) {
     const home = fixture();
     const icon = path.join(home, "resources-icon.png");
@@ -130,6 +151,8 @@ describe("Linux autostart and application-menu entries", () => {
       entries: new LinuxDesktopEntries({
         isPackaged,
         appImage,
+        appDir: mount,
+        execPath,
         env: {},
         home,
         iconSource: icon,
@@ -142,10 +165,7 @@ describe("Linux autostart and application-menu entries", () => {
         home,
         ".local/share/applications/com.animama.desktop.desktop",
       ),
-      icon: path.join(
-        home,
-        ".local/share/icons/hicolor/512x512/apps/com.animama.desktop.png",
-      ),
+      icon: path.join(home, ".local/share/icons/com.animama.desktop.png"),
     };
   }
 
@@ -159,6 +179,35 @@ describe("Linux autostart and application-menu entries", () => {
       expect(() => current.setLoginItem(true)).toThrow("feature_unavailable");
       expect(() => current.setMenuEntry(true)).toThrow("feature_unavailable");
     }
+  });
+
+  it("is unavailable to an app that only inherited another AppImage's variables", () => {
+    // A terminal or editor that is itself an AppImage passes APPIMAGE and
+    // APPDIR on to everything it starts, including an unpacked Animama.
+    const home = fixture();
+    const inherited = new LinuxDesktopEntries({
+      isPackaged: true,
+      appImage: "/apps/SomeEditor.AppImage",
+      appDir: "/tmp/.mount_Editor",
+      execPath: "/home/owner/animama/release/linux-unpacked/animama",
+      env: {},
+      home,
+      iconSource: path.join(home, "icon.png"),
+    });
+    expect(inherited.loginItem()).toEqual({ available: false });
+    expect(inherited.menuEntry()).toEqual({ available: false });
+    expect(() => inherited.setMenuEntry(true)).toThrow("feature_unavailable");
+    // A sibling folder that merely starts with the mount's name is not it.
+    const sibling = new LinuxDesktopEntries({
+      isPackaged: true,
+      appImage: "/apps/Animama.AppImage",
+      appDir: "/tmp/.mount_Animama",
+      execPath: "/tmp/.mount_AnimamaOther/animama",
+      env: {},
+      home,
+      iconSource: path.join(home, "icon.png"),
+    });
+    expect(sibling.menuEntry()).toEqual({ available: false });
   });
 
   it("turns Launch at login on and off through an autostart entry", () => {
@@ -226,7 +275,8 @@ describe("Linux autostart and application-menu entries", () => {
     });
     const text = readFileSync(current.menu, "utf8");
     expect(entryTarget(text)).toBe("/apps/Animama.AppImage");
-    expect(text).toContain("\nIcon=com.animama.desktop\n");
+    // The icon is named by its path, so no icon theme or size folder matters.
+    expect(text).toContain(`\nIcon=${current.icon}\n`);
     expect(text).not.toContain("--no-sandbox");
     expect(readFileSync(current.icon, "utf8")).toBe("png-bytes");
     expect(current.entries.setMenuEntry(false)).toMatchObject({
@@ -265,6 +315,8 @@ describe("Linux autostart and application-menu entries", () => {
     const current = new LinuxDesktopEntries({
       isPackaged: true,
       appImage: "/apps/Animama.AppImage",
+      appDir: mount,
+      execPath,
       env: { XDG_CONFIG_HOME: config, XDG_DATA_HOME: data },
       home,
       iconSource: path.join(home, "missing-icon.png"),

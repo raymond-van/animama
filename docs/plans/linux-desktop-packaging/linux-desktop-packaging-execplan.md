@@ -158,9 +158,14 @@ specifications.
 - [ ] Phase 3: credential storage and the sandbox. Implemented from
       `c42246a40`; phase checks pass; review #1 found two required and five
       optional items; repairs made, recheck #2 pending.
-- [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Implemented
-      from `9a3bc9171`; phase checks pass; review pending. The owner accepted
-      PD10 with the plan.
+- 2026-11-24, whole desktop suite in a one-off Linux container at
+  `4f8a9f8c1` (`node:24-bookworm`, aarch64, gcc 12.2, glibc 2.36; not the
+  reference system): 46 files passed, 2 skipped; 748 tests passed, 29
+  skipped.
+- [x] Phase 4: desktop integration (R9, R10, R11 wording, R14). Implemented
+      from `9a3bc9171`; phase checks pass; review #1 passed with six optional
+      items, four of them applied. The owner accepted PD10 with the plan. The
+      full pre-push suite has not been run.
 - [ ] Phase 5: stage, audit and package tooling. Not started.
 - [ ] Phase 6: Press to talk on X11. Not started; needs the owner's
       feasibility decision.
@@ -939,6 +944,55 @@ Not run: the full pre-push suite, including the rest of `pnpm web:test`, by
 the owner's standing instruction; anything on Linux. No desktop entry has
 been read by a real session, and no window has been driven.
 
+#### Code Review #1 Findings
+
+Reviewed source: commit `314114dec` against `9a3bc9171`. Standard tier: one
+analysis reviewer, reusing the check record. Result: pass, no blocking
+finding.
+
+- **P4-F1 (optional).** Availability trusted `APPIMAGE` alone, which child
+  processes inherit. An unpacked build started from a terminal that is
+  itself an AppImage would write an entry for that other file.
+- **P4-F2 (optional).** Status reads only `Exec`, so an autostart file that a
+  desktop's own tool disabled in place still shows as on.
+- **P4-F3 (optional).** The icon went under `hicolor/512x512`, but
+  `build/icon.png` is 1024 pixels square.
+- **P4-F4 (optional).** The PiP and Quick Chat documents still say Linux has
+  no click-through, and give i3's sticky windows as the reason. Phase 7 owns
+  the documents; G4 should check the toolbar after a workspace switch and
+  Quick Chat typing under focus-follows-mouse.
+- **P4-F5 (optional).** `useDesktopMenuEntry` duplicated
+  `useDesktopLoginItem`.
+- **P4-F6 (optional).** The repoint button unmounts while focused, so
+  keyboard focus leaves the row.
+
+Confirmed sound: the `Exec` quoting, simulated in both parse orders on 17
+hostile paths, each giving exactly one argument equal to the path; the entry
+files' modes and atomic replace; the IPC argument checks; that nothing in
+either window manager depends on forwarded mouse moves; C7.
+
+#### Code Review #1 Revisions
+
+- **P4-F1: accepted.** Entries are available only when this process's
+  executable lies inside `APPDIR`, with a test for an inherited variable.
+- **P4-F2: not changed.** R10 asks for the moved-file state only. G4 records
+  what the reference session's own tools do to the file.
+- **P4-F3: accepted.** The icon is copied to
+  `$XDG_DATA_HOME/icons/com.animama.desktop.png` and the entry names it by
+  path, so no theme size folder has to match. An icon path with a control
+  character is refused like an `Exec` path.
+- **P4-F4: accepted for G4**, which now names both checks.
+- **P4-F5: accepted.** Both hooks use `useDesktopSwitchSetting`.
+- **P4-F6: accepted.** Focus moves to the switch after a repoint.
+
+Repair check (macOS arm64, working directory `src/frontend`, worktree with
+the repairs staged): `pnpm desktop:test` passes with 46 files passed, 2
+skipped; 763 tests passed, 16 skipped; `pnpm check` and `pnpm prettier:check`
+pass; `pnpm exec vitest run src/ui/settings src/hooks` from `web` passes with
+38 files, 355 tests. The repairs are small and tested; no reviewer recheck
+was run, as the standard tier allows for a fix whose test is rerun. The
+final integration review covers them.
+
 ### Phase 5: stage, audit and package tooling
 
 Review tier: high risk. Build, packaging and audit code.
@@ -1093,9 +1147,13 @@ R14.
 
 1. Press to talk held from another application, with a key and with a mouse
    button.
-2. Click-through on PiP and Quick Chat, with close, drag and resize.
+2. Click-through on PiP and Quick Chat, with close, drag and resize. Repeat
+   the toolbar checks after switching workspace, and type in Quick Chat with
+   the pointer moved off the input onto the pass-through area (i3 focuses
+   the window under the pointer).
 3. Launch at login: on, log out and in, moved file, off. Record whether the
-   session's i3 configuration runs an autostart helper.
+   session's i3 configuration runs an autostart helper, and what the
+   desktop's own autostart tool, if any, does to the entry file.
 4. Menu entry: on, launch from the desktop's launcher, moved file and
    repoint, off.
 

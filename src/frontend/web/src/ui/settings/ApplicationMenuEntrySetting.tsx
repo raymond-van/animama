@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -19,13 +20,11 @@ export function ApplicationMenuEntrySetting({
 }) {
   const { t } = useTranslation("settings");
   const { status, pending, setEnabled } = menuEntry;
+  const switchRef = useRef<HTMLButtonElement>(null);
   if (!status.available) return null;
   const label = t("menuEntry.label");
-  const change = (enabled: boolean) => {
-    void setEnabled(enabled).catch(() =>
-      toast.error(t("menuEntry.updateFailed")),
-    );
-  };
+  const change = (enabled: boolean) =>
+    setEnabled(enabled).catch(() => toast.error(t("menuEntry.updateFailed")));
 
   return (
     <SettingsRow
@@ -41,16 +40,21 @@ export function ApplicationMenuEntrySetting({
               size="sm"
               variant="outline"
               disabled={pending}
-              onClick={() => change(true)}
+              onClick={() => {
+                // The button leaves once the entry is current; keep keyboard
+                // focus in this row.
+                void change(true).then(() => switchRef.current?.focus());
+              }}
             >
               {t("menuEntry.repoint")}
             </Button>
           ) : null}
           <Switch
+            ref={switchRef}
             checked={status.enabled}
             disabled={pending}
             aria-label={label}
-            onCheckedChange={change}
+            onCheckedChange={(checked) => void change(checked)}
           />
         </div>
       }

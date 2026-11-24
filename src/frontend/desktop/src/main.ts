@@ -437,6 +437,8 @@ else {
       ? new LinuxDesktopEntries({
           isPackaged: app.isPackaged,
           appImage: process.env.APPIMAGE,
+          appDir: process.env.APPDIR,
+          execPath: process.execPath,
           env: process.env,
           home: app.getPath("home"),
           iconSource: join(process.resourcesPath, "icon.png"),
