@@ -1,0 +1,50 @@
+{
+  "schema": "animama-native-components/1",
+  "target": "linux-x64",
+  "minimum_os": "glibc",
+  "toolchain": { "cc": "gcc" },
+  "postgresql": {
+    "version": "16.15",
+    "url": "https://ftp.postgresql.org/pub/source/v16.15/postgresql-16.15.tar.bz2",
+    "sha256": "c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed",
+    "checksum_url": "https://ftp.postgresql.org/pub/source/v16.15/postgresql-16.15.tar.bz2.sha256",
+    "license": "PostgreSQL",
+    "license_file": "COPYRIGHT",
+    "configure": [
+      "--without-icu",
+      "--without-readline",
+      "--without-zlib",
+      "--without-gssapi",
+      "--disable-nls",
+      "--disable-rpath"
+    ],
+    "cflags": "-O2",
+    "ldflags": "-Wl,-rpath,'$$ORIGIN/../lib'"
+  },
+  "pgvector": {
+    "version": "0.8.6",
+    "url": "https://github.com/pgvector/pgvector/archive/refs/tags/v0.8.6.tar.gz",
+    "sha256": "10bf9938906e5d643bbc4a7eea104b6f57ba4898e5b76b20e60484ea1d5a7f8f",
+    "license": "PostgreSQL",
+    "license_file": "LICENSE",
+    "make": ["OPTFLAGS=", "CFLAGS=-O2 -fPIC -fno-strict-aliasing -fwrapv"]
+  },
+  "executables": [
+    "initdb",
+    "pg_ctl",
+    "pg_dump",
+    "pg_isready",
+    "pg_restore",
+    "postgres"
+  ],
+  "extensions": ["pg_trgm", "vector"],
+  "system_libraries": [
+    "ld-linux-x86-64.so.2",
+    "libc.so.6",
+    "libm.so.6",
+    "libX11.so.6",
+    "libXi.so.6",
+    "libstdc++.so.6",
+    "libgcc_s.so.1"
+  ]
+}

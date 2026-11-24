@@ -12,6 +12,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { buildPostgresLinux } from "./native-linux.mjs";
 import { buildPostgresWindows } from "./native-windows.mjs";
 
 // Configure-time paths are compiled into PostgreSQL. Build against this neutral
@@ -23,9 +24,9 @@ const INSTALL_PREFIX = "/opt/animama";
 const installedRoot = (work) => path.join(work, "destdir", INSTALL_PREFIX);
 
 export function buildPostgres(target) {
-  return target.platform === "win32"
-    ? buildPostgresWindows(target)
-    : buildPostgresMacos(target);
+  if (target.platform === "win32") return buildPostgresWindows(target);
+  if (target.platform === "linux") return buildPostgresLinux(target);
+  return buildPostgresMacos(target);
 }
 
 /** Build pinned sources with the Xcode toolchain, never a Homebrew database. */

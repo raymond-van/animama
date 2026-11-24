@@ -155,9 +155,11 @@ specifications.
       pass; review #1 found five required and five optional items, all
       dispositioned; recheck #2 passed. The full pre-push suite has not been
       run.
-- [ ] Phase 3: credential storage and the sandbox. Implemented from
+- [x] Phase 3: credential storage and the sandbox. Implemented from
       `c42246a40`; phase checks pass; review #1 found two required and five
-      optional items; repairs made, recheck #2 pending.
+      optional items; recheck #2 found one of them unresolved; recheck #3
+      passed after the second and last repair round. The full pre-push suite
+      has not been run.
 - 2026-11-24, whole desktop suite in a one-off Linux container at
   `4f8a9f8c1` (`node:24-bookworm`, aarch64, gcc 12.2, glibc 2.36; not the
   reference system): 46 files passed, 2 skipped; 748 tests passed, 29
@@ -166,7 +168,10 @@ specifications.
       from `9a3bc9171`; phase checks pass; review #1 passed with six optional
       items, four of them applied. The owner accepted PD10 with the plan. The
       full pre-push suite has not been run.
-- [ ] Phase 5: stage, audit and package tooling. Not started.
+- [ ] Phase 5: stage, audit and package tooling. Implemented from
+      `3eed0188d`; phase checks pass; review pending. Unit-tested on macOS;
+      the PostgreSQL build, the guard build and the ELF audit also ran in a
+      Linux container. No stage, audit or package has run.
 - [ ] Phase 6: Press to talk on X11. Not started; needs the owner's
       feasibility decision.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
@@ -886,6 +891,31 @@ which also held unstaged Phase 5 files that no test below reads):
 
 Repair budget: two of two rounds used.
 
+#### Code Review #3 Findings
+
+Final targeted recheck of commit `3eed0188d`. Result: pass.
+
+- P3-F1 resolved. The reviewer listed every key field in the web app: the
+  credentials panel (alone and hosted with a description in five places),
+  the connection dialog and the web search settings. Each shows the warning
+  and no "encrypted" sentence when the vault is unprotected. `product-ui`
+  has no key field.
+- The guard test fails when the fix is reverted and names the file. It
+  misses an aliased translator or a namespaced key, and it covers only
+  `keys.encrypted`.
+- With `quitting` set, a failed message cannot reach the recovery window.
+- Reran on an export of the commit: the panel, model and web search web
+  tests (7 files, 135 tests), `pnpm desktop:test` (46 files passed, 2
+  skipped; 763 passed, 16 skipped) and `pnpm check`.
+- Noted, outside this round: while the protection status is loading, or if
+  that call fails, the note shows the usual sentence.
+
+#### Code Review #3 Revisions
+
+None. The loading-state note is left as a known limit: protection is read
+once per window, the sentence shows for one render, and a failed call cannot
+tell which sentence is true.
+
 ### Phase 4: desktop integration
 
 Review tier: standard. New settings and window behavior with no change to a
@@ -1089,7 +1119,76 @@ directory.
 Completion: the checks pass, the review finds no open blocker, and the phase
 record lists each step as "unit-tested, not yet run on Linux".
 
-Check record: none yet.
+Starting source: `3eed0188d`.
+
+Results, by step:
+
+1. `runtime/native-components.linux-x64.lock.json`. Its `ldflags` use
+   `$$ORIGIN`, which make turns into `$ORIGIN`.
+2. `scripts/runtime/linux-platform.mjs`: `isElf`, `regularFiles`,
+   `requiredGlibc`, `dynamicEntries`, `measureMinimumOs`.
+3. `auditLinuxStage` and `compiledOnLinux` in the same module; `audit.mjs`
+   has the Linux branch, the Electron binary path and the minimum check.
+   Changed from the plan: a run path outside the stage is refused for the
+   files this build compiles and for any file when it points at a
+   build-machine folder; a system run path on a library copied from the
+   system is recorded, not refused, because the frozen backend may carry
+   such libraries.
+4. `scripts/runtime/native-linux.mjs`: `buildPostgresLinux` and
+   `linuxPostgresClosure`.
+5. `process-guard.mjs` builds the Linux guard with hardening flags.
+6. `stage.mjs` builds the guard on Windows and Linux and writes the measured
+   minimum. Read, no change needed: `licenses.mjs` (the Linux guard falls
+   under the first-party default), `measure.mjs` and `size.mjs` (a target
+   without a baseline is held to the hard caps), and the PyInstaller spec
+   (no macOS-only setting applies off macOS).
+7. `electron-builder.yml` (`toolsets.appimage`, `executableName`,
+   `executableArgs: []`, the runtime and icon resources);
+   `package-development.mjs` is now `developmentPackage()` plus a `main()`
+   that runs only as a script, and checks the AppImage's own desktop entry;
+   `pack:linux`, `build:linux`, `desktop:linux:build`. `dist:linux` is gone.
+8. `test-runtime-termination-linux.mjs` and a dispatcher. Unlike the Windows
+   harness it does not require the worker's exit code to be zero, which a
+   SIGINT stop may not give; G2 records what it is.
+
+Test order: the tests for steps 1–5 and 7 were written with the code, not
+before it. Steps 6 and 8 have no unit test: they are wiring and a host-only
+harness.
+
+Check record (2026-11-24, macOS arm64 host; export of the staged tree,
+`git archive e672fb867b34`; working directory `src/frontend`):
+
+| Command | Result | Tree |
+| --- | --- | --- |
+| `pnpm desktop:test` | Pass: 47 files passed, 2 skipped; 780 tests passed, 16 skipped | `e672fb867b34` |
+| `pnpm desktop:check` | Pass | `e672fb867b34` |
+| `pnpm desktop:build` | Pass | `e672fb867b34` |
+| `pnpm prettier:check` | Pass | `e672fb867b34` |
+| `python3 scripts/public-release/check_source.py` (repository root, worktree index) | Pass | `e672fb867b34` |
+
+Linux container run (2026-11-24, `node:24-bookworm`, aarch64, gcc 12.2,
+glibc 2.36; not the target architecture and not the reference system). A
+scratch driver called the new code directly, because `parseTarget` rightly
+refuses that host:
+
+- `buildPostgresLinux` configured, built and staged PostgreSQL 16.15 and
+  pgvector 0.8.6. The staged closure is the six programs, `libpq.so.5`, the
+  two extensions, PL/pgSQL, the snowball dictionary and the encoding
+  conversions.
+- Every program carries the run path `$ORIGIN/../lib` and needs only libc,
+  libm and the staged libpq.
+- `buildProcessGuard` compiled the guard with its hardening flags.
+- `auditLinuxStage` passed on the 36 ELF files and measured `glibc-2.34`,
+  the same value `measureMinimumOs` gave.
+- `initdb` created a cluster; `pg_isready` run through the guard printed the
+  handshake and then its answer; `pg_dump` connected with the password; in
+  single-user mode `CREATE EXTENSION vector` and `pg_trgm` succeeded and
+  reported 0.8.6 and 1.6.
+
+Not run: the full pre-push suite, by the owner's standing instruction;
+`runtime:stage`, `runtime:audit` and `pack:linux` anywhere; the frozen
+backend build, the web build, electron-builder and its AppImage toolset on
+Linux; the termination harness. Those are G1 and G2.
 
 ### Phase 6: Press to talk on X11
 

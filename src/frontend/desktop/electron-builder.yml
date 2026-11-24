@@ -30,6 +30,10 @@ electronFuses:
   resetAdHocDarwinSignature: true
 extraMetadata:
   main: dist/main.js
+# The static AppImage launcher needs no FUSE 2 library on the user's system,
+# only the `fusermount` helper. electron-builder labels this toolset beta.
+toolsets:
+  appimage: "1.0.3"
 # App icons come from the brand mark; regenerate them with `pnpm desktop:icons`.
 linux:
   icon: build/icon.png
@@ -37,6 +41,18 @@ linux:
     - AppImage
   category: Utility
   artifactName: ${productName}-${version}-${arch}.${ext}
+  executableName: animama
+  # electron-builder would otherwise write `--no-sandbox` into the AppImage's
+  # own desktop entry; the app refuses to run that way.
+  executableArgs: []
+  extraResources:
+    - from: .desktop-runtime/linux-x64/runtime
+      to: runtime
+      filter:
+        - "**/*"
+    # The application-menu entry the app can add copies this icon.
+    - from: build/icon.png
+      to: icon.png
 mac:
   icon: build/icon.icns
   category: public.app-category.utilities

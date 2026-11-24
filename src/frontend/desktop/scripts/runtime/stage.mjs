@@ -36,6 +36,7 @@ import { writeRedistributionReview } from "./review-packet.mjs";
 import { importBundledTool } from "./bundled-tool.mjs";
 import { sealReleaseModelManifests } from "./release-models.mjs";
 import { buildProcessGuard } from "./process-guard.mjs";
+import { measureMinimumOs } from "./linux-platform.mjs";
 import { PRIVATE_PACKS, stagePack } from "./private-packs.mjs";
 
 const target = parseTarget();
@@ -92,7 +93,8 @@ try {
     path.join(desktopRoot, "scripts/runtime/native-build.mjs"),
     ...args,
   ]);
-  if (target.platform === "win32") buildProcessGuard(target);
+  // macOS has no guard: its services are started directly.
+  if (target.platform !== "darwin") buildProcessGuard(target);
   logged(
     "backend-build",
     buildPython(),
@@ -199,7 +201,16 @@ try {
     build_id: inventoryId(inventory),
     platform: target.platform,
     architecture: target.arch,
-    minimum_os: native.minimum_os,
+    // Linux has no pinned minimum: it is whatever C library the staged
+    // binaries, Electron's included, turned out to need on this machine.
+    minimum_os:
+      target.platform === "linux"
+        ? measureMinimumOs([
+            target.runtime,
+            path.join(target.output, "app"),
+            path.join(target.output, "electron"),
+          ])
+        : native.minimum_os,
     postgresql: {
       major: 16,
       version: native.postgresql.version,
