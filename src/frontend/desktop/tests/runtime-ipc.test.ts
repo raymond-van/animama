@@ -698,17 +698,19 @@ describe("independent runtime recovery page", () => {
     expect(page.element("#detail").hidden).toBe(false);
   });
 
-  it("explains a missing or locked secret store on Linux and allows Retry", async () => {
+  it("explains a missing or locked secret store on Linux and asks for a restart", async () => {
     const page = await loadRuntimePage(
       "data:text/html,recovery",
       "recovery",
       createRuntimePage(shellStrings("en"), "linux"),
     );
     page.render({ state: "error", code: "secure_storage_unavailable" });
-    expect(String(page.element("#message").textContent)).toMatch(
-      /secret store .* (locked|not running)/iu,
-    );
-    expect(page.element("#retry").hidden).toBe(false);
+    const message = String(page.element("#message").textContent);
+    expect(message).toMatch(/secret store .* (locked|not running)/iu);
+    // Electron fixes where its key comes from when it starts, so only a new
+    // launch can find a store that was started or unlocked meanwhile.
+    expect(message).toMatch(/quit and reopen Animama/iu);
+    expect(page.element("#retry").hidden).toBe(true);
     expect(page.element("#continue").hidden).toBe(true);
   });
 

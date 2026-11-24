@@ -137,9 +137,39 @@ function useDesktopCredentialStorage(enabled: boolean) {
   });
 }
 
-/** Cached beside the key statuses, so one invalidation refreshes both. */
+/**
+ * Cached under the same owner as the key statuses. Protection is settled when
+ * the app starts, so saving a key does not refresh it.
+ */
 export const desktopCredentialStorageKey = (ownerId: string) =>
   [...queryKeys.desktopCredentials.all(ownerId), "storage"] as const;
+
+/**
+ * The line by a key field that says how the key is kept. `children` is the
+ * host's usual sentence ("Encrypted on this computer…"); on a Linux desktop
+ * without a secret store that would be false, so the warning replaces it.
+ */
+export function DesktopKeyStorageNote({
+  children,
+  className,
+}: {
+  children?: ReactNode;
+  className?: string;
+}) {
+  const { t } = useTranslation("models");
+  const available = useDesktopCredentialsAvailable();
+  const unprotected =
+    useDesktopCredentialStorage(available).data?.protection === "unprotected";
+  if (unprotected)
+    return (
+      <p role="note" className="text-destructive text-sm">
+        {t("credentials.unprotected")}
+      </p>
+    );
+  return children === undefined || children === null ? null : (
+    <p className={className}>{children}</p>
+  );
+}
 
 /**
  * Whether a provider key is saved, from the same shared status as the key
@@ -294,18 +324,19 @@ export function DesktopCredentialsPanel({
               </span>
             </h3>
           ) : null}
-          {description === undefined && !unprotected ? (
-            <p className="text-muted-foreground text-sm">
-              {t("credentials.description")}
-            </p>
-          ) : description !== undefined && description !== null ? (
-            <p className="text-muted-foreground text-xs">{description}</p>
-          ) : null}
-          {unprotected ? (
-            <p role="note" className="text-destructive text-sm">
-              {t("credentials.unprotected")}
-            </p>
-          ) : null}
+          {/* Every description, the default and a host's own, says the keys
+              are encrypted; the note replaces it when that is not so. */}
+          <DesktopKeyStorageNote
+            className={
+              description === undefined
+                ? "text-muted-foreground text-sm"
+                : "text-muted-foreground text-xs"
+            }
+          >
+            {description === undefined
+              ? t("credentials.description")
+              : description}
+          </DesktopKeyStorageNote>
         </div>
       ) : null}
       <div className="divide-border/60 divide-y">

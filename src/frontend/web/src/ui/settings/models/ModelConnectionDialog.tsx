@@ -51,7 +51,10 @@ import type {
   CredentialsBridge,
 } from "../../../../../shared/desktop-runtime";
 import { credentialTarget } from "../../../../../shared/desktop-runtime";
-import type { DesktopCredentialsController } from "@/ui/settings/DesktopCredentialsPanel";
+import {
+  DesktopKeyStorageNote,
+  type DesktopCredentialsController,
+} from "@/ui/settings/DesktopCredentialsPanel";
 import {
   applyCredentialChanges,
   credentialFailureMessage,
@@ -525,7 +528,9 @@ function ModelConnectionFields({
               {t("connectionForm.keyForAnotherAddress")}
             </p>
           ) : null}
-          <p className="text-muted-foreground text-xs">{t("keys.encrypted")}</p>
+          <DesktopKeyStorageNote className="text-muted-foreground text-xs">
+            {t("keys.encrypted")}
+          </DesktopKeyStorageNote>
         </div>
       ) : (
         <div className="space-y-2">

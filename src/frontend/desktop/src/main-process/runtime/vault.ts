@@ -89,18 +89,22 @@ function underSecretStore(ciphertext: Buffer): boolean {
  * desktop's name and uses its built-in key on any desktop it does not know,
  * such as i3, Sway or Hyprland, even when a Secret Service is running. Naming
  * the Secret Service makes a running one count everywhere. KDE keeps Electron's
- * own KWallet choice, and a switch the user passed is left alone.
+ * own KWallet choice: Chromium recognises KDE from `XDG_CURRENT_DESKTOP`,
+ * `DESKTOP_SESSION` or `KDE_FULL_SESSION`, and a vault keyed by KWallet must
+ * not be opened with another store's key. A switch the user passed is left
+ * alone; `hasSwitch` is Chromium's own parser.
  */
 export function linuxPasswordStore(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
-  argv: readonly string[],
+  hasSwitch: (name: string) => boolean,
 ): string | undefined {
-  if (platform !== "linux") return undefined;
-  if (argv.some((arg) => /^--password-store(?:=|$)/u.test(arg)))
-    return undefined;
-  const desktops = (env.XDG_CURRENT_DESKTOP ?? "").toLowerCase().split(":");
-  return desktops.includes("kde") ? undefined : "gnome-libsecret";
+  if (platform !== "linux" || hasSwitch("password-store")) return undefined;
+  const kde =
+    (env.XDG_CURRENT_DESKTOP ?? "").toLowerCase().split(":").includes("kde") ||
+    /kde|plasma/iu.test(env.DESKTOP_SESSION ?? "") ||
+    Boolean(env.KDE_FULL_SESSION);
+  return kde ? undefined : "gnome-libsecret";
 }
 
 /** What would protect a value encrypted now (Linux). */

@@ -155,7 +155,8 @@ specifications.
       pass; review #1 found five required and five optional items; repairs
       made, recheck #2 pending.
 - [ ] Phase 3: credential storage and the sandbox. Implemented from
-      `c42246a40`; phase checks pass; review pending.
+      `c42246a40`; phase checks pass; review #1 found two required and five
+      optional items; repairs made, recheck #2 pending.
 - [ ] Phase 4: desktop integration (R9, R10, R11 wording, R14). Implemented
       from `9a3bc9171`; phase checks pass; review pending. The owner accepted
       PD10 with the plan.
@@ -747,6 +748,71 @@ Not run: the full pre-push suite, including the rest of `pnpm web:test`, by
 the owner's standing instruction; anything on Linux. No real secret store,
 `--password-store` switch or message box has been exercised.
 
+#### Code Review #1 Findings
+
+Reviewed source: commit `6765c0e37` against `c42246a40`. High-risk tier: one
+analysis reviewer and one checks reviewer.
+
+Checks reviewer, on an export of the commit: `pnpm desktop:test` (45 files
+passed, 2 skipped; 733 passed, 16 skipped), `pnpm check`,
+`pnpm desktop:build`, the settings web tests (18 files, 208 tests), the four
+Phase 3 desktop test files (110 tests) and the i18n type check all pass and
+match the record.
+
+Analysis reviewer:
+
+- **P3-F1 (required).** The model-connection dialog has its own key field,
+  which showed no notice and still said "Encrypted on this computer" when the
+  vault is unprotected. Panels given their own description kept the same
+  sentence above the notice.
+- **P3-F2 (required).** `secure_storage_unavailable` on Linux offered Retry
+  and said "then retry", but Electron settles where its key comes from when
+  it starts, so Retry in the same process would loop.
+- **P3-F3 (optional).** If showing the sandbox message threw, the exit was
+  skipped and the unsandboxed app went on to open its recovery window.
+- **P3-F4 (optional).** The `--password-store` check missed Chromium's
+  single-dash spelling, and KDE was recognised from `XDG_CURRENT_DESKTOP`
+  only, where Chromium also reads `DESKTOP_SESSION` and `KDE_FULL_SESSION`.
+- **P3-F5 (optional).** A comment claimed one invalidation refreshes both
+  the key statuses and the protection status; it does not.
+- **P3-F6 (optional, owner's call).** `--single-process` and
+  `--in-process-gpu` also run content outside the sandbox and were not
+  refused.
+- **P3-F7 (optional).** This plan's recovery section still listed a consent
+  record file.
+
+Reviewed without finding: every combination of store, vault, database and
+consent in the gate; the switch timing; the IPC caller and arity checks; the
+startup page's state changes; the guard's placement; the translations; C7.
+The reviewer found `ELECTRON_DISABLE_SANDBOX` in the Electron binary and
+expects it to appear as the `no-sandbox` switch.
+
+#### Code Review #1 Revisions
+
+- **P3-F1: accepted.** `DesktopKeyStorageNote` shows the host's sentence, or
+  the warning in its place when the vault is unprotected. The panel uses it
+  for the default and for any host description, and the connection dialog
+  uses it under its key field. That covers every "encrypted" sentence in the
+  web catalogs.
+- **P3-F2: accepted.** On Linux the code has no Retry, and its text in five
+  locales says to quit and reopen.
+- **P3-F3: accepted.** The exit is in a `finally`.
+- **P3-F4: accepted.** `linuxPasswordStore` asks Chromium's own switch parser
+  and recognises KDE from all three variables.
+- **P3-F5: accepted.** Comment corrected.
+- **P3-F6: accepted.** Both switches are refused. The message still names
+  `--no-sandbox`, the case the launcher produces.
+- **P3-F7: accepted.** Recovery section corrected.
+- G2 step 4 now also starts the AppImage with `ELECTRON_DISABLE_SANDBOX=1`.
+
+Repair check (macOS arm64, working directory `src/frontend`, in the worktree
+with the repairs staged): `pnpm desktop:test` passes with 46 files passed, 2
+skipped; 761 tests passed, 16 skipped; `pnpm check` and `pnpm prettier:check`
+pass; `pnpm exec vitest run src/ui/settings` from `web` passes with 20 files,
+213 tests. Each repair's test was seen failing first.
+
+Repair budget: one of two rounds used.
+
 ### Phase 4: desktop integration
 
 Review tier: standard. New settings and window behavior with no change to a
@@ -978,8 +1044,8 @@ result. They carry no personal data, host names or home paths.
    detached AppImage mount makes their images read differently from the
    record.
 4. Confirm the renderers run sandboxed. Start the AppImage with
-   `--no-sandbox` and record the message, the exit and that no service
-   started.
+   `--no-sandbox`, and again with `ELECTRON_DISABLE_SANDBOX=1`, and record
+   the message, the exit and that no service started.
 5. On i3: PiP floating, workspaces and transparency with and without a
    compositor; Quick Chat from its shortcut; one-shot global shortcuts.
 
@@ -1070,9 +1136,9 @@ no Windows behavior is claimed from the macOS host.
   root holds caches that are safe to delete.
 - The app's data directory is never touched by a build. Gate checks use
   fresh data directories, and the receipts say which.
-- The consent record, the autostart entry, the menu entry and its icon are
-  single files that the app removes through its own settings and that are
-  safe to delete by hand.
+- The autostart entry, the menu entry and its icon are single files that the
+  app removes through its own settings and that are safe to delete by hand.
+  Consent to unprotected storage leaves no file of its own.
 - Nothing is published, signed or uploaded by any step in this plan.
 
 ## Outcomes & Retrospective

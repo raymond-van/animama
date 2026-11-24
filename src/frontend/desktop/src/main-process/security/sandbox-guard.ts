@@ -1,10 +1,15 @@
 import type { ShellKey } from "../locale/shell-locale.js";
 
-/** Chromium switches that turn all or part of its sandbox off. */
+/**
+ * Chromium switches that turn all or part of its sandbox off, or run web
+ * content or the GPU inside the unsandboxed main process.
+ */
 const SANDBOX_SWITCHES = [
   "no-sandbox",
   "disable-gpu-sandbox",
   "disable-seccomp-filter-sandbox",
+  "single-process",
+  "in-process-gpu",
 ];
 
 type Launch = {
@@ -44,7 +49,11 @@ export function refuseDisabledSandbox({
   exit(code: number): void;
 }): boolean {
   if (!sandboxDisabled(launch)) return false;
-  show(text("startup.sandbox.title"), text("startup.sandbox.message"));
-  exit(1);
+  try {
+    show(text("startup.sandbox.title"), text("startup.sandbox.message"));
+  } finally {
+    // Whatever happened to the message, nothing opens in this process.
+    exit(1);
+  }
   return true;
 }

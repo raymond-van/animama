@@ -15,6 +15,9 @@ describe("packaged Linux sandbox guard", () => {
     "no-sandbox",
     "disable-gpu-sandbox",
     "disable-seccomp-filter-sandbox",
+    // These run web content or the GPU inside the unsandboxed main process.
+    "single-process",
+    "in-process-gpu",
   ])("refuses a packaged Linux app started with --%s", (name) => {
     expect(
       sandboxDisabled({
@@ -74,6 +77,24 @@ describe("packaged Linux sandbox guard", () => {
     expect(show.mock.invocationCallOrder[0]).toBeLessThan(
       exit.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("still exits when the message cannot be shown", () => {
+    const exit = vi.fn();
+    expect(() =>
+      refuseDisabledSandbox({
+        isPackaged: true,
+        platform: "linux",
+        hasSwitch: withSwitches("no-sandbox"),
+        text: (key) => key,
+        show: () => {
+          throw new Error("no display");
+        },
+        exit,
+      }),
+    ).toThrow("no display");
+    // Nothing may open in an unsandboxed app, whatever happened to the box.
+    expect(exit).toHaveBeenCalledWith(1);
   });
 
   it("does nothing when the sandbox is on", () => {

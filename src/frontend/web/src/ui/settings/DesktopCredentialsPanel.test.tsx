@@ -9,6 +9,7 @@ import type {
 import {
   DesktopCredentialFailures,
   DesktopCredentialsPanel,
+  DesktopKeyStorageNote,
   desktopCredentialStorageKey,
 } from "./DesktopCredentialsPanel";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -363,6 +364,16 @@ describe("feature-local key fields", () => {
         />,
       ),
     ).toContain(notice);
+    // A host's own description says "Encrypted on this computer" too, so it
+    // gives way to the notice as well.
+    const hosted = renderWith(
+      client,
+      <DesktopCredentialsPanel description="Encrypted on this computer." />,
+    );
+    expect(hosted).toContain(notice);
+    expect(hosted).not.toContain("Encrypted on this computer.");
+    // The same notice stands alone for key fields outside the panel.
+    expect(renderWith(client, <DesktopKeyStorageNote />)).toContain(notice);
 
     client.setQueryData(desktopCredentialStorageKey("owner-1"), {
       protection: "system",
@@ -370,6 +381,14 @@ describe("feature-local key fields", () => {
     const protectedPanel = renderWith(client, <DesktopCredentialsPanel />);
     expect(protectedPanel).not.toContain(notice);
     expect(protectedPanel).toContain(claim);
+    expect(
+      renderWith(
+        client,
+        <DesktopKeyStorageNote>
+          Encrypted on this computer.
+        </DesktopKeyStorageNote>,
+      ),
+    ).toContain("Encrypted on this computer.");
   });
 
   it("reports only its own keys' failures", () => {

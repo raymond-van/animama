@@ -76,7 +76,7 @@
     "secureStorage": {
       "macos": "macOS 보안 저장소를 사용할 수 없습니다. 로그인 키체인의 잠금을 해제하고 Animama의 접근을 허용한 다음 Animama를 종료했다가 다시 여세요.",
       "windows": "이 계정에서는 Windows 보호 저장소를 사용할 수 없습니다. 임시 프로필이 아닌 본인 계정으로 Windows에 로그인한 후 다시 시도하세요.",
-      "linux": "키를 보호하는 비밀 저장소가 잠겨 있거나 실행 중이 아닙니다. 잠금을 해제하거나 실행한 다음(예: GNOME Keyring, KeePassXC, KWallet) 다시 시도하세요. 데이터는 변경되지 않았습니다."
+      "linux": "키를 보호하는 비밀 저장소가 잠겨 있거나 실행 중이 아닙니다. 잠금을 해제하거나 실행한 다음(예: GNOME Keyring, KeePassXC, KWallet) Animama를 종료하고 다시 여세요. 데이터는 변경되지 않았습니다."
     },
     "freshProfile": {
       "macos": "Animama를 종료하고 pnpm desktop:mac:reset을 실행하여 이 프로필을 보관한 후 새로 시작하세요",

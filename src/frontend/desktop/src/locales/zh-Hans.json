@@ -76,7 +76,7 @@
     "secureStorage": {
       "macos": "macOS 安全存储不可用。请解锁登录钥匙串并允许 Animama 访问，然后退出并重新打开 Animama。",
       "windows": "此账户无法使用 Windows 受保护存储。请使用你自己的账户（而非临时配置文件）登录 Windows 后重试。",
-      "linux": "保护你密钥的密钥存储服务已锁定或未运行。请解锁或启动它（例如 GNOME Keyring、KeePassXC 或 KWallet），然后重试。你的数据未被更改。"
+      "linux": "保护你密钥的密钥存储服务已锁定或未运行。请解锁或启动它（例如 GNOME Keyring、KeePassXC 或 KWallet），然后退出并重新打开 Animama。你的数据未被更改。"
     },
     "freshProfile": {
       "macos": "退出 Animama 并运行 pnpm desktop:mac:reset，归档此配置文件后重新开始",

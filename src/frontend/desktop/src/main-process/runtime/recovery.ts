@@ -169,9 +169,10 @@ export function createRuntimePage(
 ): string {
   const nonce = randomBytes(18).toString("base64");
   const text = pageText(strings, platform);
-  // Electron keeps a refused macOS Keychain answer until the app restarts.
+  // Electron keeps a refused macOS Keychain answer until the app restarts,
+  // and on Linux it settles where its key comes from when it starts.
   const noRetry =
-    platform === "darwin"
+    platform === "darwin" || platform === "linux"
       ? [...NO_RETRY_CODES, "secure_storage_unavailable"]
       : NO_RETRY_CODES;
   return `<!doctype html><html lang="${strings.locale}" dir="${strings.dir}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; script-src 'nonce-${nonce}'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Animama</title>

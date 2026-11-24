@@ -54,32 +54,45 @@ function encryption(store: { available: boolean }): Encryption {
 }
 
 describe("Linux secret store selection", () => {
+  const none = () => false;
+
   it("selects the Secret Service wherever Electron would not choose a store itself", () => {
     // i3, Sway and Hyprland are not desktops Electron recognises.
     for (const desktop of ["i3", "sway", "Hyprland", "", undefined, "GNOME"])
       expect(
-        linuxPasswordStore("linux", { XDG_CURRENT_DESKTOP: desktop }, []),
+        linuxPasswordStore("linux", { XDG_CURRENT_DESKTOP: desktop }, none),
       ).toBe("gnome-libsecret");
   });
 
-  it("leaves KDE's KWallet choice and the user's own switch alone", () => {
-    for (const desktop of ["KDE", "kde", "ubuntu:KDE"])
-      expect(
-        linuxPasswordStore("linux", { XDG_CURRENT_DESKTOP: desktop }, []),
-      ).toBeUndefined();
-    for (const argv of [
-      ["--password-store=basic"],
-      ["--password-store", "kwallet6"],
+  it("leaves KDE's KWallet choice alone, however the session names itself", () => {
+    // Chromium recognises KDE from any of these three variables.
+    for (const env of [
+      { XDG_CURRENT_DESKTOP: "KDE" },
+      { XDG_CURRENT_DESKTOP: "kde" },
+      { XDG_CURRENT_DESKTOP: "ubuntu:KDE" },
+      { DESKTOP_SESSION: "plasma" },
+      { DESKTOP_SESSION: "kde-plasma" },
+      { DESKTOP_SESSION: "/usr/share/xsessions/plasmax11" },
+      { KDE_FULL_SESSION: "true" },
     ])
-      expect(
-        linuxPasswordStore("linux", { XDG_CURRENT_DESKTOP: "i3" }, argv),
-      ).toBeUndefined();
+      expect(linuxPasswordStore("linux", env, none)).toBeUndefined();
+  });
+
+  it("leaves a switch the user passed alone, in any spelling Chromium accepts", () => {
+    // Chromium's own parser answers, so `-password-store=basic` counts too.
+    expect(
+      linuxPasswordStore(
+        "linux",
+        { XDG_CURRENT_DESKTOP: "i3" },
+        (name) => name === "password-store",
+      ),
+    ).toBeUndefined();
   });
 
   it("adds nothing on macOS or Windows", () => {
     for (const platform of ["darwin", "win32"] as const)
       expect(
-        linuxPasswordStore(platform, { XDG_CURRENT_DESKTOP: "i3" }, []),
+        linuxPasswordStore(platform, { XDG_CURRENT_DESKTOP: "i3" }, none),
       ).toBeUndefined();
   });
 });

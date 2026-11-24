@@ -76,7 +76,7 @@
     "secureStorage": {
       "macos": "macOS secure storage is unavailable. Unlock your login keychain and allow Animama to use it, then quit and reopen Animama.",
       "windows": "Windows protected storage is unavailable for this account. Sign in to Windows with your own account, not a temporary profile, and retry.",
-      "linux": "The secret store that protects your keys is locked or not running. Unlock or start it (for example GNOME Keyring, KeePassXC or KWallet), then retry. Your data has not changed."
+      "linux": "The secret store that protects your keys is locked or not running. Unlock or start it (for example GNOME Keyring, KeePassXC or KWallet), then quit and reopen Animama. Your data has not changed."
     },
     "freshProfile": {
       "macos": "quit Animama and run pnpm desktop:mac:reset to archive this profile and start fresh",

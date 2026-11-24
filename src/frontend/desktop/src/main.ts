@@ -143,7 +143,7 @@ else {
   const passwordStore = linuxPasswordStore(
     process.platform,
     process.env,
-    process.argv,
+    (name) => app.commandLine.hasSwitch(name),
   );
   if (passwordStore)
     app.commandLine.appendSwitch("password-store", passwordStore);
