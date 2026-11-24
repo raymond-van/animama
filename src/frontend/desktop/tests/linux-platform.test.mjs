@@ -8,6 +8,7 @@ import {
   compiledOnLinux,
   dynamicEntries,
   glibcMinimum,
+  inspectElf,
   isElf,
   measureMinimumOs,
   regularFiles,
@@ -18,7 +19,14 @@ import {
   assertSandboxedDesktopEntry,
   developmentPackage,
 } from "../scripts/runtime/package-development.mjs";
-import { LINUX_PROCESS_GUARD } from "../scripts/runtime/process-guard.mjs";
+import {
+  LINUX_GUARD_COMPILE,
+  LINUX_PROCESS_GUARD,
+} from "../scripts/runtime/process-guard.mjs";
+import {
+  appImageToolset,
+  appImageToolsetRecord,
+} from "../scripts/runtime/licenses.mjs";
 import { LINUX_PROCESS_GUARD_PATH } from "../src/main-process/runtime/manifest.ts";
 
 const roots = [];
@@ -98,6 +106,58 @@ Version definition section '.gnu.version_d' contains 2 entries:
     expect(
       requiredGlibc("There is no dynamic section in this file."),
     ).toBeNull();
+  });
+
+  it("counts the relative-relocation marker as the glibc version that reads it", () => {
+    // A library built with DT_RELR needs glibc 2.36 even if every symbol it
+    // names is older; distribution libraries copied into the backend carry it.
+    expect(
+      requiredGlibc(`
+Version needs section '.gnu.version_r' contains 1 entry:
+  000000: Version: 1  File: libc.so.6  Cnt: 3
+  0x0010:   Name: GLIBC_ABI_DT_RELR  Flags: none  Version: 4
+  0x0020:   Name: GLIBC_2.14  Flags: none  Version: 3
+  0x0030:   Name: GLIBC_PRIVATE  Flags: none  Version: 2
+`),
+    ).toEqual([2, 36]);
+    // Other libraries' version names are not the C library's.
+    expect(
+      requiredGlibc(`
+Version needs section '.gnu.version_r' contains 2 entries:
+  000000: Version: 1  File: libstdc++.so.6  Cnt: 2
+  0x0010:   Name: GLIBCXX_3.4.32  Flags: none  Version: 3
+  0x0020:   Name: CXXABI_1.3  Flags: none  Version: 2
+  0x0030: Version: 1  File: libgcc_s.so.1  Cnt: 1
+  0x0040:   Name: GCC_3.0  Flags: none  Version: 4
+`),
+    ).toBeNull();
+  });
+
+  it("reads readelf in the C locale, whatever the builder's language", () => {
+    const calls = [];
+    const result = inspectElf("/stage/postgres/bin/postgres", (...args) => {
+      calls.push(args);
+      return READELF;
+    });
+    expect(result).toEqual({
+      glibc: [2, 33],
+      needed: ["libpq.so.5", "libc.so.6"],
+      runpaths: ["$ORIGIN/../lib"],
+    });
+    // Translated headings would parse as "needs nothing", which the audit
+    // would accept.
+    expect(calls).toEqual([
+      [
+        "readelf",
+        [
+          "--dynamic",
+          "--version-info",
+          "--wide",
+          "/stage/postgres/bin/postgres",
+        ],
+        { capture: true, env: { LC_ALL: "C" } },
+      ],
+    ]);
   });
 
   it("reads needed libraries and both kinds of run path", () => {
@@ -210,18 +270,38 @@ describe("Linux stage audit", () => {
     expect(() => audit()).toThrow("embeds the build path /home/builder");
   });
 
-  it("holds Electron and the frozen backend to no build-machine run path only", () => {
-    // A library copied from the system may search system folders and need
-    // any library; that is recorded, not refused.
-    const system = stage({
-      "backend/_internal/libssl.so.3": {
-        needed: ["libcrypto.so.3", "libz.so.1"],
-        runpaths: ["/usr/lib/x86_64-linux-gnu"],
-      },
-    });
-    expect(system.audit().parts.runtime[0].runpaths).toEqual([
+  it("lets Electron and the frozen backend search the stage and system folders only", () => {
+    // A library copied from the system may search system library folders
+    // and need any library; that is recorded, not refused.
+    for (const runpath of [
       "/usr/lib/x86_64-linux-gnu",
-    ]);
+      "/usr/lib",
+      "/usr/lib64",
+      "/lib/x86_64-linux-gnu",
+      "/lib64",
+    ]) {
+      const system = stage({
+        "backend/_internal/libssl.so.3": {
+          needed: ["libcrypto.so.3", "libz.so.1"],
+          runpaths: [runpath],
+        },
+      });
+      expect(system.audit().parts.runtime[0].runpaths).toEqual([runpath]);
+    }
+    // Anywhere else could be created by another program, or is a leftover of
+    // the machine a wheel was built on.
+    for (const runpath of [
+      "/tmp/build/lib",
+      "/opt/python/cp312/lib",
+      "/usr/libexec/x",
+      "/libfoo",
+      "relative/lib",
+    ]) {
+      const odd = stage({
+        "backend/_internal/libodd.so": { runpaths: [runpath] },
+      });
+      expect(() => odd.audit()).toThrow("is not relative to the stage");
+    }
     const leaked = stage({
       "backend/_internal/lib-dynload/_ssl.so": {
         runpaths: ["/var/tmp/animama-build/uv-python/lib"],
@@ -364,6 +444,32 @@ describe("Linux native lock and packaging", () => {
       targets: ["nsis"],
       artifact: "Animama-0.1.6-x64-setup.exe",
     });
+  });
+
+  it("records what electron-builder adds around the app in the AppImage", () => {
+    // The launcher and a few desktop libraries come from electron-builder's
+    // pinned toolset, outside the staged runtime's file inventory.
+    expect(appImageToolset()).toBe("1.0.3");
+    const record = appImageToolsetRecord("1.0.3");
+    expect(record).toMatchObject({
+      id: "appimage-toolset",
+      version: "1.0.3",
+      review: "pending",
+    });
+    expect(record.source).toContain("electron-builder-binaries");
+    expect(record.source).toContain("1.0.3");
+    for (const name of ["type2-runtime", "libnotify", "libappindicator"])
+      expect(`${record.name} ${record.license}`).toContain(name);
+  });
+
+  it("compiles the guard fortified even where the compiler already defines it", () => {
+    // Ubuntu's gcc predefines _FORTIFY_SOURCE; with -Werror a second
+    // definition is an error unless the first is removed.
+    const undefine = LINUX_GUARD_COMPILE.indexOf("-U_FORTIFY_SOURCE");
+    const define = LINUX_GUARD_COMPILE.indexOf("-D_FORTIFY_SOURCE=2");
+    expect(undefine).toBeGreaterThanOrEqual(0);
+    expect(define).toBeGreaterThan(undefine);
+    expect(LINUX_GUARD_COMPILE).toContain("-Werror");
   });
 
   it("refuses an AppImage whose own desktop entry turns the sandbox off", () => {

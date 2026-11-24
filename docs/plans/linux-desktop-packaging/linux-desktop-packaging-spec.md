@@ -4,8 +4,9 @@ Status: Agreed
 Owner decision: Accepted 2026-11-24. D1–D13 are the owner's decisions of that
 date; P1, P3, P6 and P7 were accepted with the text.
 Authoritative source: https://github.com/raymond-van/animama/issues/920,
-published and read back 2026-11-24T18:42:42Z. This file is a snapshot of that
-publication.
+published 2026-11-24T18:42:42Z and last read back 2026-11-24T20:02:31Z, after
+its ExecPlan and Delivery links sections were filled in. This file is a
+snapshot of that issue.
 
 ## Problem and intended users
 
@@ -463,7 +464,12 @@ with hardware gates on the reference system.
 
 ## Delivery links
 
-- Branch `build/linux-desktop-packaging`; one pull request for the plan, to
-  follow.
+- Pull request: https://github.com/raymond-van/animama/pull/922 (draft),
+  branch `build/linux-desktop-packaging`. One pull request for the plan.
 - Follows [Windows 10 support](https://github.com/raymond-van/animama/issues/913)
-  (D6); the issue records it as a dependency.
+  (D6): the branch is stacked on that work and stays a draft until it reaches
+  `main`.
+- Phases 1–6 are implemented on macOS; Phase 7 (documentation) follows the
+  first Linux build.
+- Owner and hardware gates G1–G4 on the reference system are recorded in the
+  plan and the pull request.

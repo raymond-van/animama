@@ -169,7 +169,8 @@ specifications.
       items, four of them applied. The owner accepted PD10 with the plan. The
       full pre-push suite has not been run.
 - [ ] Phase 5: stage, audit and package tooling. Implemented from
-      `3eed0188d`; phase checks pass; review pending. Unit-tested on macOS;
+      `3eed0188d`; phase checks pass; review #1 found two required and six
+      optional items; repairs made, recheck #2 pending. Unit-tested on macOS;
       the PostgreSQL build, the guard build and the ELF audit also ran in a
       Linux container. No stage, audit or package has run.
 - [ ] Phase 6: Press to talk on X11. Implemented from `13f63b958`; phase
@@ -1191,6 +1192,89 @@ Not run: the full pre-push suite, by the owner's standing instruction;
 backend build, the web build, electron-builder and its AppImage toolset on
 Linux; the termination harness. Those are G1 and G2.
 
+#### Code Review #1 Findings
+
+Reviewed source: commit `13f63b958` against `3eed0188d`. High-risk tier: one
+analysis reviewer and one checks reviewer.
+
+Checks reviewer, on an export of the commit: `pnpm desktop:test` (47 files
+passed, 2 skipped; 780 passed, 16 skipped), `pnpm desktop:check` and
+`pnpm desktop:build` pass and match the record; the five packaging test files
+pass (127 tests); every electron-builder key used is valid in the 26.18.0
+schema, where `toolsets.appimage` accepts `0.0.0`, `1.0.2` and `1.0.3`;
+importing the packager starts no build; in a Linux container the desktop
+suite passed with 47 files and 767 tests. It found that the packager, started
+through a symlinked checkout, built nothing and exited 0.
+
+Analysis reviewer, who traced the Linux path through the stage, the audit and
+the packager and found no step that must fail on the reference system:
+
+- **P5-F1 (required).** `readelf` ran in the builder's locale, and the
+  parsers match its English headings. With translated output a file would
+  appear to need no library and have no run path, and the audit would accept
+  it.
+- **P5-F2 (required).** The AppImage carries binaries no inventory names:
+  electron-builder copies its toolset's launcher and six desktop libraries
+  into it, and its launcher puts those libraries ahead of the system's. C2
+  asks for an inventory of every component the Linux build adds.
+- **P5-F3 (optional).** `GLIBC_ABI_DT_RELR` was ignored, though only glibc
+  2.36 and later can load such a file, so the minimum could be under-reported.
+- **P5-F4 (optional).** Any absolute run path outside the repository, build
+  root and home passed without notice, including one under `/tmp`.
+- **P5-F5 (optional).** The termination harness had no positive control: a
+  process listing that matched nothing would pass every check.
+- **P5-F6 (optional).** The Windows installer's success line changed wording.
+- **P5-F7 (optional).** The packager's entry guard, as the checks reviewer
+  showed.
+- **P5-F8 (optional).** Defining `_FORTIFY_SOURCE` fails with `-Werror` where
+  the compiler predefines it, as Ubuntu's does.
+
+For the gate: the build needs a umask of 022; node-gyp needs a system
+`python3`, which R1's prerequisites do not name; a PyInstaller library whose
+`$ORIGIN` run path climbs above `backend/` would stop the audit; the system
+libraries PyInstaller copies into the backend should be read from the audit
+report for the licence inventory.
+
+Confirmed sound: the electron-builder keys and that `toolsets` cannot affect
+macOS or Windows builds; the AppImage entry check; that the guard enters the
+manifest as executable and critical; the minimum-OS condition for macOS and
+Windows; the size checks for a target without a baseline; the PostgreSQL
+closure; Linux x64 wheels for every locked Python package.
+
+#### Code Review #1 Revisions
+
+- **P5-F1: accepted.** `inspectElf` runs `readelf` with `LC_ALL=C`, with a
+  test of the exact call.
+- **P5-F2: accepted.** A Linux stage adds the record `appimage-toolset` to
+  the licence inventory, naming the launcher and the six libraries at the
+  toolset version `electron-builder.yml` pins, with review pending like every
+  unreviewed record. Their terms are stated by family, not verified per file;
+  the owner may want a closer review before anyone is handed an AppImage.
+- **P5-F3: accepted.** The marker counts as glibc 2.36.
+- **P5-F4: accepted.** A staged library may search the stage through
+  `$ORIGIN` or the system's `lib` folders; any other absolute run path stops
+  the audit.
+- **P5-F5: accepted.** The harness fails if it finds no runtime process while
+  the app is ready, resolves the runtime's real path, and guards its cleanup
+  as the Windows harness does.
+- **P5-F6: accepted.** The installer line is as before; the Linux line names
+  the AppImage.
+- **P5-F7: accepted.** The guard compares real paths. Through a symlink the
+  packager now runs and refuses the wrong host, where it exited 0.
+- **P5-F8: accepted.** `-U_FORTIFY_SOURCE` precedes the definition.
+- Gate notes: G1 step 1 now names `python3` and the umask, and G1 step 3
+  asks for the copied system libraries.
+
+Repair check (macOS arm64, working directory `src/frontend`, worktree
+holding both this repair and Phase 6's): `pnpm desktop:test` passes with 47
+files passed, 2 skipped; 785 tests passed, 16 skipped; `pnpm desktop:check`,
+`pnpm desktop:build` and `pnpm prettier:check` pass. Each repair's test was
+seen failing first. In the Linux container, with `LANG=de_DE.UTF-8`, the
+repaired guard build and audit passed on the earlier PostgreSQL build and
+measured the same `glibc-2.34`.
+
+Repair budget: one of two rounds used.
+
 ### Phase 6: Press to talk on X11
 
 Review tier: high risk. Native code that listens to input from other
@@ -1299,7 +1383,9 @@ result. They carry no personal data, host names or home paths.
 **G1, build (A1).** After Phases 1–5; Phase 6 if authorized.
 
 1. Install the prerequisites and record the package names: the C toolchain,
-   Git LFS, Node 24, pnpm, uv, the X11 and XInput headers, and FUSE.
+   Git LFS, Node 24, pnpm, uv, a system `python3` (node-gyp needs one), the
+   X11 and XInput headers, and FUSE. Build with a umask of 022: the packaging
+   gate compares file modes with the stage's.
 2. Fresh clone, `git lfs pull`,
    `python3 scripts/models/browser_speech.py acquire`, then from
    `src/frontend`: `pnpm install --frozen-lockfile`,
@@ -1308,7 +1394,8 @@ result. They carry no personal data, host names or home paths.
    `pnpm desktop:linux`.
 3. Record the stage and audit reports, the measured minimum, the compiler
    and C library versions, the launcher toolset used, and the AppImage's
-   name and size.
+   name and size. From the audit report's `native_platforms`, list the system
+   libraries PyInstaller copied into `backend/`, for the licence inventory.
 4. Run `pnpm desktop:test` on the reference system, including the guard
    suite against the natively built guard.
 

@@ -184,13 +184,15 @@ async function main() {
     signing: "unsigned-development-only",
   });
   console.log(
-    `Unsigned development ${plan.artifact ? `package: release/${plan.artifact}` : `app: release/${plan.app}`}; runtime inventory: OK`,
+    `Unsigned development ${installer ? `installer: release/${plan.artifact}` : plan.artifact ? `AppImage: release/${plan.artifact}` : `app: release/${plan.app}`}; runtime inventory: OK`,
   );
 }
 
-// Tests import the descriptions above without building anything.
+// Tests import the descriptions above without building anything. Real paths
+// on both sides: started through a symlinked checkout, a plain comparison
+// would skip the build and exit successfully.
 if (
   process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
 )
   await main();

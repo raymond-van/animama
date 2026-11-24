@@ -39,6 +39,8 @@ function newer(a, b) {
  * The highest glibc version a binary requires, as `[major, minor]`, from
  * `readelf --version-info --wide` output; null when it requires none. Only the
  * "Version needs" section counts: a library's own definitions are not needs.
+ * `GLIBC_ABI_DT_RELR` marks relative relocations that only glibc 2.36 and
+ * later can read, whatever symbol versions the file names.
  */
 export function requiredGlibc(versionInfo) {
   let highest = null;
@@ -49,9 +51,11 @@ export function requiredGlibc(versionInfo) {
       needs = section[1] === "needs";
       continue;
     }
-    const match = needs && /\bName: GLIBC_(\d+)\.(\d+)(?:\.\d+)?\b/u.exec(line);
-    if (!match) continue;
-    const version = [Number(match[1]), Number(match[2])];
+    if (!needs) continue;
+    const match = /\bName: GLIBC_(\d+)\.(\d+)(?:\.\d+)?\b/u.exec(line);
+    const relr = /\bName: GLIBC_ABI_DT_RELR\b/u.test(line);
+    if (!match && !relr) continue;
+    const version = match ? [Number(match[1]), Number(match[2])] : [2, 36];
     if (!highest || newer(version, highest)) highest = version;
   }
   return highest;
@@ -70,6 +74,14 @@ export function dynamicEntries(dynamic) {
   }
   return { needed, runpaths };
 }
+
+/**
+ * The only absolute folders a staged library may search: the system's own
+ * library folders, which a library copied from the system names. Any other
+ * absolute path could be created by another program on the user's machine, or
+ * is left over from the machine a wheel was built on.
+ */
+const SYSTEM_LIBRARY_FOLDER = /^\/(?:usr\/)?lib(?:32|64)?(?:\/|$)/u;
 
 /** `glibc-<major>.<minor>`, the form a Linux runtime manifest carries. */
 export function glibcMinimum(version) {
@@ -111,8 +123,8 @@ function embedsPath(file, needles) {
  *   only `systemLibraries` or a library staged beside them, must find those
  *   through `$ORIGIN` run paths that stay inside the stage, and must not embed
  *   a build-machine path.
- * - No ELF file at all, including Electron's and the frozen backend's, may
- *   search a build-machine folder or leave the stage through `$ORIGIN`.
+ * - Any other ELF file, Electron's and the frozen backend's included, may
+ *   search only the stage, through `$ORIGIN`, or the system's library folders.
  *
  * Returns each part's ELF files with what they need, and the stage's minimum
  * system: the highest glibc version any file requires.
@@ -136,10 +148,7 @@ export function auditLinuxStage(
         if (/^\$(?:ORIGIN|\{ORIGIN\})/u.test(runpath)) {
           if (insideStage(name, runpath) === null)
             throw new Error(`${name}: run path ${runpath} leaves the stage`);
-        } else if (
-          strict ||
-          buildPaths.some((folder) => runpath.startsWith(folder))
-        )
+        } else if (strict || !SYSTEM_LIBRARY_FOLDER.test(runpath))
           throw new Error(
             `${name}: run path ${runpath} is not relative to the stage`,
           );
@@ -177,12 +186,16 @@ export function compiledOnLinux(part, name) {
     : part === "app" && name.startsWith("dist/native/");
 }
 
-/** Read one ELF file's requirements with binutils' readelf. */
-function inspectElf(file) {
-  const output = run(
+/**
+ * Read one ELF file's requirements with binutils' readelf. The C locale is
+ * forced: readelf translates its headings, and a translated listing would
+ * parse as "needs nothing".
+ */
+export function inspectElf(file, runTool = run) {
+  const output = runTool(
     "readelf",
     ["--dynamic", "--version-info", "--wide", file],
-    { capture: true },
+    { capture: true, env: { LC_ALL: "C" } },
   );
   return { glibc: requiredGlibc(output), ...dynamicEntries(output) };
 }

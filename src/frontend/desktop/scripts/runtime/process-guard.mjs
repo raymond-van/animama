@@ -24,12 +24,14 @@ export const LINUX_PROCESS_GUARD = "bin/animama-process-guard";
 // Warnings are errors, and the usual hardening for a small C program: stack
 // protector, fortified libc calls, a position-independent executable and
 // full RELRO.
-const LINUX_COMPILE = [
+export const LINUX_GUARD_COMPILE = [
   "-std=c11",
   "-O2",
   "-Wall",
   "-Wextra",
   "-Werror",
+  // Some distributions' compilers predefine it; defining it twice is an error.
+  "-U_FORTIFY_SOURCE",
   "-D_FORTIFY_SOURCE=2",
   "-fstack-protector-strong",
   "-fPIE",
@@ -49,7 +51,7 @@ function buildProcessGuardLinux(target) {
   run(
     lock.toolchain.cc,
     [
-      ...LINUX_COMPILE,
+      ...LINUX_GUARD_COMPILE,
       // No checkout path in the binary, whatever the compiler records.
       `-ffile-prefix-map=${path.dirname(source)}=.`,
       "-o",

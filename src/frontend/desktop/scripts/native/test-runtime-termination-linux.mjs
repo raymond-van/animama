@@ -21,7 +21,12 @@ import { cacheRoot, desktopRoot } from "../runtime/common.mjs";
  */
 if (process.platform !== "linux")
   throw new Error("This runtime termination harness runs on Linux only");
-const runtimeRoot = path.join(cacheRoot, "linux-x64", "runtime");
+// The real path: /proc reports images by it, whatever link the checkout
+// was opened through.
+const stagedRuntime = path.join(cacheRoot, "linux-x64", "runtime");
+const runtimeRoot = existsSync(stagedRuntime)
+  ? realpathSync(stagedRuntime)
+  : stagedRuntime;
 if (!existsSync(path.join(runtimeRoot, "manifest.json")))
   throw new Error("Stage the Linux runtime first");
 if (!existsSync(path.join(desktopRoot, "dist", "main.js")))
@@ -159,6 +164,9 @@ async function killAt(stage, userData) {
   const { child, origin } = await launchUntil(stage, userData);
   child.removeAllListeners("exit");
   let answered = true;
+  // Without this, a process listing that matches nothing (a runtime reached
+  // through a symlink, say) would pass every "no process survived" check.
+  const running = origin ? runtimeProcesses() : [];
   try {
     // Ready already means the supervisor verified the backend's private health.
     // Outside the app, requests lack the renderer capability, so any non-5xx
@@ -170,6 +178,10 @@ async function killAt(stage, userData) {
     child.kill("SIGKILL");
   }
   if (!answered) throw new Error(`The app at ${origin} failed to answer`);
+  if (origin && !running.length)
+    throw new Error(
+      "No runtime process was found while the app was ready; the process listing cannot see the staged runtime",
+    );
   await requireNoRuntimeProcesses(`a kill at ${stage}`);
   return origin;
 }
@@ -241,5 +253,15 @@ try {
     throw new Error(`The origin changed across launches: ${origins}`);
   process.stdout.write("runtime termination: OK\n");
 } finally {
-  rmSync(userData, { recursive: true, force: true, maxRetries: 5 });
+  // Electron's helper processes can hold profile files briefly after it dies.
+  try {
+    rmSync(userData, {
+      recursive: true,
+      force: true,
+      maxRetries: 20,
+      retryDelay: 500,
+    });
+  } catch (error) {
+    process.stderr.write(`Could not remove ${userData}: ${error.message}\n`);
+  }
 }
