@@ -332,9 +332,14 @@ Treat one as untrusted input until it has been read:
   manifests, lockfiles and workflow files. Run it only where no secrets file,
   release credential or publish token is reachable, such as a disposable VM or
   container.
-- Hosted validation is disabled at present, so an outside PR has no hosted
-  checks. When a workflow does run on a fork's PR, it waits for approval in
-  GitHub, and approving it is the owner's action.
+- Hosted validation runs on a fork's PR only after the owner approves the run
+  in GitHub. GitHub holds every run on the PR, including one started by the
+  owner's `ci:full` label. Approving runs the PR's own workflow and scripts on
+  a GitHub runner with a read-only token and no secrets, so approve only after
+  the reading above. If a run fails at "Hydrate assets required by full
+  validation" on a PR that adds or changes a Git LFS file, validate that PR
+  locally. After the merge, `main` runs its own validation, because it cannot
+  reuse a fork PR's result.
 - The contributor's reported results are information, not evidence. Record
   local validation of the exact head commit as for any PR, and merge with
   `--match-head-commit`.

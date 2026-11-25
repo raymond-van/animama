@@ -82,9 +82,9 @@ agree, describe your fix in an issue instead.
 
 ### Check your change
 
-Hosted CI does not run on pull requests at present. Run the checks for the
-area you touched, and paste the commands and their results into the pull
-request:
+Hosted CI runs on your pull request after the maintainer approves each run,
+which can take a while. Run the checks for the area you touched yourself, and
+paste the commands and their results into the pull request:
 
 - Backend, from the repository root: `uv run ruff check` and
   `uv run pytest -q`.
