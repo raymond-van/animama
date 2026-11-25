@@ -1,7 +1,8 @@
 # Convert MikuMikuDance (PMX) models to VRM for Animama
 
-Source agreement: [pmx-conversion-spec.md](pmx-conversion-spec.md) at `fc9a2fae6` on
-`feat/pmx-conversion`, agreed by the owner on 2026-11-25. It is not yet
+Source agreement: [pmx-conversion-spec.md](pmx-conversion-spec.md) on
+`feat/pmx-conversion`, agreed by the owner on 2026-11-25 (`fc9a2fae6`) and amended
+the same day for Q3's language (D1). It is not yet
 published as an issue; `workspace-setup` publishes it when implementation is
 authorized.
 Authorized scope: none yet. This plan awaits owner review. The owner gates below
@@ -109,7 +110,8 @@ About 190 KB of C#; its notice must be kept with ported code.
 
 ## Progress
 
-- [ ] Plan review by the owner, and decision D1.
+- [x] Decision D1 (owner, 2026-11-25): JavaScript with JSDoc types.
+- [ ] Plan review and phase authorization by the owner.
 - [ ] Phase 1: reading, skeleton and writing.
 - [ ] Phase 2: materials.
 - [ ] Phase 3: face morphs and emotions.
@@ -155,16 +157,14 @@ From the investigation and evaluation of 2026-11-25:
   besides the five presets. Animama already treats authored expressions with
   those names as the model's own parts, so this needs no Animama change and no
   extra morph data. Other VRM apps ignore them.
-- **D1, proposed by the agent and pending owner confirmation:** the source
-  language.
-  - **Proposal:** write the PMX module as JavaScript ES modules (`.mjs`), with
-    JSDoc types, like the rest of the command. There is no build step and no new
-    dependency, and Animama can import the module later.
-  - **Why it needs you:** the spec (Q3) says "TypeScript".
-  - **Alternative:** `.ts` sources compiled with `tsc` before packing. That adds a
+- **D1, decided 2026-11-25 by the owner:** write the PMX module as JavaScript ES
+  modules (`.mjs`) with JSDoc types, like the rest of the command.
+  - There is no build step and no new dependency, and Animama can import the module
+    later.
+  - This replaces the spec's "TypeScript" (Q3, amended the same day).
+  - The alternative, `.ts` compiled with `tsc` before packing, would have added a
     dev dependency, a build step in CI and release, and compiled files in the
     package.
-  - **Pending:** Phase 1 starts after this decision.
 
 ## Phased implementation
 

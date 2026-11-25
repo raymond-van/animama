@@ -11,6 +11,8 @@ draft, the owner decided:
   translating a model's face morphs into emotion expressions where needed, and
   look-at wherever possible (R5, R7).
 - **Other questions:** the proposed answers to Q2–Q6 are accepted.
+- **Later the same day:** write the PMX module in JavaScript with JSDoc types
+  rather than TypeScript (Q3; plan decision D1).
 
 ## Problem and intended users
 
@@ -318,8 +320,11 @@ Non-goals:
   - Owner direction the same day: translate face morphs into emotions where needed
     (R5), and convert UV morphs where VRM can express them.
 - **Q3 Implementation basis.** Decided 2026-11-25: port pmx-to-vrm's design and
-  code to TypeScript inside the converter's npm package, with no runtime
-  dependencies, keeping the PMX code a separate module.
+  code into the converter's npm package, with no runtime dependencies, keeping the
+  PMX code a separate module.
+  - The language was amended the same day (owner): JavaScript ES modules with
+    JSDoc types, like the rest of the command, instead of TypeScript. An npm
+    package run by `npx` cannot ship `.ts` without a build step.
   - An evaluation that day converted a fan-made test model (69k vertices, 15
     materials, 679 bones, 459 rigid bodies) in under a second.
   - The output passed `validate_vrm_stream` and `vrm:inspect`, and showed toon
