@@ -157,6 +157,10 @@ From the investigation and evaluation of 2026-11-25:
   besides the five presets. Animama already treats authored expressions with
   those names as the model's own parts, so this needs no Animama change and no
   extra morph data. Other VRM apps ignore them.
+- **2026-11-25, agent (Phase 3):** every converted morph is also a custom
+  expression; `--expression` overrides keep a mood's preset, `Fcl_ALL_` part and
+  regions in step and write neutral faces as empty expressions; a faded material
+  is BLEND and one only ever shown fully is MASK (details in the Phase 3 record).
 - **D1, decided 2026-11-25 by the owner:** write the PMX module as JavaScript ES
   modules (`.mjs`) with JSDoc types, like the rest of the command.
   - There is no build step and no new dependency, and Animama can import the module
@@ -539,15 +543,87 @@ Checks:
 
 Completion: the tests pass, and the private model shows every mood region it can.
 
-Check record, results and commits: _pending._
+Check record (converter checkout, macOS, Node 24.15):
+
+| Check | Tree | Result |
+| --- | --- | --- |
+| `npm test`; `node scripts/check.mjs` | `7e041c0b` | 116 pass; OK, 63 sources |
+| private model: conversion, report, Animama `vrm:inspect` | `7e041c0b` | all five moods composed by region (happy にこり/笑い/にっこり, relaxed にこり/なごみ/にっこり, sad 困る/じと目×0.5/口角下げ, angry 怒り/じと目/∧, surprised 上/びっくり/お); inspector: every mood region "vroid", face skin found |
+| private model with `--expression "sad=困る+口角下げ*0.6"` | `7e041c0b` | sad: brows 困る, eyes —, mouth 口角下げ×0.6 |
+| `npm test`; `node scripts/check.mjs`; private model | `835b8cc5` | 123 pass; OK; moods unchanged |
+| `npm test`; `node scripts/check.mjs`; private model; backend upload validator | `927a9641` | 126 pass; OK; moods unchanged; accepted |
+
+Decisions made in this phase (agent, within the agreed scope):
+
+- **Every converted morph is also a custom expression** under its PMX name, even one
+  a preset plays. Animama plays MMD faces through registered expressions, not
+  morph weights, so the duplicates are harmless, and apps that list expressions
+  see every morph.
+- **Overrides keep VRoid's shape:** a mood preset, `Fcl_ALL_<Mood>` and its three
+  region parts always agree. Overriding a preset splits it into the regions by
+  each morph's region; overriding a region recomposes its mood. A neutral
+  override writes an empty expression, because Animama fills a missing part from
+  the morph names. A preset and one of its regions cannot both be overridden.
+- **A material a morph fades is BLEND; one revealed from alpha 0 is MASK** (the
+  plan's choice, so a revealed layer writes depth). A fade of every material at
+  once leaves them opaque and is reported, since blending every material would
+  lose their draw order.
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed `7e041c0b` against `fe7c757`, standard tier, by an independent read-only agent. It checked bone-morph
+mirroring and the T-pose conjugation numerically (X, Y and arbitrary axes, weights 0.5 and −1, a straightened
+elbow, `--keep-pose`: all within 4e-8 m), group weights and cycles, out-of-range indices, and the VRM enums.
+
+- P3-F1 (important): a whole-face morph took one region from its mean height, so a PMX made from VRoid played
+  brows and mouth twice in `happy`, and a panel-4 sad group doubled `sad`.
+- P3-F2 (important): texture-tint colour morphs folded into the diffuse colour only, so they barely showed; the
+  toon tint was never read.
+- P3-F3: a bone morph's rotation stopped at weight 1.
+- P3-F4: a bone morph on a bone others inherit from (両目) moved nothing, and a duplicate-named morph's custom
+  expression was dropped, both without a report line.
+- P3-F5: a fade on "all materials" made every material BLEND.
+- P3-F6: a layer revealed from alpha 0 was BLEND without depth; the plan asks for MASK.
+- P3-F7: `happy=あ*` parsed as weight 0.
+- Tests: the bone-morph test used a Z turn (mirroring untested), a faces test line did nothing, the CLI test title
+  overstated when names are refused, and the group test only visited vertices already in the target.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P3-F1 fixed: VRoid's own `Fcl_<R>_<Mood>` morphs win their slots and `Fcl_ALL_<Mood>` is the preset; a morph
+  named as the whole face, or moving a second region by a fifth or more, takes no region slot; tests added.
+- P3-F2 fixed: both tints multiply the lit and shade colours and the alpha, as MMD multiplies the whole colour;
+  test added.
+- P3-F3 fixed: weights beyond 1 and below 0 extrapolate; tested at 0.5 and 2 on a Y turn.
+- P3-F4 fixed: bone morphs follow inherit-rotation and -translation bones; a duplicate gets its expression under the
+  target's unique name (`あ_2`); morphs that change nothing are reported; tests added.
+- P3-F5 fixed: such a fade is reported once and leaves materials opaque; test added.
+- P3-F6 fixed: MASK at alpha 0 unless the texture blends; test added.
+- P3-F7 fixed: an empty weight is an error, and override names are checked when the command line is parsed.
+- Tests: rewritten as listed.
+
+#### Code Review #2 Findings
+
+Repair round 1 on `835b8cc5`, by the same agent: six of the seven fixes were confirmed by its probes. Those cover the
+VRoid-made PMX, the panel-4 group, weight 2 (5e-8 m from MMD), inheritance at weights 1 and 0.5, and a cycle.
+
+- P3-F8 (important, from P3-F6): every layer revealed from alpha 0 became MASK, so one shown only to alpha 0.4 never
+  showed.
+- P3-F9: the height bands are absolute, so a large eye morph reaching the brows' band counted as the whole face.
+- P3-F10: the tints applied to untextured or toonless materials, which MMD leaves alone, and an added
+  (brightening) tint was reported as changing nothing.
+- Test gaps: no X-axis turn, inheritance only at weight 1 and for rotation, and no end-to-end whole-face name.
+
+#### Code Review #2 Revisions
+
+- P3-F8 fixed: MASK only when every morph that changes the layer's alpha shows it fully; test added.
+- P3-F9 fixed: "ALL" needs the mouth and the eyes or brows each to hold a fifth of the movement.
+- P3-F10 fixed: the texture tint needs a texture and the toon tint a toon; brightening tints are reported as
+  such, since VRM colours can only darken; test added.
+- Tests: X, Y and Z turns; inheritance at 0.5, with translation; `Fcl_ALL_Joy` end to end.
+
+Result: Phase 3 complete. Commit `b0ee627` (`feat(pmx)[p3]: turn MMD face morphs into VRM expressions and moods`,
+tree `927a9641`) on the converter's `feat/pmx-conversion`, pushed to raymond-van/animama-avatar-converter#4.
 
 ### Phase 4: physics and look-at
 
