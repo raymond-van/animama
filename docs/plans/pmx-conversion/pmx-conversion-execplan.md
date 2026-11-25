@@ -132,8 +132,10 @@ From the investigation and evaluation of 2026-11-25:
   - it gave every material shade 0.8 and lit outlines;
   - it dropped the test model's material morph;
   - it read no author from a Chinese comment.
-- **Eye skinning:** the test model's iris is skinned partly to bones beside the eye
-  bones, so plain bone look-at would tear it.
+- **Eye skinning (corrected in Phase 4):** the investigation said the test model's
+  iris was skinned partly to bones beside the eye bones. Those pupil and
+  highlight joints are in fact children of 瞳左/瞳右, under the eye bones, so
+  plain bone look-at turns the eyes whole.
 - **No TypeScript from npm:** Node strips TypeScript types only outside
   `node_modules`, so an npm package run by `npx` cannot ship `.ts` sources
   without a build step (D1).
@@ -161,6 +163,10 @@ From the investigation and evaluation of 2026-11-25:
   expression; `--expression` overrides keep a mood's preset, `Fcl_ALL_` part and
   regions in step and write neutral faces as empty expressions; a faded material
   is BLEND and one only ever shown fully is MASK (details in the Phase 3 record).
+- **2026-11-25, agent (Phase 4):** collider groups follow MMD collision groups;
+  physics on a humanoid bone is left off; a bone beside the eye is moved under it
+  only when it hangs from the head and skins only the eye; eye vertices that also
+  follow the head stretch as in MMD (details in the Phase 4 record).
 - **D1, decided 2026-11-25 by the owner:** write the PMX module as JavaScript ES
   modules (`.mjs`) with JSDoc types, like the rest of the command.
   - There is no build step and no new dependency, and Animama can import the module
@@ -677,15 +683,92 @@ Checks:
 Completion: the tests pass, private springs hang, and the private model gets
 re-parented bone look-at with no tearing.
 
-Check record, results and commits: _pending._
+Check record (converter checkout, macOS, Node 24.15):
+
+| Check | Tree | Result |
+| --- | --- | --- |
+| `npm test`; `node scripts/check.mjs` | `fca69d26` | 138 pass; OK, 66 sources |
+| private model: conversion and report | `fca69d26` | 57 chains, 488 joints (44 under chest, 11 under head, one per upper arm); 24 colliders in 7 MMD groups; 347 cross-chain joints reported; 19 inner-skirt chains warned for joints starting inside a collider; look-at bone ('左目', '右目') |
+| private render, `effects:render` scene effect `--times 1,3,8`, Phase 5's marker in the Animama tree | `fca69d26` | hair, skirt and sleeves hang and settle; no change between 3 s and 8 s; a strap flap stands up as in the pmx-to-vrm conversion |
+| private render with both eye nodes turned 10° | `fca69d26` | each iris and its highlight move whole; no tearing |
+| private blush render (`effects:render` blush, face view) | `fca69d26` | blush on the cheeks: with springs, face-skin detection no longer takes the hair (the Phase 3 open question) |
+| backend upload validator on the private conversion | `fca69d26` | `model/gltf-binary` |
+| `npm test`; `node scripts/check.mjs`; private model; render `--times 1,3,8` | `848477ed` | 145 pass; OK; 25 colliders (the hip body added); springs still hang and settle |
+| `npm test`; `node scripts/check.mjs` after the trivial stuck-count repair | `e2fda089` | 146 pass; OK |
+
+Decisions and discoveries in this phase (agent, within the agreed scope):
+
+- **The test model needs no re-parenting.** The investigation said half its iris
+  was skinned to bones the eye bones do not move. In fact those pupil and
+  highlight joints are children of 瞳左/瞳右, under 左目/右目; the first probe
+  listed only direct children. The private report is corrected. The model gets
+  plain bone look-at, and the re-parenting path is covered by synthetic tests.
+- **What may be re-parented:** only a bone that skins eye-part vertices, sits
+  within the eye's bounds (padded by a quarter of their size and 3 mm) and skins
+  nothing outside the part. A first draft also took bones that merely sat near
+  the eye and skinned only nearby vertices. On the test model that pulled in
+  brow and eyelid bones, so it was dropped.
+- **Collider groups by MMD collision group** (one per group and mask), named
+  "MMD group N", instead of pmx-to-vrm's humanoid regions. Each spring uses the
+  groups whose colliders it collides with both ways. Animama reads no group
+  names.
+- **Expression look-at** turns the eye parts 10° about the eye bones, or, for eyes
+  found only by material, about a point one eye-width behind them. The range maps
+  are VRM's usual 90°/10° for bones and 90°/1 for expressions, and the blinks
+  block look-at so the iris does not cross a closed lid.
+- **Eye vertices that also follow the head stretch, as in MMD** (P4-F10 kept): bone
+  look-at is used even when some eye-part vertices are partly on the head; the
+  report counts them.
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed `fca69d26` against `b0ee627`, standard tier, by an independent read-only agent with synthetic probes. It
+confirmed the tail nodes after the T-pose bake, node numbering, collider offsets and capsule ends, the collision
+mask direction, the look direction and pivots, `offsetFromHeadBone`, the range maps and the inverse bind matrices
+after re-parenting.
+
+- P4-F1 (important): re-parenting cut a bone off a parent that is not the head, so a bone morph on that parent
+  moved nothing.
+- P4-F2 (important): the standard 下半身 body counted as a chain anchor, so skirts never hit the hips.
+- P4-F3 (important): the eye-material fallback missed 黒目, 眼睛 and Eye_L, and never read the English name.
+- P4-F4: a simulated body on a humanoid bone (a neck) took the neck out of the humanoid, made the head a spring
+  tail and dropped the head collider, silently; the warning meant for it could never fire.
+- P4-F5: a lid bone whose lashes follow the eye 0.3 was moved under the eye.
+- P4-F6: a pupil bone at the eyeball's centre counted as outside the eye, with the wrong reason reported.
+- P4-F7: the overlap test never overlapped the two eyes' parts.
+- P4-F8: a joint across a bone without physics, along one strand, was reported as between chains.
+- P4-F9: eyeball materials turned about their back pole.
+- P4-F10: bone look-at is used though some eye vertices follow the head (a judgement call).
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P4-F1 fixed: a bone is moved only when its parent is above the eye bone; each stuck bone carries its reason into
+  the report.
+- P4-F2 fixed: a bone with humanoid bones below it is never an anchor.
+- P4-F3 fixed: more names, and both names tested.
+- P4-F4 fixed: physics on a bone the humanoid needs is left off with a warning, and its body becomes a collider.
+- P4-F5 fixed: a vertex belongs to an eye part only when the eye carries half its weight or more.
+- P4-F6 fixed: the eye's box includes the eye bone.
+- P4-F7 fixed: one vertex weighted to both eyes; sparse indices checked strictly increasing.
+- P4-F8 fixed: ancestor and descendant bodies are not "between chains".
+- P4-F9 fixed: a part as deep as half its width turns about its centre.
+- P4-F10 kept as recorded above.
+
+#### Code Review #2 Findings
+
+Repair round 1 on `848477ed`, by the same agent: all nine fixes hold. It removed each fix in a copy and saw its own
+new test fail. A single bone stuck on both eyes was counted twice in the report (cosmetic). Residual points to
+watch in Phase 6:
+- skirts may flare now that 下半身 collides (MMD turns off collision between jointed bodies; VRM cannot);
+- an iris whose vertices the eye carries less than half of could be left out of an expression part;
+- diagonal joints to a deeper branch are no longer reported.
+
+#### Code Review #2 Revisions
+
+The double count was a trivial repair (distinct bones), verified by a new test and `npm test`. The residual
+points go to Phase 6's private-corpus checks. Result: Phase 4 complete. Commit `49e9729` (`feat(pmx)[p4]: turn MMD
+physics into springs and give the eyes look-at`, tree `e2fda089`) on the converter's `feat/pmx-conversion`, pushed
+to raymond-van/animama-avatar-converter#4.
 
 ### Phase 5: Animama recognises converted MMD models
 
