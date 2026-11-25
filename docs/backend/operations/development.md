@@ -663,12 +663,14 @@ Use a named stack's generated `ANIMAMA_PUBLIC_ORIGIN` for isolated runs.
 
 During development, run the smallest meaningful local static checks, tests and
 builds for the changed behavior. Fix failures locally before pushing a candidate
-that triggers CI, and batch intermediate edits rather than using Actions as the
+for review, and batch intermediate edits rather than using Actions as the
 first debugging loop. Rerun checks affected by subsequent edits; repeat an
 unchanged successful check only when a new failure, changed environment or other
 specific concern warrants it. Before the first push for review, run the full
 pre-push suite named in the [repository setup](../../../SDLC.md#repository-setup)
-once on the final candidate. Verification commands should be read-only:
+once on the final candidate. When every heavy slot is held, a `ci:run` hosted
+run of that candidate may replace it ([when validation runs](#when-validation-runs));
+`pnpm prettier:check` still runs locally when it applies. Verification commands should be read-only:
 `make format-check` checks formatting; `make format` changes files.
 
 For each candidate, record the tested commit or working-tree state, exact commands,
@@ -723,9 +725,11 @@ is not owner acceptance of the coverage or budget tradeoff.
 | Weekly checkpoint, manual dispatch, release caller  | Full; an unchanged `main` may skip the weekly repetition                                         |
 
 Without a label, the owner's PR shows a skipped `Validation` check and its local
-record is the evidence. Add `ci:run` when the machine is under heavy load,
-instead of the expensive local checks rather than in addition
-([verification](../../../AGENTS.md#verification)). The owner accepted on
+record is the evidence. Add `ci:run` when the machine is under heavy load, in
+place of the expensive local checks ([verification](../../../AGENTS.md#verification)).
+`ci:full` already implies a run, and a fork's PR needs neither label: toggling
+either one restarts the run, which on a fork waits for approval again. If a
+labelled PR shows a skipped check, remove and re-add the label. The owner accepted on
 2026-11-25 ([#933](https://github.com/raymond-van/animama/issues/933)) that a
 break appearing only when several merged PRs combine surfaces at the next
 weekly checkpoint, a dispatch, a fork or opted-in PR run (each tests its merge
@@ -772,7 +776,7 @@ configuration, dependency/build inputs and shared contracts remain full scope.
 
 ### Suite selection and promotion runs
 
-An ordinary run, a PR run without `ci:full`, runs each expensive suite only
+An ordinary run (a PR run without `ci:full`) runs each expensive suite only
 when its own inputs changed. It records this as the `selective` profile, with
 each skipped suite and its reason in the selection receipt and the job summary.
 Promotion runs execute every suite and record `full`: a manual dispatch, a
@@ -937,8 +941,7 @@ content. The independent tracked-source producer keeps its
 own frozen installation and package build. Isolated installed consumers retain
 their distinct fresh-resolution contract and recorded dependency graph. The exact
 compatibility baseline is checked out separately. `scripts/ci/baseline_set.py`
-compares against the set a successful full run of that commit retained. It also
-accepts the PR set that a `reused` receipt names for the same tree. Either set
+compares against the set a successful full run of that commit retained. That set
 must verify in provenance, digest and tree, and come from identical producer
 code; the recipe may differ only in its contract files, which `compare` reads
 from each set itself. Otherwise the step rebuilds the baseline with the browser

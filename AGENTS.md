@@ -326,8 +326,9 @@ label (the ordinary selected checks) or `ci:full` (every suite), and merges to
 `main` start no run. When the machine is under heavy load, for example when
 `python3 scripts/heavy-slot.py --status` shows every slot held, add `ci:run`
 instead of running the expensive local checks, not in addition, and record the
-hosted run as that evidence. Outside contributors' PRs always run it, after the
-owner approves each run.
+hosted run as that evidence. Hosted validation does not run `pnpm prettier:check`;
+run it locally when it applies. Outside contributors' PRs always run hosted
+validation, after the owner approves each run.
 
 Run expensive checks locally before pushing, through the machine-wide
 [heavy-job slots](SDLC.md#repository-setup) so parallel sessions queue instead of
@@ -337,8 +338,8 @@ replace selected hosted work under the local-first validation policy. This is an
 owner-reviewed local assertion, not independent CI evidence. Receipts are not part
 of the default flow: agents prepare one only when the owner plans a reduced hosted
 run for that PR, and never impersonate the owner's review. Documentation-only changes
-need no receipt; a hosted run of a high-risk or uncertain change, persistent
-`ci:full`, manual runs and release callers validate in full.
+need no receipt; local evidence cannot narrow a high-risk or uncertain change,
+and persistent `ci:full`, manual runs and release callers validate in full.
 
 Record local evidence and the actual hosted `Validation` scope separately, with
 pending/failed/unperformed checks. Source, baseline, environment and freshness

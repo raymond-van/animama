@@ -112,6 +112,10 @@ class WorkflowContractTests(unittest.TestCase):
 
         `labels` are the PR's labels before the event; a `labeled` or `unlabeled`
         event's payload already carries the change, as GitHub sends it.
+
+        Limits: `==`/`!=` stay case-sensitive (GitHub ignores case) and Python's
+        `not` binds looser than GitHub's `!`. The current expressions depend on
+        neither; a new expression that does needs a faithful evaluator.
         """
         text = (ROOT / ".github/workflows/validate-public.yml").read_text()
         current = [name for name in labels if not (action == "unlabeled" and name == label)]
