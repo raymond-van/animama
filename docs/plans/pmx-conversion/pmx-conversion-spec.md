@@ -351,7 +351,8 @@ implementation is authorized.
 
 Required: the work spans two repositories (the converter and Animama), a new
 conversion path, a public distribution channel and verification on two
-platforms. To be written as `pmx-conversion-execplan.md` beside this spec.
+platforms. [`pmx-conversion-execplan.md`](pmx-conversion-execplan.md) on
+`feat/pmx-conversion` (draft, awaiting owner review).
 
 ## Delivery links
 
