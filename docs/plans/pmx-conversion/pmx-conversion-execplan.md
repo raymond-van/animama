@@ -1,12 +1,11 @@
 # Convert MikuMikuDance (PMX) models to VRM for Animama
 
-Source agreement: [pmx-conversion-spec.md](pmx-conversion-spec.md) on
-`feat/pmx-conversion`, agreed by the owner on 2026-11-25 (`fc9a2fae6`) and amended
-the same day for Q3's language (D1). It is not yet
-published as an issue; `workspace-setup` publishes it when implementation is
-authorized.
-Authorized scope: none yet. This plan awaits owner review. The owner gates below
-apply inside every phase once phases are authorized.
+Source agreement: https://github.com/raymond-van/animama/issues/927, published
+2026-11-25T17:13:57Z from the spec agreed by the owner that day, including the
+same-day Q3 amendment (D1). Snapshot: [pmx-conversion-spec.md](pmx-conversion-spec.md).
+Authorized scope: Phases 1–6 (owner, 2026-11-25: "Authorize all phases"). The
+owner gates G1–G4 below apply inside the phases; merge, release and publication
+approvals stay separate.
 
 ## Purpose and context
 
@@ -111,7 +110,8 @@ About 190 KB of C#; its notice must be kept with ported code.
 ## Progress
 
 - [x] Decision D1 (owner, 2026-11-25): JavaScript with JSDoc types.
-- [ ] Plan review and phase authorization by the owner.
+- [x] Plan review and phase authorization (owner, 2026-11-25: Phases 1–6).
+- [x] Workspace: issue #927 published; Animama branch pushed.
 - [ ] Phase 1: reading, skeleton and writing.
 - [ ] Phase 2: materials.
 - [ ] Phase 3: face morphs and emotions.

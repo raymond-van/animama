@@ -1,6 +1,8 @@
 # Convert MikuMikuDance (PMX) models to VRM for Animama
 
 Status: Agreed
+Snapshot of https://github.com/raymond-van/animama/issues/927 (published and
+captured 2026-11-25T17:13:57Z); the issue is authoritative.
 Owner decision: 2026-11-25. After an investigation of PMX support, the owner
 approved evaluating pmx-to-vrm and asked for this spec. On reviewing the first
 draft, the owner decided:
@@ -349,15 +351,14 @@ Non-goals:
 
 ## Spec
 
-This document (agreed draft). The owning issue will be created when
-implementation is authorized.
+https://github.com/raymond-van/animama/issues/927
 
 ## ExecPlan
 
 Required: the work spans two repositories (the converter and Animama), a new
 conversion path, a public distribution channel and verification on two
 platforms. [`pmx-conversion-execplan.md`](pmx-conversion-execplan.md) on
-`feat/pmx-conversion` (draft, awaiting owner review).
+`feat/pmx-conversion`.
 
 ## Delivery links
 
