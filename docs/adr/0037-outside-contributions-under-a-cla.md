@@ -6,9 +6,10 @@
 - Original decision date: 2026-11-24 (owner decision, tracked in
   [#911](https://github.com/raymond-van/animama/issues/911))
 - Decision basis: Explicit owner decision
-- Amended: 2026-11-25, hosted validation runs on pull requests, including
-  outside ones; the owner re-enabled it after the failures tracked in
-  [#907](https://github.com/raymond-van/animama/issues/907) were fixed.
+- Amended: 2026-11-25, hosted validation runs on outside pull requests, each
+  run after the owner's approval; the owner re-enabled it after the failures
+  tracked in [#907](https://github.com/raymond-van/animama/issues/907) were
+  fixed.
 
 ## Context
 
@@ -42,8 +43,8 @@ to every part of the source.
 3. **Agreement is a ticked box in the pull request description.** It covers
    that pull request and the contributor's later ones. The maintainer checks
    it before merging.
-4. **Hosted validation runs on pull requests, and a run on a fork's pull
-   request waits for the maintainer's approval in GitHub.** Contributors still
+4. **Hosted validation runs on outside pull requests, and each run waits for
+   the maintainer's approval in GitHub.** Contributors still
    report the local checks they ran, and the maintainer validates the exact
    head commit before merging. Until the 2026-11-25 amendment, hosted
    validation stayed off for pull requests.

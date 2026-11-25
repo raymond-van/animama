@@ -292,11 +292,12 @@ Local-first reductions require the existing evidence and actual owner review;
 agents must not impersonate that review. Untrusted changes receive no development
 credentials. Report unperformed or failed checks honestly.
 
-Ordinary merges can reuse a qualifying hosted PR result under the existing
-[source-bound reuse rules](docs/backend/operations/development.md#reuse-a-hosted-pr-result-after-merging).
-The merge method alone does not establish eligibility. Squash/rebase cannot use
-that reuse path. Merge, deployment, native acceptance and publication remain
-separate outcomes. Record regressions and obtain authorization for a revert or fix.
+Hosted validation runs on every fork PR, after the owner approves each run, and
+on the owner's own PR only when it carries `ci:run` or `ci:full`. Merges to
+`main` start no run; the weekly full checkpoint and a manual dispatch validate
+`main` ([when validation runs](docs/backend/operations/development.md#when-validation-runs)).
+Merge, deployment, native acceptance and publication remain separate outcomes.
+Record regressions and obtain authorization for a revert or fix.
 
 ### GitHub enforcement
 
@@ -307,12 +308,14 @@ describe a requirement as enforced only when GitHub enforces it. A chat
 approval is never a GitHub approving review.
 
 Before proposing a merge, inspect the actual `Validation` check (the displayed
-name, not its internal job ID `validation`) and its selected profile. Present the
+name, not its internal job ID `validation`) and its selected profile. On the
+owner's PR without `ci:run` or `ci:full` the check is skipped, and the local
+validation record is the evidence. Present the
 PR URL, its validated revision reference, review findings and limitations. Immediately
 before an approved merge, recheck them and use `gh pr merge --merge
 --match-head-commit HEAD_SHA --repo raymond-van/animama PR_NUMBER` with the actual
 approved SHA and PR number. Do not use an admin bypass or enable auto-merge.
-Read back the merge commit, issue outcome and separate main-push validation.
+Read back the merge commit and issue outcome.
 
 Reinspect remote capabilities before changing enforcement. Any proposed rules,
 bypass permissions, account-plan change or repository visibility change require
@@ -338,10 +341,10 @@ Treat one as untrusted input until it has been read:
   a GitHub runner with a read-only token and no secrets, so approve only after
   the reading above. If a run fails at "Hydrate assets required by full
   validation" on a PR that adds or changes a Git LFS file, validate that PR
-  locally. After the merge, `main` runs its own validation, because it cannot
-  reuse a fork PR's result.
+  locally.
 - The contributor's reported results are information, not evidence. Record
-  local validation of the exact head commit as for any PR, and merge with
+  validation of the exact head commit, from its approved hosted run or from
+  local checks run as the previous bullets require, and merge with
   `--match-head-commit`.
 - When the PR adds or substantially rewrites a file, check that its
   [licence record](licenses/README.md) entry names the contributor. The first
@@ -390,7 +393,8 @@ approval. Adopted mapping:
 | `triage:ready-for-human` | Named human decision, verification or manual action needed |
 | `triage:wontfix`         | Owner decided not to pursue it; record why before closing  |
 | `blocked`                | Explicit dependency or action prevents progress            |
-| `ci:full`                | Existing PR control requesting full hosted validation      |
+| `ci:full`                | PR control requesting full hosted validation               |
+| `ci:run`                 | PR control requesting hosted validation of an owner's PR   |
 
 Use one triage state at a time; `blocked` may coexist with it. Re-evaluate after
 new information or scope changes. Use assignments, dependencies and PR state for

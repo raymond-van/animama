@@ -13,8 +13,8 @@ on:
         unlabeled,
         edited,
       ]
-  push:
-    branches: [main]
+  # Merges to main start no run: the weekly checkpoint, a manual dispatch and
+  # release callers validate main (#933).
   schedule:
     - cron: "17 9 * * 1"
   workflow_dispatch:
@@ -36,16 +36,16 @@ permissions:
   pull-requests: read
 
 concurrency:
-  # Ignore metadata edits and labels other than ci:full without cancelling a
-  # real run; PR and push runs never collide. Reusable release callers retain
-  # their own run identity.
+  # Ignore metadata edits and labels other than ci:full and ci:run without
+  # cancelling a real run; PR, scheduled and manual runs never collide.
+  # Reusable release callers retain their own run identity.
   group: >-
     portable-product-${{ github.workflow }}-${{
       github.workflow != 'Portable product validation' && format('release-{0}', github.run_id) ||
       github.event_name == 'pull_request' &&
       (github.event.pull_request.state != 'open' || github.event.action == 'edited' && !github.event.changes.base ||
        (github.event.action == 'labeled' || github.event.action == 'unlabeled') &&
-       github.event.label.name != 'ci:full') &&
+       github.event.label.name != 'ci:full' && github.event.label.name != 'ci:run') &&
       format('ignored-{0}', github.run_id) ||
       github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
       format('{0}-{1}', github.event_name, github.ref)
@@ -59,14 +59,21 @@ defaults:
 jobs:
   validation:
     name: Validation
-    # Selection reads only the ci:full label and the draft flag, so other label
-    # changes cannot change the plan.
+    # A fork's PR always runs; GitHub holds each run for the owner's approval.
+    # A same-repository PR runs only with ci:run (the ordinary selected
+    # profile) or ci:full (every suite), because its author validates locally
+    # (#933). Selection reads only ci:full and the draft flag, and only these
+    # two labels decide whether the job runs, so other label changes cannot
+    # change the outcome. A deleted fork has no head repository and still runs.
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.pull_request.state == 'open' &&
+       (github.event.pull_request.head.repo.full_name != github.repository ||
+        contains(github.event.pull_request.labels.*.name, 'ci:run') ||
+        contains(github.event.pull_request.labels.*.name, 'ci:full')) &&
        (github.event.action != 'edited' || github.event.changes.base) &&
        (github.event.action != 'labeled' && github.event.action != 'unlabeled' ||
-        github.event.label.name == 'ci:full'))
+        github.event.label.name == 'ci:full' || github.event.label.name == 'ci:run'))
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -74,7 +81,7 @@ jobs:
       ANIMAMA_RUN_LIVE_TESTS: "0"
     steps:
       # Setup: one candidate checkout; exact baseline checkout happens only for packaging.
-      # Ordinary PR runs and main pushes may record a `selective` mode that
+      # Ordinary PR runs may record a `selective` mode that
       # skips the promotion suite and unchanged browser groups, or a routed
       # `backend-only`/`frontend-only` mode that also skips the other side's checks.
       - name: Check out exact candidate without asset hydration
