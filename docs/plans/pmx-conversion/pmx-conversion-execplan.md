@@ -113,7 +113,7 @@ About 190 KB of C#; its notice must be kept with ported code.
 - [x] Plan review and phase authorization (owner, 2026-11-25: Phases 1–6).
 - [x] Workspace: issue #927 published; Animama branch pushed.
 - [x] Phase 1: reading, skeleton and writing (converter `190eace`; review passed after two repair rounds; hosted CI on raymond-van/animama-avatar-converter#4).
-- [ ] Phase 2: materials.
+- [x] Phase 2: materials (converter `fe7c757`; review passed after one repair round).
 - [ ] Phase 3: face morphs and emotions.
 - [ ] Phase 4: physics and look-at.
 - [ ] Phase 5: Animama recognises converted MMD models.
@@ -417,15 +417,63 @@ Completion: the tests pass; skin shadows are warm where the ramp is; eyes are
 unshaded; outlines are dark and unlit; transparent layers draw in order in the
 private renders.
 
-Check record, results and commits: _pending._
+Check record (converter checkout, macOS, Node 24.15):
+
+| Check | Tree | Result |
+| --- | --- | --- |
+| `npm test`; `node scripts/check.mjs` | `a20d1d76` | 95 pass; OK, 59 sources |
+| private model: conversion, material dump, backend validator, chat-lighting render (`effects:render` with a scene effect, since the face needs Phase 3's expressions) | `a20d1d76` | accepted; skin and face shadows warm (toon02), hair and cloth toon01 grey, eyes unshaded, unlit screen-space outlines 0.00185 for edge size 0.5, two semi-transparent cloth materials blended in PMX order |
+| `npm test`; `node scripts/check.mjs`; private model | `7622a129` | 100 pass; OK; converts |
+| `npm test` after the trivial JPEG-toon wording repair | `9bbdf9d5` | 100 pass |
+
+Decisions made in this phase (agent, within the agreed scope):
+
+- **Lit colour and toon multiply:** they follow nanoem as ported by mdanceio
+  (MIT, `model_color.wgsl`, `model.rs`), whose default light is 154/255.
+- **Outline:** screen-space at 0.0037 × edge size. That is MMD's edge formula at
+  its 30° field of view, calibrated to three-vrm's NDC offset. The MToon spec calls
+  the factor a ratio of the screen height and UniVRM doubles it, so UniVRM-based
+  viewers draw it twice as wide. That is recorded rather than halving Animama's
+  outlines.
+- **Shared toon values:** read from column 0 of three.js's embedded ramps;
+  toon07–toon10 are placeholders there (white).
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed `a20d1d76` against `190eace`, standard tier, by an independent read-only agent. It confirmed the colour,
+toon and shading formulas against mdanceio and the MToon 1.0 spec, and the shared-toon offsets. Nothing blocking.
+
+- P2-F1: a material hidden at rest (alpha 0) wrote depth and could hide later transparent materials.
+- P2-F2: the outline width matches MMD only in three-vrm; UniVRM doubles it.
+- P2-F3 (optional): ramps were read from the middle column, and a highlight band was taken for the shadow's
+  start (toon05 and toon06 entries too wide).
+- P2-F4 (optional): an undecodable own toon was dropped silently.
+- P2-F5 (optional): stale report wording; an unshipped `toon0.bmp` was reported missing.
+- P2-F6 (optional): toon07–10 are placeholders, not MMD's values.
+- P2-F7 (optional): missing tests (undecodable PNG embeds), edge scale over-counted, translucent edges unreported.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P2-F1 fixed: only blended materials with alpha above 0 write depth and take a render-queue slot; test added.
+- P2-F2 kept as a recorded decision; the module comment states the calibration and the UniVRM difference.
+- P2-F3 fixed: column 0, shadow found from the bottom up to the nearest lit row; toon05 and toon06 re-derived
+  (20/32–24/32 and 22/32–26/32); test added.
+- P2-F4 fixed: a report warning names the toon; test added.
+- P2-F5 fixed: wording; unshipped `toon0.bmp`/`toon00.bmp` mean no toon; test added.
+- P2-F6 fixed: the comment calls them placeholders, a known gap.
+- P2-F7 fixed: the tests and both counts.
+
+#### Code Review #2 Findings
+
+Repair round 1 on `7622a129`: all seven resolved, no regressions, nothing blocking. Nits: a JPEG toon's warning gave
+no reason; single-digit `toon1.bmp` maps to the shared ramp; a single-colour ramp yields shift −1 (no visible
+effect).
+
+#### Code Review #2 Revisions
+
+The JPEG wording was a trivial repair, verified by `npm test`; the other two nits change nothing visible and were
+left. Result: Phase 2 complete. Commit `fe7c757` (`feat(pmx)[p2]: draw PMX materials with MToon the way MMD shades
+them`, tree `9bbdf9d5`) on the converter's `feat/pmx-conversion`, pushed to raymond-van/animama-avatar-converter#4.
 
 ### Phase 3: face morphs and emotions
 
