@@ -54,12 +54,14 @@ npx animama-avatar-converter <model.pmx> --out <private-dir>/<name>.vrm
   - Additive sphere maps become matcaps, and transparent materials keep MMD's
     draw order.
 - **Faces:**
-  - Every vertex, group and bone morph is a morph target under its PMX name, so
-    Animama's MMD table
+  - Every vertex and bone morph, and every group morph that moves vertices or
+    bones, is a morph target under its PMX name, so Animama's MMD table
     ([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars))
     finds the standard ones. Every converted morph is also a custom expression of
     that name; material and UV morphs reach Animama only this way, as colour
     binds and texture offsets.
+  - `--expression` can't leave a blink or viseme empty: Animama fills an empty
+    one from the model's standard morphs.
   - The converter fills the blink, viseme and five emotion presets. It writes
     region parts (`Fcl_BRW_<Mood>`, `Fcl_EYE_<Mood>`, `Fcl_MTH_<Mood>`) and
     `Fcl_ALL_<Mood>` from the model's own morphs, translated from Japanese,
@@ -84,10 +86,11 @@ Not carried over, each counted in the report:
 
 - joints between neighbouring spring chains;
 - multiplicative and sub-texture sphere maps;
-- specular highlights and per-vertex edge scale;
+- specular highlights, outline transparency and per-vertex edge scale;
 - SDEF (skinned linearly);
-- UV morphs that do not move a whole material evenly, flip and impulse
-  morphs, fades of every material at once, and tints that brighten a texture;
+- UV morphs that do not move a whole material evenly, morphs of the
+  additional UV channels, flip and impulse morphs, fades of every material at
+  once, and tints that brighten a texture;
 - PMX 2.1 soft bodies.
 
 IK and append (付与) bones stay as ordinary nodes that drive nothing (bone

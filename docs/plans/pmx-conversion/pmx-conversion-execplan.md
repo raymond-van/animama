@@ -114,11 +114,11 @@ About 190 KB of C#; its notice must be kept with ported code.
 - [x] Workspace: issue #927 published; Animama branch pushed.
 - [x] Phase 1: reading, skeleton and writing (converter `190eace`; review passed after two repair rounds; hosted CI on raymond-van/animama-avatar-converter#4).
 - [x] Phase 2: materials (converter `fe7c757`; review passed after one repair round).
-- [ ] Phase 3: face morphs and emotions.
-- [ ] Phase 4: physics and look-at.
-- [ ] Phase 5: Animama recognises converted MMD models.
-- [ ] Phase 6: release preparation and verification (gates G1–G4).
-- [ ] Final integration review.
+- [x] Phase 3: face morphs and emotions (converter `b0ee627`; review passed after two repair rounds).
+- [x] Phase 4: physics and look-at (converter `49e9729`; review passed after one repair round and a trivial repair).
+- [x] Phase 5: Animama recognises converted MMD models (Animama `879bf6e91`; high-risk review, fixes verified by the final integration review).
+- [ ] Phase 6: release preparation and verification. Steps 1–3 and the macOS run are done (converter `de6efd7`, `b51a0f4`); G1, G2 (Windows), G4 and G3 wait for the owner.
+- [x] Final integration review (one repair round; the full checks ran on the final candidates).
 
 ## Surprises & Discoveries
 
@@ -941,15 +941,51 @@ Checks: the shared converter checks; `node scripts/pack.mjs --out <tmp>/zips`;
 Completion: every acceptance criterion has its evidence, and gates G1–G4 are
 passed.
 
-Check record, results and commits: _pending._
+Check record (converter checkout, macOS, Node 24.15):
+
+| Check | Tree | Result |
+| --- | --- | --- |
+| `npm test`; `node scripts/check.mjs`; `node scripts/pack.mjs --out <tmp>/zips`; `npm pack --dry-run` | `5018d93e` | 146 pass; OK at 0.2.0; the Unity zip holds the Unity package only (75 entries); the npm package holds 27 files, every runtime module and `pmx/LICENSE-pmx-to-vrm`, no tests |
+| step 5, macOS: `npx <tarball> <private model>.pmx` from the packed 0.2.0 tarball | `5018d93e` | converted in 0.8 s; backend validator accepts it; `vrm:inspect`: all five moods "vroid" in every region, no `none` under blink and visemes, face skin, eyes, eye line and hair found |
+| checks agent: `npm test`, `check.mjs`, `check.mjs --tag v0.2.0`, `pack.mjs`, `npm pack`, `npx` smoke from the tarball, `npm publish --dry-run` | `5018d93e` | all as expected; `--tag` and `publish --dry-run` refuse only on the unreleased changelog heading and the untagged checkout (the release guards) |
+| `npm test`; `node scripts/check.mjs` | `4e1141f7` (`de6efd7`) | 147 pass; OK |
+| `npm test`; `node scripts/check.mjs` | `c917f392` (`b51a0f4`, final) | 147 pass; OK |
+
+Open gates (owner): G1 (a private corpus of at least five models; only the
+one test model so far), G2's Windows run, G4 (manual check in chat) and G3
+(release). Phase 4's review left three things to watch on the corpus: skirts
+flaring against the hip collider, irises the eye carries less than half of, and
+unreported diagonal joints.
 
 #### Code Review #1 Findings
 
-_Pending._
+High-risk tier: an independent analysis agent read `5018d93e`, and a separate checks agent reran the release checks
+(above). No blocker.
+
+- P6-F1 (important): the README said additive `.sph` sphere maps were dropped; `.sph` is multiplicative, and `.spa`
+  converts.
+- P6-F2 (important): the README goes public on GitHub before `npm publish`, and 0.1.1 treats a `.pmx` as a prefab.
+- P6-F3 to P6-F9: the mood names and two override rules were missing; two Options rows were VRChat-only; the
+  not-carried-over list was incomplete; PMD was not mentioned, and a `.pmd` got the Unity error; the licence note had
+  changed against spec Q1; the npm keywords lacked MMD words.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P6-F1, F3–F9 fixed in `de6efd7`: the README lists every preset and `Fcl_<BRW|EYE|MTH>_<mood>` with the mood words,
+  both rules, the full not-carried-over list and PMD; a `.pmd` gets the reader's PMD message (exit 2, tested); the
+  licence note is restored; keywords added.
+- P6-F2: the section says it needs 0.2.0, and the changelog's marker line is conditional; the release order is for
+  the owner at G3.
+
+#### Code Review #2 Findings
+
+Repair round 1 on `c0ef72f4`: all nine fixes correct, no regressions. Two wording nits (the report "counts each"
+and "as the report lists them") were fixed and confirmed by the same agent on `4e1141f7`.
+
+#### Code Review #2 Revisions
+
+None further. Phase 6 steps 1–3 committed as `de6efd7` (`feat(pmx)[p6]: document MMD models and prepare version
+0.2.0`, tree `4e1141f7`), pushed to raymond-van/animama-avatar-converter#4.
 
 ### Owner gates
 
@@ -985,11 +1021,60 @@ already upload on today's Animama, because uploads do not restrict
 
 #### Code Review #1 Findings
 
-_Pending._
+An independent read-only agent reviewed both branches: converter `0b24f4e..de6efd7`, and Animama from the merge base
+with `origin/main` to `879bf6e91`. It ran no suites.
+
+What it confirmed:
+- **Marker:** the converter's marker matches every Animama list and the springs predicate.
+- **Moods:** the mood names, the VRoid invariant and the MMD first-choice names agree on both sides.
+- **Springs and look-at:** the spring output is valid and unaffected by Animama's zero-gravity baseline and drag
+  clamp; look-at uses only types three-vrm supports.
+- **Project rules:**
+  - no dependencies or network code;
+  - the licence notice is kept;
+  - no third-party files and no attribution lines.
+- **Commit trees:** every commit tree matches its recorded tree.
+
+No blocker.
+
+- FI-F1 (important): Phase 6 steps 1–3 and the verification of Phase 5's review fixes were not recorded, and the
+  Progress list was stale.
+- FI-F2: `--expression blink=` (or a vowel) is not neutral in Animama, which fills an empty blink or viseme preset
+  from the model's morphs. A model whose only ウィンク closes the right eye also gets that wink in both presets
+  through Animama's name-based fill.
+- FI-F3: the Animama page left out outline transparency and additional-UV morphs, and overstated which group
+  morphs become targets.
+- FI-F4: the final full checks had not yet run on the repaired trees.
+- FI-F5 (optional): the marker has no Avatar-level Automatic or diagnostics test, though the wiring is shared.
+- FI-F6: a synthetic test string named a well-known character.
+
+It reviewed the Phase 5 fixes (hair pattern, docs and comments) and found no defect. That serves as their
+verification round.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- FI-F1 fixed: this record, the Phase 6 record and the Progress list.
+- FI-F2 fixed in the converter (`b51a0f4`): an empty or all-zero blink or vowel override is refused, with the rule in
+  USAGE, the README and the Animama page; confirmed by the reviewer. The wink edge case is Animama's name-based fill
+  and is left as a follow-up.
+- FI-F3 fixed in `mmd-model-conversion.md`; confirmed by the reviewer.
+- FI-F4: the converter's `npm test` and `check.mjs` ran on the final tree `c917f392` (147 pass; OK). Animama's full
+  pre-push suite ran on `879bf6e91` (tree `e6ef3089`): `make check-test` passed (5736). The frontend steps are
+  recorded below. Later Animama commits change only this plan and the docs page, which no check covers.
+- FI-F5: skipped (optional).
+- FI-F6 fixed (`b51a0f4`).
+
+Final full checks:
+
+| Check | Tree | Result |
+| --- | --- | --- |
+| `make check-test` (root, heavy-job slot) | `e6ef3089` (`879bf6e91`) | exit 0; 5736 passed, 30 skipped |
+| `pnpm verify` (`src/frontend`, heavy-job slot) | `e6ef3089` | exit 0; 6497 tests passed, 2 skipped |
+| `pnpm web:test:browser` (`src/frontend`, heavy-job slot) | `e6ef3089` | exit 0; 141 of 141 |
+| `pnpm prettier:check` (`src/frontend`) | `e6ef3089` | exit 0 |
+| converter `npm test`; `node scripts/check.mjs` | `c917f392` (`b51a0f4`) | 147 pass; OK |
+
+Result: both branches ready for their PRs. Gates G1, G2 (Windows), G4 and G3 stay open for the owner.
 
 ## Validation and acceptance
 
