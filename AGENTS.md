@@ -323,10 +323,10 @@ verify formatting, rather than commands that rewrite files.
 
 Hosted validation runs on the owner's own PR only when it carries the `ci:run`
 label (the ordinary selected checks) or `ci:full` (every suite), and merges to
-`main` start no run. When the machine is under heavy load, for example when
-`python3 scripts/heavy-slot.py --status` shows every slot held, add `ci:run`
-instead of running the expensive local checks, not in addition, and record the
-hosted run as that evidence. Hosted validation does not run `pnpm prettier:check`;
+`main` start no run. When the machine is under heavy load, meaning
+`python3 scripts/heavy-slot.py --status` shows every slot held, add `ci:run` to
+the ready PR instead of running the expensive local checks, not in addition, and
+record the hosted run as that evidence. Hosted validation does not run `pnpm prettier:check`;
 run it locally when it applies. Outside contributors' PRs always run hosted
 validation, after the owner approves each run.
 

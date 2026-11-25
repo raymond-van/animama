@@ -669,7 +669,7 @@ unchanged successful check only when a new failure, changed environment or other
 specific concern warrants it. Before the first push for review, run the full
 pre-push suite named in the [repository setup](../../../SDLC.md#repository-setup)
 once on the final candidate. When every heavy slot is held, a `ci:run` hosted
-run of that candidate may replace it ([when validation runs](#when-validation-runs));
+run of that candidate on its ready PR may replace it ([when validation runs](#when-validation-runs));
 `pnpm prettier:check` still runs locally when it applies. Verification commands should be read-only:
 `make format-check` checks formatting; `make format` changes files.
 
@@ -725,7 +725,7 @@ is not owner acceptance of the coverage or budget tradeoff.
 | Weekly checkpoint, manual dispatch, release caller  | Full; an unchanged `main` may skip the weekly repetition                                         |
 
 Without a label, the owner's PR shows a skipped `Validation` check and its local
-record is the evidence. Add `ci:run` when the machine is under heavy load, in
+record is the evidence. Add `ci:run` when every heavy slot is held, in
 place of the expensive local checks ([verification](../../../AGENTS.md#verification)).
 `ci:full` already implies a run, and a fork's PR needs neither label: toggling
 either one restarts the run, which on a fork waits for approval again. If a
