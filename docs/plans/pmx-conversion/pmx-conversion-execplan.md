@@ -112,7 +112,7 @@ About 190 KB of C#; its notice must be kept with ported code.
 - [x] Decision D1 (owner, 2026-11-25): JavaScript with JSDoc types.
 - [x] Plan review and phase authorization (owner, 2026-11-25: Phases 1–6).
 - [x] Workspace: issue #927 published; Animama branch pushed.
-- [ ] Phase 1: reading, skeleton and writing.
+- [x] Phase 1: reading, skeleton and writing (converter `190eace`; review passed after two repair rounds; hosted CI on raymond-van/animama-avatar-converter#4).
 - [ ] Phase 2: materials.
 - [ ] Phase 3: face morphs and emotions.
 - [ ] Phase 4: physics and look-at.
@@ -263,16 +263,110 @@ Completion: the tests pass on the local machine and in CI (Ubuntu and Windows),
 and both VRMs pass the validator and load in `vrm:inspect` with every humanoid
 bone mapped.
 
-Check record: _to be filled per check (command, directory, result, Git tree)._
-Results and commits: _pending._
+Check record (converter checkout, macOS, Node 24.15; trees are working-tree hashes before the phase commit):
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| `npm test` | converter root | `fed6247e` | 77 pass, 0 fail |
+| `node scripts/check.mjs` | converter root | `fed6247e` | OK, 57 sources |
+| synthetic fixture: `node cli/main.mjs <tmp>/model.pmx`, then the backend `validate_vrm_stream` and `pnpm -s vrm:inspect` (Animama `src/frontend/web`) | converter root, Animama | `fed6247e` | written (0.02 MB); accepted; VRM 1.0, 2 MToon, 4 named morph targets |
+| private model (69k vertices, 679 bones): conversion, validator, `vrm:inspect`, `avatar:parity-render` | converter root, Animama | `fed6247e` | 68 ms, 15.9 MB; accepted; 53 human bones, 40 named morph targets; T-pose render correct |
+| `npm test` | converter root | `e28e3107` | 84 pass, 0 fail |
+| `node scripts/check.mjs`; `npm pack --dry-run` | converter root | `e28e3107` | OK, 58 sources; 15 `pmx/` files, no tests |
+| private model conversion and validator | converter root, Animama | `e28e3107` | written, accepted |
+| Hosted CI (Ubuntu, Windows) | — | — | not run yet: runs on the converter PR |
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed `fed6247e` against `0b24f4e`, standard tier, by an independent read-only agent (the repository's
+`sdlc-reviewer` definition is not available to sessions started in the converter checkout, so a general agent
+ran with the same brief). It reran `npm test` and `check.mjs` and a structural GLB checker on the synthetic
+output (alignment, accessor bounds, sparse indices, bind matrices: no problems).
+
+- P1-F1 (blocking): `package.json` `files` left out `pmx/`, so the published command failed to start
+  (`ERR_MODULE_NOT_FOUND`), and the pmx-to-vrm notice would not ship.
+- P1-F2 (blocking, security): texture paths were followed from the filesystem root and through unlimited `..`,
+  so a model could make the converter read any image on disk, or open an SMB share on Windows (UNC path).
+- P1-F3: negative four-byte vertex indices passed the reader's range checks.
+- P1-F4: NaN floats in the file propagated into positions, bind matrices, morph offsets and colours.
+- P1-F5: `--validate --out x.vrm` wrote the file.
+- P1-F6: BMP palette size, BMP/TGA/DDS image sizes and PNG inflate output were trusted before allocation
+  (a 70-byte BMP exhausted memory).
+- P1-F7: `guessAuthor` took plain words after English credit keys as authors, and line order beat key priority.
+- P1-F8 (optional): huge declared counts allocated before failing.
+- P1-F9 (optional): every BMP/TGA/DDS was re-encoded eagerly at deflate level 9.
+- P1-F10 (optional): a stale header comment, an incomplete report type, unused exports, the README's missing
+  PMX section, and no licence reminder on the PMX path.
+- P1-F11 (optional): a narrow window in which `rename` could overwrite a file that appeared meanwhile.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P1-F1 fixed: `files` adds `pmx/*.mjs`, `!pmx/*.test.mjs` and `pmx/LICENSE-pmx-to-vrm`; `npm pack --dry-run`
+  lists 15 `pmx/` files and no tests.
+- P1-F2 fixed: absolute, drive and UNC paths use only their file name inside the model's folder; `..` may go one
+  folder above the model at most; the resolved file's real path must stay inside; tests cover each case,
+  including a symlink leading out.
+- P1-F3 fixed: indices below 0 are rejected for faces and vertex and UV morph parts; test added.
+- P1-F4 fixed: the reader reads non-finite floats as 0; test added.
+- P1-F5 fixed: validation ignores `--out` and writes nothing; test added.
+- P1-F6 fixed: images above 8192² are refused; the BMP palette is capped; BMP, TGA and DDS check their data
+  length before allocating; PNG inflate is bounded by the size its header implies; tests added.
+- P1-F7 fixed: credit keys are tried in priority order, English keys need a colon (or "… by"); the VRM name falls
+  back to the file name, then "unknown"; tests added.
+- P1-F8 fixed: counts are checked against the bytes left; test added.
+- P1-F9 fixed: textures are read, decoded and re-encoded only when a material uses them, at the default level.
+- P1-F10: comment, type and usage fixed and unused exports removed. The README's PMX section is Phase 6 work.
+  The licence reminder is rejected: the owner decided on 2026-11-25 that the PMX path shows no terms (spec Q1).
+- P1-F11 fixed: the VRM gets its name through a hard link, which fails rather than overwrite, with a
+  check-and-rename fallback where hard links are unsupported.
+
+#### Code Review #2 Findings
+
+Repair round 1 on `e28e3107`. The reviewer reran `npm test` (84 pass), `check.mjs`, a packed-install run and
+reproductions for each finding. Resolved: P1-F1–F5 and F7–F11. Not resolved: P1-F6 (a BMP with a negative depth
+or offset and a TGA with depth 0 still bypassed the size checks). New:
+
+- P1-F12: textures were reported missing when the model's folder is reached through a symlink.
+- P1-F13: decoded pixels were kept for the whole conversion, and two spellings of one path decoded twice.
+- P1-F14: a generic "Model:" line beat an explicit "Author:" line.
+- P1-F15: a failed write could leave the temporary `.part` file.
+- Advisory on P1-F2: one folder up reaches sibling folders of the model's folder.
+- Nits: header index sizes not checked; `alphaUsage` used only by tests.
+
+Nothing blocking remained.
+
+#### Code Review #2 Revisions
+
+- P1-F6 fixed: BMP depths outside 1/4/8/16/24/32 and data offsets outside the header and file are refused before
+  anything is allocated; TGA depths outside 8/15/16/24/32 too; test added.
+- P1-F12 fixed: paths are walked from the folder's real path; test added.
+- P1-F13 fixed: one record per resolved file; pixels are decoded on demand and dropped after the alpha analysis or
+  PNG encoding.
+- P1-F14 fixed: "author" precedes the generic "model" keys; test added.
+- P1-F15 fixed: a failed write removes its `.part` file unless the file was not ours (EEXIST).
+- Nits fixed: the PMX header's index sizes must be 1, 2 or 4; `alphaUsage` is used by the texture loader.
+- Advisory accepted as a risk: MMD packs with several variants often share a texture folder beside the model
+  folders (`../Texture/…`); the reach stays inside the model's parent folder, and the result only goes into the
+  user's own VRM.
+- Checks on `14fb1cde`: `npm test` 86 pass; `check.mjs` OK (58 sources); private model converts.
+
+#### Code Review #3 Findings
+
+Repair round 2 on `14fb1cde`: every item resolved, no regressions, nothing blocking (86 tests pass, `check.mjs`
+OK, pack lists 15 `pmx/` files). Carried into Phase 2:
+
+- an image an alias names twice is embedded twice (`gltfTextures` is keyed by PMX index);
+- once materials call `alpha()`, PNGs are decoded in production; BMP, TGA and DDS would decode twice; and an
+  alpha-analysis failure must not mark a texture missing.
+
+#### Code Review #3 Revisions
+
+No repair needed. The three Phase 2 items are recorded under Phase 2.
+
+Result: Phase 1 complete. Commit `190eace` (`feat(pmx)[p1]: convert MMD (PMX) models to VRM 1.0 without Unity`,
+tree `14fb1cde`, the reviewed tree) on the converter's `feat/pmx-conversion`, in draft PR
+raymond-van/animama-avatar-converter#4 for hosted CI.
+
 
 ### Phase 2: materials
 
