@@ -1458,7 +1458,8 @@ wind and the updraft (`SpringBonePhysicsController.setAmbientStrength`; 0
 adds none):
 
 - **Automatic** keeps the choice below: ambient forces, except for Avatars
-  converted by Mochiya and Avatars whose hair is too soft to hold against them.
+  converted by Mochiya or by Animama Avatar Converter from an MMD model, and
+  Avatars whose hair is too soft to hold against them.
 - **On** and **Off** force ambient forces on or off
   (`SpringBonePhysicsController.setAmbientForces`).
 - **Springs off** also holds every spring joint at its rest rotation.
@@ -1467,17 +1468,20 @@ adds none):
   resumes the simulation from rest. `avatarSpringMode.test.ts` pins this
   against the installed three-vrm.
 
-Under Automatic, Avatars converted by Mochiya Avatar Tools, the supported
-VRChat conversion route, get no ambient forces: no wind, no updraft and, at
-the default gravity multiplier, no zero-gravity baseline. `Avatar.load` detects them by the
-`MOCHIYA_avatar_composition` glTF extension Mochiya adds to every Avatar it
-converts (`springsTunedWithoutAmbientForces`), so detection holds only while a
-re-export keeps that extension. The snapshot and the debug panel's Spring Bones
-section report it ("Ambient forces: off (converted Avatar)"). Their springs come from
-PhysBones tuned with low pull and little gravity for a world without ambient
-forces. VRM-authored hair is stiff enough to resist the updraft; such springs
-are not, and a hanging ponytail would point straight up. The drag multiplier
-still applies.
+Under Automatic, converted Avatars get no ambient forces: no wind, no updraft
+and, at the default gravity multiplier, no zero-gravity baseline. That covers
+Avatars converted by Mochiya Avatar Tools, the supported VRChat conversion
+route, and MikuMikuDance models converted by Animama Avatar Converter
+([MMD model conversion](mmd-model-conversion.md)). `Avatar.load` detects them
+by the glTF extension each converter adds to every file it writes,
+`MOCHIYA_avatar_composition` or `ANIMAMA_avatar_conversion`
+(`springsTunedWithoutAmbientForces`), so detection holds only while a re-export
+keeps that extension. The snapshot and the debug panel's Spring Bones section
+report it ("Ambient forces: off (converted Avatar)"). Their springs come from
+PhysBones tuned with low pull and little gravity, or from MMD's rigid bodies,
+both made for a world without ambient forces. VRM-authored hair is stiff enough
+to resist the updraft; such springs are not: a hanging ponytail would point
+straight up and a skirt would balloon. The drag multiplier still applies.
 
 Under Automatic, an Avatar whose hair the updraft would lift at the chosen
 strength also gets no ambient forces (`SpringBonePhysicsController.updraftLiftsHair`,

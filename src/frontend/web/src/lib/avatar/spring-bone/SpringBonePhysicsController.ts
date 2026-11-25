@@ -159,24 +159,34 @@ export type SpringBonePhysicsControllerOptions = {
 const HAIR_LIFTED_SHARE = 0.5;
 
 /**
- * glTF extension Mochiya Avatar Tools writes into every Avatar it converts,
- * including VRChat Avatars; see docs/frontend/runtime/vrchat-avatar-conversion.md.
+ * glTF extensions that mark a converted Avatar whose springs were tuned
+ * without ambient forces: Mochiya Avatar Tools writes the first into every
+ * Avatar it converts, including VRChat Avatars (see
+ * docs/frontend/runtime/vrchat-avatar-conversion.md); Animama Avatar
+ * Converter writes the second into MikuMikuDance (PMX) conversions (see
+ * docs/frontend/runtime/mmd-model-conversion.md).
  */
-const MOCHIYA_CONVERSION_EXTENSION = "MOCHIYA_avatar_composition";
+const CONVERSION_EXTENSIONS = [
+  "MOCHIYA_avatar_composition",
+  "ANIMAMA_avatar_conversion",
+];
 
 /**
  * Whether an Avatar's springs were tuned without ambient forces, so wind and
  * the updraft must not be added. VRChat PhysBones hold their shape with low
- * pull and little gravity, and VRChat adds no ambient forces; converted to VRM
- * springs, that tuning is far softer than VRM-authored hair, and the updraft
- * lifts a hanging ponytail straight up. Detected from the extension Mochiya
- * Avatar Tools adds to every Avatar it converts, so it holds only while a
- * re-export keeps that extension.
+ * pull and little gravity, and VRChat adds no ambient forces; MMD physics is
+ * a rigid-body simulation without wind either. Converted to VRM springs, both
+ * are far softer than VRM-authored hair: the updraft lifts a hanging ponytail
+ * straight up and balloons a skirt. Detected from the converters' extensions,
+ * so it holds only while a re-export keeps them.
  */
 export function springsTunedWithoutAmbientForces(parserJson: unknown): boolean {
   const used = (parserJson as { extensionsUsed?: unknown } | null)
     ?.extensionsUsed;
-  return Array.isArray(used) && used.includes(MOCHIYA_CONVERSION_EXTENSION);
+  return (
+    Array.isArray(used) &&
+    CONVERSION_EXTENSIONS.some((name) => used.includes(name))
+  );
 }
 
 /** An owner's wind strength multiple: finite and at least 0, else 1. */

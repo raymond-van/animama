@@ -280,7 +280,26 @@ const EYE_BONE_MIN_HEIGHT_SHARE = 0.25;
 const FACE_FRONT_DEPTH_SHARE = 0.5;
 
 const LOOK_AT_EXPRESSIONS = ["lookLeft", "lookRight", "lookUp", "lookDown"];
-const HAIR_NAME_PATTERN = /hair|bang|fringe/i;
+/**
+ * Names that mean hair: English, and the Japanese, Chinese and Korean names
+ * MikuMikuDance and other models give hair materials (髪, 髮, 头发, 刘海,
+ * アホ毛, 앞머리 …). 发 alone counts at the start of a name or after a
+ * position, length or colour (前发, 长发, 白发), but not in words such as 发光
+ * (glow), 发条 (wind-up), 发射 (launch) or 出发 (depart).
+ */
+const HAIR_NAME_PATTERN =
+  /hair|bangs?|fringe|ponytail|twin_?tails?|pigtail|ahoge|髪|髮|头发|頭髪|刘海|瀏海|劉海|呆毛|アホ毛|ツインテ|ポニーテ|머리카락|앞머리|뒷머리|옆머리|(?:^|[前后後侧側鬓鬢长長短卷捲白黑金银銀])发(?![光条射出送生现現动動表布])/i;
+
+/** Names that contain a hair word but are not hair: ornaments, and English words like "chair". */
+const NOT_HAIR_NAME_PATTERN = /chair|bangle|飾|饰|ornament|accessor/i;
+
+/** Whether a material, object or node name means hair. */
+export function isHairName(name: string): boolean {
+  const trimmed = name.trim();
+  return (
+    HAIR_NAME_PATTERN.test(trimmed) && !NOT_HAIR_NAME_PATTERN.test(trimmed)
+  );
+}
 
 type EyeSide = "left" | "right" | "both";
 
@@ -2630,8 +2649,7 @@ export function resolveNamedHairBindings(
   const stack = rawNodes
     .map((node, index) => ({ node, index }))
     .filter(
-      ({ node, index }) =>
-        !parents.has(index) && HAIR_NAME_PATTERN.test(readName(node)),
+      ({ node, index }) => !parents.has(index) && isHairName(readName(node)),
     )
     .map(({ index }) => index);
   while (stack.length > 0) {
@@ -2653,13 +2671,13 @@ export function resolveNamedHairBindings(
   if (rooted.length > 0) return rooted;
   return entries.filter((entry) => {
     if (
-      HAIR_NAME_PATTERN.test(entry.materialName ?? "") ||
-      HAIR_NAME_PATTERN.test(entry.objectName ?? "")
+      isHairName(entry.materialName ?? "") ||
+      isHairName(entry.objectName ?? "")
     ) {
       return true;
     }
     for (let node = entry.object.parent; node; node = node.parent) {
-      if (HAIR_NAME_PATTERN.test(node.name)) return true;
+      if (isHairName(node.name)) return true;
     }
     return false;
   });

@@ -167,6 +167,10 @@ From the investigation and evaluation of 2026-11-25:
   physics on a humanoid bone is left off; a bone beside the eye is moved under it
   only when it hangs from the head and skins only the eye; eye vertices that also
   follow the head stretch as in MMD (details in the Phase 4 record).
+- **2026-11-25, agent (Phase 5):** the marker means "springs tuned without
+  ambient forces" and Animama checks only its presence; the hint's ship order
+  (converter 0.2.0 published right after the Animama merge, before a build with
+  the hint reaches users) is for the owner at G3.
 - **D1, decided 2026-11-25 by the owner:** write the PMX module as JavaScript ES
   modules (`.mjs`) with JSDoc types, like the rest of the command.
   - There is no build step and no new dependency, and Animama can import the module
@@ -823,15 +827,77 @@ Checks:
 Completion: all checks pass; a marked Avatar gets no ambient forces in Automatic;
 the docs page is linked.
 
-Check record, results and commits: _pending._
+Base: `fc9a2fae6` on `feat/pmx-conversion` (not rebased); disposable stack `pmx` (`docker compose -p animama-pmx`). The
+full pre-push suite reruns on the final candidate before the PR (Final integration).
+
+Check record (Animama worktree, macOS):
+
+| Check | Tree | Result |
+| --- | --- | --- |
+| `pnpm verify` | `19952ec8` | exit 0; 6495 tests passed |
+| `pnpm prettier:check` | `19952ec8` | exit 0 |
+| `make check-test` | `19952ec8` | 5736 passed, 30 skipped; mypy clean (after the worktree venv got the documented extras; the first run stopped at mypy on a missing `pptx`) |
+| `pnpm -s vrm:optimize` on a marked synthetic VRM, then `verify` | `19952ec8` | equivalent; marker kept |
+| backend upload validator on the converted private model (Phases 3 and 4) | `19952ec8` | `model/gltf-binary` |
+| `pnpm e2e:test` through the heavy-job slots, `pmx` stack | `19952ec8` | 39 passed, 3 failed in 1.1 h: two Local Gesture discard journeys (name field not found in 10 s) and the Library's "keeps Included files between visits" (4 thumbnails fetched again) |
+| `pnpm e2e:test` on those two spec files, same stack | `338dffd9` | 7 of 7 passed: the three failures were load, not this change |
+| Library sharing of a marked Avatar | `1a42ec96`, `338dffd9` | backend validation and Library export/import tests parametrized over `CONVERTED_AVATAR_EXTENSIONS`, which now holds the marker (in the 687 above) |
+| checks agent: vitest beside and related to the touched sources | `1a42ec96`, `338dffd9` | exit 0; 2475 passed, 2 skipped (related run on 8 sources) |
+| checks agent: `node --test scripts/vrm-optimize.test.mjs` | `1a42ec96` | 11 of 11 |
+| checks agent: `pnpm i18n:check` | `1a42ec96`, `338dffd9` | exit 0 |
+| checks agent: backend `pytest` on 12 content-package and glTF files; `ruff check`, `ruff format --check`, `mypy` on the touched Python | `1a42ec96`, `338dffd9` | 687 passed; all exit 0 |
+| checks agent: `check_source.py` (licence review) | `338dffd9` | exit 0 |
+| checks agent: browser suite (`test:browser:source` through the heavy-job slot; the package rebuild skipped while e2e used the same worktree) | `338dffd9` | 140 of 141; `animation-combo.browser.test.mjs` ran at 1.166× real time against a 1.15× limit under load, then passed alone |
+
+Decisions made in this phase (agent, within the agreed scope):
+
+- **The marker means "springs tuned without ambient forces"**, as Mochiya's does.
+  Animama checks only that it is present, and the docs say so.
+- **Hair names** cover the Japanese, Chinese and Korean words models use, skip
+  ornaments and words that only contain a hair word, and take 发 only at the
+  start of a name or after a position, length or colour.
+- **Ship order** (for G3): the Create Anima hint and the docs name
+  `npx animama-avatar-converter <model.pmx>` and the README's `#mmd-models`
+  section. Both exist only once converter 0.2.0 is published. Animama must
+  accept the marker before users share marked files. So the converter release
+  follows the Animama merge before a build with the hint reaches users. The
+  owner decides at G3.
 
 #### Code Review #1 Findings
 
-_Pending._
+High-risk tier: an independent analysis agent read `1a42ec96`, compared it with the converter at `b0ee627` plus
+its Phase 4, and ran the touched vitest files (12 tests passed). A separate checks agent reran the affected checks
+(above). No blocker.
+
+It confirmed:
+- every allow-list is updated (loader, backend `_GLTF_EXTENSIONS`, the shared fixture, the optimizer's safe and
+  JSON-only lists, test helpers), and none is missed;
+- accepting the marker adds no executable surface: at most a hostile package turns off wind;
+- older installs reject a package with a marked Avatar, as they do Mochiya's extensions;
+- the i18n keys and the link's screen-reader text are present in every locale.
+
+- P5-F1: the hint and docs point at a converter README section and release that do not exist until Phase 6.
+- P5-F2: the new files, and the committed plan files, had no licence-review entries.
+- P5-F3: the hair pattern missed 前发, 后发, 侧发, 刘海, 呆毛, アホ毛, ツインテール and Korean names, and matched 发条,
+  发射 and 髪飾り.
+- P5-F4: comments and docs still called the wind exemption Mochiya-only.
+- P5-F5: five statements in `mmd-model-conversion.md` did not match the converter.
+- P5-F6 (pre-existing): the optimizer's JSON-only check looks only for `bufferView` and `accessor` keys.
+- P5-F7: the springs exemption ignores the marker's `source`.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P5-F1: kept as the ship-order decision above, for the owner at G3.
+- P5-F2 fixed: four entries; `check_source.py` passes.
+- P5-F3 fixed: wider pattern, a not-hair pattern, tests for each case.
+- P5-F4 fixed: `avatar-animation.md`, `avatarSettings.ts`, `AnimationDebugModal.tsx`, `avatarGltfExtensions.ts` and
+  `content_package_capabilities.py`.
+- P5-F5 fixed: the report, morph, mood, look-at and not-carried-over statements now match the converter.
+- P5-F6: left. It is shared with Mochiya's extensions, and the converter writes two strings.
+- P5-F7: documented (the marker means springs tuned without ambient forces).
+
+Result: Phase 5 complete, committed with this record as `feat(avatars)[p5]: recognise MMD models converted by
+Animama Avatar Converter` on Animama's `feat/pmx-conversion`.
 
 ### Phase 6: release preparation and verification
 

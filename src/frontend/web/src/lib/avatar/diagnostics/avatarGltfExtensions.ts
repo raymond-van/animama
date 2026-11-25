@@ -2,7 +2,8 @@
  * glTF extensions the Avatar loaders can load (`configureAvatarGltfLoader`):
  * three's GLTFLoader built-ins whose decoders Animama serves (meshopt, not
  * Draco or Basis), the VRM and VRM Animation plugins, and the extensions
- * Mochiya Avatar Tools writes into converted Avatars. Package validation
+ * Mochiya Avatar Tools and Animama Avatar Converter write into converted
+ * Avatars. Package validation
  * (`content_package_capabilities.py` `_GLTF_EXTENSIONS`) accepts these and
  * `UNDECODED_GLTF_EXTENSIONS` (the shared `package-capabilities.json` fixture
  * pins both lists), so a shared Draco Avatar imports with a notice and is
@@ -42,6 +43,9 @@ export const LOADABLE_GLTF_EXTENSIONS: ReadonlySet<string> = new Set([
   // and the conversion marker the spring settings read.
   "MOCHIYA_avatar_composition",
   "MOCHIYA_materials_liltoon",
+  // Animama Avatar Converter's marker on MMD (PMX) conversions, which the
+  // spring settings read like Mochiya's.
+  "ANIMAMA_avatar_conversion",
 ]);
 
 /**

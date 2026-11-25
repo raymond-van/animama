@@ -413,6 +413,12 @@ region of one that holds the whole body; texture
 anchors project onto the face binding nearest the eyes. Material and node names
 (`profiles.ts`) are a fallback per part; if detection itself fails, the Avatar
 still loads with name matching and logs `avatar_face_parts_detection_failed`.
+Hair's name fallback (`isHairName`) also reads the Japanese, Chinese and
+Korean names models give hair (髪, 头发, 刘海, アホ毛, ツインテール, 앞머리, and
+发 at the start of a name or after a position, length or colour, but not in
+words such as 发光, "glow"), and skips ornaments (髪飾り) and words that only
+contain a hair word ("chair"). A converted MMD model whose springs do not
+reveal its hair still has it found.
 Detection takes a few milliseconds per Avatar and never writes world matrices.
 
 ### Eyes without geometry

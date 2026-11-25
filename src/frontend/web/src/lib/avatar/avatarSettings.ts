@@ -8,9 +8,9 @@ import { create } from "zustand";
 
 /**
  * Wind and spring physics. Automatic keeps today's choice (no wind or updraft
- * on Avatars converted by Mochiya, whose springs rely on their modelled
- * shape); On and Off force ambient forces; Springs off also holds every spring
- * joint at rest.
+ * on Avatars converted by Mochiya or from an MMD model, whose springs rely on
+ * their modelled shape); On and Off force ambient forces; Springs off also
+ * holds every spring joint at rest.
  */
 export type AvatarSpringMode = "automatic" | "on" | "off" | "springs_off";
 
