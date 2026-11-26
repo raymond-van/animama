@@ -12122,6 +12122,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "docs/plans/delete-and-pin/delete-and-pin-spec.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "docs/plans/electron-44-upgrade/electron-44-upgrade-execplan.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
