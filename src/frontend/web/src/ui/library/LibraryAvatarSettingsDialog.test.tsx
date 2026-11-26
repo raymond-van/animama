@@ -42,6 +42,9 @@ vi.mock("@animama/product-ui", async (importOriginal) => ({
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
   useRuntimeCacheKey: () => "owner-1",
 }));
+vi.mock("@/query/hooks/useAnimas", () => ({
+  useAnimas: () => ({ data: [], refetch: vi.fn() }),
+}));
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
   useRuntimeCapabilities: () => ({
     data: { runtime_kind: mocks.runtimeKind },
@@ -135,7 +138,12 @@ function DockProbe() {
   return null;
 }
 
-function render() {
+function render(
+  avatar:
+    | typeof AVATAR
+    | { itemId: string; source: "included"; name: string } = AVATAR,
+  onReplaced?: () => void,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -146,7 +154,11 @@ function render() {
     root.render(
       <QueryClientProvider client={client}>
         <DockProbe />
-        <LibraryAvatarSettingsDialog avatar={AVATAR} onClose={() => {}} />
+        <LibraryAvatarSettingsDialog
+          avatar={avatar}
+          onClose={() => {}}
+          onReplaced={onReplaced}
+        />
       </QueryClientProvider>,
     );
   });
@@ -300,6 +312,18 @@ describe("Library Avatar settings", () => {
       source: { kind: "avatar", itemId: "item-7", source: "local" },
       open: true,
     });
+  });
+
+  it("offers Replace VRM for a Local Avatar only", async () => {
+    render(AVATAR, () => {});
+    expect(document.body.textContent).toContain("Model file");
+    expect(document.body.textContent).toContain("Replace VRM");
+    act(() => root?.unmount());
+    root = null;
+    document.body.replaceChildren();
+
+    render({ itemId: "item-8", source: "included", name: "Annie" }, () => {});
+    expect(document.body.textContent).not.toContain("Replace VRM");
   });
 
   it("offers Diagnostics only where the runtime keeps no settings", async () => {

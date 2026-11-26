@@ -76,6 +76,35 @@
         "value": "{{percent}}%"
       }
     },
+    "avatarPicker": {
+      "title": "更換虛擬形象",
+      "description": "選擇 {{name}} 呈現的虛擬形象。身分設定、記憶、聊天、動作、反應、待機和語音保持不變。",
+      "search": "搜尋虛擬形象",
+      "upload": "上傳 VRM",
+      "uploadFile": "{{file}}（{{size}}）",
+      "uploadName": "虛擬形象名稱",
+      "saveUpload": "儲存虛擬形象",
+      "cancelUpload": "取消上傳",
+      "readFailed": "無法將此檔案讀取為 VRM。",
+      "saveFailed": "無法儲存虛擬形象。請重試。",
+      "nameUsed": "已有虛擬形象使用此名稱。請選擇其他名稱。",
+      "loading": "正在載入虛擬形象…",
+      "loadFailed": "無法載入虛擬形象。",
+      "retry": "重試",
+      "noMatches": "沒有符合搜尋的虛擬形象。",
+      "groupLabel": "虛擬形象",
+      "current": "目前",
+      "local": "我的內容",
+      "included": "內建",
+      "cancel": "取消",
+      "use": "使用此虛擬形象",
+      "using": "正在更換…",
+      "waitForReply": "{{name}} 正在回覆。請在回覆結束後更換虛擬形象。",
+      "changed": "{{anima}} 現在使用 {{avatar}}。",
+      "changedNextLoad": "{{anima}} 現在使用 {{avatar}}。此聊天會在下次載入時顯示。",
+      "changedElsewhere": "此 Anima 已在其他地方變更。請查看目前的虛擬形象後重試。",
+      "changeFailed": "無法更換虛擬形象。請重試。"
+    },
     "choices": {
       "appDefaultOff": "應用程式預設（關）",
       "appDefaultOn": "應用程式預設（開）",
@@ -88,6 +117,12 @@
       "memory": "記憶"
     },
     "rows": {
+      "avatar_choice": {
+        "label": "虛擬形象",
+        "current": "正在使用 {{name}}。更換後，此 Anima 的身分設定、記憶、聊天、行為和語音保持不變。",
+        "description": "此 Anima 呈現的虛擬形象。",
+        "open": "更換虛擬形象"
+      },
       "avatar_diagnostics": {
         "description": "查看 Animama 在此 Anima 的虛擬形象中發現的內容，並複製報告以尋求支援。",
         "label": "虛擬形象診斷",

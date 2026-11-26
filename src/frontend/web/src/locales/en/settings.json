@@ -76,6 +76,35 @@
         "value": "{{percent}}%"
       }
     },
+    "avatarPicker": {
+      "cancel": "Cancel",
+      "cancelUpload": "Cancel upload",
+      "changed": "{{anima}} now uses {{avatar}}.",
+      "changedElsewhere": "This Anima changed elsewhere. Check the current Avatar and try again.",
+      "changedNextLoad": "{{anima}} now uses {{avatar}}. This chat shows it the next time it loads.",
+      "changeFailed": "The Avatar could not be changed. Try again.",
+      "current": "Current",
+      "description": "Choose the Avatar {{name}} appears as. Its identity, memories, chats, Gestures, Reactions, Idle and voice stay the same.",
+      "groupLabel": "Avatars",
+      "included": "Included",
+      "loadFailed": "The Avatars could not be loaded.",
+      "loading": "Loading Avatars…",
+      "local": "My Content",
+      "nameUsed": "An Avatar already uses this name. Choose another name.",
+      "noMatches": "No Avatars match this search.",
+      "readFailed": "This file could not be read as a VRM.",
+      "retry": "Retry",
+      "saveFailed": "The Avatar could not be saved. Try again.",
+      "saveUpload": "Save Avatar",
+      "search": "Search Avatars",
+      "title": "Change Avatar",
+      "upload": "Upload VRM",
+      "uploadFile": "{{file}} ({{size}})",
+      "uploadName": "Avatar name",
+      "use": "Use Avatar",
+      "using": "Changing…",
+      "waitForReply": "{{name}} is replying. Change the Avatar when the reply ends."
+    },
     "choices": {
       "appDefaultOff": "App default (Off)",
       "appDefaultOn": "App default (On)",
@@ -88,6 +117,12 @@
       "memory": "Memory"
     },
     "rows": {
+      "avatar_choice": {
+        "current": "Uses {{name}}. Changing it keeps this Anima's identity, memories, chats, Actions and voice.",
+        "description": "The Avatar this Anima appears as.",
+        "label": "Avatar",
+        "open": "Change Avatar"
+      },
       "avatar_diagnostics": {
         "description": "See what Animama found in this Anima's Avatar, and copy a report for support.",
         "label": "Avatar diagnostics",

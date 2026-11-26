@@ -5,6 +5,7 @@ import type {
   PyRuntimeAvatar,
 } from "@/lib/content/catalogTypes";
 import { AnimaRuntimeCatalog } from "./AnimaRuntimeCatalog";
+import { runtimeAvatarItemRevision } from "./runtimeAvatarFaceParts";
 import { adaptRuntimeSnapshot } from "./runtimeSnapshotAdapter";
 
 function avatar(): PyRuntimeAvatar {
@@ -175,6 +176,11 @@ describe("adaptRuntimeSnapshot", () => {
           url: "/v1/content/files/included-avatar-vrm",
         },
       ],
+    });
+    // The mounted item and revision, so a portrait names what is on screen.
+    expect(runtimeAvatarItemRevision(runtime.avatar_model)).toEqual({
+      item_id: "avatar-test",
+      revision_sha256: "builtin:avatar-test:1",
     });
   });
 

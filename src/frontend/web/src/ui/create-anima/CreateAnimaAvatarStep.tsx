@@ -1,4 +1,4 @@
-import { Check, Upload, UserRound } from "lucide-react";
+import { Check, Upload } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
@@ -26,6 +26,7 @@ import { Input } from "@/ui/components/input";
 import { ModelLink } from "@/ui/components/model-link";
 import { contentEntryName } from "@/lib/content/nameIdentifiers";
 import { itemReference } from "./createAnimaContent";
+import { AvatarThumbnail } from "@/ui/avatar-preview/AvatarThumbnail";
 import { sameRef, type CreateAnimaDraft } from "./createAnimaDraft";
 import { creatorErrorText } from "./createAnimaErrors";
 import { checkCreationVrm } from "./createAnimaFiles";
@@ -54,34 +55,6 @@ export function avatarCollisionTarget(
 }
 
 const UNLOADED_STAGE: CreationStageAvatar = { avatar: null, status: "loading" };
-
-/**
- * An Avatar card's picture: its portrait (shipped, or captured when a Local
- * Avatar was first shown here) or a placeholder. A portrait that fails to
- * load falls back to the placeholder.
- */
-function AvatarThumbnail({ url }: { url: string | null | undefined }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  return (
-    <div className="bg-muted/30 flex h-28 items-center justify-center overflow-hidden rounded-lg">
-      {url && failed !== url ? (
-        <img
-          src={url}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="size-full object-contain"
-          onError={() => setFailed(url)}
-        />
-      ) : (
-        <UserRound
-          className="text-muted-foreground/60 size-11"
-          aria-hidden="true"
-        />
-      )}
-    </div>
-  );
-}
 
 export function CreateAnimaAvatarStep({
   draft,
@@ -322,7 +295,10 @@ export function CreateAnimaAvatarStep({
                       value={item.item_id}
                       onChange={() => void choose(itemReference(item))}
                     />
-                    <AvatarThumbnail url={item.portrait?.url} />
+                    <AvatarThumbnail
+                      itemId={item.item_id}
+                      portraitUrl={item.portrait?.url}
+                    />
                     <span className="flex items-center justify-between gap-2 text-sm font-medium">
                       <span className="min-w-0 break-words">{item.name}</span>
                       {checked ? (

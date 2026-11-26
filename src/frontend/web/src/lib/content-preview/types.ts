@@ -1,4 +1,7 @@
-import type { PyPose } from "@animama/runtime-contracts/api-types";
+import type {
+  ItemRevisionRef,
+  PyPose,
+} from "@animama/runtime-contracts/api-types";
 import type {
   RuntimeResourceKind,
   AnimaRuntimeCatalogSnapshot,
@@ -39,6 +42,11 @@ type ContentPreviewTargetBase = {
     animaId: string;
     runtime: AnimaRuntimeCatalogSnapshot;
   };
+  /**
+   * For an Avatar preview: the Local Avatar revision whose stale portrait the
+   * Dock captures again once this model is loaded and at rest.
+   */
+  portraitRetake?: ItemRevisionRef;
 };
 
 export type ContentPreviewTarget =

@@ -29908,6 +29908,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/lib/avatar/portrait/retakeTarget.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/lib/avatar/poses/PoseController.playbackObservation.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -35930,6 +35937,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/query/mutations/useAvatarSelection.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/mutations/useAvatarSelection.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/query/mutations/useChatGPTPlan.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -36099,6 +36120,13 @@
     },
     {
       "path": "src/frontend/web/src/query/mutations/useRepairAnimaMemories.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/mutations/useReplaceAvatarModel.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -36617,6 +36645,20 @@
     },
     {
       "path": "src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/stores/avatar-portrait-version-store.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/stores/avatar-portrait-version-store.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -37198,6 +37240,27 @@
     },
     {
       "path": "src/frontend/web/src/ui/animas/AnimaAppearanceDialog.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/animas/AnimaAvatarChoiceRow.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/animas/AnimaAvatarPicker.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/animas/AnimaAvatarPicker.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -37841,6 +37904,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/avatar-preview/AvatarThumbnail.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/avatar-preview/AvatarTransformControls.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -37863,6 +37933,13 @@
     },
     {
       "path": "src/frontend/web/src/ui/avatar-preview/PlaybackObservationOutput.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/avatar-preview/useStagePortraitRetake.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -39470,6 +39547,20 @@
     },
     {
       "path": "src/frontend/web/src/ui/library/ContentImportReview.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/library/LibraryAvatarModelRow.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/library/LibraryAvatarModelRow.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

@@ -56,8 +56,26 @@ Profile and Background images, framing and Avatar portrait fallback.
 ## Avatar settings
 
 Anima settings (the Settings tab, and Settings in the chat profile modal) end
-with an **Avatar** section. On the local runtimes (desktop and self-hosted web)
-it holds the settings of the Anima's Avatar item, stored per owner and Avatar
+with an **Avatar** section. It starts with an **Avatar** row naming the Anima's
+current Avatar. **Change Avatar** opens a picker (`AnimaAvatarPicker`) listing
+every Included and Local Avatar with its portrait. It can also upload a VRM,
+which passes Create Anima's browser checks and is saved as a new Local Avatar.
+**Use Avatar** plans and commits only the Loadout's `avatar` slot (`POST
+/v1/animas/{anima_id}/avatar:plan|commit`) against the Loadout revision the
+picker showed; a newer revision refuses the change and asks for a retry. The
+Anima keeps its identity, memories, chats, Actions and voice.
+
+In that Anima's chat, the chat remounts its runtime (`remountLatest`) to show
+the new model, which disposes the catalog and voice a reply still uses. So
+**Use Avatar** is disabled, with a note, while a reply or its speech is under
+way. The dialog closes only once the chat has requested its new runtime, so the
+owner cannot open another Anima's chat during the remount. A reply that starts
+while the change saves (a voice turn) is left to finish, and the chat shows the
+new model the next time it loads. Other surfaces read the next runtime; an open
+desktop picture-in-picture window keeps the old Avatar until it is reopened.
+
+On the local runtimes (desktop and self-hosted web) the section also holds the
+settings of the Anima's Avatar item, stored per owner and Avatar
 through `GET`/`PUT /v1/avatar-content/{item_id}/settings`, so they apply
 wherever that Avatar is used:
 
@@ -86,6 +104,8 @@ wherever that Avatar is used:
 
 The Library offers the same rows for any Avatar item (see
 [Library](library.md)); both use `AvatarSettingsRows`, keyed by Avatar item.
+For a Local Avatar the Library also offers Replace VRM, which changes the
+model of every Anima that uses it.
 Create Anima has no settings: an unsaved upload has no Avatar item to keep
 them for.
 
@@ -187,7 +207,8 @@ ingredients never appear as separate loadout checkboxes.
 
 The Behavior tab shows the Anima's Loadout: Voices, Gestures, Reactions and Idle.
 Voices configures PocketTTS and ElevenLabs for this Anima, regardless of the
-active application provider. Avatar and Appearance use their own focused controls.
+active application provider. The Avatar is chosen in
+[Avatar settings](#avatar-settings) and Appearance in its own editor.
 Imported encoded-only voice clones remain selectable for speech; their original
 recording preview is unavailable because the recording is not shared.
 

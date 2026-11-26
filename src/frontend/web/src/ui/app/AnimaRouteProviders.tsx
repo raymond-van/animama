@@ -58,6 +58,8 @@ function preparationDiagnostic(
 }
 
 type MountedRuntimeContent = {
+  /** The Anima this route mounted, so a change to another Anima leaves it. */
+  animaId: string | null;
   data: AnimaRuntimeCatalogSnapshot | null;
   catalog: AnimaRuntimeCatalog | null;
   pocketVoice: MountedPocketVoice | null;
@@ -381,6 +383,7 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
   const typed = visible.typed;
   const value = useMemo<MountedRuntimeContent>(
     () => ({
+      animaId: animaId ?? null,
       data: visible.data,
       catalog: visible.catalog,
       pocketVoice: resolveMountedPocketVoice(typed, visible.mount),
