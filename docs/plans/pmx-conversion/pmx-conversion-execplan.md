@@ -117,7 +117,7 @@ About 190 KB of C#; its notice must be kept with ported code.
 - [x] Phase 3: face morphs and emotions (converter `b0ee627`; review passed after two repair rounds).
 - [x] Phase 4: physics and look-at (converter `49e9729`; review passed after one repair round and a trivial repair).
 - [x] Phase 5: Animama recognises converted MMD models (Animama `879bf6e91`; high-risk review, fixes verified by the final integration review).
-- [ ] Phase 6: release preparation and verification. Steps 1–3 and the macOS run are done (converter `de6efd7`, `b51a0f4`); G1, G2 (Windows), G4 and G3 wait for the owner.
+- [ ] Phase 6: release preparation and verification. Steps 1–4 and the macOS run are done (converter `de6efd7`, `b51a0f4`, `4c7442f`; G1 met by a five-model corpus); G2 (Windows), G4 and G3 wait for the owner.
 - [x] Final integration review (one repair round; the full checks ran on the final candidates).
 
 ## Surprises & Discoveries
@@ -951,11 +951,73 @@ Check record (converter checkout, macOS, Node 24.15):
 | `npm test`; `node scripts/check.mjs` | `4e1141f7` (`de6efd7`) | 147 pass; OK |
 | `npm test`; `node scripts/check.mjs` | `c917f392` (`b51a0f4`, final) | 147 pass; OK |
 
-Open gates (owner): G1 (a private corpus of at least five models; only the
-one test model so far), G2's Windows run, G4 (manual check in chat) and G3
-(release). Phase 4's review left three things to watch on the corpus: skirts
+Open gates (owner): G2's Windows run, G4 (manual check in chat) and G3
+(release). G1 is met by the corpus below. Phase 4's review left three things to watch on the corpus: skirts
 flaring against the hip collider, irises the eye carries less than half of, and
 unreported diagonal joints.
+
+#### Step 4: private corpus (G1)
+
+Five private models; the owner approved each download and its source. They are labelled here by trait only and are kept outside every repository. Counts come from the final converter tree `37e9c5bb` (`4c7442f`) (macOS, Node 24):
+
+| Model | Rig and content | Time, size | Validator | `vrm:inspect` | Look-at | Springs |
+| --- | --- | --- | --- | --- | --- | --- |
+| M1 | D-bones; 679 bones; 40 vertex morphs, 1 material morph; PNG; 431 simulated bodies | 0.46 s, 14.8 MB | accepted | moods 5/5 "vroid"; blink and visemes all; face skin, eyes, eye line, lashes, hair | bone | 57 chains |
+| M2 | plain rig; 302 bones; 216 morphs (20 group, 7 bone, 5 material), 114 English and ARKit names; sleeves turned by one-link IKs | 1.82 s, 75.4 MB | accepted | moods 5/5; all | bone | 57 chains |
+| M3 | plain rig; 224 bones; 184 morphs (3 group, 1 UV, 3 material), 109 English and ARKit names; one-sided mood morphs (`_L`/`_R`) | 1.87 s, 57.7 MB | accepted | moods 5/5; all | bone (259 eye vertices stretch, as in MMD) | 38 chains |
+| M4 | plain rig (2013); own toon; BMP textures; zero-width outline vertices; winks named opposite their side | 0.19 s, 3.0 MB | accepted | moods 5/5; all | bone | 31 chains |
+| M5 | plain rig; 117 bones; own toon; winks named opposite their side | 0.26 s, 4.6 MB | accepted | moods 5/5; all | bone | 25 chains |
+
+Over-time renders (`effects:render`, 1, 3 and 8 s) show every model's springs hanging and settling.
+
+Coverage of the spec's list:
+- D-bone and plain rigs: M1; M2–M5.
+- Group, bone and UV morphs: M2, M3.
+- Morphs not in standard Japanese: M2, M3.
+- Custom toons: M4, M5.
+- Non-PNG textures: M4.
+- Separately skinned eyes: none in the corpus. M1's pupil joints sit under the eye bones. Synthetic tests only.
+- PMX 2.1: none found publicly (only PMX Editor writes it). Synthetic tests only.
+
+What the corpus changed (tuning, with tests):
+
+1. **One mesh per opaque material; blended ones share one, in PMX order.**
+   - M2 first failed Animama's validator. Its 211 targets × 50k vertices expanded to 126.5 MB against the 100 MB cap.
+   - Per-material meshes hold only the targets that move them, which cut that expansion 10–30× (M2 10.4 MB). They also cut a viewer's memory.
+   - The converter warns if a model still exceeds the cap.
+2. **One-link IK followers.** M2's sleeves are turned by IKs riding on the arm; they now hang from the arm bone on their joint, before the T-pose bake. Before, they stayed out to the side as the arms moved.
+3. **Faces.**
+   - A one-sided mood morph plays with its mirror partner (M3's sad eyes).
+   - A region with no named morph takes Animama's ARKit mix when the model has its shapes (M2 and M3 relaxed eyes, which were neutral).
+   - ARKit shapes never pass for mood morphs by name.
+4. **Outlines.** Faces whose vertices MMD draws without an edge get an outline-free copy of their material (M4's hem), except on face materials, which Animama needs as one primitive.
+
+#### Code Review #3 Findings (corpus tuning)
+
+High-risk tier: an independent analysis agent read `a2e88ae5` against `b51a0f4`. A separate checks agent reran
+`npm test`, `check.mjs`, packing, `npx` from the tarball on three synthetic models, Animama's validator and
+`vrm:inspect`; all passed. No blocker.
+
+- CT-F1 (important): separate meshes let a viewer sort blended materials by depth, losing PMX order.
+- CT-F2 (important): the outline split could cut a face material in two, and Animama finds the face skin as one
+  primitive.
+- CT-F3 (important): ARKit names passed for mood morphs by name (`mouthFunnel` read as "fun"), so the ARKit mix never
+  ran for the mouth.
+- CT-F4–F8 (minor): empty bind lists for targets in no mesh, no guard for the 100 MB cap, IK carriers on unused leg or
+  physics bones, a miscounted lost width, and four tests that did not test what they claimed.
+
+#### Code Review #3 Revisions
+
+- Repair round 1 (`8d1738d5`): fixed CT-F2 to CT-F8. CT-F1's fix, one mesh for every blended material, brought back
+  part of the expansion it was meant to cut.
+- Repair round 2 (`37e9c5bb`): only blended materials that tie on render order share a mesh. Tests were added for the
+  invisible-target, cap-warning and IK-carrier fixes, and each was checked by removing its fix. The same agent confirmed
+  both rounds.
+- Left as follow-ups (report only): a morph whose only target shows nothing is counted under two dropped headings, and
+  overriding with it says the morph does not exist.
+
+Result: committed as `4c7442f` (`feat(pmx)[p6]: tune the converter on a corpus of real MMD models`, tree
+`37e9c5bb`): 159 pass; `check.mjs` OK; all five corpus models accepted.
 
 #### Code Review #1 Findings
 
