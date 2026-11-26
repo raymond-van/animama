@@ -28,6 +28,10 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
   }),
 }));
 // The panel's Avatar settings rows have their own tests.
+// The Avatar choice row has its own tests.
+vi.mock("@/ui/animas/AnimaAvatarChoiceRow", () => ({
+  AnimaAvatarChoiceRow: () => null,
+}));
 vi.mock("@/query/hooks/useAvatarSettings", () => ({
   useAvatarSettingsAvailable: () => ({ available: false, checking: false }),
   useAvatarSettings: () => ({ data: undefined, isLoading: false }),

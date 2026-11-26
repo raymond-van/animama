@@ -90,8 +90,8 @@ vi.mock("@/lib/avatar", () => ({
     update() {}
   },
 }));
-vi.mock("./useDockPortraitRetake", () => ({
-  useDockPortraitRetake: (input: {
+vi.mock("@/ui/avatar-preview/useStagePortraitRetake", () => ({
+  useStagePortraitRetake: (input: {
     ready: boolean;
     shown: unknown;
     retake: unknown;

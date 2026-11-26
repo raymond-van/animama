@@ -56,7 +56,7 @@ const UNLOADED_STAGE: CreationStageAvatar = { avatar: null, status: "loading" };
  * Avatar was first shown here) or a placeholder. A portrait that fails to
  * load falls back to the placeholder.
  */
-function AvatarThumbnail({
+export function AvatarThumbnail({
   itemId,
   portraitUrl,
 }: {

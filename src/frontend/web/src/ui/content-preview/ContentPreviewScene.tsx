@@ -54,7 +54,7 @@ import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import type { SceneCameraSettings } from "@/ui/main/canvas/sceneCameraPresets";
 import { useSceneFrameDemand } from "@/ui/main/canvas/sceneFramePacing";
 import { failureLine } from "@/lib/errors/apiError";
-import { useDockPortraitRetake } from "./useDockPortraitRetake";
+import { useStagePortraitRetake } from "@/ui/avatar-preview/useStagePortraitRetake";
 
 const PARTICLE_PREVIEW_CAMERA: SceneCameraSettings = {
   position: { x: 0, y: 1.2, z: 2.75 },
@@ -157,7 +157,7 @@ function PreviewActor({
   const avatarItemId = runtimeAvatarItemId(avatarEntry);
   const { springMode, springModeRef, materialMode } =
     useAvatarLoadSettings(avatarItemId);
-  useDockPortraitRetake({
+  useStagePortraitRetake({
     avatarRef,
     // At rest: the Avatar preview itself, never an Action playing on it.
     ready:

@@ -28,13 +28,20 @@ typed portrait API (`ui/create-anima/createAnimaPortrait.ts`). It captures the
 Avatar at rest, waiting while a Gesture or Reaction preview plays or the page
 is hidden. The attempt never blocks the flow, is abandoned after 15 s or when
 the source changes, the stage unmounts or the page is hidden, and a failure is
-only logged and not retried until the app is reloaded. The Library's Preview
-Dock follows the same rules (`useDockPortraitRetake`). When the Library previews
-a Local Avatar whose portrait is missing or from another revision, as after
-[Replace VRM](library.md), the Dock captures it once the model has loaded and
-no Action is playing. Included Avatars, unsaved uploads and imported portraits
-are never recaptured. A retaken Local portrait keeps its file URL, so the
-Library card and Create Anima's Avatar list add that Avatar's save count from
+only logged and not retried until the app is reloaded. Two other stages follow
+the same rules through `useStagePortraitRetake`:
+
+- **The Library's Preview Dock**, when the Library previews a Local Avatar whose
+  portrait is missing or from another revision, as after
+  [Replace VRM](library.md).
+- **The Anima page stage**, when the Anima's own Avatar is in that state, as
+  after an upload in the Avatar picker. The stage reads the mounted item
+  revision from the runtime entry (`runtimeAvatarItemRevision`).
+
+Each captures the portrait once the model has loaded and no Action is playing.
+Included Avatars, unsaved uploads and imported portraits are never recaptured.
+A retaken Local portrait keeps its file URL, so the Library card and the Avatar
+lists in Create Anima and the Avatar picker add that Avatar's save count from
 `avatar-portrait-version-store` to the URL and show the new image without a
 reload. Avatar portraits (Appearances naming an Avatar in
 `presentation.avatar_item_id`, generated or imported) are not offered as

@@ -231,6 +231,10 @@ export function adaptRuntimeSnapshot(
           name: RUNTIME_AVATAR_MODEL_NAME,
           config: {
             avatar_catalog_item_id: String(object(avatar.source).item_id ?? ""),
+            // The exact item revision mounted, so a portrait names what it shows.
+            avatar_revision_sha256: String(
+              object(avatar.source).revision ?? "",
+            ),
             // The effective face part correction; validated where it is read.
             face_parts: avatar.face_parts ?? null,
           },

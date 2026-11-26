@@ -56,8 +56,17 @@ Profile and Background images, framing and Avatar portrait fallback.
 ## Avatar settings
 
 Anima settings (the Settings tab, and Settings in the chat profile modal) end
-with an **Avatar** section. On the local runtimes (desktop and self-hosted web)
-it holds the settings of the Anima's Avatar item, stored per owner and Avatar
+with an **Avatar** section. It starts with an **Avatar** row naming the Anima's
+current Avatar. **Change Avatar** opens a picker (`AnimaAvatarPicker`) listing every Included
+and Local Avatar with its portrait. It can also upload a VRM, which passes Create
+Anima's browser checks and is saved as a new Local Avatar. **Use Avatar** plans
+and commits only the Loadout's `avatar` slot (`POST
+/v1/animas/{anima_id}/avatar:plan|commit`) against the Loadout revision the
+picker showed. A newer revision refuses the change and asks for a retry. The
+Anima keeps its identity, memories, chats, Actions and voice. A chat showing
+that Anima remounts its runtime (`remountLatest`) and shows the new model at
+once; other surfaces read the next runtime. On the local runtimes (desktop and
+self-hosted web) the section also holds the settings of the Anima's Avatar item, stored per owner and Avatar
 through `GET`/`PUT /v1/avatar-content/{item_id}/settings`, so they apply
 wherever that Avatar is used:
 
@@ -189,7 +198,8 @@ ingredients never appear as separate loadout checkboxes.
 
 The Behavior tab shows the Anima's Loadout: Voices, Gestures, Reactions and Idle.
 Voices configures PocketTTS and ElevenLabs for this Anima, regardless of the
-active application provider. Avatar and Appearance use their own focused controls.
+active application provider. The Avatar is chosen in
+[Avatar settings](#avatar-settings) and Appearance in its own editor.
 Imported encoded-only voice clones remain selectable for speech; their original
 recording preview is unavailable because the recording is not shared.
 
