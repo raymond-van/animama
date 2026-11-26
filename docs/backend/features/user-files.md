@@ -521,6 +521,11 @@ search. The API attempts to delete the local file, tombstones the row as
 `deleted` when deletion succeeds, marks it `delete_pending` when filesystem
 cleanup fails,
 and deletes stored chunks so debug search no longer returns them.
+A file deleted while its processing job runs stays deleted: the job locks the
+file row before it stores chunks, reuses another file's chunks or records a
+failure, and when it finds the file `deleted`, `delete_pending` or `aborted` it
+writes nothing and ends `failed` with "The file was deleted before processing
+finished".
 
 Deleting a chat deletes the images its user messages reference unless a
 message in another chat references them too (an image can be attached again

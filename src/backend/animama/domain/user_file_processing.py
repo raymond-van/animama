@@ -21,6 +21,9 @@ ACTIVE_PROCESSING_JOB_STATUSES = {
 PROCESSING_INTERRUPTED_ERROR = "Processing was interrupted"
 """Recorded when a job's last attempt stopped (a crash or restart) before it finished."""
 
+FILE_REMOVED_DURING_PROCESSING_ERROR = "The file was deleted before processing finished"
+"""Recorded on a job whose file was deleted or aborted while the job was running."""
+
 NO_SEARCHABLE_TEXT_ERROR = "No searchable text was extracted from the uploaded file"
 """Recorded when a file was read but holds no text to search, such as a workbook without values."""
 
