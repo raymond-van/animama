@@ -100,6 +100,15 @@ describe("withEnhancedMToonPatch", () => {
     expect(json.materials).toEqual(vrm1Json(names).materials);
   });
 
+  it("keeps a converted MMD model's MToon even with VRoid's material names", async () => {
+    const json: Json = {
+      ...vrm1Json(),
+      extensionsUsed: ["VRMC_vrm", "ANIMAMA_avatar_conversion"],
+    };
+    await patch(true, json);
+    expect(json.materials).toEqual(vrm1Json().materials);
+  });
+
   it("patches VRM 0.x materials after three-vrm converts them", async () => {
     const [face] = await patch(true, vrm0Json());
     expect(face).toMatchObject({
