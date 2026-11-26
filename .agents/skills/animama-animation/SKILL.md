@@ -151,9 +151,9 @@ Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
   `laugh_medium`, `laugh_hysterical`), and say in each AI description when
   that tier fits. Ask the owner which Selector ID a replacement for an
   existing Gesture should use.
-- **AI descriptions:** chat sends every equipped Gesture's AI description
-  with each message (a separate Library description, when set, is sent
-  instead), so keep it to about 120 characters. Lead with when chat
+- **AI descriptions:** the AI description is a Gesture's one text. Chat
+  sends it for every equipped Gesture with each message and the Library shows
+  it, so keep it to about 120 characters. Lead with when chat
   should choose the Gesture ("Use when …"), then describe the look in a few
   words. Keep the words that tell tiers and similar Gestures apart.
 - Long Gestures (10–20 s) are sequences of short actions: give each its own

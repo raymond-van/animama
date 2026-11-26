@@ -393,9 +393,11 @@ response. Gesture choices come from the Gestures equipped in the mounted
 runtime snapshot. The provider schema's `gesture` enum is `null` plus those
 selectors, and the response guidance appends an
 `Available Gestures for this Anima:` block with one
-`- {selector}: {description}` line per Gesture. The description falls back to
-the Gesture's name when empty; the name is otherwise left out, because
-selectors are usually readable semantic keys. When the described block's
+`- {selector}: {description}` line per Gesture. The description is the
+Gesture's AI selection description (`ai_description`), or a legacy
+`description` when that is empty. The Library shows the same text. When both
+are empty, the line uses the Gesture's name; the name is otherwise left out,
+because selectors are usually readable semantic keys. When the described block's
 conservative token estimate exceeds 10% of the model row's context window,
 each line carries only `- {selector}`, leaving the window for history. A row
 without a recorded window keeps the descriptions. Every request of a turn sends

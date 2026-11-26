@@ -24,13 +24,11 @@ test("resolves clips beside the items file and trims texts", () => {
   assert.deepEqual(parsed, {
     ...item,
     clip: path.join("/work", "clips", "wave.clip.json"),
-    // The Library description defaults to the AI description.
-    description: "A friendly wave.",
   });
-  assert.equal(
-    parseSaveItems([{ ...item, description: "Waves hello." }], itemsFile)[0]
-      .description,
-    "Waves hello.",
+  // The AI description is a Gesture's one text, so a separate one is refused.
+  assert.throws(
+    () => parseSaveItems([{ ...item, description: "Waves hello." }], itemsFile),
+    /item 1: "description" is no longer supported/,
   );
 });
 
@@ -192,7 +190,6 @@ test("imports a new Gesture as a creator project with its Selector ID", () => {
       schema: "animamaActionProject/1.0",
       intent: "gesture",
       name: "Wave Hello",
-      description: "A friendly wave.",
       aiDescription: "A friendly wave.",
       semanticKey: "wave_hello",
       sequence,

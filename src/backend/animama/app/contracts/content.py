@@ -102,7 +102,7 @@ class PyContentItem(BaseModel):
 
     @classmethod
     def from_domain(cls, item: CatalogContentEntry) -> PyContentItem:
-        description = item.metadata.get("description") or item.metadata.get("ai_description")
+        description = item.metadata.get("description")
         implementation = item.metadata.get("implementation")
         implementation_kind = (
             implementation.get("kind")

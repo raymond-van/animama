@@ -131,8 +131,8 @@ function privateReactionPreview(): PyActionPreview {
           logical_key: "local:reaction:my-reaction",
         },
         name: "My Reaction",
-        description: "Saved description",
-        ai_description: "Saved AI selection description",
+        // The projected description is already the AI selection description.
+        description: "Saved AI selection description",
         placement_hint: { emotion: "joy", intensity: 2 },
         implementation: { kind: "anima_clip" },
         reference_map: { sparkle: "support-1" },

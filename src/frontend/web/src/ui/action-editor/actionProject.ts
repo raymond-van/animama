@@ -28,7 +28,6 @@ export type ActionProject = {
   schema: typeof ACTION_PROJECT_SCHEMA;
   intent: ActionIntent;
   name: string;
-  description: string;
   aiDescription: string;
   semanticKey: string;
   suggestedEmotion: string;
@@ -139,7 +138,6 @@ export function createActionProject(document: ActionDocument): ActionProject {
     schema: ACTION_PROJECT_SCHEMA,
     intent: normalized.intent,
     name: normalized.name,
-    description: normalized.description,
     aiDescription: normalized.aiDescription,
     semanticKey: normalized.semanticKey,
     suggestedEmotion: normalized.suggestedEmotion,
@@ -185,8 +183,10 @@ export function parseActionImport(
       schema: ACTION_PROJECT_SCHEMA,
       intent: expectedIntent,
       name: requiredString(value.name, () => t("project.errors.nameRequired")),
-      description: optionalString(value.description),
-      aiDescription: optionalString(value.aiDescription),
+      // A legacy project's `description` stands in for a missing AI description.
+      aiDescription:
+        optionalString(value.aiDescription) ||
+        optionalString(value.description),
       semanticKey: optionalString(value.semanticKey),
       suggestedEmotion: optionalString(value.suggestedEmotion),
       suggestedIntensity: intensity,

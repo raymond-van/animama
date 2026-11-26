@@ -7,15 +7,16 @@ import { fileURLToPath } from "node:url";
  *
  *   pnpm -s animation:save <items.json> [--url <app origin>]
  *
- * `items.json` lists `{ clip, project?, name, aiDescription, selectorId, description? }`
+ * `items.json` lists `{ clip, project?, name, aiDescription, selectorId }`
  * entries (paths are relative to the items file). Each item is saved in
  * turn in a headless browser, exactly as a person would:
  *
- * - a new Selector ID: a creator project file (clip, name, descriptions and
- *   Selector ID) is imported into a new Gesture and saved; the Library
- *   description defaults to the AI description;
+ * - a new Selector ID: a creator project file (clip, name, AI description
+ *   and Selector ID) is imported into a new Gesture and saved. The AI
+ *   description is the Gesture's one text: chat, the Library and search
+ *   all show it;
  * - a Local Gesture's Selector ID: that item is opened, the clip is imported
- *   into it (keeping its name, components, notes and description), its AI
+ *   into it (keeping its name, components and notes), its AI
  *   description is set, and it is saved as a revision (reported unchanged
  *   only if the creator finds nothing to save). The item's name must match:
  *   renaming is refused, since the creator can re-derive the Selector ID
@@ -53,8 +54,10 @@ export function parseSaveItems(value, itemsFile) {
     if (seen.has(item.selectorId))
       throw new Error(`${where}: Selector ID "${item.selectorId}" repeats.`);
     seen.add(item.selectorId);
-    if (item.description !== undefined && typeof item.description !== "string")
-      throw new Error(`${where}: "description" must be a string.`);
+    if (item.description !== undefined)
+      throw new Error(
+        `${where}: "description" is no longer supported; the AI description is the Gesture's one text.`,
+      );
     if (
       item.project !== undefined &&
       (typeof item.project !== "string" || !item.project.trim())
@@ -69,7 +72,6 @@ export function parseSaveItems(value, itemsFile) {
         : { project: path.resolve(path.dirname(itemsFile), item.project) }),
       name: item.name.trim(),
       aiDescription: item.aiDescription.trim(),
-      description: item.description?.trim() || item.aiDescription.trim(),
       selectorId: item.selectorId,
     };
   });
@@ -127,7 +129,6 @@ export function gestureProject(item, input, libraryItems = []) {
     schema: PROJECT_SCHEMA,
     intent: "gesture",
     name: item.name,
-    description: item.description,
     aiDescription: item.aiDescription,
     semanticKey: item.selectorId,
     sequence: project ? project.sequence : input,
@@ -283,8 +284,8 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
           '[role="dialog"] input[type="file"][accept=".json,application/json"]',
         );
         if (target && !item.project) {
-          // A plain clip import keeps the item's components, notes and
-          // description; only the clip, name and AI description change.
+          // A plain clip import keeps the item's components and notes; only
+          // the clip, name and AI description change.
           await file.setInputFiles({
             name: `${item.selectorId}.clip.json`,
             mimeType: "application/json",
@@ -389,7 +390,7 @@ export async function saveGestures(items, origin, onSaved = () => {}) {
 const USAGE = `Usage: pnpm -s animation:save <items.json> [--url <app origin>]
 
 items.json: [{ "clip": "<file>.clip.json", "name": "...", "aiDescription": "...",
-               "selectorId": "lower_snake_case", "description"?: "...",
+               "selectorId": "lower_snake_case",
                "project"?: "<file>.project.json" }]
 With project, import its sequence and dependencies instead of the clip
 (the clip may then be left out).

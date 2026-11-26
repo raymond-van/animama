@@ -72,6 +72,28 @@ def test_gesture_handler_derives_standalone_document_and_rejects_loose_fields() 
     assert error.value.code == "unexpected_document_fields"
 
 
+@pytest.mark.parametrize(
+    ("fields", "expected"),
+    [
+        # The AI selection description is an Action's one text; a stale Library copy never wins.
+        ({"description": "Old text.", "ai_description": "Edited text."}, "Edited text."),
+        ({"description": "Legacy text."}, "Legacy text."),
+        ({"description": "Legacy text.", "ai_description": ""}, "Legacy text."),
+        ({"description": "Legacy text.", "ai_description": "   "}, "Legacy text."),
+        ({"ai_description": "Only AI text."}, "Only AI text."),
+    ],
+)
+def test_action_description_is_the_ai_description_with_a_legacy_fallback(fields: dict[str, str], expected: str) -> None:
+    parsed = handler_for_kind(ContentKind.GESTURE).parse_document(
+        {"schema_version": 1, "content_type": "gesture", "name": "Wave", "semantic_key": "wave", **fields},
+        fallback_path=Path("gestures/wave"),
+        descriptor_backed=True,
+    )
+
+    assert parsed.document.description == expected
+    assert parsed.metadata.get("description") == expected
+
+
 def test_reaction_handler_preserves_hint_and_requires_registered_runtime_media() -> None:
     parsed = handler_for_kind(ContentKind.REACTION).parse_document(
         {

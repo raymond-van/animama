@@ -75,10 +75,9 @@ pnpm -s animation:save <items.json>
 ```
 
 Keep the items file in a scratch directory, outside the repository; clip
-paths are absolute or relative to the items file. An optional `description`
-sets a new Gesture's Library description (it defaults to the AI description).
-An optional `project` path, also absolute or relative to the items file,
-imports that project's sequence and dependencies instead of `clip`, resolving
+paths are absolute or relative to the items file. An optional `project`
+path, also absolute or relative to the items file, imports that project's
+sequence and dependencies instead of `clip`, resolving
 Local and Included effect refs against the running Library; the item's name,
 AI description and Selector ID still apply. For revisions, a project import
 replaces the dependencies and project metadata too; without `project`, the
@@ -89,7 +88,7 @@ exactly as a person would:
 
 - a new Selector ID becomes a new Local Gesture;
 - a Local Gesture's Selector ID revises that item in place: the clip is
-  imported into it (its name, components, notes and description are kept),
+  imported into it (its name, components and notes are kept),
   its AI description is set, and it is saved as a revision. The name must
   stay the same, because renaming in the creator can re-derive the Selector
   ID from the new name (by hand too), so leave renames to the owner;
