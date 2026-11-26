@@ -45,6 +45,7 @@ from animama.domain.content_catalog import (
     ContentScope,
     ContentSource,
     ContentStatus,
+    ContentUsage,
     VerifiedContentFile,
 )
 from animama.domain.emotions import TRACKED_EMOTIONS
@@ -450,10 +451,11 @@ async def test_unavailable_member_stays_removable_and_a_pooled_reaction_cannot_b
         store = Mock(owner_id=None)
         store.pending_mutations.return_value = ()
         catalog_service = ContentCatalogService(store=store, catalog=SQLAlchemyContentCatalog(async_session))
-        with pytest.raises(ContentConflictError, match="catalog_item_in_use"):
+        with pytest.raises(ContentConflictError, match="catalog_item_in_use") as refused:
             await catalog_service.delete_item(
                 item_id=cheer_id, user_id=fixture.user_id, expected_revision=cheer_revision
             )
+        assert refused.value.used_by == (ContentUsage("anima_reaction", fixture.anima_id, fixture.anima_id),)
         await async_session.rollback()
         store.delete_entry.assert_not_called()
 
@@ -469,7 +471,7 @@ async def test_unavailable_member_stays_removable_and_a_pooled_reaction_cannot_b
         [member] = cell.members
         remove = {"operation": "remove", "binding_id": member.binding_id}
         assert await _change(service, fixture, revision=2, intent=remove, key="r-2") == "remove"
-        assert not await SQLAlchemyContentCatalog(async_session).item_has_runtime_references(item_id=cheer.id)
+        assert await SQLAlchemyContentCatalog(async_session).item_usage(item_id=cheer.id) == ()
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
 

@@ -2807,6 +2807,42 @@ export const zPyContentSaveResult = z.object({
 });
 
 /**
+ * PyContentUsage
+ *
+ * One thing that keeps an owned item from being deleted.
+ *
+ * ``anima_avatar``, ``anima_appearance`` (profile or background),
+ * ``anima_voice``, ``anima_gesture``, ``anima_idle`` (an Idle pool member),
+ * ``anima_reaction`` (a Reaction cell member) and ``anima_music`` name the
+ * Anima by ``id`` and ``name``; ``content`` names the catalog item that
+ * depends on it.
+ */
+export const zPyContentUsage = z.object({
+    id: z.string(),
+    kind: z.enum([
+        'anima_avatar',
+        'anima_appearance',
+        'anima_voice',
+        'anima_gesture',
+        'anima_idle',
+        'anima_reaction',
+        'anima_music',
+        'content'
+    ]),
+    name: z.string()
+});
+
+/**
+ * PyContentItemUsage
+ *
+ * What uses an owned item, at most ten uses with Anima uses first; empty when unused.
+ */
+export const zPyContentItemUsage = z.object({
+    item_id: z.string(),
+    used_by: z.array(zPyContentUsage)
+});
+
+/**
  * PyCrisisResourceRegionOption
  */
 export const zPyCrisisResourceRegionOption = z.object({
@@ -8115,6 +8151,19 @@ export const zGetContentItemV1ContentItemsItemIdGetData = z.object({
  * Successful Response
  */
 export const zGetContentItemV1ContentItemsItemIdGetResponse = zPyContentItem;
+
+export const zGetContentItemUsageV1ContentItemsItemIdUsageGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetContentItemUsageV1ContentItemsItemIdUsageGetResponse = zPyContentItemUsage;
 
 export const zPreparePackageExportV1ContentPackageExportsPostData = z.object({
     body: zPackageExportRequest,

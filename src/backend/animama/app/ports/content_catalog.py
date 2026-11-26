@@ -8,12 +8,14 @@ from datetime import datetime
 from typing import Any, Protocol
 
 from animama.domain.content_catalog import (
+    CONTENT_USAGE_LIMIT,
     CatalogContentEntry,
     CatalogContentFile,
     ContentPreview,
     ContentPreviewFile,
     ContentScope,
     ContentSource,
+    ContentUsage,
     ScannedContentEntry,
 )
 
@@ -157,8 +159,12 @@ class ContentCatalog(Protocol):
 
         raise NotImplementedError
 
-    async def item_has_runtime_references(self, *, item_id: str) -> bool:
-        """Return whether an Avatar, Anima binding, or content dependency uses it."""
+    async def item_usage(self, *, item_id: str, limit: int = CONTENT_USAGE_LIMIT) -> tuple[ContentUsage, ...]:
+        """Name the Animas and items that use it, Anima uses first; empty when nothing does.
+
+        Animas count through their Avatar and their loadout bindings, items through
+        dependency edges. At most ``limit`` uses are named.
+        """
 
         raise NotImplementedError
 

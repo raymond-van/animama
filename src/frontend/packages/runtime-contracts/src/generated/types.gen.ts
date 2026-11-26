@@ -4915,6 +4915,22 @@ export type PyContentItem = {
 };
 
 /**
+ * PyContentItemUsage
+ *
+ * What uses an owned item, at most ten uses with Anima uses first; empty when unused.
+ */
+export type PyContentItemUsage = {
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Used By
+     */
+    used_by: Array<PyContentUsage>;
+};
+
+/**
  * PyContentPreviewRootRequest
  */
 export type PyContentPreviewRootRequest = {
@@ -5059,6 +5075,32 @@ export type PyContentSelection = {
      * Type
      */
     type?: 'catalog';
+};
+
+/**
+ * PyContentUsage
+ *
+ * One thing that keeps an owned item from being deleted.
+ *
+ * ``anima_avatar``, ``anima_appearance`` (profile or background),
+ * ``anima_voice``, ``anima_gesture``, ``anima_idle`` (an Idle pool member),
+ * ``anima_reaction`` (a Reaction cell member) and ``anima_music`` name the
+ * Anima by ``id`` and ``name``; ``content`` names the catalog item that
+ * depends on it.
+ */
+export type PyContentUsage = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: 'anima_avatar' | 'anima_appearance' | 'anima_voice' | 'anima_gesture' | 'anima_idle' | 'anima_reaction' | 'anima_music' | 'content';
+    /**
+     * Name
+     */
+    name: string;
 };
 
 /**
@@ -12715,6 +12757,36 @@ export type GetContentItemV1ContentItemsItemIdGetResponses = {
 };
 
 export type GetContentItemV1ContentItemsItemIdGetResponse = GetContentItemV1ContentItemsItemIdGetResponses[keyof GetContentItemV1ContentItemsItemIdGetResponses];
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/content/items/{item_id}/usage';
+};
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetError = GetContentItemUsageV1ContentItemsItemIdUsageGetErrors[keyof GetContentItemUsageV1ContentItemsItemIdUsageGetErrors];
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyContentItemUsage;
+};
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetResponse = GetContentItemUsageV1ContentItemsItemIdUsageGetResponses[keyof GetContentItemUsageV1ContentItemsItemIdUsageGetResponses];
 
 export type PreparePackageExportV1ContentPackageExportsPostData = {
     body: PackageExportRequest;

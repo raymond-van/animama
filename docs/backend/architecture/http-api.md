@@ -401,14 +401,19 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   that changes with every application revision, such as that revision.
   Unsupported encodings fail with 406 `content_encoding_not_acceptable`.
 - `GET /v1/content/items/{item_id}` reads one visible item.
+- `GET /v1/content/items/{item_id}/usage` names what keeps an owned Local item
+  from being deleted, as `{item_id, used_by}`; other items are 404.
 - `POST /v1/content:rescan` performs an authoritative scan of registered
   Included and Local type roots and returns per-source counts plus the updated
   visible catalog. It resolves unfinished Local mutations before admission.
   Valid new files become selectable but are never equipped.
 - `DELETE /v1/content/items/{item_id}` deletes one expected owned Local
-  revision and purges its explicit catalog identity; Included is read-only and
-  content still referenced by an Avatar or Anima loadout is rejected. File
-  removal and catalog deletion share recoverable mutation ownership with an
+  revision and purges its explicit catalog identity, with a Local Avatar's
+  unused portrait; Included is read-only. Content an Anima or other content
+  uses is 409 `catalog_item_in_use` with `used_by`, and a registered file
+  changed on disk is 409 `catalog_item_changed` with the `current_revision`
+  after a Local rescan ([Deleting Local content](../features/custom-animas-and-content.md#deleting-local-content)).
+  File removal and catalog deletion share recoverable mutation ownership with an
   internal operation identity; the route does not accept a retry key.
 - `GET /v1/content/files/{file_ref}` authorizes one opaque registration,
   revalidates filesystem containment, regular-file/link state, exact size, and

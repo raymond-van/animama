@@ -13,6 +13,8 @@ from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentPreview,
     ContentScanSummary,
+    ContentUsage,
+    ContentUsageKind,
     SavedContent,
 )
 
@@ -166,6 +168,36 @@ class PyContentCatalog(BaseModel):
 
     scan_required: bool
     items: list[PyContentItem]
+
+
+class PyContentUsage(BaseModel):
+    """One thing that keeps an owned item from being deleted.
+
+    ``anima_avatar``, ``anima_appearance`` (profile or background),
+    ``anima_voice``, ``anima_gesture``, ``anima_idle`` (an Idle pool member),
+    ``anima_reaction`` (a Reaction cell member) and ``anima_music`` name the
+    Anima by ``id`` and ``name``; ``content`` names the catalog item that
+    depends on it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: ContentUsageKind
+    id: str
+    name: str
+
+    @classmethod
+    def from_domain(cls, use: ContentUsage) -> PyContentUsage:
+        return cls(kind=use.kind, id=use.id, name=use.name)
+
+
+class PyContentItemUsage(BaseModel):
+    """What uses an owned item, at most ten uses with Anima uses first; empty when unused."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: str
+    used_by: list[PyContentUsage]
 
 
 class PyContentScanSummary(BaseModel):

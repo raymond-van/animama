@@ -4,8 +4,20 @@ Source agreement: [issue #950](https://github.com/raymond-van/animama/issues/950
 (spec snapshot [delete-and-pin-spec.md](delete-and-pin-spec.md), captured
 2026-11-26T20:44:28Z). Requirement IDs R1–R18 refer to that issue.
 
-Authorized scope: plan only. No phase is authorized until the owner approves
-this plan.
+Authorized scope: Phases 1–5 (owner approval, 2026-11-26). Gates G1 and G2
+remain.
+
+## Workspace
+
+- Checkout: the task worktree for branch `feat/delete-and-pin`, based on
+  `origin/main` `0703ca137`.
+- Commits so far: `92c4fa75e` (spec snapshot) and `2d0339df8` (this plan,
+  reviewed revision). The branch is pushed; there is no PR yet.
+- Parent issue: #950. No phase issues: one session and one repository.
+- Environment: Python 3.12 venv with the documented extras and `pnpm install`
+  are done; packages are built for web tests. The task stack (`./reset.sh
+  --name delflows --base-port 8300 --host localhost`, http://localhost:8300) is
+  down with its data kept. Start it only for browser checks.
 
 ## Purpose and context
 
@@ -40,10 +52,10 @@ Relevant code:
 
 ## Progress
 
-- [ ] Plan review and owner approval (gate G0).
+- [x] Plan review and owner approval (gate G0): approved 2026-11-26, with D1–D5.
 - [ ] Phase 1: chat and Anima deletion semantics (backend).
 - [ ] Phase 2: sidebar pins (backend, schema and API).
-- [ ] Phase 3: Local content delete hardening (backend).
+- [x] Phase 3: Local content delete hardening (backend). Review passed after 1 repair round. The contracts bump is deferred to D6.
 - [ ] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend).
 - [ ] Phase 5: Library Delete action (frontend).
 - [ ] Final integration review, full pre-push suite and full browser journeys
@@ -72,7 +84,9 @@ Relevant code:
   then delete during a reply, a plain confirm for everything, chat delete
   removes pending episodes only, Anima delete removes its chat-only images and
   pending episodes, no Cloud work. Source: issue #950.
-- 2026-11-26, agent (proposal, owner to confirm at plan review):
+- 2026-11-26, owner: approved this plan, including D1–D5 below, and authorized
+  Phases 1–5.
+- 2026-11-26, agent (accepted by the owner with the plan):
   - **D1.** Removing a pending episode item also removes its line from the
     generated episode log, because the log is rendered from items. Processed
     items' lines stay. This is how "pending episodes removed, keep everything
@@ -96,6 +110,16 @@ Relevant code:
     `used_by: [{kind, id, name}]`, listing the referencing Anima bindings or
     Avatar and dependent items, capped at 10. A drifted file maps to 409
     `catalog_item_changed`.
+
+- 2026-11-26, agent (implementation, within the approved scope):
+  - **D6.** Phases 2 and 3 both change the local OpenAPI and the generated
+    SDK. One `build(contracts)` commit, right after Phase 2 and before
+    Phase 4, bumps the `local-http` major in `contracts/versions.json`, the
+    `runtime-contracts` version in its `package.json`, and `product-ui`'s
+    version if its declarations change. The same commit updates
+    `contracts/hosted-web.md` and `docs/frontend/desktop/releases.md`. The
+    final integration review confirms it landed. This follows the package-set rules.
+    Each phase commit carries its own regenerated SDK.
 
 ## Phased implementation
 
@@ -244,7 +268,90 @@ Completion: each in-use kind reports its users, Avatar delete removes its
 unused portrait, a drifted file gives 409 and the retry succeeds, and the review
 passes.
 
-Check record, commits, Code Review #1 Findings/Revisions: _to be filled in._
+#### Results
+
+- `GET /v1/content/items/{item_id}/usage` (in the route inventory, a read)
+  answers with `{item_id, used_by}`. A refused delete returns 409
+  `{code: "catalog_item_in_use", used_by}` (at most 10 entries, Anima uses
+  first).
+- A Local Avatar delete removes its unused portrait in the same journal.
+- An edited, vanished or linked file gives 409 `catalog_item_changed` with
+  the revision after a Local rescan, and a retry succeeds.
+- Deviations:
+  - It uses a separate `/usage` route, because the item model is shared with
+    the catalog listing and its cache validator.
+  - A `missing` item's delete purges only its catalog row.
+  - The item and its portraits are locked in ID order.
+- Every kind registers a file and so has a revision. An entry whose files are
+  all unreadable has none and cannot be deleted (documented).
+
+#### Check record
+
+Working directory: the worktree root unless noted. Tree `c3aa92dbb` (both
+phases), then the repair noted below.
+
+- `timeout 900 uv run --no-sync pytest -q -p no:cacheprovider` on 21 content
+  test paths (`tests/test_product_http_content.py`, `tests/test_content_catalog*.py`,
+  `tests/test_avatar_portrait*.py`, idle/reaction pools, save service, Pocket
+  voice, inventory, consumer, mutation workflows and replay, package import,
+  materializer, migration recovery, import contract, Pose, package HTTP,
+  mutation startup, typed APIs, store mutations) → 219 passed. Red first: 7 of
+  10 new tests.
+- `uv run --no-sync ruff check`, `ruff format --check` and `mypy` on the 14
+  touched Python files → pass. Import boundary → 0 forbidden edges.
+- `pnpm openapi-ts` (`src/frontend`) regenerated the SDK: the usage route and
+  `PyContentItemUsage`/`PyContentUsage` only.
+- Not run: the full suite, browser checks.
+
+#### Code Review #1 Findings
+
+Reviewed `c3aa92dbb` (Phase 3 paths), high risk. The reviewer reran the record
+(219 passed; ruff, mypy, import boundary, `pnpm openapi-ts:check` current)
+and added 13 neighbouring test files (236 passed, 1 failed).
+
+- **P3-F1 (blocking).** `server/schemas/content.py` re-exports the contracts'
+  `__all__` but did not import the two new classes. A star import raised
+  `AttributeError`, and
+  `tests/test_shared_product_contracts.py::test_every_server_schema_module_supports_star_import`
+  failed.
+- **P3-F2 (blocking).** The OpenAPI and SDK changed with no `local-http` major,
+  no `runtime-contracts` bump and no recorded deferral. Package-set checks
+  reject that.
+- Non-blocking:
+  - The boundary consumer's fake catalog still had
+    `item_has_runtime_references`.
+  - The delete docs did not mention 409 `catalog_revision_conflict`.
+  - In a deferred-commit (hosted-style) composition the post-conflict rescan
+    rolls back; Cloud will not adopt this.
+  - A foreign or non-private Avatar mapping with no Anima would reach the
+    RESTRICT FK. Current APIs cannot create one.
+  - A `missing` entry's orphan sidecar stays on disk.
+  - The portrait lookup scans the visible catalog.
+
+#### Code Review #1 Revisions
+
+- **P3-F1: accepted.** Added `PyContentItemUsage` and `PyContentUsage` to
+  `server/schemas/content.py`.
+- **P3-F2: accepted as D6.** One contracts bump commit follows Phase 2.
+- **Accepted non-blocking:**
+  - Renamed the consumer fake to `item_usage` returning `()`.
+  - Added the stale-revision bullet to "Deleting Local content".
+- **Deferred non-blocking**, recorded as known limits:
+  - the hosted-style rollback (Cloud is out of scope);
+  - the unreachable Avatar mapping case;
+  - the orphan sidecar (it matches "never files the scan did not attribute");
+  - the portrait lookup cost (comparable to the rescan that follows).
+- **Verification:**
+  - `timeout 900 uv run --no-sync pytest -q -p no:cacheprovider tests/test_shared_product_contracts.py tests/test_content_owner_composition.py tests/test_product_http_content.py tests/test_content_catalog_delete.py`
+    → 17 passed;
+  - ruff check and format check on the two edited Python files → pass.
+- **Code Review #2 (repair round 1): pass.** Reviewed `c4f7eedb6`.
+  - P3-F1 and P3-F2 are resolved, with no regressions. D6 is acceptable
+    because package-compat compares the PR's package set with main's.
+  - Reruns: 248 passed (the neighbour set plus content and delete tests); the
+    star-import test passes; ruff, mypy and the import boundary pass.
+  - Non-blocking: name the version files in D6 (done).
+  - Repair rounds used: 1 of 2.
 
 ### Phase 4: sidebar row menu, Anima page delete and dialogs
 
