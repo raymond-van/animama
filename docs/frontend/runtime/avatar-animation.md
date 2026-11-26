@@ -1942,7 +1942,10 @@ built, unless the Avatar's Materials setting is Simple:
 - **Unchanged:** blended (transparent) and untextured materials stay unlit.
 - **Brightness:** the lit colour is raised by 1.25 (`LIT_GAIN`), so lit areas
   under the enhanced chat lights stay within a few percent of the unlit
-  texture; classic lighting leaves them about a tenth darker.
+  texture; classic lighting leaves them about a tenth darker. MMD models
+  converted by Animama Avatar Converter, whose MToon is lit for MMD's light,
+  take the same gain on their lit and shade colours
+  ([Converting an MMD model](mmd-model-conversion.md#what-animama-does-with-it)).
 - **Limits:** the look is Animama's, not the author's: a converter that keeps
   the model's own toon materials does better. Any shape key on a face mesh
   makes the parts it moves face parts, so on a one-mesh model a body, bust or

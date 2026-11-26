@@ -80,7 +80,8 @@ npx animama-avatar-converter <model.pmx> --out <private-dir>/<name>.vrm
   the report says why.
 - **Marker:** `ANIMAMA_avatar_conversion` (`{ "source": "pmx", "converter":
 "<version>" }`) in `extensionsUsed`. It means the springs were tuned without
-  ambient forces; Animama checks only that it is present.
+  ambient forces and the colours for MMD's light; Animama checks only that it
+  is present.
 
 Not carried over, each counted in the report:
 
@@ -103,6 +104,14 @@ morphs do follow append bones), and the older PMD format is refused.
   ([`SpringBonePhysicsController`](avatar-animation.md#springbonephysicscontroller)).
   MMD physics has none, and with them the hair blows sideways and the skirt
   balloons. A re-export that drops the marker brings them back.
+- **Brightness:** the loader raises a marked Avatar's MToon lit and shade
+  colours by 1.25, the gain unlit-only files get
+  ([Unlit materials](avatar-animation.md#unlit-materials)), under every
+  Materials setting (`convertedAvatarBrightness.ts`). Animama's chat lights
+  draw an MToon lit colour about a fifth darker than MMD's light, so without
+  it a converted face rendered about a tenth darker than in MMD; with it, the
+  same face is within a few percent of MMD under enhanced rendering. Outlines,
+  rim light and matcaps keep the file's values.
 - **Hair:** face-part detection also finds hair by the Japanese, Chinese and
   Korean names models use (髪, 发, 刘海, 앞머리 …), when springs do not reveal it
   ([Effects](avatar-vfx.md)).
