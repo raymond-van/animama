@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "head_pat",
   "name": "Head Pat",
-  "ai_description": "Use when comforting, reassuring or gently praising the user, as in 'there, there' or 'you did well'. Reaches the right hand forward, palm down, and softly pats an imagined head in front of the viewer two or three times, leaning in with a tender smile.",
+  "ai_description": "Use when comforting, reassuring or gently praising the user ('there, there', 'you did well'). Gently pats their head.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

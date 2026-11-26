@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "hair_tuck_settle",
   "name": "Hair Tuck & Settle",
-  "ai_description": "Use as an idle while waiting or listening quietly between messages, a casual self-tidying habit. Tucks hair behind one ear with the fingertips while the head tips into the hand, then lowers it and rolls the shoulders into a relaxed posture reset.",
+  "ai_description": "Use as an idle while waiting or listening quietly between messages. Tucks hair behind one ear and settles.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

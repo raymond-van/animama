@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "left-peace-sign",
   "name": "Left Peace Sign",
-  "ai_description": "Use while greeting casually, reassuring or posing in a relaxed, cheerful way. Pops up a left-hand peace sign and holds it with a wink.",
+  "ai_description": "Use while greeting casually, reassuring or posing in a relaxed, cheerful way. Holds a left-hand peace sign, winking.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

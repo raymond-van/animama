@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "nervous_head_scratch",
   "name": "Nervous Head Scratch",
-  "ai_description": "Use when sheepishly admitting a small mistake, being caught out, or laughing off a compliment with an awkward 'ehehe'. Scratches the back of the head with a small bow, hunched shoulders and a closed-eye, embarrassed grin.",
+  "ai_description": "Use when sheepishly admitting a small mistake, being caught out or laughing off praise ('ehehe'). Scratches the head.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

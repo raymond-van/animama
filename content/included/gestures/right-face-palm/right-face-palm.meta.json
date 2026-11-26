@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "right-face-palm",
   "name": "Right Face Palm",
-  "ai_description": "Use when reacting to an obvious mistake, an awkward moment or something exasperating, not for shyness. Covers the face with the right hand, eyes shut, with a small head shake.",
+  "ai_description": "Use for an obvious mistake, an awkward moment or something exasperating, not shyness. A facepalm and a head shake.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

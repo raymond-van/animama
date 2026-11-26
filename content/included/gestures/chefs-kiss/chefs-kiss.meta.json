@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "chefs_kiss",
   "name": "Chef's Kiss",
-  "ai_description": "Use when praising something as perfect, delicious or exactly right. Kisses the bunched fingertips, then springs the hand open beside the face with blissfully closed eyes.",
+  "ai_description": "Use when praising something as perfect, delicious or exactly right. Kisses the fingertips and springs the hand open.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

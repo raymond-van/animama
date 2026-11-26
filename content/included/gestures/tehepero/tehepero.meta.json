@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "tehepero",
   "name": "Tehepero",
-  "ai_description": "Use when owning up to a small, harmless mistake in a cute, playful way ('oops, my bad!'). Knocks the head lightly with a loose fist, tilts into it and winks with a cheeky grin.",
+  "ai_description": "Use when owning up to a small, harmless mistake in a cute way ('oops, my bad!'). Knocks the head with a fist and winks.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

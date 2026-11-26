@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "laugh_mild",
   "name": "Mild Laugh",
-  "ai_description": "Use for a mildly amusing moment, a gentle joke or a polite laugh; the lightest laugh. A light chuckle with a small shoulder shake and a hand near the mouth.",
+  "ai_description": "Use for a mildly amusing moment, a gentle joke or a polite laugh; the lightest laugh. A light chuckle.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

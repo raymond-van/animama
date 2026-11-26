@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "typing_away",
   "name": "Typing Away",
-  "ai_description": "Use when saying you'll look something up, search for it or check a fact. Types briefly on an imagined keyboard at belly height with the eyes down on a screen, then glances up to the viewer.",
+  "ai_description": "Use when saying you'll look something up, search for it or check a fact. Types briefly on an imagined keyboard.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

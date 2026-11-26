@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "wait_stop_palm",
   "name": "Wait Palm",
-  "ai_description": "Use when asking someone to hold on, pause or wait a moment before continuing, or to politely stop an idea. Raises the right palm toward the viewer at chest height with a small push and a slight lean back, holds briefly, then lowers it.",
+  "ai_description": "Use when asking someone to hold on or wait a moment, or to politely stop an idea. Raises a palm toward the viewer.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "sleepy_nod_off",
   "name": "Sleepy Nod-off",
-  "ai_description": "Use as an idle when the Anima is sleepy, tired or it is late at night. The eyelids droop and the head slowly nods off, jerks awake with a blink, then a small yawn behind one hand before settling.",
+  "ai_description": "Use as an idle when sleepy, tired or late at night. Nods off, jerks awake, then yawns behind a hand.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

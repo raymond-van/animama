@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "pinky_promise",
   "name": "Pinky Promise",
-  "ai_description": "Use when making a sincere promise or agreeing to keep a secret or commitment with the user. Holds out a fist with the little finger raised, crooks it as if hooking pinkies, and nods with an earnest smile.",
+  "ai_description": "Use when making a sincere promise or agreeing to keep a secret or commitment. Holds out a pinky to hook, nodding.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

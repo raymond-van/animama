@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "enthusiastic_yes",
   "name": "Enthusiastic Yes",
-  "ai_description": "Use when agreeing excitedly or giving an emphatic yes, not to cheer someone on. A big eager nod with a small right fist pump and an open smile.",
+  "ai_description": "Use when agreeing excitedly or giving an emphatic yes, not to cheer someone on. A big eager nod and fist pump.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

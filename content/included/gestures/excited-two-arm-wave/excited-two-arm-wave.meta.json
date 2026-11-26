@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "excited_two_arm_wave",
   "name": "Excited Two-Arm Wave",
-  "description": "Waves both arms overhead with a bounce. Use for an enthusiastic hello or goodbye, especially when the user returns after a while.",
-  "ai_description": "Waves both arms overhead with a bounce. Use for an enthusiastic hello or goodbye, especially when the user returns after a while.",
+  "description": "Use for an enthusiastic hello or goodbye, especially when the user returns after a while. Waves both arms overhead.",
+  "ai_description": "Use for an enthusiastic hello or goodbye, especially when the user returns after a while. Waves both arms overhead.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

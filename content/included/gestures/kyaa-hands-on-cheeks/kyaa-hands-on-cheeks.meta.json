@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "kyaa_cheeks",
   "name": "Kyaa Hands on Cheeks",
-  "ai_description": "Use when squealing with delight over something adorable, exciting or swoon-worthy. Presses both palms to the cheeks with the shoulders up and wiggles side to side, eyes squeezed shut and mouth open.",
+  "ai_description": "Use when squealing with delight over something adorable, exciting or swoon-worthy. Palms on the cheeks, wiggling.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

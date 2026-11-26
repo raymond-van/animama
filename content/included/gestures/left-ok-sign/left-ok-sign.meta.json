@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "left-ok-sign",
   "name": "Left OK Sign",
-  "ai_description": "Use while confirming that something is correct, ready or going well. Holds up a left-hand OK sign with a smile and a tilted head.",
+  "ai_description": "Use while confirming something is correct, ready or going well. Holds up a left-hand OK sign with a smile.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

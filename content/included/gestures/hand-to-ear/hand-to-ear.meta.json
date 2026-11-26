@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "hand_to_ear",
   "name": "Hand to Ear",
-  "ai_description": "Use when you didn't catch what the user said, want them to repeat something, or are playfully asking them to speak up. Cups a hand behind the right ear and leans in with the head turned, brows raised.",
+  "ai_description": "Use when you didn't catch what the user said or playfully ask them to speak up. Cups a hand behind the ear.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

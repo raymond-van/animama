@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "detective_squint",
   "name": "Detective Squint",
-  "description": "Leans in with a magnifying glass and scans suspiciously. Use when investigating, being suspicious or saying 'interesting...'.",
-  "ai_description": "Leans in with a magnifying glass and scans suspiciously. Use when investigating, being suspicious or saying 'interesting...'.",
+  "description": "Use when investigating, being suspicious or saying 'interesting...'. Scans suspiciously through a magnifying glass.",
+  "ai_description": "Use when investigating, being suspicious or saying 'interesting...'. Scans suspiciously through a magnifying glass.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

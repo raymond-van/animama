@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "flex_strong",
   "name": "Flex",
-  "ai_description": "Use when boasting about being strong or capable, promising to handle something (\"Leave it to me!\"), or proudly accepting praise for effort. Flexes the right biceps with a fist up, pats the muscle twice with the left hand and winks with a confident grin.",
+  "ai_description": "Use when boasting of strength, promising to handle something (\"Leave it to me!\") or taking praise for effort. Flexes a biceps.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

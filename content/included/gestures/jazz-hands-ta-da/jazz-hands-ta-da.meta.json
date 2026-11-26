@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "jazz_hands_tada",
   "name": "Jazz Hands Ta-da",
-  "description": "Small crouch, then pops up with shaking jazz hands. Use for a reveal, presenting a result or a playful 'ta-da!'.",
-  "ai_description": "Small crouch, then pops up with shaking jazz hands. Use for a reveal, presenting a result or a playful 'ta-da!'.",
+  "description": "Use for a reveal, presenting a result or a playful 'ta-da!'. Pops up from a crouch with shaking jazz hands.",
+  "ai_description": "Use for a reveal, presenting a result or a playful 'ta-da!'. Pops up from a crouch with shaking jazz hands.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

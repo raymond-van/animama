@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "fingers_crossed",
   "name": "Fingers Crossed",
-  "ai_description": "Use when hoping for something to go well, wishing someone luck or waiting on an outcome. Raises both hands beside the face with the fingers crossed, squeezes the eyes shut with a small hopeful smile, and gives two little wishing pumps.",
+  "ai_description": "Use when hoping something goes well, wishing someone luck or awaiting an outcome. Crosses the fingers, eyes shut.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

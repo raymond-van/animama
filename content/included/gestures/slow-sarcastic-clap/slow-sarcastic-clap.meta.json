@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "slow_sarcastic_clap",
   "name": "Slow Sarcastic Clap",
-  "description": "Four flat, deadpan claps and an eye-roll. Use for teasing sarcasm: 'wow, congratulations', an obvious statement or a mild fail.",
-  "ai_description": "Four flat, deadpan claps and an eye-roll. Use for teasing sarcasm: 'wow, congratulations', an obvious statement or a mild fail.",
+  "description": "Use for teasing sarcasm: 'wow, congratulations', an obvious statement or a mild fail. Slow, deadpan claps.",
+  "ai_description": "Use for teasing sarcasm: 'wow, congratulations', an obvious statement or a mild fail. Slow, deadpan claps.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

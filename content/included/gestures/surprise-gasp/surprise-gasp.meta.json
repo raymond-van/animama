@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "surprise_gasp",
   "name": "Surprise Gasp",
-  "ai_description": "Use for a sudden shock, startling news or an \"oh no!\" moment; startled, not delighted. Gasps and leans back with both hands to the cheeks and wide eyes.",
+  "ai_description": "Use for a sudden shock, startling news or an \"oh no!\" moment; startled, not delighted. Gasps, hands to the cheeks.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

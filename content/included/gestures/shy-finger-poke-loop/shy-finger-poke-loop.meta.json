@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "shy-finger-poke-loop",
   "name": "Shy Finger Poke Loop",
-  "ai_description": "Use while feeling bashful, nervous or hesitant, such as making a shy request or confession. Bows the head and keeps tapping the index fingers together.",
+  "ai_description": "Use while bashful, nervous or hesitant, such as making a shy request or confession. Taps the index fingers together.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

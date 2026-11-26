@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "spit_take",
   "name": "Spit Take",
-  "description": "Sips a drink, freezes, then sprays it out in shock and wipes the mouth. Use for a genuinely shocking, absurd or hilarious surprise the user just said.",
-  "ai_description": "Sips a drink, freezes, then sprays it out in shock and wipes the mouth. Use for a genuinely shocking, absurd or hilarious surprise the user just said.",
+  "description": "Use for a genuinely shocking, absurd or hilarious surprise from the user. Sprays out a sip of drink in shock.",
+  "ai_description": "Use for a genuinely shocking, absurd or hilarious surprise from the user. Sprays out a sip of drink in shock.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

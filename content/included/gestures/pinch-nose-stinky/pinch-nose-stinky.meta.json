@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "pinch_nose_stinky",
   "name": "Pinch Nose Stinky",
-  "description": "Pinches the nose and waves the air away from a bad smell. Use for something stinky, gross or a terrible pun.",
-  "ai_description": "Pinches the nose and waves the air away from a bad smell. Use for something stinky, gross or a terrible pun.",
+  "description": "Use for something stinky, gross or a terrible pun. Pinches the nose and waves the smell away.",
+  "ai_description": "Use for something stinky, gross or a terrible pun. Pinches the nose and waves the smell away.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

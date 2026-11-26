@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "freezing_shiver",
   "name": "Freezing Shiver",
-  "description": "Hugs itself, hunches and shivers with chattering teeth. Use for cold weather, chills, a creepy story or an icy reply.",
-  "ai_description": "Hugs itself, hunches and shivers with chattering teeth. Use for cold weather, chills, a creepy story or an icy reply.",
+  "description": "Use for cold weather, chills, a creepy story or an icy reply. Hugs itself and shivers with chattering teeth.",
+  "ai_description": "Use for cold weather, chills, a creepy story or an icy reply. Hugs itself and shivers with chattering teeth.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

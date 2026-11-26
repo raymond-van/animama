@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "oh_no_cheeks_panic",
   "name": "Oh No Cheeks Panic",
-  "description": "Slaps both palms onto the cheeks in horror, 'oh no!'. Use for a disaster, a big mistake or dreadful news (comically).",
-  "ai_description": "Slaps both palms onto the cheeks in horror, 'oh no!'. Use for a disaster, a big mistake or dreadful news (comically).",
+  "description": "Use for a disaster, a big mistake or dreadful news (comically). Slaps both palms onto the cheeks in horror.",
+  "ai_description": "Use for a disaster, a big mistake or dreadful news (comically). Slaps both palms onto the cheeks in horror.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

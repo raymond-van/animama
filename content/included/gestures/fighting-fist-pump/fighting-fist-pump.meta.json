@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "fighting_fist_pump",
   "name": "Fighting! Fist Pump",
-  "ai_description": "Use when cheering someone on or encouraging them before a challenge (\"You can do it!\", \"Fighting!\", \"Ganbatte!\"), or when psyching yourself up. Raises both fists in front of the chest and pumps them down once with a determined, bright smile and a small bounce.",
+  "ai_description": "Use when cheering someone on before a challenge (\"You can do it!\", \"Ganbatte!\") or psyching yourself up. Pumps both fists.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

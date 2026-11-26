@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "who_me",
   "name": "Who, Me?",
-  "ai_description": "Use when the user singles you out, credits or blames you, or asks you something you didn't expect to be asked: a surprised 'who, me?'. Points the right index finger at the chest with a startled blink, raised eyebrows and a quizzical head tilt.",
+  "ai_description": "Use when the user singles you out, credits or blames you, or asks something unexpected ('who, me?'). Points at the chest.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

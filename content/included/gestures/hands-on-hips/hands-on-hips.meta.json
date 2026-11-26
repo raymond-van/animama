@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "hands-on-hips",
   "name": "Hands on Hips",
-  "ai_description": "Use while feeling confident, determined or playfully impatient. Stands with both hands on the hips, shifting weight side to side with a smile.",
+  "ai_description": "Use while confident, determined or playfully impatient. Stands with both hands on the hips, shifting weight.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

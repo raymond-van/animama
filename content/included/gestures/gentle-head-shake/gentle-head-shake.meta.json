@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "head_shake_no",
   "name": "Gentle Head Shake",
-  "ai_description": "Use to decline gently, disagree kindly or say a soft no. Shakes the head side to side twice with a slightly rueful face.",
+  "ai_description": "Use to decline gently, disagree kindly or say a soft no. Shakes the head twice, a little rueful.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "rps_rock",
   "name": "Rock Paper Scissors Rock",
-  "description": "Rock-paper-scissors countdown that throws ROCK. Use when playing rock-paper-scissors and the Anima's throw is rock.",
-  "ai_description": "Rock-paper-scissors countdown that throws ROCK. Use when playing rock-paper-scissors and the Anima's throw is rock.",
+  "description": "Use when playing rock-paper-scissors and the Anima's throw is rock. Counts down and throws ROCK.",
+  "ai_description": "Use when playing rock-paper-scissors and the Anima's throw is rock. Counts down and throws ROCK.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

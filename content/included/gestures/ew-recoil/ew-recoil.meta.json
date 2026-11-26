@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "ew_recoil",
   "name": "Ew Recoil",
-  "ai_description": "Use when something is gross, creepy or off-putting, or to react with 'ew, no thanks'. Recoils and turns the head away with both palms up in front of the chest, a little shudder and a scrunched, disgusted side-eye.",
+  "ai_description": "Use when something is gross, creepy or off-putting ('ew, no thanks'). Recoils with a shudder and a disgusted side-eye.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"
