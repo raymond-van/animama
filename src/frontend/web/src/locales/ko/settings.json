@@ -99,7 +99,9 @@
       "cancel": "취소",
       "use": "이 아바타 사용",
       "using": "변경 중…",
+      "waitForReply": "{{name}}이(가) 답장하는 중입니다. 답장이 끝난 뒤 아바타를 바꾸세요.",
       "changed": "{{anima}}이(가) 이제 {{avatar}}을(를) 사용합니다.",
+      "changedNextLoad": "{{anima}}이(가) 이제 {{avatar}}을(를) 사용합니다. 이 채팅에는 다음에 불러올 때 표시됩니다.",
       "changedElsewhere": "이 Anima가 다른 곳에서 변경되었습니다. 현재 아바타를 확인하고 다시 시도하세요.",
       "changeFailed": "아바타를 변경할 수 없습니다. 다시 시도하세요."
     },

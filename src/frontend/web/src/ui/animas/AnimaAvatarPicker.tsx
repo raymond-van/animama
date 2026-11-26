@@ -15,7 +15,7 @@ import {
 } from "@/query/hooks/useAnimaCreation";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
 import { useAvatarSelection } from "@/query/mutations/useAvatarSelection";
-import { remountWhenIdle } from "@/ui/animas/remountWhenIdle";
+import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useOptionalMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
 import { Button } from "@/ui/components/button";
 import {
@@ -62,6 +62,14 @@ export function AnimaAvatarPicker({
   const [name, setName] = useState("");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<ApiErrorText | null>(null);
+  const [changing, setChanging] = useState(false);
+  // In this Anima's chat, a change waits for the reply and its speech: the
+  // chat reloads its runtime for the new Avatar, which would cut them off.
+  const inChat = mounted?.animaId === animaId;
+  const chatReplying = useAvatarRuntimeStore((state) =>
+    Boolean(state.activeRunId || state.activeSpeechRunId),
+  );
+  const waitForReply = inChat && chatReplying;
 
   const current = loadout.data?.avatar_source?.catalog_item_id ?? null;
   const selected = chosen ?? current;
@@ -71,7 +79,7 @@ export function AnimaAvatarPicker({
       (item) => !query || item.name.toLocaleLowerCase().includes(query),
     );
   }, [avatars.data, search]);
-  const busy = working || selection.isPending;
+  const busy = working || changing || selection.isPending;
 
   const reset = () => {
     setChosen(null);
@@ -129,20 +137,33 @@ export function AnimaAvatarPicker({
   const use = async () => {
     const avatar = avatars.data?.find((item) => item.item_id === selected);
     const revision = loadout.data?.revision;
-    if (!avatar || revision === undefined || avatar.item_id === current) return;
+    if (
+      !avatar ||
+      revision === undefined ||
+      avatar.item_id === current ||
+      waitForReply
+    )
+      return;
     setError(null);
+    setChanging(true);
     try {
       await selection.mutateAsync({ avatar, expectedRevision: revision });
-      // A chat showing this Anima loads its new runtime without a revisit,
-      // after any reply and its speech in progress.
-      if (mounted?.animaId === animaId)
-        remountWhenIdle(animaId, mounted.remountLatest);
-      toast.success(
-        t("animaSettings.avatarPicker.changed", {
-          anima: animaName,
-          avatar: avatar.name,
-        }),
-      );
+      const words = { anima: animaName, avatar: avatar.name };
+      if (inChat && mounted) {
+        const { activeRunId, activeSpeechRunId } =
+          useAvatarRuntimeStore.getState();
+        if (activeRunId || activeSpeechRunId) {
+          // A reply began while the change was saving (a voice turn): keep it.
+          toast.success(t("animaSettings.avatarPicker.changedNextLoad", words));
+        } else {
+          // Reload this chat's runtime before closing, so the owner cannot
+          // leave for another Anima while the reload is under way.
+          await mounted.remountLatest();
+          toast.success(t("animaSettings.avatarPicker.changed", words));
+        }
+      } else {
+        toast.success(t("animaSettings.avatarPicker.changed", words));
+      }
       reset();
       onOpenChange(false);
     } catch (cause) {
@@ -154,6 +175,8 @@ export function AnimaAvatarPicker({
           t("animaSettings.avatarPicker.changeFailed"),
         ),
       );
+    } finally {
+      setChanging(false);
     }
   };
 
@@ -318,6 +341,11 @@ export function AnimaAvatarPicker({
             </div>
           )}
         </div>
+        {waitForReply ? (
+          <p role="status" className="text-muted-foreground text-sm">
+            {t("animaSettings.avatarPicker.waitForReply", { name: animaName })}
+          </p>
+        ) : null}
         {error ? (
           <p role="alert" className="text-destructive text-sm">
             {apiErrorLine(error)}
@@ -335,10 +363,10 @@ export function AnimaAvatarPicker({
             {t("animaSettings.avatarPicker.cancel")}
           </Button>
           <Button
-            disabled={busy || !selected || selected === current}
+            disabled={busy || waitForReply || !selected || selected === current}
             onClick={() => void use()}
           >
-            {selection.isPending
+            {changing
               ? t("animaSettings.avatarPicker.using")
               : t("animaSettings.avatarPicker.use")}
           </Button>

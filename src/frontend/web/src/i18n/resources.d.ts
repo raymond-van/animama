@@ -6248,6 +6248,7 @@ export default interface Resources {
         "changeFailed": "The Avatar could not be changed. Try again.",
         "changed": "{{anima}} now uses {{avatar}}.",
         "changedElsewhere": "This Anima changed elsewhere. Check the current Avatar and try again.",
+        "changedNextLoad": "{{anima}} now uses {{avatar}}. This chat shows it the next time it loads.",
         "current": "Current",
         "description": "Choose the Avatar {{name}} appears as. Its identity, memories, chats, Gestures, Reactions, Idle and voice stay the same.",
         "groupLabel": "Avatars",
@@ -6267,7 +6268,8 @@ export default interface Resources {
         "uploadFile": "{{file}} ({{size}})",
         "uploadName": "Avatar name",
         "use": "Use Avatar",
-        "using": "Changing…"
+        "using": "Changing…",
+        "waitForReply": "{{name}} is replying. Change the Avatar when the reply ends."
       },
       "choices": {
         "appDefaultOff": "App default (Off)",

@@ -57,20 +57,25 @@ Profile and Background images, framing and Avatar portrait fallback.
 
 Anima settings (the Settings tab, and Settings in the chat profile modal) end
 with an **Avatar** section. It starts with an **Avatar** row naming the Anima's
-current Avatar. **Change Avatar** opens a picker (`AnimaAvatarPicker`) listing every Included
-and Local Avatar with its portrait. It can also upload a VRM, which passes Create
-Anima's browser checks and is saved as a new Local Avatar. **Use Avatar** plans
-and commits only the Loadout's `avatar` slot (`POST
+current Avatar. **Change Avatar** opens a picker (`AnimaAvatarPicker`) listing
+every Included and Local Avatar with its portrait. It can also upload a VRM,
+which passes Create Anima's browser checks and is saved as a new Local Avatar.
+**Use Avatar** plans and commits only the Loadout's `avatar` slot (`POST
 /v1/animas/{anima_id}/avatar:plan|commit`) against the Loadout revision the
-picker showed. A newer revision refuses the change and asks for a retry. The
-Anima keeps its identity, memories, chats, Actions and voice. A chat showing
-that Anima remounts its runtime (`remountLatest`) and shows the new model. It
-does this at once when idle, or after the current reply and its speech end
-(`remountWhenIdle`), because a remount disposes the catalog and voice a reply
-still uses; a waiting remount is dropped if the chat moves to another Anima
-first. Other surfaces read the next runtime, and an open
-desktop picture-in-picture window keeps the old Avatar until it is reopened. On the local runtimes (desktop and
-self-hosted web) the section also holds the settings of the Anima's Avatar item, stored per owner and Avatar
+picker showed; a newer revision refuses the change and asks for a retry. The
+Anima keeps its identity, memories, chats, Actions and voice.
+
+In that Anima's chat, the chat remounts its runtime (`remountLatest`) to show
+the new model, which disposes the catalog and voice a reply still uses. So
+**Use Avatar** is disabled, with a note, while a reply or its speech is under
+way. The dialog closes only once the chat has requested its new runtime, so the
+owner cannot open another Anima's chat during the remount. A reply that starts
+while the change saves (a voice turn) is left to finish, and the chat shows the
+new model the next time it loads. Other surfaces read the next runtime; an open
+desktop picture-in-picture window keeps the old Avatar until it is reopened.
+
+On the local runtimes (desktop and self-hosted web) the section also holds the
+settings of the Anima's Avatar item, stored per owner and Avatar
 through `GET`/`PUT /v1/avatar-content/{item_id}/settings`, so they apply
 wherever that Avatar is used:
 

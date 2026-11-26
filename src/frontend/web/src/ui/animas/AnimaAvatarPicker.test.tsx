@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { AnimaAvatarChoiceRow } from "./AnimaAvatarChoiceRow";
 import { AnimaAvatarPicker } from "./AnimaAvatarPicker";
 
@@ -139,6 +140,10 @@ beforeEach(() => {
   mocks.saveAvatar.mockReset();
   mocks.mounted = null;
   mocks.toast.mockReset();
+  useAvatarRuntimeStore.setState({
+    activeRunId: null,
+    activeSpeechRunId: null,
+  });
 });
 
 afterEach(() => {
@@ -171,13 +176,21 @@ describe("Anima Avatar picker", () => {
     expect(closed).toBe(1);
   });
 
-  it("remounts a chat showing this Anima, and only this Anima", async () => {
-    const remount = vi.fn();
+  it("reloads a chat showing this Anima before closing, and only this Anima", async () => {
+    let finish: () => void = () => undefined;
+    const remount = vi.fn(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
     mocks.mounted = { animaId: "anima-1", remountLatest: remount };
     render(picker());
     act(() => option("Mika Test").click());
     await act(async () => button("Use Avatar")!.click());
     expect(remount).toHaveBeenCalledTimes(1);
+    // The dialog stays until the reload is under way, so the owner cannot
+    // open another Anima's chat while it runs.
+    expect(closed).toBe(0);
+    await act(async () => finish());
+    expect(closed).toBe(1);
 
     act(() => root?.unmount());
     const other = vi.fn();
@@ -186,6 +199,46 @@ describe("Anima Avatar picker", () => {
     act(() => option("Mika Test").click());
     await act(async () => button("Use Avatar")!.click());
     expect(other).not.toHaveBeenCalled();
+  });
+
+  it("waits for this Anima's reply before a change in its chat", () => {
+    mocks.mounted = { animaId: "anima-1", remountLatest: vi.fn() };
+    useAvatarRuntimeStore.setState({ activeSpeechRunId: "run-1" });
+    render(picker());
+    act(() => option("Mika Test").click());
+
+    expect(button("Use Avatar")?.disabled).toBe(true);
+    expect(text()).toContain("Mika is replying.");
+
+    act(() => useAvatarRuntimeStore.setState({ activeSpeechRunId: null }));
+    expect(button("Use Avatar")?.disabled).toBe(false);
+    expect(text()).not.toContain("Mika is replying.");
+  });
+
+  it("ignores another chat's reply outside this Anima's chat", () => {
+    useAvatarRuntimeStore.setState({ activeRunId: "run-1" });
+    render(picker());
+    act(() => option("Mika Test").click());
+    expect(button("Use Avatar")?.disabled).toBe(false);
+  });
+
+  it("leaves a reply that began during the save to finish", async () => {
+    const remount = vi.fn();
+    mocks.mounted = { animaId: "anima-1", remountLatest: remount };
+    mocks.select.mockImplementation(async () => {
+      // A voice turn starts a reply while the change is saving.
+      useAvatarRuntimeStore.setState({ activeRunId: "voice-run" });
+      return { revision: 5 };
+    });
+    render(picker());
+    act(() => option("Mika Test").click());
+    await act(async () => button("Use Avatar")!.click());
+
+    expect(remount).not.toHaveBeenCalled();
+    expect(mocks.toast).toHaveBeenCalledWith(
+      "Mika now uses Mika Test. This chat shows it the next time it loads.",
+    );
+    expect(closed).toBe(1);
   });
 
   it("asks for a retry when the Anima changed elsewhere", async () => {

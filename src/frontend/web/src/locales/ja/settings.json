@@ -99,7 +99,9 @@
       "cancel": "キャンセル",
       "use": "このアバターを使う",
       "using": "変更中…",
+      "waitForReply": "{{name}} が返信中です。返信が終わってからアバターを変更してください。",
       "changed": "{{anima}} は {{avatar}} を使用しています。",
+      "changedNextLoad": "{{anima}} は {{avatar}} を使用しています。このチャットには次に読み込んだときに表示されます。",
       "changedElsewhere": "この Anima は別の場所で変更されました。現在のアバターを確認して、もう一度お試しください。",
       "changeFailed": "アバターを変更できませんでした。もう一度お試しください。"
     },

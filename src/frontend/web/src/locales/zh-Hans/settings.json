@@ -99,7 +99,9 @@
       "cancel": "取消",
       "use": "使用此虚拟形象",
       "using": "正在更换…",
+      "waitForReply": "{{name}} 正在回复。请在回复结束后更换虚拟形象。",
       "changed": "{{anima}} 现在使用 {{avatar}}。",
+      "changedNextLoad": "{{anima}} 现在使用 {{avatar}}。此聊天会在下次加载时显示。",
       "changedElsewhere": "此 Anima 已在别处更改。请查看当前虚拟形象后重试。",
       "changeFailed": "无法更换虚拟形象。请重试。"
     },
