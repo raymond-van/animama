@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronRight,
@@ -35,7 +36,10 @@ import {
   previewTypedCatalogItem,
 } from "@/lib/content/catalogApi";
 import { typedActionPreview } from "@/lib/content/typedPreviewAdapters";
-import { avatarPreviewTarget } from "@/lib/content/avatarPreviewTarget";
+import {
+  avatarPreviewPortraitRetake,
+  avatarPreviewTarget,
+} from "@/lib/content/avatarPreviewTarget";
 import { componentPreviewTarget } from "@/lib/content/componentPreviewTarget";
 import {
   contentInventoryGroups,
@@ -563,7 +567,9 @@ export function LibraryContentInventory({
       );
     }
   };
-  const previewAvatar = async (avatar: PyAvatarCatalogItem) => {
+  const previewAvatar = async (
+    avatar: Pick<PyAvatarCatalogItem, "catalog_item_id" | "name" | "origin">,
+  ) => {
     if (!avatar.catalog_item_id) return;
     soundPreview.stop();
     const preview = await previewCatalogItem(
@@ -572,7 +578,15 @@ export function LibraryContentInventory({
       undefined,
       "avatar",
     );
-    openPreview(avatarPreviewTarget(preview, avatar.name));
+    // A Local Avatar whose portrait shows another revision (a replaced model)
+    // gets a new one from the Dock; a failed check only skips that.
+    const portraitRetake =
+      avatar.origin === "local"
+        ? await avatarPreviewPortraitRetake(apiClient, preview).catch(
+            () => null,
+          )
+        : null;
+    openPreview(avatarPreviewTarget(preview, avatar.name, portraitRetake));
   };
   const manageCard = (card: LibraryProductCard) =>
     card.source &&
@@ -898,6 +912,20 @@ export function LibraryContentInventory({
           key={avatarSettings.itemId}
           avatar={avatarSettings}
           onClose={() => setAvatarSettings(null)}
+          onReplaced={(saved) => {
+            setAvatarSettings(null);
+            toast.success(
+              t("inventory.avatarSettings.model.replaced", {
+                name: avatarSettings.name,
+              }),
+            );
+            // Show the new model, which also retakes its portrait.
+            void previewAvatar({
+              catalog_item_id: saved.item_id,
+              name: avatarSettings.name,
+              origin: "local",
+            });
+          }}
         />
       ) : null}
       {managedSound ? (

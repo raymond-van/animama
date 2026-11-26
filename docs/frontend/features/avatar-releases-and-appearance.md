@@ -28,7 +28,11 @@ typed portrait API (`ui/create-anima/createAnimaPortrait.ts`). It captures the
 Avatar at rest, waiting while a Gesture or Reaction preview plays or the page
 is hidden. The attempt never blocks the flow, is abandoned after 15 s or when
 the source changes, the stage unmounts or the page is hidden, and a failure is
-only logged and not retried until the app is reloaded. Included Avatars, unsaved uploads and imported portraits
+only logged and not retried until the app is reloaded. The Library's Preview
+Dock follows the same rules (`useDockPortraitRetake`). When the Library previews
+a Local Avatar whose portrait is missing or from another revision, as after
+[Replace VRM](library.md), the Dock captures it once the model has loaded and
+no Action is playing. Included Avatars, unsaved uploads and imported portraits
 are never recaptured. Avatar portraits (Appearances naming an Avatar in
 `presentation.avatar_item_id`, generated or imported) are not offered as
 Profile or Background images. Creation itself submits null Profile and Background

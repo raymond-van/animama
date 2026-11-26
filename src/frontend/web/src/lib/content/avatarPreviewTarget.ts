@@ -1,7 +1,9 @@
-import type { Client } from "@animama/runtime-contracts/sdk";
+import type { ItemRevisionRef } from "@animama/runtime-contracts/api-types";
+import { getAvatarContent, type Client } from "@animama/runtime-contracts/sdk";
 
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
+import { portraitRetakeTarget } from "@/lib/avatar/portrait/retakeTarget";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import { previewCatalogItem } from "./catalogApi";
 import { contentPreviewFileUrl } from "./contentPreview";
@@ -61,13 +63,39 @@ export async function avatarItemRuntimeEntry(
   return avatarPreviewEntry(preview, "");
 }
 
+/**
+ * The previewed Local Avatar revision when its portrait is missing or was
+ * captured from another revision (after Replace VRM, for example), so the
+ * Dock can capture it again. Null for an Included Avatar or a current one.
+ */
+export async function avatarPreviewPortraitRetake(
+  apiClient: Client,
+  preview: PyContentPreview,
+  signal?: AbortSignal,
+): Promise<ItemRevisionRef | null> {
+  if (!preview.item_id) return null;
+  const { data } = await getAvatarContent({
+    client: apiClient,
+    path: { item_id: preview.item_id },
+    signal,
+    responseValidator: undefined,
+    throwOnError: true,
+  });
+  return portraitRetakeTarget(
+    { item_id: preview.item_id, revision_sha256: preview.revision_sha256 },
+    [data],
+  );
+}
+
 /** Adapt an exact Avatar preview to the shared single-Canvas preview dock. */
 export function avatarPreviewTarget(
   preview: PyContentPreview,
   displayName: string,
+  portraitRetake?: ItemRevisionRef | null,
 ): ContentPreviewTarget {
   const entry = avatarPreviewEntry(preview, displayName);
   return {
+    ...(portraitRetake ? { portraitRetake } : {}),
     key: `typed-avatar:${preview.preview_id}:${preview.revision}`,
     sourceType: "resolved_entry",
     entry,

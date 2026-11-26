@@ -94,6 +94,22 @@ file once per session when no surface has loaded it. The hosted app keeps no
 Avatar settings, so there the dialog offers Diagnostics only. Entries without model files are omitted; reference-safe seed reconciliation
 preserves records needed by Animas.
 
+For a Local Avatar the dialog also has **Replace VRM** (`LibraryAvatarModelRow`),
+which swaps in an updated file while keeping the same Avatar item. The chosen
+file passes Create Anima's browser checks first. The owner then confirms after
+reading which Animas use the Avatar and, when a face part correction is saved,
+that the correction stops applying because it names the old file's digest. The
+save is `PUT /v1/avatar-content/{entry_name}` with the item's own file name,
+`catalog_item_id` and the reviewed revision, without `creation_context`, so an
+Avatar in use can be replaced. A changed revision refuses the write and the
+dialog reads the details again. The sidecar is left as it is, so the name,
+description and identity stay. Avatar settings are keyed by item and stay too.
+Each Anima's Loadout points at the item, so Anima pages pick up the new model
+at once and a mounted chat at its next runtime mount. Afterwards the Library
+previews the new model. The Dock retakes the portrait, as described under
+[Avatar portraits](avatar-releases-and-appearance.md). Included Avatars cannot
+be replaced.
+
 Some Included content is **non-portable**: it plays, previews and can be
 equipped, but never leaves the app as files. Its Gesture and Reaction rows show
 **Not editable** in place of Edit; its tooltip, and a description read by
