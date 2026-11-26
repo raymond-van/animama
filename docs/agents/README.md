@@ -82,8 +82,8 @@ reverted rather than spending a third round, and the final suite results.
 
 ## Authorship and AI involvement
 
-Raymond is the author and copyright holder of Animama's original work. Outside
-contributors keep the copyright in what they contribute and license it under
+Raymond is the author and copyright holder of Animama's original work, apart
+from outside contributions. Outside contributors keep the copyright in what they contribute and license it under
 the [Contributor Licence Agreement](../../.github/CLA.md).
 Agents wrote much of the code and some of the artwork under Raymond's direction.
 Commits on `main` carry no tool attribution, so the AI involvement is recorded
