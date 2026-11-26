@@ -136,7 +136,10 @@ Relevant code:
     `runtime-contracts` version in its `package.json`, and `product-ui`'s
     version if its declarations change. The same commit updates
     `contracts/hosted-web.md` and `docs/frontend/desktop/releases.md`. The
-    final integration review confirms it landed. This follows the package-set rules.
+    final integration review confirms it landed.
+    Landed as the `build(contracts)` commit after the merge of main:
+    `local-http` 26.0.0 and `runtime-contracts` 0.26.0. product-ui stays at
+    0.22.0, because its declarations are unchanged. This follows the package-set rules.
     Each phase commit carries its own regenerated SDK.
 
 - Open question Q1 (owner, before G2): when a delete removes pending
