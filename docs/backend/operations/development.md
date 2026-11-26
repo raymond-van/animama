@@ -50,7 +50,11 @@ The animation manifest keeps its canonical source at
 `src/frontend/web/src/assets/vrm/animations/manifest.json`. The generated copy in
 `src/backend/animama/resources/` is packaged into the wheel and frozen runtime;
 shared code accesses it through `importlib.resources`, without walking source
-directories or importing desktop helpers. After changing a canonical JSON file:
+directories or importing desktop helpers. The authoring joint table,
+`resources/authoring/joints.md`, is a copy of
+`src/frontend/web/src/lib/avatar/motion-authoring/authoring-joints.generated.md`
+in the same way; the other files of `resources/authoring/` are written there.
+After changing a canonical file:
 
 ```bash
 uv run --no-sync python src/backend/packaging/shared_catalogs.py --write

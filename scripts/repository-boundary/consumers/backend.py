@@ -49,6 +49,7 @@ from animama.domain import (  # noqa: E402
     RequestPrincipal,
 )
 from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory  # noqa: E402
+from animama.resources.authoring_guidance import GESTURE_GUIDANCE_FILES, gesture_authoring_guidance  # noqa: E402
 
 
 class Profiles:
@@ -256,12 +257,15 @@ async def exercise() -> dict:
     else:
         raise AssertionError("Cross-owner chat access was accepted")
     assert get_manifest_gesture_inventory()
+    # Reading every guidance file proves the wheel carries the authoring Markdown.
+    assert gesture_authoring_guidance()
     return {
         "owners": len(owners),
         "chat_turns": len(client.requests),
         "events": event_count,
         "persisted_messages": len(messages.rows),
         "catalogs": 1,
+        "authoring_guidance_files": len(GESTURE_GUIDANCE_FILES),
         "local_imports": 0,
     }
 

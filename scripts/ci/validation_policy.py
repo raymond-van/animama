@@ -330,6 +330,7 @@ FRONTEND_SHARED_FILES = {
     "src/frontend/desktop/src/main-process/runtime/vault.ts",
     "src/frontend/web/src/app/hosted-runtime/hosted-composition.ts",
     "src/frontend/web/src/assets/vrm/animations/manifest.json",
+    "src/frontend/web/src/lib/avatar/motion-authoring/authoring-joints.generated.md",
     "src/frontend/web/src/lib/lipsync/text/english-dictionary.data.ts",
     "src/frontend/web/src/lib/speech/pocket/voice-catalog.ts",
 }

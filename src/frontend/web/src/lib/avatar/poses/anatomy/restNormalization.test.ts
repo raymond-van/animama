@@ -457,15 +457,14 @@ describe("hand rest normalization", () => {
     expect(
       prepareLoadedVrm(vrm, { vrmSha256: null }).restPose.normalization,
     ).not.toBeNull();
-    const render = await readFile(
-      fileURLToPath(
-        new URL(
-          "../../../../../scripts/animation-render/render.ts",
-          import.meta.url,
-        ),
-      ),
-      "utf8",
+    const source = (path: string) =>
+      readFile(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+    // The sheet drawing that the script and the app share loads the Avatar.
+    expect(await source("../../motion-authoring/reviewSheet.ts")).toMatch(
+      /prepareLoadedVrm\(vrm,/,
     );
-    expect(render).toMatch(/prepareLoadedVrm\(vrm,/);
+    expect(
+      await source("../../../../../scripts/animation-render/render.ts"),
+    ).toMatch(/drawReviewSheet\(/);
   });
 });

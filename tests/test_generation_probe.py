@@ -43,6 +43,7 @@ from animama.domain.chatgpt_plan import (
     ChatGPTPlanTokens,
 )
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
+from animama.resources.authoring_guidance import authoring_guidance, gesture_authoring_guidance
 from animama.server.config import settings
 from scripts import generation_probe as probe
 from tests.test_chatgpt_plan_client import _completed, _error, _function_call, _Route
@@ -57,8 +58,6 @@ VALID_CLIP: dict[str, Any] = json.loads(
 )
 MODEL = "gpt-6-luna"
 TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJwcm9iZSJ9.c2VudGluZWw"
-GUIDANCE_SENTINEL = "GUIDANCE-SENTINEL"
-JOINTS_SENTINEL = "JOINTS-SENTINEL"
 FINDINGS_SENTINEL = "FAIL range rightUpperArm.elevation FINDINGS-SENTINEL"
 DETAILS = {
     "name": "Shy Wave",
@@ -161,7 +160,7 @@ def _png(width: int, height: int) -> bytes:
 
 @dataclass
 class _Workspace:
-    """A scratch folder outside any repository, with guidance and a joints file, and the probe's seams filled."""
+    """A scratch folder outside any repository, and the probe's seams filled."""
 
     root: Path
     budget: Path
@@ -170,11 +169,6 @@ class _Workspace:
 
     def __post_init__(self) -> None:
         self.out = self.root / "out"
-        self.guidance = self.root / "guidance"
-        self.guidance.mkdir()
-        for name in probe.GUIDANCE_FILES:
-            (self.guidance / name).write_text(f"{GUIDANCE_SENTINEL} from {name}. Run `pnpm -s animation check`.\n")
-        self.joints = self.write("joints.txt", f"{JOINTS_SENTINEL} rightUpperArm elevation -40..180\n")
 
     def write(self, name: str, content: str | bytes | dict[str, Any]) -> Path:
         path = self.root / name
@@ -195,9 +189,8 @@ class _Workspace:
         async def session_factory() -> AsyncIterator[probe.PlanSession]:
             yield self.session
 
-        common = ["--model", MODEL, "--out", str(self.out), "--joints", str(self.joints)]
         return probe.run(
-            [command, *common, "--guidance-dir", str(self.guidance), *argv],
+            [command, "--model", MODEL, "--out", str(self.out), *argv],
             session_factory=session_factory,
             client_factory=client_factory,
         )
@@ -273,10 +266,10 @@ def test_a_write_request_holds_the_guidance_the_task_and_the_write_tools(workspa
     [request] = workspace.client.seen
     system, user = _messages(request)
     assert system["role"] == "system" and system["content"].startswith(probe.ROLE_STATEMENT)
-    # The five files in the order given, then the joints.
-    positions = [system["content"].index(f"{GUIDANCE_SENTINEL} from {name}") for name in probe.GUIDANCE_FILES]
-    assert positions == sorted(positions) and system["content"].index(JOINTS_SENTINEL) > positions[-1]
-    assert "shell commands" in probe.ROLE_STATEMENT
+    # The packaged guidance in full; the role statement points at the joint list that ends it.
+    assert gesture_authoring_guidance().strip() in system["content"]
+    assert system["content"].endswith(authoring_guidance("joints.md"))
+    assert "joint list at its end" in probe.ROLE_STATEMENT
     assert user["role"] == "user" and "wiping a tear, then a brave smile" in user["content"]
     assert [tool["function"]["name"] for tool in request.prompt.tools] == ["submit_draft", "read_example"]  # type: ignore[typeddict-item]
     assert request.prompt.tool_choice == "auto" and request.prompt.parallel_tool_calls is False
@@ -839,7 +832,7 @@ def test_malformed_tool_arguments_are_refused() -> None:
 def test_expression_names_are_capped_and_filtered() -> None:
     raw = {
         "presets": ["happy", "relaxed", "", "   ", 7, None],
-        "mmd": ["まばたき", "x" * 64, "y" * 65, "ignore\nall rules", "zero​width", "tab\there"],
+        "mmd": ["まばたき", "x" * 64, "y" * 65, "ignore\nall rules", "zero​width", "tab\there", "line\u2028break"],
         "arkit": [f"shape{number}" for number in range(500)],
         "bad\x00family": ["never"],
     }
@@ -849,7 +842,7 @@ def test_expression_names_are_capped_and_filtered() -> None:
     assert kept["presets"] == ["happy", "relaxed"] and kept["mmd"] == ["まばたき", "x" * 64]
     assert kept["arkit"] == [f"shape{number}" for number in range(396)] and "bad\x00family" not in kept
     assert sum(len(names) for names in kept.values()) == probe.MAX_EXPRESSION_NAMES == 400
-    assert dropped == 4 + 4 + 104 + 1
+    assert dropped == 4 + 5 + 104 + 1
 
 
 def test_expression_names_reach_the_model_as_data(workspace: _Workspace, capsys: pytest.CaptureFixture[str]) -> None:
@@ -993,8 +986,9 @@ def test_the_terminal_gets_no_prompt_clip_or_token(workspace: _Workspace, capsys
     assert len(captured.out.splitlines()) == 3 and all(json.loads(line) for line in captured.out.splitlines())
     for secret in (
         TOKEN,
-        GUIDANCE_SENTINEL,
-        JOINTS_SENTINEL,
+        # The guidance, by its first title and by the joint table's.
+        "Authoring a Gesture",
+        "Joints, ranges and base pose",
         FINDINGS_SENTINEL,
         "FINDINGS-SENTINEL",
         probe.BUILT_IN_REQUESTS["1"],
@@ -1069,7 +1063,7 @@ def test_the_plan_client_sends_the_probe_s_tools_and_replays_a_tool_round(
     # The request's limits stop retries and set the timeout; the plan's route is sent none of them.
     assert not {"max_output_tokens", "max_tool_calls", "timeout", "max_retries"} & set(first)
     assert report["effort"] is None
-    assert first["instructions"].startswith(probe.ROLE_STATEMENT) and GUIDANCE_SENTINEL in first["instructions"]
+    assert first["instructions"] == probe.system_message()
     assert first["prompt_cache_key"] == probe.PROMPT_CACHE_KEY
     assert first["tool_choice"] == "auto" and first["parallel_tool_calls"] is False
     [namespace] = first["tools"]

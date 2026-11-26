@@ -9,13 +9,13 @@ record the answers as the brief you author from.
 
 - Ask when an answer would change the beats, the body regions involved, a
   contact or the face. Skip what you can decide from the prompt, the existing
-  Library or these references.
+  Library or this guidance.
 - Skip the interview when the prompt already settles the performance, when
   the owner says to go ahead with your judgement, or for a revision whose
   notes already say what to change.
 - Ask once, before writing the clip: up to four questions for the
   animation, each with two to four concrete options and your recommendation
-  first. Use the structured question tool when the host has one.
+  first. Ask through the host's question tool when it has one.
 - Every animation gets its own questions, chosen for that prompt; never one
   shared set for several animations. When several are requested together,
   send all of their questions at once (see below), not one animation at a
@@ -42,17 +42,15 @@ Pick the questions that matter for this prompt:
 
 Write the answers as a short brief: name, Selector ID, one-sentence intent,
 one-shot or held, length, intensity, leading hand, contacts, face, and the
-planned beats with times. Show it to the owner with your defaults filled in
-for anything not asked, and author from it once the owner confirms. Keep the
-brief in the hand-off so later revisions can see the intent.
+planned beats with times, with your defaults filled in for anything not
+asked. Author from it. When the host lets the owner confirm the brief before
+you author, show it and wait for that.
 
 ## Several animations at once
 
 Prepare each animation's questions on its own, then send them together in
 one message, grouped under each animation's name, so the owner answers
-everything in one pass. When the structured question tool holds fewer
-questions than the batch needs, write the grouped questions as text (each
-numbered, options lettered, recommendation first) instead of splitting them
-across rounds. An animation whose prompt is already clear says so and asks
-nothing. Then show one table of briefs to confirm (see
-[batch mode](batch.md)).
+everything in one pass. When the host's question tool holds fewer questions
+than the batch needs, write the grouped questions as text (each numbered,
+options lettered, recommendation first) instead of splitting them across
+rounds. An animation whose prompt is already clear says so and asks nothing.

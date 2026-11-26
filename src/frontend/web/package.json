@@ -30,6 +30,7 @@
     "content:tune": "node scripts/content-tune.mjs",
     "animation:save": "node scripts/animation-save.mjs",
     "generation:trial": "node scripts/generation-trial.mjs",
+    "authoring:joints": "node scripts/authoring-joints.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",
     "build": "pnpm --dir .. packages:build && pnpm build:source",
     "build:hosted": "pnpm --dir .. packages:build && pnpm build:hosted:source",

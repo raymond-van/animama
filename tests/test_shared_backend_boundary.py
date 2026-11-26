@@ -33,6 +33,7 @@ def test_shared_consumer_bootstraps_two_owners_and_streams_without_local_imports
     evidence = json.loads(result.stdout)
     assert evidence["owners"] == evidence["chat_turns"] == 2
     assert evidence["catalogs"] == 1
+    assert evidence["authoring_guidance_files"] == 9
     assert evidence["persisted_messages"] == 4
     assert evidence["local_imports"] == 0
     assert not (tmp_path / "must-not-be-created").exists()

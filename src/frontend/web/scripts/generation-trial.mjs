@@ -5,16 +5,19 @@ import { chromium } from "playwright";
 import { createServer } from "vite";
 
 /**
- * Feasibility trial for generating content in the app: runs the motion checks
- * in a browser page and a Web Worker, compares their findings with the
- * command-line path, and draws review sheets with and without a second WebGL
- * context. Prints the measurements as JSON.
+ * Parity between the app and the `animama-animation` skill, measured in a real
+ * page: runs the app's draft checks on a page's main thread and in its worker,
+ * compares their reports with what `pnpm animation validate` and `check`
+ * report in Node, and draws the app's review sheets (a render target on an
+ * existing renderer) beside `pnpm animation:render`'s (a renderer of its own).
+ * Prints the measurements as JSON.
  *
  *   pnpm -s generation:trial [--gl swiftshader|gpu] [--out <dir>] [--no-frames]
  *     [--rows 6] [--tile 220x330] [--clip <clip.json>]
  *
- * Without `--clip` it picks Included Gestures of different sizes. `--out`
- * writes the first clip's sheets there; keep it outside the repository.
+ * Without `--clip` it picks Included Gestures of different sizes. `--rows` is
+ * 2 to 6, the most the app's sheets have. `--out` writes the first clip's
+ * sheets there; keep it outside the repository.
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
@@ -43,7 +46,11 @@ function glArguments(gl) {
   return process.platform === "darwin" ? ["--use-angle=metal"] : [];
 }
 
-/** The findings the command-line path reports for each clip, formatted. */
+/**
+ * What the command line reports for each clip: the issues of
+ * `animation validate` and the findings of `animation check`, which are null
+ * for a clip it cannot parse.
+ */
 export async function nodeCheckReports(clips) {
   const server = await createServer({
     ...viteOptions("generation-trial-node"),
@@ -53,7 +60,10 @@ export async function nodeCheckReports(clips) {
     server: { middlewareMode: true, hmr: false, ws: false },
   });
   try {
-    const { checkMotion, formatMotionCheckReport } = await server.ssrLoadModule(
+    const { compactClipFile } = await server.ssrLoadModule(
+      "/src/lib/avatar/motion-authoring/cli.ts",
+    );
+    const { checkMotion } = await server.ssrLoadModule(
       "/src/lib/avatar/motion-authoring/checks.ts",
     );
     const { loadHeadlessVrm } = await server.ssrLoadModule(
@@ -73,13 +83,32 @@ export async function nodeCheckReports(clips) {
         };
       }),
     );
-    return clips.map(({ id, clip }) => ({
-      clip: id,
-      report: formatMotionCheckReport(checkMotion(clip, avatars)),
-    }));
+    return clips.map(({ id, clip }) => {
+      let findings = null;
+      try {
+        ({ findings } = checkMotion(clip, avatars));
+      } catch {
+        // `animation check` refuses a clip that does not parse.
+      }
+      return { clip: id, issues: compactClipFile(clip).issues, findings };
+    });
   } finally {
     await server.close();
   }
+}
+
+/**
+ * Whether a page's draft check report says what the command line says: the
+ * same issues, and the same findings, or none for a clip that does not load.
+ */
+export function reportMatchesNode(report, node) {
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  return (
+    same(report.issues, node.issues) &&
+    (node.findings === null
+      ? !report.loadable && report.findings.length === 0
+      : report.loadable && same(report.findings, node.findings))
+  );
 }
 
 /** Run the trial page in headless Chromium and return its measurements. */
@@ -95,7 +124,7 @@ export async function runGenerationTrial({
     optimizeDeps: {
       entries: [
         path.join(webRoot, "scripts/generation-trial/trial.ts"),
-        path.join(webRoot, "scripts/generation-trial/checksWorker.ts"),
+        path.join(webRoot, "src/workers/draft-checks-worker.ts"),
       ],
     },
     worker: { format: "es" },
@@ -224,7 +253,9 @@ async function main(argv) {
     !["swiftshader", "gpu"].includes(values["--gl"]) ||
     !tileMatch ||
     !Number.isInteger(rows) ||
-    rows < 2
+    rows < 2 ||
+    // The app's sheets have at most six rows.
+    rows > 6
   ) {
     console.log(USAGE);
     return 2;
@@ -275,27 +306,26 @@ async function main(argv) {
           ...avatar,
           headlessLoadMs: round(avatar.headlessLoadMs),
         })),
-        workerLoadMs: round(result.workerLoadMs),
+        workerStartMs: round(result.workerStartMs),
         checks: result.checks.map((check, index) => ({
           clip: check.clip,
           bytes: spread[index].bytes,
           durationSeconds: check.durationSeconds,
           mainMs: round(check.mainMs),
-          workerMs: round(check.workerMs),
           workerRoundTripMs: round(check.workerRoundTripMs),
           mainThreadMaxGapMs: round(check.mainThreadMaxGapMs),
-          findings: check.findings,
-          fails: check.fails,
+          loadable: check.report.loadable,
+          issues: check.report.issues.length,
+          findings: check.report.findings.length,
+          fails: check.report.findings.filter(
+            (finding) => finding.severity === "fail",
+          ).length,
           workerMatchesMain: check.workerMatchesMain,
-          pageMatchesNode: nodeReports[index].report === check.report,
+          pageMatchesNode: reportMatchesNode(check.report, nodeReports[index]),
         })),
         frames: result.frames && {
           clip: result.frames.clip,
           times: result.frames.times,
-          texturedLoadMs: result.frames.texturedLoadMs.map((load) => ({
-            ...load,
-            ms: round(load.ms),
-          })),
           ...Object.fromEntries(
             ["ownRenderer", "renderTarget"].map((strategy) => [
               strategy,
@@ -308,12 +338,11 @@ async function main(argv) {
               },
             ]),
           ),
-          renderTargetRawDifference: round(
-            result.frames.renderTargetRawDifference,
-          ),
           renderTargetSrgbDifference: round(
             result.frames.renderTargetSrgbDifference,
           ),
+          rendererUndisturbed: result.frames.rendererUndisturbed,
+          framesBetween: result.frames.framesBetween,
         },
         sheets,
       },

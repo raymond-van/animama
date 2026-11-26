@@ -29,8 +29,10 @@ specific docs linked from there.
 - `local/` owns installation identity/model/repository, HTTP admission and
   lifecycle, and local database creation. Its dependencies may point into
   shared code; shared code must never import it.
-- `resources/` contains packaged shared catalogs; `logging.py` supplies an
-  unconfigured logger. Local logging setup stays in `logging_config.py`.
+- `resources/` contains packaged shared catalogs and, under `authoring/`, the
+  authoring guidance the app's assistant and the `animama-animation` skill
+  share; `logging.py` supplies an unconfigured logger. Local logging setup
+  stays in `logging_config.py`.
 - `workers/` contains maintenance background processes such as upload cleanup.
 
 Prefer this dependency direction:
@@ -258,8 +260,9 @@ uv run --no-sync python scripts/repository-boundary/check-python-imports.py
 uv build --wheel
 ```
 
-Shared animation manifest bytes are generated from the canonical frontend
-JSON file. After editing that input, run
+Shared animation manifest bytes and the authoring joint table
+(`resources/authoring/joints.md`) are generated from canonical frontend
+files. After editing one of those inputs, run
 `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`.
 Wheel/editable builds reject drift; shared resource reads use package resources
 and work without a source checkout. See `../../docs/backend/operations/development.md`.

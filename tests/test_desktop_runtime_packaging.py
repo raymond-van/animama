@@ -20,8 +20,19 @@ def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
     assert evidence["migration_count"] == len(list((resources.runtime_resource("alembic") / "versions").glob("*.py")))
     assert evidence["sql_count"] == 2
     assert evidence["gesture_count"] == 45
+    assert evidence["authoring_guidance_files"] == 9
     assert evidence["starter_policy"] == "builtin:starter-loadout"
     assert evidence["local_http_schema_version"] == 1
+
+
+def test_resource_audit_rejects_missing_authoring_guidance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A frozen build that left out the guidance Markdown fails its audit, naming the file."""
+
+    from animama.resources import authoring_guidance
+
+    monkeypatch.setattr(authoring_guidance, "files", lambda package: tmp_path)
+    with pytest.raises(FileNotFoundError, match=r"authoring guidance is missing: gesture\.md"):
+        resources.audit_resources()
 
 
 def test_resource_audit_rejects_embeddings_without_pgvector(monkeypatch: pytest.MonkeyPatch) -> None:

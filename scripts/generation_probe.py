@@ -11,19 +11,20 @@ Run it inside a signed-in development stack's server container, from the
 repository root (mounted at /app):
 
     python scripts/generation_probe.py list
-    python scripts/generation_probe.py write --model SLUG --out DIR --joints FILE --request 1
-    python scripts/generation_probe.py write --model SLUG --out DIR --joints FILE \
+    python scripts/generation_probe.py write --model SLUG --out DIR --request 1
+    python scripts/generation_probe.py write --model SLUG --out DIR \
         --request "a slow nod" --expressions FILE --effort low
-    python scripts/generation_probe.py repair --model SLUG --out DIR --joints FILE \
+    python scripts/generation_probe.py repair --model SLUG --out DIR \
         --clip FILE --findings FILE --mode rewrite|edit
-    python scripts/generation_probe.py review --model SLUG --out DIR --joints FILE \
+    python scripts/generation_probe.py review --model SLUG --out DIR \
         --clip FILE --sheet PNG --sheet PNG
 
---joints is the output of `pnpm -s animation joints` and `pnpm -s animation base`,
-made on the host. --out must be a folder under .animama-drafts/ or outside the
-repository, so a clip cannot be committed by accident. --effort names a
-reasoning effort; without it the model uses its own. A pass exits 0 only when
-the model submitted, edited or accepted a draft.
+The guidance is the packaged Gesture authoring guidance
+(animama.resources.authoring_guidance), which ends with the joint table. --out
+must be a folder under .animama-drafts/ or outside the repository, so a clip
+cannot be committed by accident. --effort names a reasoning effort; without it
+the model uses its own. A pass exits 0 only when the model submitted, edited
+or accepted a draft.
 
 The probe holds no token code. It composes the installation's ChatGPT plan
 session and model client as the server does and sends its requests through
@@ -93,20 +94,13 @@ from animama.app.services.idle_clip_validation import validate_clip_v2_timeline
 from animama.domain import ModelProvider
 from animama.domain.chatgpt_plan import ChatGPTPlanPurpose, ChatGPTPlanStatus, ChatGPTPlanUnavailableError
 from animama.domain.content_documents import ContentDocumentError
+from animama.resources.authoring_guidance import gesture_authoring_guidance
 from animama.server.config import settings
 from animama.server.local_runtime import resolve_local_runtime_paths
 
 JsonObject = dict[str, Any]
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_GUIDANCE_DIR = REPO_ROOT / ".agents/skills/animama-animation/references"
-GUIDANCE_FILES = (
-    "clip-format.md",
-    "motion-principles.md",
-    "human-movement.md",
-    "hands-and-face.md",
-    "checks-and-review.md",
-)
 EXAMPLES_DIR = REPO_ROOT / "content/included/gestures"
 EXAMPLE_NAMES = ("wave-hello", "mild-laugh", "have-an-idea")
 # Probe output may sit here inside the repository: the folder is ignored by Git.
@@ -162,15 +156,13 @@ task in the user message and nothing else.
 Rules:
 - Work only through the function tools you are given, one tool call per response. Do not answer in prose, and never \
 put a clip in message text.
-- Never invent a joint, component, hand preset, bone, ease or expression name. Use only names from the reference \
-below, from the joint list at the end, or from a list of expression names the task supplies.
-- Keep every value within the limits the reference and the joint list give.
+- Never invent a joint, component, hand preset, bone, ease or expression name. Use only names from the guidance \
+below, from the joint list at its end, or from a list of expression names the task supplies.
+- Keep every value within the limits the guidance and the joint list give.
 - When a tool result lists problems, fix exactly those and call the tool again. A pass has at most three responses.
 
-The reference below was written for an author at a command line. Ignore its sentences about shell commands \
-(`pnpm ...`), previews, renders, the Gesture creator, saving and promoting: none of that is available to you. Use \
-what it says about the clip format, human movement, hands and faces, and what each check finding means and how to \
-fix it."""
+The guidance below is written for any author. You cannot ask the owner anything in this task: where it says to ask \
+or to confirm, decide yourself."""
 
 
 class ProbeError(Exception):
@@ -696,14 +688,21 @@ def _read_json_object(path: Path, label: str) -> JsonObject:
 
 
 def _is_plain_name(value: object) -> bool:
-    """A non-empty string of at most 64 characters with no control or other non-printing character."""
+    """A non-empty string of at most 64 characters with no control, format or line-breaking character."""
 
     return (
         isinstance(value, str)
         and bool(value.strip())
         and len(value) <= MAX_EXPRESSION_NAME_LENGTH
-        and not any(unicodedata.category(character).startswith("C") for character in value)
+        and not any(_is_non_printing(character) for character in value)
     )
+
+
+def _is_non_printing(character: str) -> bool:
+    """Unicode's "other" categories, and its line and paragraph separators, which could disguise a name."""
+
+    category = unicodedata.category(character)
+    return category.startswith("C") or category in {"Zl", "Zp"}
 
 
 def filter_expression_names(raw: object) -> tuple[dict[str, list[str]], int]:
@@ -763,14 +762,10 @@ def _read_sheets(paths: Sequence[Path]) -> tuple[list[JsonObject], dict[str, Mod
 # --- Prompts -------------------------------------------------------------------
 
 
-def system_message(guidance_dir: Path, joints: Path) -> str:
-    """The role statement, the five guidance files in full, then the joint and base-pose listing."""
+def system_message() -> str:
+    """The role statement, then the packaged Gesture guidance in full; its last file is the joint table."""
 
-    sections = [ROLE_STATEMENT]
-    for name in GUIDANCE_FILES:
-        sections.append(f"# Reference: {name}\n\n{_read_text(guidance_dir / name, 'guidance file').strip()}")
-    sections.append(f"# Joints, ranges and base pose\n\n{_read_text(joints, 'joints file').strip()}")
-    return "\n\n".join(sections)
+    return f"{ROLE_STATEMENT}\n\n{gesture_authoring_guidance().strip()}"
 
 
 def _clip_text(clip: JsonObject) -> str:
@@ -1142,8 +1137,7 @@ async def run_pass(args: argparse.Namespace, session_factory: SessionFactory, cl
     out = prepare_out_dir(args.out)
     budget = RequestBudget.load(args.budget_file, args.max_requests)
     plan = plan_pass(args)
-    system = system_message(args.guidance_dir, args.joints)
-    request = first_request(args.model, system, plan, effort=args.effort, timeout=args.timeout)
+    request = first_request(args.model, system_message(), plan, effort=args.effort, timeout=args.timeout)
     if budget.used >= budget.maximum:
         # Nothing can be sent, so the session is not even opened.
         result = PassResult(outcome="budget_exhausted")
@@ -1211,8 +1205,6 @@ def build_parser() -> argparse.ArgumentParser:
         sub = commands.add_parser(name, help=summary)
         sub.add_argument("--model", required=True, metavar="SLUG", help="ChatGPT plan model slug")
         sub.add_argument("--out", type=Path, required=True, metavar="DIR", help="folder for clips and details")
-        sub.add_argument("--joints", type=Path, required=True, metavar="FILE", help="joint and base-pose listing")
-        sub.add_argument("--guidance-dir", type=Path, default=DEFAULT_GUIDANCE_DIR, metavar="DIR")
         sub.add_argument("--effort", choices=EFFORTS, help="reasoning effort (default: the model's own)")
         sub.add_argument(
             "--budget-file",

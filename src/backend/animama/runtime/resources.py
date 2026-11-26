@@ -58,6 +58,7 @@ def audit_resources() -> dict[str, Any]:
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
     from animama.orm import Base
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
+    from animama.resources.authoring_guidance import GESTURE_GUIDANCE_FILES, gesture_authoring_guidance
     from animama.server.app import app
 
     for name in RESOURCE_INPUTS:
@@ -79,6 +80,8 @@ def audit_resources() -> dict[str, Any]:
     gestures = get_manifest_gesture_inventory()
     if not policy["gestures"] or not policy["reactions"] or not gestures:
         raise ValueError("Packaged starter or animation resources are empty")
+    # The guidance is package data a freezer could leave out; reading it names a missing or empty file.
+    gesture_authoring_guidance()
     # Included routers are nested entries in app.routes; count the routes they serve.
     routes = list(iter_route_contexts(app.routes))
     if "/v1/animas/{anima_id}/chat:sse" not in {route.path for route in routes}:
@@ -96,6 +99,7 @@ def audit_resources() -> dict[str, Any]:
         "migration_count": len(revisions),
         "sql_count": len(sql),
         "gesture_count": len(gestures),
+        "authoring_guidance_files": len(GESTURE_GUIDANCE_FILES),
         "starter_policy": policy["id"],
         "api_route_count": len(routes),
     }

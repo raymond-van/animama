@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   nodeCheckReports,
+  reportMatchesNode,
   runGenerationTrial,
   sheetFileStem,
 } from "./generation-trial.mjs";
@@ -45,9 +46,18 @@ const faultyClip = {
   },
 };
 
+/** A key names a beat the clip does not have, so the app cannot load it. */
+const brokenClip = {
+  ...cleanClip,
+  id: "trial-broken",
+  name: "Trial Broken",
+  expressions: { happy: [{ beat: "nowhere", v: 1 }] },
+};
+
 const clips = [
   { id: cleanClip.id, clip: cleanClip },
   { id: faultyClip.id, clip: faultyClip },
+  { id: brokenClip.id, clip: brokenClip },
 ];
 
 // One page run serves both tests: starting Vite and Chromium is the slow part.
@@ -59,25 +69,69 @@ const trial = runGenerationTrial({
 });
 trial.catch(() => undefined);
 
-test("motion checks agree between the command line, a page and a worker", async () => {
+/** As the report travels: without `undefined` fields or the sign of zero. */
+const plain = (value) => JSON.parse(JSON.stringify(value));
+
+// The app's draft checks (`draftChecks.ts`, in a page and in its worker)
+// against what `pnpm animation validate` and `check` report for the same clip.
+test("draft checks agree between the command line, a page and a worker", async () => {
   const [result, nodeReports] = [await trial, await nodeCheckReports(clips)];
-  assert.equal(result.checks.length, 2);
+  assert.equal(result.checks.length, clips.length);
   result.checks.forEach((check, index) => {
+    const node = nodeReports[index];
     assert.equal(check.workerMatchesMain, true, `${check.clip}: worker`);
-    assert.equal(
-      check.report,
-      nodeReports[index].report,
-      `${check.clip}: page`,
+    assert.deepEqual(
+      plain(check.report.issues),
+      plain(node.issues),
+      `${check.clip}: validation issues`,
     );
+    assert.deepEqual(
+      plain(check.report.findings),
+      plain(node.findings ?? []),
+      `${check.clip}: motion findings`,
+    );
+    assert.equal(reportMatchesNode(check.report, node), true, check.clip);
   });
-  const [clean, faulty] = result.checks;
-  assert.equal(clean.findings, 0, clean.report);
-  assert.ok(faulty.fails > 0, faulty.report);
+  const [clean, faulty, broken] = result.checks.map((check) => check.report);
+  assert.deepEqual(clean, {
+    ok: true,
+    loadable: true,
+    issues: [],
+    findings: [],
+  });
+
+  // The seeded fault is both a validation issue and a failed motion check.
+  assert.equal(faulty.ok, false);
+  assert.equal(faulty.loadable, true);
+  assert.deepEqual(
+    faulty.issues.map((issue) => issue.path),
+    ["joints.head.flexion[1].v"],
+  );
+  assert.ok(
+    faulty.findings.some(
+      (finding) =>
+        finding.severity === "fail" && finding.subject === "head.flexion",
+    ),
+    JSON.stringify(faulty.findings),
+  );
+
+  // A clip that does not load is a report with no findings, not an error.
+  assert.equal(nodeReports[2].findings, null);
+  assert.equal(broken.ok, false);
+  assert.equal(broken.loadable, false);
+  assert.deepEqual(broken.findings, []);
+  assert.deepEqual(
+    broken.issues.map((issue) => issue.path),
+    ["expressions.happy[0].beat"],
+  );
 });
 
-test("a render target on an existing renderer draws the same review sheets", async () => {
+// The app's review sheets (`renderIncludedAvatarReviewSheets`) against the
+// sheets `pnpm animation:render`'s page draws for the same clip and times.
+test("the app's review sheets match animation:render's", async () => {
   const { frames } = await trial;
   for (const strategy of [frames.ownRenderer, frames.renderTarget]) {
+    // One sheet for each Included Avatar, and no other.
     assert.deepEqual(
       strategy.sheets.map((sheet) => sheet.avatar),
       ["Andrew", "Annie"],
@@ -91,18 +145,24 @@ test("a render target on an existing renderer draws the same review sheets", asy
         sheet.pngBytes > 10_000,
         `sheet is only ${sheet.pngBytes} bytes`,
       );
+      assert.ok(sheet.jpegBytes > 5_000 && sheet.jpegBytes < sheet.pngBytes);
     }
   }
-  // Read back as they are, the pixels are linear; encoded to sRGB they match
-  // what a renderer draws on its own canvas.
+  // Read back from a render target and encoded to sRGB, the pixels match
+  // what a renderer draws on its own canvas (unencoded they differ by ~15).
   assert.ok(
     frames.renderTargetSrgbDifference < 2,
     `sRGB difference ${frames.renderTargetSrgbDifference}`,
   );
-  assert.ok(
-    frames.renderTargetRawDifference > frames.renderTargetSrgbDifference * 4,
-    `raw difference ${frames.renderTargetRawDifference}`,
-  );
+  // Each round read the two Included Avatars' files and no other.
+  assert.deepEqual(frames.requestedAvatars, [
+    "Andrew",
+    "Annie",
+    "Andrew",
+    "Annie",
+  ]);
+  // The renderer the page already had kept its own state throughout.
+  assert.equal(frames.rendererUndisturbed, true);
 });
 
 test("a clip's id names a sheet file only through plain characters", () => {
