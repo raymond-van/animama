@@ -134,8 +134,9 @@ export function AnimaAvatarPicker({
     try {
       await selection.mutateAsync({ avatar, expectedRevision: revision });
       // A chat showing this Anima loads its new runtime without a revisit,
-      // after any reply, speech or voice turn in progress.
-      if (mounted?.animaId === animaId) remountWhenIdle(mounted.remountLatest);
+      // after any reply and its speech in progress.
+      if (mounted?.animaId === animaId)
+        remountWhenIdle(animaId, mounted.remountLatest);
       toast.success(
         t("animaSettings.avatarPicker.changed", {
           anima: animaName,

@@ -65,9 +65,10 @@ and commits only the Loadout's `avatar` slot (`POST
 picker showed. A newer revision refuses the change and asks for a retry. The
 Anima keeps its identity, memories, chats, Actions and voice. A chat showing
 that Anima remounts its runtime (`remountLatest`) and shows the new model. It
-does this at once when idle, or after the current reply, its speech and any
-voice turn end (`remountWhenIdle`), because a remount disposes the catalog and
-voice a turn still uses. Other surfaces read the next runtime, and an open
+does this at once when idle, or after the current reply and its speech end
+(`remountWhenIdle`), because a remount disposes the catalog and voice a reply
+still uses; a waiting remount is dropped if the chat moves to another Anima
+first. Other surfaces read the next runtime, and an open
 desktop picture-in-picture window keeps the old Avatar until it is reopened. On the local runtimes (desktop and
 self-hosted web) the section also holds the settings of the Anima's Avatar item, stored per owner and Avatar
 through `GET`/`PUT /v1/avatar-content/{item_id}/settings`, so they apply
