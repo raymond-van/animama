@@ -1735,6 +1735,10 @@ export default interface Resources {
       "description": "Search for a command to run...",
       "title": "Command Palette"
     },
+    "confirmDelete": {
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
     "dialog": {
       "close": "Close"
     },
@@ -6821,6 +6825,23 @@ export default interface Resources {
       "label": "Create",
       "reaction": "Reaction"
     },
+    "delete": {
+      "anima": {
+        "chatCount_one": "{{name}} has {{count}} chat.",
+        "chatCount_other": "{{name}} has {{count}} chats.",
+        "deleted": "{{name}} deleted.",
+        "description": "Its chats and their messages, its Anima memory files (IDENTITY.md and MEMORIES.md) and any images only its chats use will be deleted. Shared memories and Library content are kept.",
+        "failed": "{{name}} could not be deleted. Try again.",
+        "title": "Delete {{name}}?"
+      },
+      "chat": {
+        "deleted": "Chat deleted.",
+        "description": "“{{title}}” and its messages will be deleted, along with any images only this chat uses. Memories already saved from it are kept.",
+        "failed": "The chat could not be deleted. Try again.",
+        "title": "Delete chat?"
+      },
+      "replyStopping": "The reply is still stopping. Try again in a moment."
+    },
     "links": {
       "animas": "Animas",
       "library": "Library",
@@ -6829,6 +6850,16 @@ export default interface Resources {
       "search": "Search"
     },
     "open": "Open sidebar",
+    "rowMenu": {
+      "delete": "Delete",
+      "more": "More actions for {{name}}",
+      "pin": "Pin",
+      "pinFailed": "{{name}} could not be pinned. Try again.",
+      "pinned": "Pinned",
+      "pinnedName": "{{name}}, pinned",
+      "unpin": "Unpin",
+      "unpinFailed": "{{name}} could not be unpinned. Try again."
+    },
     "search": {
       "close": "Close search",
       "description": "Search persisted chat messages.",

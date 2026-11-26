@@ -65,6 +65,7 @@ import {
 } from "@/ui/animas/AnimaAppearanceDialog";
 import { AnimaLoadout } from "@/ui/animas/AnimaLoadout";
 import { AnimaAvatarStage } from "@/ui/animas/AnimaAvatarStage";
+import { AnimaPageActions } from "@/ui/animas/AnimaPageActions";
 import { AnimaCarousel } from "@/ui/animas/AnimaCarousel";
 import {
   ANIMA_SHOWCASE_CAMERAS,
@@ -335,6 +336,11 @@ function ManagementPanel({
                 </TooltipTrigger>
                 <TooltipContent>{emotion.feeling.label}</TooltipContent>
               </Tooltip>
+              <AnimaPageActions
+                animaId={anima.id}
+                name={displayName}
+                pinned={Boolean(anima.pinned_at)}
+              />
             </div>
           </div>
 

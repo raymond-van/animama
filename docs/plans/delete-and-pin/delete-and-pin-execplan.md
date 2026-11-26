@@ -56,7 +56,7 @@ Relevant code:
 - [x] Phase 1: chat and Anima deletion semantics (backend). Review passed after 1 repair round. Owner question Q1 is open for G2.
 - [x] Phase 2: sidebar pins (backend, schema and API). Review passed after 1 repair round.
 - [x] Phase 3: Local content delete hardening (backend). Review passed after 1 repair round. The contracts bump is deferred to D6.
-- [ ] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend).
+- [x] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend). Review passed after 1 repair round. Focus residuals are recorded for G2.
 - [ ] Phase 5: Library Delete action (frontend).
 - [ ] Final integration review, full pre-push suite and full browser journeys
   (gate G1).
@@ -572,7 +572,119 @@ Checks (from `src/frontend`):
 Completion: tests pass, the browser walk-through matches R1–R12, and the
 review passes.
 
-Check record, commits, Code Review #1 Findings/Revisions: _to be filled in._
+#### Results
+
+- **Row menu.** `SidebarRowMenu` opens from a "…" button (shown on hover and
+  keyboard focus, always visible on phones) or right-click. It offers
+  Pin/Unpin and Delete, and an Anima page "…" offers the same.
+- **Ordering.** `sidebarOrder.ts` sorts pinned items first, keeping the normal
+  order within each group, for chats, Animas and the rail. The Anima sort
+  moved to a Zustand store so the Anima page follows sidebar order.
+- **Dialog and flow.** The shared `ConfirmDeleteDialog` carries the R5/R9
+  copy. `useConfirmedDelete`:
+  1. holds sends to the target (P1-F4);
+  2. stops this window's streaming reply;
+  3. deletes;
+  4. on failure, keeps the dialog open with the reason (409
+     `chat_turn_stopping` → "The reply is still stopping");
+  5. on success, prunes the caches, navigates, then refreshes the caches.
+- **Navigation after a delete.** A deleted open chat leads to a new chat with
+  the same Anima. A deleted open Anima leads to the next Anima in sidebar
+  order, or the existing empty-roster routing; locally that is Anima
+  creation (P4-F2).
+- **i18n.** Keys are added in all five locales, plus a "Pin" glossary term.
+  product-ui is unchanged.
+
+#### Check record
+
+Working directory: `src/frontend` unless noted. Tree `381254320`.
+
+- `pnpm packages:build` and `pnpm check` (web/desktop types, i18n) → pass.
+- `pnpm web:lint` and `pnpm i18n:check` → pass.
+- `npx vitest run` (`web/`) over `src/ui/sidebar`, the new tests and related
+  chat/Anima/route tests → 19 files, 88 tests passed. Breaking `pinnedFirst`
+  or the stop on purpose failed 8 tests.
+- `prettier --check` on the touched files → clean. `check_source.py` → pass.
+- **Browser walk-through** (task stack, 1440×900, then 375×812), with the
+  migration upgraded in place (head `sidebar_pins_20261126`):
+  - hovering shows "…"; right-click shows the same menu;
+  - pinning a chat and pinning Annie moved them first with an indicator, and
+    the order survived a reload; the collapsed rail lists Annie, then Andrew;
+  - **deleting a chat while its reply streamed:** spinner, then "Chat
+    deleted.", then a new chat with the same Anima. The database shows the
+    chat, its messages and its episodes gone, and there are no ERROR server
+    logs.
+  - **deleting Andrew from his page** ("Andrew has 1 chat."): toast, Annie's
+    page opens, Andrew's chat leaves the sidebar, and his chats, pending
+    episodes and memory rows are gone;
+  - **phone width:** "…" and pins are always visible.
+  - Finding: the row menu stayed open beside the dialog after choosing
+    Delete.
+
+#### Code Review #1 Findings
+
+Reviewed `381254320`, standard tier. The reviewer reran the full
+`pnpm web:test`: 690 files and 6611 tests, all passing (2 skipped).
+
+- **P4-F1 (blocking).** The controlled dialog has no trigger, so Radix sends
+  focus to `body` on Cancel, Escape, X and after a delete. That breaks the
+  spec's accessibility constraint.
+- **P4-F2.** The last-Anima delete uses the existing routing, which is Anima
+  creation locally. Record it and confirm at G2.
+- **P4-F3.** Long Anima names wrap or clip, and an unbroken name hides the
+  pin indicator.
+- **P4-F4.** The dialog sits under the expanded sidebar at 768–870 px.
+- **P4-F5.** Post-delete navigation pushes history, so Back reopens the
+  deleted URL.
+- **P4-F6.** Pin/Unpin on the Anima page goes beyond the spec; mention it at
+  G2.
+- **P4-F7.** No dedicated test covers the ChatInterface send-hold wiring.
+- **P4-F8.** Minor cleanups (unused `DeleteRequestError.detail`).
+
+#### Code Review #1 Revisions
+
+- **Accepted:**
+  - P4-F1: a return-focus target, with tests;
+  - the coordinator's open-menu finding;
+  - P4-F3: one-line truncation that keeps the indicator;
+  - P4-F4: `avoidSidebar`;
+  - P4-F5: `replace: true`;
+  - P4-F8: drop the unused field;
+  - P4-F2: docs wording.
+- **Recorded:** P4-F2 and P4-F6 for G2.
+- **Not changed:** P4-F7. The store logic and the stop-before-delete are
+  tested, and the reviewer verified the wiring.
+- **Repair implementation.**
+  - `ConfirmDeleteDialog` gains `returnFocus`, `avoidSidebar` and `sm:w-96`.
+    `useConfirmedDelete` keeps `{kept, deleted}` focus targets.
+  - Row menus pick next-row, previous-row or heading targets. Closed menus are
+    `display:none`, so no menu lingers beside the dialog.
+  - Anima names truncate on one line; navigations use `replace: true`;
+    `DeleteRequestError.detail` is removed; the docs are reworded.
+  - The new real-Radix `SidebarRowMenu.test.tsx`, and 11 focus and replace
+    tests that went red first.
+- **Implementer checks.** `pnpm check`, `pnpm web:lint`, `tsc -b`, the 10-file
+  vitest run (57 passed), prettier check and `check_source.py` → pass.
+- **Browser (coordinator), dev stack at 1440×900.**
+  - Choosing Delete from the "…" menu and from the right-click menu leaves no
+    menu beside the dialog, and the dialog clears the sidebar.
+  - After Cancel and after Escape, focus is the row's "More actions for …"
+    button.
+- **Code Review #2 (repair round 1): pass.** Reviewed `46049268a`.
+  - P4-F1 is resolved for all sidebar paths and for Cancel on the Anima page;
+    the accepted fixes are correct; there are no regressions.
+  - The reviewer reran 14 files / 72 tests and its CSS probe: names stay on one
+    line and the pin stays visible.
+  - Repair rounds used: 1 of 2.
+- **Recorded focus residuals for G2:**
+  - After a delete from the Anima page, the next page may not be rendered when
+    focus is restored (P4-R1, not browser-verified), so focus can fall to the
+    page.
+  - At phone widths the drawer closes and becomes inert first.
+  - Deleting the last Anima lands on Anima creation.
+
+  The success toast announces the delete in each case. `chat.md` no longer
+  promises the Anima-page focus target.
 
 ### Phase 5: Library Delete action
 

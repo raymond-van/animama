@@ -3,6 +3,10 @@
     "description": "Search for a command to run...",
     "title": "Command Palette"
   },
+  "confirmDelete": {
+    "cancel": "Cancel",
+    "confirm": "Delete"
+  },
   "dialog": {
     "close": "Close"
   },

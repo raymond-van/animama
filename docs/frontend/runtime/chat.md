@@ -497,6 +497,32 @@ truth; metadata such as `emotional_tone`, mapped `emotional_intensity`,
 - finishes avatar run
 - clears streaming text/run state
 
+### Sidebar pins and deletes
+
+Each chat and Anima row in the expanded sidebar has a row menu (More button on
+hover or keyboard focus, or right-click) with Pin/Unpin and Delete
+(`ui/sidebar/SidebarRowMenu.tsx`). Pins are the rows' `pinned_at`, set with
+`PATCH {pinned}`; the sidebar sorts pinned rows first within the chosen Anima
+sort or chat filter (`sidebarOrder.ts`), and the collapsed rail follows the
+Anima order. The Anima page's More menu offers the same actions.
+
+Deletes confirm in the shared `ConfirmDeleteDialog`. Before the request,
+`ChatInterface` registers its streaming reply in
+`stores/chat-delete-coordination-store.ts`, so the delete calls the same stop as
+`handleStop()`, and it refuses sends to the chat or Anima being deleted
+(including Voice Mode and Quick Chat turns) until the page has left it. The
+server also stops and awaits running turns; a 409 `chat_turn_stopping` keeps the
+dialog open to retry. After a delete, the sidebar drops the row and the page
+leaves it, replacing its history entry: a deleted open chat opens a new chat
+with the same Anima, and a deleted open Anima opens the next Anima in sidebar
+order. Deleting the last Anima follows the existing empty-roster routing, which
+opens Anima creation where the runtime offers it. Only then are its queries
+removed and the related caches refreshed, so the open chat is never refetched.
+Focus returns to the row's (or page's) More button when nothing was deleted.
+After a sidebar delete it moves to the next surviving row, or the list
+heading. After a delete from the Anima page, or at phone widths where the
+drawer has closed, it can fall back to the page.
+
 ### Route/anima sync effects
 
 - Anima change resets avatar runtime (`resetForAnima`) and seeds baseline emotion snapshot.

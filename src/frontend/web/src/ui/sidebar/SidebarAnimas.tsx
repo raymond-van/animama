@@ -1,14 +1,13 @@
-import { useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "@tanstack/react-router";
+import { useState } from "react";
+import { Link, useParams } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { useFormatters } from "@animama/product-ui/i18n";
 import { cn } from "@/lib/utils";
-import { getAnimaDisplayName, sortAnimasByRecent } from "@/lib/anima-profile";
-import { useSidebar } from "@/ui/sidebar/Sidebar";
+import { getAnimaDisplayName } from "@/lib/anima-profile";
+import { useCloseMobileSidebar, useSidebar } from "@/ui/sidebar/Sidebar";
 import { SidebarSectionHeader } from "@/ui/sidebar/SidebarSectionHeader";
-import { useSettings } from "@/ui/settings/SettingsProvider";
 import { useAnimas } from "@/query/hooks/useAnimas";
+import { useSetAnimaPin } from "@/query/mutations/useSidebarPins";
 import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -19,8 +18,22 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
-
-type SidebarAnimaSort = "recent" | "name-asc" | "name-desc";
+import {
+  AnimaDeleteDialog,
+  type AnimaToDelete,
+} from "@/ui/sidebar/AnimaDeleteDialog";
+import {
+  SIDEBAR_ROW_LINK_CLASS,
+  SidebarPinIndicator,
+  SidebarRowMenu,
+  useSidebarPinToggle,
+} from "@/ui/sidebar/SidebarRowMenu";
+import {
+  setSidebarAnimaSort,
+  useSidebarAnimaSortStore,
+  type SidebarAnimaSort,
+} from "@/ui/sidebar/sidebarOrder";
+import { useSidebarAnimaOrder } from "@/ui/sidebar/useSidebarAnimaOrder";
 
 export { AnimaAvatar as SidebarAnimaAvatar } from "@animama/product-ui/components";
 import {
@@ -30,43 +43,38 @@ import {
 
 export const SidebarAnimas = () => {
   const { t } = useTranslation("sidebar");
-  const { compare } = useFormatters();
   const { open } = useSidebar();
   const params = useParams({ strict: false });
-  const pathname = useLocation({ select: (location) => location.pathname });
-  const { userSettings } = useSettings();
   const [expanded, setExpanded] = useState(true);
-  const [sort, setSort] = useState<SidebarAnimaSort>("recent");
-
+  const sort = useSidebarAnimaSortStore((state) => state.sort);
   const currentAnimaId =
     typeof params?.animaId === "string" ? params.animaId : null;
-  const liveAnimaId =
-    currentAnimaId && !pathname.startsWith("/animas/") ? currentAnimaId : null;
-  const recentlyUsedAnimaId =
-    liveAnimaId ?? userSettings?.last_active_anima_id ?? null;
 
   const { data: animas = [], isLoading, isError } = useAnimas();
-  const displayedAnimas = useMemo(() => {
-    if (sort === "recent") {
-      return sortAnimasByRecent(animas).sort((left, right) => {
-        if (left.id === recentlyUsedAnimaId) return -1;
-        if (right.id === recentlyUsedAnimaId) return 1;
-        return 0;
-      });
-    }
-    const direction = sort === "name-asc" ? 1 : -1;
-    return [...animas].sort(
-      (left, right) =>
-        direction *
-        compare(getAnimaDisplayName(left), getAnimaDisplayName(right)),
-    );
-  }, [animas, compare, recentlyUsedAnimaId, sort]);
+  // The expanded list and the collapsed rail share one order (R2, R4).
+  const displayedAnimas = useSidebarAnimaOrder(animas);
+  const togglePin = useSidebarPinToggle(useSetAnimaPin());
+  const closeMobileSidebar = useCloseMobileSidebar();
+  const [animaToDelete, setAnimaToDelete] = useState<AnimaToDelete | null>(
+    null,
+  );
+  // The dialog outlives the drawer: a phone closes the sidebar to show it.
+  const deleteDialog = (
+    <AnimaDeleteDialog
+      anima={animaToDelete}
+      onClose={() => setAnimaToDelete(null)}
+    />
+  );
 
+  // Every branch's root div holds the dialog first, so it keeps its state
+  // whether the sidebar is open or not.
   if (!open) {
-    if (isLoading || isError || animas.length === 0) return null;
+    if (isLoading || isError || animas.length === 0)
+      return <div className="contents">{deleteDialog}</div>;
 
     return (
       <div className="short:mt-4 mt-14 flex flex-col items-start gap-2">
+        {deleteDialog}
         {displayedAnimas.map((anima) => {
           const displayName = getAnimaDisplayName(anima);
           const isActive = anima.id === currentAnimaId;
@@ -106,6 +114,7 @@ export const SidebarAnimas = () => {
 
   return (
     <div className="group/sidebar-section mt-4">
+      {deleteDialog}
       <SidebarSectionHeader
         label={t("animas.heading")}
         expanded={expanded}
@@ -117,7 +126,9 @@ export const SidebarAnimas = () => {
         <DropdownMenuLabel>{t("animas.sort.label")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={sort}
-          onValueChange={(value) => setSort(value as SidebarAnimaSort)}
+          onValueChange={(value) =>
+            setSidebarAnimaSort(value as SidebarAnimaSort)
+          }
         >
           <DropdownMenuRadioItem
             value="recent"
@@ -143,6 +154,7 @@ export const SidebarAnimas = () => {
         {expanded && (
           <motion.div
             id="sidebar-animas-list"
+            data-sidebar-list=""
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -166,13 +178,45 @@ export const SidebarAnimas = () => {
                 <AnimaSelection
                   animas={displayedAnimas}
                   selectedAnimaId={currentAnimaId}
-                  renderItem={(anima, props) => (
-                    <Link
-                      to="/$animaId"
-                      params={{ animaId: anima.id }}
-                      {...props}
-                    />
-                  )}
+                  renderItem={(anima, props) => {
+                    const name = getAnimaDisplayName(anima);
+                    const pinned = Boolean(anima.pinned_at);
+                    return (
+                      <SidebarRowMenu
+                        name={name}
+                        pinned={pinned}
+                        onTogglePin={() =>
+                          togglePin({ id: anima.id, pinned, name })
+                        }
+                        onDelete={(focus) => {
+                          closeMobileSidebar();
+                          setAnimaToDelete({ id: anima.id, name, focus });
+                        }}
+                      >
+                        <Link
+                          to="/$animaId"
+                          params={{ animaId: anima.id }}
+                          {...props}
+                          aria-label={
+                            pinned
+                              ? t("rowMenu.pinnedName", { name })
+                              : props["aria-label"]
+                          }
+                          className={cn(
+                            props.className,
+                            "overflow-hidden",
+                            SIDEBAR_ROW_LINK_CLASS,
+                            // The shared item's name (its last span) truncates
+                            // to one line so the pin stays in view.
+                            "[&>span:last-of-type]:min-w-0 [&>span:last-of-type]:truncate",
+                          )}
+                        >
+                          {props.children}
+                          {pinned ? <SidebarPinIndicator /> : null}
+                        </Link>
+                      </SidebarRowMenu>
+                    );
+                  }}
                 />
               )}
             </div>
