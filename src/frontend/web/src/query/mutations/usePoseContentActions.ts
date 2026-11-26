@@ -73,7 +73,9 @@ export function usePoseContentActions() {
         throw new Error("Included Poses cannot be deleted.");
       await deleteCatalogItem(apiClient, item.item_id, item.revision_sha256);
     },
-    onSuccess: refresh,
+    // A refused delete usually means the item changed (409); refreshing gives
+    // the next attempt its current revision instead of failing the same way.
+    onSettled: refresh,
   });
   return { savePose: save, deletePose: remove };
 }
