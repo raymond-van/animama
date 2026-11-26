@@ -35,7 +35,9 @@ import { checkCreationVrm } from "@/ui/create-anima/createAnimaFiles";
  * Choose the Avatar an existing Anima uses: any Included or Local Avatar, or
  * a VRM uploaded and saved here as a new Local Avatar. Only the Loadout's
  * Avatar changes; the Anima keeps its identity, memories, chats, Actions and
- * voice. A chat already showing this Anima remounts so it shows the new model.
+ * voice. Opened in this Anima's chat, it waits for any reply and its speech to
+ * end, then remounts the chat before closing so it shows the new model; a
+ * reply that starts while the change saves leaves the model to the next load.
  */
 export function AnimaAvatarPicker({
   animaId,
