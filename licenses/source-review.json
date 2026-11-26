@@ -4,7 +4,7 @@
   "scope": "per-file licence record for this repository, which is published as it is (#823, D2); not publication approval",
   "working_repository_license": "AGPL-3.0-only for original work; third-party exceptions unchanged",
   "candidate_project_license": "AGPL-3.0-only",
-  "owner_attestation": "Raymond Van reports sole project authorship, no collaborators or contractors; AI-assisted work. Known upstream code/assets retain their separate ancestry.",
+  "owner_attestation": "Raymond Van reports authorship of the project's original work apart from outside contributions, with no other collaborators and no contractors; AI-assisted work. Outside contributions arrive under the Contributor Licence Agreement (.github/CLA.md): a file an outside contributor adds or substantially rewrites names them in its entry, and git history records smaller edits. Known upstream code/assets retain their separate ancestry.",
   "release_gates": [
     "Owner acceptance of the exact source before the repository's visibility changes",
     "The security review's publication gates (#819)",

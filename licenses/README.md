@@ -1,8 +1,9 @@
 # Source licensing review
 
 Raymond Van is the recorded owner of original Animama code, documentation and
-original artwork, which is licensed AGPL-3.0-only under the root
-[LICENSE](../LICENSE). Third-party code and assets keep their own terms.
+original artwork, apart from outside contributions. All original work is
+licensed AGPL-3.0-only under the root [LICENSE](../LICENSE). Third-party code
+and assets keep their own terms.
 
 Outside contributions arrive under the
 [Contributor Licence Agreement](../.github/CLA.md): contributors keep their
@@ -15,11 +16,12 @@ Git authorship records smaller edits.
 [source-review.json](source-review.json) gives every tracked file its licence,
 the basis for it and, for third-party material, its source, evidence and
 notices; [the coverage check](../scripts/public-release/README.md) keeps it
-complete. Original-work entries rely on the owner's authorship attestation and
-a bounded source review; they are not forensic certification that no external
-influence exists. Known third-party sources override that default. Exact
-third-party bytes, revisions, modifications and full notices are in
-[third-party](third-party/):
+complete. Original-work entries rely on the owner's authorship attestation
+(`owner_attestation`) or, for an outside contribution, the contributor's
+confirmations in the agreement, together with a bounded source review; they
+are not forensic certification that no external influence exists. Known
+third-party sources override that default. Exact third-party bytes,
+revisions, modifications and full notices are in [third-party](third-party/):
 
 - [Code, speech models and dashboards](third-party/code-and-models.md).
 - [Code adapted from other open-source projects](third-party/adapted-code.md).
