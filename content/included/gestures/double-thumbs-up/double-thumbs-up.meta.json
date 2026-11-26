@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "double-thumbs-up",
   "name": "Double Thumbs Up",
-  "ai_description": "Use for enthusiastic approval, encouragement or celebrating someone's success; stronger than one thumb. Pops both thumbs up, pumps them twice and winks.",
+  "ai_description": "Use for enthusiastic approval, encouragement or someone's success; stronger than one thumb. Pumps both thumbs up.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

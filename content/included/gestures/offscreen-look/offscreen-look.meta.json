@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "offscreen_look",
   "name": "Off-Screen Look",
-  "ai_description": "Use as a quiet idle beat when nothing is being said. Something off-screen catches the eye: the eyes and then the head turn to one side with a curious tilt, glance briefly the other way, then come back to the viewer.",
+  "ai_description": "Use as a quiet idle beat when nothing is being said. Glances off-screen with a curious tilt, then back.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

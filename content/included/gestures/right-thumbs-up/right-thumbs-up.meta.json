@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "right-thumbs-up",
   "name": "Right Thumbs Up",
-  "ai_description": "Use while approving, agreeing, encouraging or reassuring. Holds up a right thumbs up with a small pump and a smile.",
+  "ai_description": "Use while approving, agreeing, encouraging or reassuring. A right thumbs up with a small pump and a smile.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

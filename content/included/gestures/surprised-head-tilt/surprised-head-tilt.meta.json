@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "surprised_head_tilt",
   "name": "Surprised Head Tilt",
-  "description": "A quick surprised 'huh?' head tilt and lean. Use when something is unexpected, odd or needs a second look.",
-  "ai_description": "A quick surprised 'huh?' head tilt and lean. Use when something is unexpected, odd or needs a second look.",
+  "description": "Use when something is unexpected, odd or needs a second look. A quick surprised 'huh?' head tilt and lean.",
+  "ai_description": "Use when something is unexpected, odd or needs a second look. A quick surprised 'huh?' head tilt and lean.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "have_idea",
   "name": "Have an Idea",
-  "ai_description": "Use when an idea or answer suddenly comes to mind. Rests the chin on a fist in thought, then springs the index finger up with a bright aha face as a light bulb pops on.",
+  "ai_description": "Use when an idea or answer suddenly comes to mind. Springs a finger up with an aha face as a light bulb pops on.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

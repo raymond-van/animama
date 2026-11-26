@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "grr_fists",
   "name": "Grr Fists",
-  "ai_description": "Use when cutely angry, frustrated or indignant (\"grr, that's so annoying!\"). Clenches both fists at the chest and pumps them down with hunched shoulders and a shaking, dying-out tremble, with an angry, gritted-teeth face.",
+  "ai_description": "Use when cutely angry, frustrated or indignant (\"grr, so annoying!\"). Pumps clenched fists with gritted teeth.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "on_one_hand",
   "name": "On One Hand, On the Other",
-  "ai_description": "Use when comparing two options, weighing pros and cons or saying \"on the other hand\". Presents one open palm to each side in turn, tilting the head toward each with a thoughtful look.",
+  "ai_description": "Use when comparing two options or weighing pros and cons (\"on the other hand\"). Presents one palm, then the other.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

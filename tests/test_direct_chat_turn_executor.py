@@ -7,6 +7,7 @@ import json
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from contextlib import aclosing
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -72,6 +73,7 @@ from animama.app.model_clients import (
     StaticModelClientRegistry,
     model_client_event_delta,
 )
+from animama.app.model_clients.context_budget import estimate_text_tokens
 from animama.app.model_clients.event_types import MCResponseStartedEvent
 from animama.app.model_clients.image_parts import ModelClientImage, estimate_image_tokens, image_part
 from animama.app.model_clients.prompt import prompt_instruction_text
@@ -907,10 +909,60 @@ def test_gesture_guidance_appends_the_equipped_gesture_list_only_when_gestures_e
 
     assert render_available_gestures(()) == ""
     assert render_available_gestures(descriptors) == "Available Gestures for this Anima:\n- wave: Greet the user."
-    assert gesture_response_guidance("Guidance.", ()) == "Guidance."
-    assert gesture_response_guidance("Guidance.", descriptors) == (
+    assert gesture_response_guidance("Guidance.", (), context_window_tokens=None) == "Guidance."
+    assert gesture_response_guidance("Guidance.", descriptors, context_window_tokens=None) == (
         "Guidance.\n\nAvailable Gestures for this Anima:\n- wave: Greet the user."
     )
+
+
+def test_gesture_list_keeps_descriptions_only_while_they_fit_a_tenth_of_the_window() -> None:
+    descriptors = (
+        RuntimeGestureDescriptor(selector="wave", name="Wave", description="Greet the user."),
+        RuntimeGestureDescriptor(selector="victory-dance", name="Victory Dance", description="Celebrate a win."),
+    )
+    described = render_available_gestures(descriptors)
+    tenth_of_window = estimate_text_tokens(described) * 10
+
+    assert render_available_gestures(descriptors, context_window_tokens=None) == described
+    # Context fitting treats a non-positive window as none recorded.
+    assert render_available_gestures(descriptors, context_window_tokens=0) == described
+    assert render_available_gestures(descriptors, context_window_tokens=tenth_of_window) == described
+    assert render_available_gestures(descriptors, context_window_tokens=tenth_of_window - 1) == (
+        "Available Gestures for this Anima:\n- wave\n- victory-dance"
+    )
+    assert render_available_gestures((), context_window_tokens=tenth_of_window - 1) == ""
+
+
+_LONG_GESTURE_DESCRIPTORS = (
+    RuntimeGestureDescriptor(selector="wave", name="Wave", description="Greet the user warmly. " * 400),
+    RuntimeGestureDescriptor(selector="victory-dance", name="Victory Dance", description="Celebrate a win."),
+)
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_lists_only_selectors_when_descriptions_would_crowd_a_small_window() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    executor, _chats = _executor(client=model_client, provider=replace(_provider(), context_window_tokens=20_000))
+
+    await _collect(
+        executor.stream_turn(
+            _request(
+                runtime_gesture_ids=("wave", "victory-dance"),
+                runtime_gesture_descriptors=_LONG_GESTURE_DESCRIPTORS,
+            )
+        )
+    )
+
+    prompt = model_client.seen_specs[0].prompt
+    system_text = _text(prompt.messages[0]["content"])
+    assert "Available Gestures for this Anima:\n- wave\n- victory-dance\n\n" in system_text
+    assert "Greet the user warmly." not in system_text
+    # The reply schema still offers every equipped Gesture.
+    assert prompt.response_format is not None
+    assert prompt.response_format["type"] == "json_schema"
+    schema = prompt.response_format["json_schema"]["schema"]
+    assert isinstance(schema, dict)
+    assert _json_object(_json_object(schema["properties"])["gesture"])["enum"] == [None, "wave", "victory-dance"]
 
 
 @pytest.mark.asyncio
@@ -3461,9 +3513,16 @@ async def test_native_patch_turn_includes_memories_write_guidance() -> None:
 
 
 @pytest.mark.asyncio
-async def test_direct_turn_stale_cursor_retry_keeps_the_gesture_list_in_stable_instructions() -> None:
-    from animama.app.chat.direct_turn.types import RuntimeGestureDescriptor
-
+@pytest.mark.parametrize(
+    ("context_window_tokens", "expected_rows"),
+    [
+        (None, "- wave: Greet the user warmly."),
+        (20_000, "- wave\n- victory-dance"),
+    ],
+)
+async def test_direct_turn_stale_cursor_retry_keeps_the_gesture_list_in_stable_instructions(
+    context_window_tokens: int | None, expected_rows: str
+) -> None:
     final = ModelClientFinal(
         text=_structured_response(speech="Recovered."),
         usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
@@ -3471,15 +3530,13 @@ async def test_direct_turn_stale_cursor_retry_keeps_the_gesture_list_in_stable_i
     )
     model_client = _PreviousResponseCursorFailThenFinalModelClient(final)
     chats = _FakeChatManager(history=[], openai_previous_response_id="resp_stale")
-    executor, chats = _executor(
-        client=model_client, provider=_provider(provider_type="OpenAIResponsesHTTPAgent"), chat_manager=chats
-    )
-    descriptor = RuntimeGestureDescriptor(selector="wave", name="Wave", description="A friendly wave")
+    provider = replace(_provider(provider_type="OpenAIResponsesHTTPAgent"), context_window_tokens=context_window_tokens)
+    executor, chats = _executor(client=model_client, provider=provider, chat_manager=chats)
 
-    await _collect(executor.stream_turn(_request(runtime_gesture_descriptors=(descriptor,))))
+    await _collect(executor.stream_turn(_request(runtime_gesture_descriptors=_LONG_GESTURE_DESCRIPTORS)))
 
     first, retried = (spec.prompt.messages[0] for spec in model_client.seen_specs)
-    assert "Available Gestures for this Anima" in str(first["content"])
+    assert f"Available Gestures for this Anima:\n{expected_rows}" in str(first["content"])
     assert retried == first
 
 

@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "lean_in_coy",
   "name": "Lean In Coy",
-  "description": "Hands behind the back, leans in close with a slow blink and soft smile. Use for playful flirting or a teasing 'hey, you'.",
-  "ai_description": "Hands behind the back, leans in close with a slow blink and soft smile. Use for playful flirting or a teasing 'hey, you'.",
+  "description": "Use for playful flirting or a teasing 'hey, you'. Leans in close, hands behind the back, with a slow blink.",
+  "ai_description": "Use for playful flirting or a teasing 'hey, you'. Leans in close, hands behind the back, with a slow blink.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

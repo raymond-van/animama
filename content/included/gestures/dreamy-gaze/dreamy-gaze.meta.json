@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "dreamy_gaze",
   "name": "Dreamy Gaze",
-  "ai_description": "Use while idle and feeling loving, admiring, caring or longing, as if daydreaming about someone. Clasps the hands at the chest, sways softly and gazes up dreamily with a slow blink and a gentle smile.",
+  "ai_description": "Use as an idle while loving, admiring or longing, as if daydreaming. Clasps the hands at the chest and gazes up.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

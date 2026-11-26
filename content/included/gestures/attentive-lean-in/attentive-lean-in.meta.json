@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "attentive_lean_in",
   "name": "Attentive Lean In",
-  "ai_description": "Use while listening closely or showing keen interest in what the user is saying. Leans forward with small nods and gentle head tilts.",
+  "ai_description": "Use while listening closely or showing keen interest in what the user says. Leans forward with small nods.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

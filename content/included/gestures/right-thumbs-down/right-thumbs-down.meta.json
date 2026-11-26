@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "right-thumbs-down",
   "name": "Right Thumbs Down",
-  "ai_description": "Use while disapproving, disagreeing or showing disappointment. Holds a right thumbs down with a small \"boo\" push and a pout.",
+  "ai_description": "Use while disapproving, disagreeing or showing disappointment. A right thumbs down with a small \"boo\" and a pout.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

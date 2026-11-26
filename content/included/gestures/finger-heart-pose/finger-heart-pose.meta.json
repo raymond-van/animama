@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "finger-heart-pose",
   "name": "Finger Heart Pose",
-  "ai_description": "Use for a sweet thank-you, appreciation or cute affection. Raises a finger heart beside the cheek with a wink while a little heart pops up above the fingers.",
+  "ai_description": "Use for a sweet thank-you, appreciation or cute affection. Makes a finger heart by the cheek with a wink.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

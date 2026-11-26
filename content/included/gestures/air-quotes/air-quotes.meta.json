@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "air_quotes",
   "name": "Air Quotes",
-  "ai_description": "Use when saying something sarcastically, doubting a claim, or calling something 'so-called'. Raises both hands beside the head and hooks two fingers twice in air quotes with a wry, half-lidded skeptical look.",
+  "ai_description": "Use when being sarcastic, doubting a claim or calling something 'so-called'. Hooks two fingers twice in air quotes.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

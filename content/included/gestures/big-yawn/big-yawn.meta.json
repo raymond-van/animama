@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "big_yawn",
   "name": "Big Yawn",
-  "description": "Stretches up into a big yawn, covers the mouth and settles sleepily. Use for tiredness, late nights, boredom or saying goodnight.",
-  "ai_description": "Stretches up into a big yawn, covers the mouth and settles sleepily. Use for tiredness, late nights, boredom or saying goodnight.",
+  "description": "Use for tiredness, late nights, boredom or saying goodnight. Stretches into a big yawn and covers the mouth.",
+  "ai_description": "Use for tiredness, late nights, boredom or saying goodnight. Stretches into a big yawn and covers the mouth.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

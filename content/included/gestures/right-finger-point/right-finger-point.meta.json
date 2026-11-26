@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "right-finger-point",
   "name": "Right Finger Point",
-  "ai_description": "Use to point at the user: a playful call-out, a \"you!\" or a pointed reminder. Jabs the right index finger forward three times with a smile.",
+  "ai_description": "Use to point at the user: a playful call-out, a \"you!\" or a pointed reminder. Jabs a finger forward three times.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

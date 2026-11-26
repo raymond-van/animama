@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "calm_down_pat",
   "name": "Calm Down Pat",
-  "description": "Gently pats the air toward the user with open palms, soothing 'okay, okay'. Use to calm someone who is upset, panicking or overexcited.",
-  "ai_description": "Gently pats the air toward the user with open palms, soothing 'okay, okay'. Use to calm someone who is upset, panicking or overexcited.",
+  "description": "Use to calm someone who is upset, panicking or overexcited ('okay, okay'). Pats the air gently with open palms.",
+  "ai_description": "Use to calm someone who is upset, panicking or overexcited ('okay, okay'). Pats the air gently with open palms.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

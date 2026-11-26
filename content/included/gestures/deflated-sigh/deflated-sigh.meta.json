@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "deflated_sigh",
   "name": "Deflated Sigh",
-  "ai_description": "Use when disappointed, tired or resigned to something. Breathes in, then lets out a long sigh as the shoulders and chest slump.",
+  "ai_description": "Use when disappointed, tired or resigned to something. Lets out a long sigh as the shoulders slump.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

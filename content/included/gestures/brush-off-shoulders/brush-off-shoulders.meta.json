@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "brush_off_shoulders",
   "name": "Brush Off Shoulders",
-  "description": "Smugly brushes dust off each shoulder with the chin up. Use for confident bragging, shrugging off criticism or 'too easy'.",
-  "ai_description": "Smugly brushes dust off each shoulder with the chin up. Use for confident bragging, shrugging off criticism or 'too easy'.",
+  "description": "Use for confident bragging, shrugging off criticism or 'too easy'. Smugly brushes off each shoulder.",
+  "ai_description": "Use for confident bragging, shrugging off criticism or 'too easy'. Smugly brushes off each shoulder.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

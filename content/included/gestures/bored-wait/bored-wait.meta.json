@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "bored_wait",
   "name": "Bored Wait",
-  "ai_description": "Use as an idle while waiting with nothing to do or when a little bored. A hand on the hip with fingers drumming idly, the eyes roll up and around, a puffed-out breath, then a slow look off to one side.",
+  "ai_description": "Use as an idle while waiting with nothing to do or a little bored. Drums the fingers on a hip and rolls the eyes.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

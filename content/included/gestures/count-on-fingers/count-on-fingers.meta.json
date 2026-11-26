@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "count_on_fingers",
   "name": "Count on Fingers",
-  "ai_description": "Use when listing several points, reasons, steps or options in order. Raises the right hand at chest height, palm out, and counts one, two, three on the fingers with a small nod per count.",
+  "ai_description": "Use when listing several points, reasons, steps or options in order. Counts one, two, three on the right hand.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

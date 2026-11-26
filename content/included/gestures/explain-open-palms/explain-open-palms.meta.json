@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "explain_open_palms",
   "name": "Explain with Open Palms",
-  "ai_description": "Use only when the reply walks through an explanation, steps or reasons (\"let me explain\", \"here's why\"); not for short answers, greetings or small talk. Raises both open palms in front and offers them outward in two small beats, with an attentive, slight smile.",
+  "ai_description": "Use only when explaining steps or reasons (\"here's why\"), not for short answers, greetings or small talk. Offers open palms.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

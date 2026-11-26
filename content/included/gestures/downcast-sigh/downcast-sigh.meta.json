@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "downcast_sigh",
   "name": "Downcast Sigh",
-  "ai_description": "Use while idle and feeling sad, disappointed, grieving or remorseful. The head hangs and the shoulders sink, a slow sigh and a small sniff, a brief glance up at the viewer, then the body sinks again.",
+  "ai_description": "Use as an idle while sad, disappointed, grieving or remorseful. The head hangs with a slow sigh and a small sniff.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

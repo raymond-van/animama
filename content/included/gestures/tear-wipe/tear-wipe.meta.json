@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "tear_wipe",
   "name": "Tear Wipe",
-  "ai_description": "Use when feeling sad, hurt or moved to tears but trying to stay brave, such as after bad news, a goodbye or a touching moment. Lowers the head, wipes under the right eye twice with a curled knuckle and a sniffle, then looks up with a small brave smile.",
+  "ai_description": "Use when sad, hurt or moved to tears but staying brave, as after bad news or a goodbye. Wipes a tear, then smiles.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

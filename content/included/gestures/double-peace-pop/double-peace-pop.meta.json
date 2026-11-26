@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "double-peace-pop",
   "name": "Double Peace Pop",
-  "ai_description": "Use to celebrate, greet with excitement or pose playfully, with more energy than a one-hand peace sign. Pops up peace signs with both hands, sways and winks with a big smile.",
+  "ai_description": "Use to celebrate, greet excitedly or pose playfully; more energy than one peace sign. Pops peace signs with both hands.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

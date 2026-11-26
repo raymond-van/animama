@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "emphasise_point",
   "name": "Emphasise a Point",
-  "ai_description": "Use when stressing that something matters or landing a key point (\"this is important\"). Makes two firm, short downward beats with a loosely pinched right hand at chest height, nodding with each beat, with a focused look.",
+  "ai_description": "Use when stressing that something matters or landing a key point (\"this is important\"). Two firm downward hand beats.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

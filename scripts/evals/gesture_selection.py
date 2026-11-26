@@ -28,6 +28,15 @@ Inputs:
   ``{"id", "message", "acceptable": [selector | null, ...], "tags": [...]}``,
   and optional ``"scripted_chats"``, ``{"id", "turns": [message, ...]}``.
 
+``--context-window TOKENS`` runs the model as if its catalog row recorded that
+context window. Chat lists selectors without descriptions when the described
+list would take more than a tenth of the window, so a run with a small window
+measures how well the model picks from selectors alone. On rows chat fits to
+their window, it also bounds history the same way. Without the option, a run
+uses the selected row's recorded window, so a row below about ten times the
+described list's size already gets selectors only; the dry run, which knows no
+row, sizes the described list.
+
 Each single-turn item runs as a fresh one-turn chat ``--repeats`` times per
 loadout. Each scripted chat runs turn by turn ``--scripted-repeats`` times per
 loadout. Loadouts alternate item by item, so a run stopped at the cap leaves
@@ -126,7 +135,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -326,10 +335,10 @@ def score_fit(gesture: str | None, acceptable: Sequence[str | None]) -> bool:
     return gesture in acceptable
 
 
-def gesture_list_bytes(loadout: Loadout) -> int:
-    """UTF-8 size of the Gesture list chat appends to the system prompt for this loadout."""
+def gesture_list_bytes(loadout: Loadout, *, context_window_tokens: int | None = None) -> int:
+    """UTF-8 size of the Gesture list chat appends to the system prompt for this loadout and model window."""
 
-    return len(render_available_gestures(loadout.gestures).encode("utf-8"))
+    return len(render_available_gestures(loadout.gestures, context_window_tokens=context_window_tokens).encode("utf-8"))
 
 
 def coverable_items(loadout: Loadout, items: Iterable[PromptItem]) -> int:
@@ -352,6 +361,7 @@ def render_plan(
     *,
     max_calls: int | None,
     first_turn_tokens: Mapping[str, int] | None = None,
+    context_window_tokens: int | None = None,
 ) -> str:
     """Describe what a run would send: the up-front call estimate, prompt sizes and input checks."""
 
@@ -361,11 +371,14 @@ def render_plan(
         f"Prompt set: {len(prompt_set.items)} single-turn items, {len(prompt_set.scripted_chats)} scripted chats "
         f"({prompt_set.scripted_turns} turns)",
         f"Repeats per loadout: {plan.repeats} for single-turn items, {plan.scripted_repeats} for scripted chats",
-        "Loadouts:",
     ]
+    if context_window_tokens is not None:
+        lines.append(f"Context window: {context_window_tokens:,} tokens, as if the model row recorded it")
+    lines.append("Loadouts:")
     for loadout in plan.loadouts:
         lines.append(
-            f"  - {loadout.name}: {len(loadout.gestures)} Gestures, {gesture_list_bytes(loadout)} gesture-list bytes, "
+            f"  - {loadout.name}: {len(loadout.gestures)} Gestures, "
+            f"{gesture_list_bytes(loadout, context_window_tokens=context_window_tokens)} gesture-list bytes, "
             f"{coverable_items(loadout, prompt_set.items)}/{len(prompt_set.items)} items coverable"
         )
     lines.append(
@@ -632,6 +645,7 @@ def _results_document(
             "connection_id": model_provider.connection_id,
             "reasoning_effort": reasoning_effort,
             "native_context_compaction": native_context_compaction,
+            "context_window_tokens": model_provider.context_window_tokens,
         },
         "anima": {"name": ANIMA_NAME, "identity": ANIMA_IDENTITY, "memory_influence": False},
         "incognito": True,
@@ -735,7 +749,9 @@ def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, A
     return {
         "name": loadout.name,
         "gesture_count": len(loadout.gestures),
-        "gesture_list_bytes": gesture_list_bytes(loadout),
+        "gesture_list_bytes": gesture_list_bytes(
+            loadout, context_window_tokens=run.model_provider.context_window_tokens
+        ),
         "instruction_bytes": run.instruction_bytes.get(loadout.name),
         "estimated_first_turn_input_tokens": run.first_turn_tokens.get(loadout.name),
         "coverable_items": coverable_items(loadout, items.values()),
@@ -757,15 +773,17 @@ def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, A
     }
 
 
-async def estimate_first_turn_tokens(plan: EvalPlan) -> dict[str, int]:
+async def estimate_first_turn_tokens(plan: EvalPlan, *, context_window_tokens: int | None = None) -> dict[str, int]:
     """Return chat's conservative input-token estimate for each loadout's first turn, without a model call.
 
-    The prompt is prepared for a built-in JSON-schema model; JSON-mode and
+    The prompt is prepared for a built-in JSON-schema model with the given
+    context window, which sets the Gesture list form; JSON-mode and
     prompt-only models also carry the reply schema in the prompt.
     """
 
     chats = EvalChats()
-    executor = _build_executor(ESTIMATE_MODEL_PROVIDER, UnusedModelClient(), chats)
+    model_provider = replace(ESTIMATE_MODEL_PROVIDER, context_window_tokens=context_window_tokens)
+    executor = _build_executor(model_provider, UnusedModelClient(), chats)
     message = next(
         (item.message for item in plan.prompt_set.items),
         plan.prompt_set.scripted_chats[0].turns[0] if plan.prompt_set.scripted_chats else "",
@@ -803,7 +821,12 @@ def render_summary(results: Mapping[str, Any]) -> str:
     lines = [
         "# Gesture selection evaluation",
         "",
-        f"- Model: `{model['model_provider_id']}`; reasoning effort: {model['reasoning_effort'] or 'model default'}",
+        f"- Model: `{model['model_provider_id']}`; reasoning effort: {model['reasoning_effort'] or 'model default'}; "
+        + (
+            f"context window {model['context_window_tokens']:,} tokens"
+            if model.get("context_window_tokens")
+            else "no context window recorded"
+        ),
         f"- Prompt set: {prompt_set['items']} single-turn items ({results['repeats']} repeat(s) per loadout) and "
         f"{prompt_set['scripted_chats']} scripted chats of {prompt_set['scripted_turns']} turns in total "
         f"({results['scripted_repeats']} repeat(s) per loadout)",
@@ -1045,8 +1068,11 @@ async def _run(
     reasoning_effort: str | None,
     on_finish: ResultsSink | None = None,
     token_prices: TokenPrices | None = None,
+    context_window_tokens: int | None = None,
 ) -> dict[str, Any]:
     model_provider = await load_model_provider(model_provider_id)
+    if context_window_tokens is not None:
+        model_provider = replace(model_provider, context_window_tokens=context_window_tokens)
     registry = build_registry()
     try:
         return await run_evaluation(
@@ -1100,6 +1126,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--max-calls", type=_positive_int, help="hard limit on model calls, repairs included")
     parser.add_argument("--reasoning-effort", help="reasoning effort, as a chat setting would request it")
     parser.add_argument(
+        "--context-window",
+        type=_positive_int,
+        help="run as if the model row recorded this context window, which sets the Gesture list form",
+    )
+    parser.add_argument(
         "--price",
         help="published USD rates per 1M tokens for cost estimates: input=…,cached_input=…,cache_write=…,output=…",
     )
@@ -1123,8 +1154,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         plan = EvalPlan(
             loadouts=loadouts, prompt_set=prompt_set, repeats=args.repeats, scripted_repeats=args.scripted_repeats
         )
+        first_turn_tokens = asyncio.run(estimate_first_turn_tokens(plan, context_window_tokens=args.context_window))
         print(
-            render_plan(plan, max_calls=args.max_calls, first_turn_tokens=asyncio.run(estimate_first_turn_tokens(plan)))
+            render_plan(
+                plan,
+                max_calls=args.max_calls,
+                first_turn_tokens=first_turn_tokens,
+                context_window_tokens=args.context_window,
+            )
         )
         token_prices = parse_token_prices(args.price) if args.price is not None else None
         if args.dry_run:
@@ -1162,6 +1199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 reasoning_effort=args.reasoning_effort,
                 on_finish=finish,
                 token_prices=token_prices,
+                context_window_tokens=args.context_window,
             )
         )
     except (EvalInputError, CallBudgetExceeded, DirectChatTurnSetupError, ModelClientNotFoundError) as exc:

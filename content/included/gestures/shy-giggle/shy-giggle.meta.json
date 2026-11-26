@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "shy_giggle",
   "name": "Shy Giggle",
-  "ai_description": "Use when flattered, embarrassed or teased into a giggle. Hides the mouth behind one hand, the other palm on the cheek, and giggles bashfully.",
+  "ai_description": "Use when flattered, embarrassed or teased into a giggle. Hides the mouth behind a hand and giggles bashfully.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "please_hands",
   "name": "Please Hands",
-  "ai_description": "Use when begging, pleading or eagerly asking for something (\"pretty please!\"). Presses the palms together under the chin, leans in and bobs twice with big, hopeful puppy eyes.",
+  "ai_description": "Use when begging, pleading or eagerly asking for something (\"pretty please!\"). Palms together, with puppy eyes.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

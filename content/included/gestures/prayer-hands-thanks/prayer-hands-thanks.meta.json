@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "prayer_hands_thanks",
   "name": "Prayer Hands Thanks",
-  "ai_description": "Use when thanking the user warmly or showing happy gratitude for help, a gift or kind words. Presses the palms together at the chest and gives a small double nod with a closed-eye smile.",
+  "ai_description": "Use when thanking the user warmly for help, a gift or kind words. Palms together at the chest with a double nod.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

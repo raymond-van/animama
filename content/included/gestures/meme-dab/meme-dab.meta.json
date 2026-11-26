@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "meme-dab",
   "name": "Meme Dab",
-  "ai_description": "Use while being goofy: a silly victory, a meme reference or a deliberately dorky celebration. Holds a dab, face tucked into one bent elbow and the other arm thrown straight out.",
+  "ai_description": "Use while being goofy: a silly victory, a meme reference or a dorky celebration. Holds a dab.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

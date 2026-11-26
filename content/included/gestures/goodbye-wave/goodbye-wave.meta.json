@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "goodbye_wave",
   "name": "Goodbye Wave",
-  "ai_description": "Use when saying goodbye or ending a chat warmly. Raises the right arm high and waves broadly, then lays the hand on the heart with a small nod and a smile.",
+  "ai_description": "Use when saying goodbye or ending a chat warmly. Waves broadly, then lays a hand on the heart.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

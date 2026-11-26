@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "raise_the_roof",
   "name": "Raise the Roof",
-  "description": "Pumps both palms up overhead on a bouncy groove. Use for party hype, great news worth celebrating or getting the energy up.",
-  "ai_description": "Pumps both palms up overhead on a bouncy groove. Use for party hype, great news worth celebrating or getting the energy up.",
+  "description": "Use for party hype, great news worth celebrating or getting the energy up. Pumps both palms overhead.",
+  "ai_description": "Use for party hype, great news worth celebrating or getting the energy up. Pumps both palms overhead.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

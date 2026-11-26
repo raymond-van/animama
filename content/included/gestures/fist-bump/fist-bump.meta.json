@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "fist_bump",
   "name": "Fist Bump",
-  "ai_description": "Use when celebrating teamwork, agreeing on a plan or cheering the user on as a buddy (\"we got this!\"). Pushes a fist toward the viewer for a fist bump with a grin, then bursts the hand open.",
+  "ai_description": "Use when celebrating teamwork, agreeing on a plan or cheering the user on as a buddy (\"we got this!\"). Offers a fist bump.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

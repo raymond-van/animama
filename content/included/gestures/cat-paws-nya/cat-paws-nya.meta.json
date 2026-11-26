@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "cat_paws_nya",
   "name": "Cat Paws Nya",
-  "ai_description": "Use when being playful, cutesy or teasing in a cat-like way, such as saying \"nya~\", acting like a kitten or begging cutely. Curls both hands into cat paws beside the face, kneads the air with a head tilt and gives a winking \"nya\" smile.",
+  "ai_description": "Use when playful, cutesy or teasing like a cat (\"nya~\") or begging cutely. Kneads the air with cat paws and a wink.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

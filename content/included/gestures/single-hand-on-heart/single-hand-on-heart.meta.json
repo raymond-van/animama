@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "single-hand-on-heart",
   "name": "Hand on Heart",
-  "ai_description": "Use while speaking sincerely: heartfelt gratitude, empathy or a personal promise. Holds the right hand over the heart with a calm, gentle face.",
+  "ai_description": "Use while speaking sincerely: heartfelt gratitude, empathy or a personal promise. A hand over the heart, calm and gentle.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

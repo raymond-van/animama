@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "zip_lips",
   "name": "Zip Lips",
-  "ai_description": "Use when promising to keep a secret or saying you'll stay quiet about something. Pinches an imaginary zipper across the lips, turns it like a key and tosses it over the shoulder with a knowing smile.",
+  "ai_description": "Use when promising to keep a secret or stay quiet about something. Zips the lips, locks them and tosses the key.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"
