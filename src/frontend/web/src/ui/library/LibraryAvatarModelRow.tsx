@@ -175,7 +175,8 @@ export function LibraryAvatarModelRow({
               {t("inventory.avatarSettings.model.cancel")}
             </Button>
             <Button
-              disabled={busy || !faceParts.data?.revision}
+              // A failed reread keeps the old revision; wait for a good one.
+              disabled={busy || faceParts.isError || !faceParts.data?.revision}
               onClick={() => void confirm()}
             >
               {replace.isPending
