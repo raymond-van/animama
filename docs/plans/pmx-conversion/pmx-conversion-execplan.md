@@ -117,6 +117,7 @@ About 190 KB of C#; its notice must be kept with ported code.
 - [x] Phase 3: face morphs and emotions (converter `b0ee627`; review passed after two repair rounds).
 - [x] Phase 4: physics and look-at (converter `49e9729`; review passed after one repair round and a trivial repair).
 - [x] Phase 5: Animama recognises converted MMD models (Animama `879bf6e91`; high-risk review, fixes verified by the final integration review).
+- [x] Phase 5 follow-up, converted Avatars' brightness (owner request, 2026-11-26): Animama `484572619` and `de7ab9213`, after merging `origin/main` (`0a9026d87`); review passed after one repair round.
 - [ ] Phase 6: release preparation and verification. Steps 1–4 and the macOS run are done (converter `de6efd7`, `b51a0f4`, `4c7442f`; G1 met by a five-model corpus); G2 (Windows), G4 and G3 wait for the owner.
 - [x] Final integration review (one repair round; the full checks ran on the final candidates).
 
@@ -142,6 +143,28 @@ From the investigation and evaluation of 2026-11-25:
 - **Library sharing:** packages and `vrm:optimize` reject extensions they do not
   list, so a marked file needs Phase 5 before Library sharing and optimizing
   accept it.
+
+From the five-model evaluation of 2026-11-26 (private renders; counts only):
+
+- **Brightness:** converted faces rendered about a tenth darker than their MMD
+  references under enhanced rendering. Fixed by the brightness follow-up in
+  Phase 5.
+- **Expressions:** on all five models, blink, both winks on the correct side,
+  the five visemes and the five moods are visible at full weight. One model's
+  brow, eye and mouth morphs each turn its ears with bone morphs. Its sad and
+  angry moods combine two or three of them, and the baked targets add linearly,
+  so the ears swing out flat and stretch. Converter follow-up: bake a mood's
+  parts together when two or more move the same bones.
+- **Avatar Effects:** 70 of 75 renders (15 Included effects × 5 models) pass
+  `effects:render`'s check; all head, chest, sticker, silhouette and emote effects
+  land correctly. Animama follow-ups:
+  - mouth art scales to MMD's small mouths and falls under the size bar on three
+    models;
+  - two models lay opaque, skin-coloured meshes over the cheeks and around the
+    eyes, which hide face paint beneath them;
+  - eye effects close the eyes but cannot hide MMD lashes and lid lines, which
+    sit in shared or differently named meshes, so the closed lash line shows
+    under heart eyes on all five.
 
 ## Decision Log
 
@@ -171,6 +194,12 @@ From the investigation and evaluation of 2026-11-25:
   ambient forces" and Animama checks only its presence; the hint's ship order
   (converter 0.2.0 published right after the Animama merge, before a build with
   the hint reaches users) is for the owner at G3.
+- **2026-11-26, owner:** after comparing #926's Automatic toon shading with the converted test model, "Yes, add the
+  lift": Animama raises converted files' MToon colours by #926's gain.
+- **2026-11-26, agent (brightness):**
+  - the gain applies under every Materials setting, because the setting is not offered for these files;
+  - the enhanced VRoid retune skips marked files;
+  - `origin/main` is merged into the branch to build on #926: an ordinary merge, no rebase or force-push.
 - **D1, decided 2026-11-25 by the owner:** write the PMX module as JavaScript ES
   modules (`.mjs`) with JSDoc types, like the rest of the command.
   - There is no build step and no new dependency, and Animama can import the module
@@ -898,6 +927,95 @@ It confirmed:
 
 Result: Phase 5 complete, committed with this record as `feat(avatars)[p5]: recognise MMD models converted by
 Animama Avatar Converter` on Animama's `feat/pmx-conversion`.
+
+#### Follow-up: brightness of converted Avatars (2026-11-26)
+
+The owner compared #926's Automatic toon shading of an unlit-only file with the converted test model and found the
+conversion dark. Measured under enhanced rendering, the converted face was about 9% darker than the MMD reference
+(cheek luminance 172 against 189; the unlit-only file under #926's Automatic, 180). Animama's chat lights draw an
+MToon lit colour about a fifth darker than MMD's light, and #926's 1.25 gain reaches only files it converts on load.
+The converter cannot raise it, because glTF caps `baseColorFactor` at 1. The owner chose an Animama-side gain
+("Yes, add the lift").
+
+Review tier: standard. The change applies only to files carrying the marker.
+
+Changes:
+- `convertedAvatarBrightness.ts` raises every MToon material's lit and shade colours in a marked file by `LIT_GAIN`
+  (1.25, exported from `unlitToonShading.ts`), in the glTF before three-vrm builds materials, under every Materials
+  setting. The setting is not offered for these files, so Simple must not change a hidden look.
+- It runs between the enhanced retune and the unlit toon step, so no file takes both gains.
+- `avatarConversionMarker.ts` holds the marker's name and check, shared by the springs, the extension list, the
+  retune and the new step.
+- The enhanced VRoid retune skips marked files, which may keep VRoid's material names.
+- Docs: `mmd-model-conversion.md` (What Animama does with it), `avatar-animation.md` (enhanced materials, unlit
+  brightness).
+
+Base: `origin/main` `4ba6db1c5` (with #926) merged into the branch as `0a9026d87`, an ordinary merge without
+conflicts. Candidate: `484572619` and `de7ab9213`, tree `41d77374`.
+
+Checks (macOS, Node 24; heavy jobs through `scripts/heavy-slot.py`):
+- Full pre-push suite on `de7ab9213`, while another session's six-CPU job held the other heavy slot:
+  - `make check-test`: exit 0; 6073 passed, 30 skipped.
+  - `pnpm verify`: exit 0; 6557 passed, 2 skipped.
+  - `pnpm prettier:check`: exit 0. `check_source.py`: passes.
+  - `pnpm web:test:browser`: 139 of 141. "records the take after a failed one as it records alone" passed when its
+    file was rerun alone. "plays a combination and copies it as a cue sheet take" asserts playback within 15% of
+    real time on Annie and Andrew, which carry no marker. It failed 2 of 3 runs alone on the candidate and 1 of 3 on
+    its parent `0a9026d87` under the same load: a timing flake, not this change.
+- Affected vitest files (loader, retune, unlit, diagnostics, springs): 74 passed.
+- Mutation checks: without the loader wiring the loader test fails; without the retune skip three tests fail.
+- `effects:render` on the five private models, 3 s, front and face, enhanced rendering. Face-tile mean luminance
+  before → with the gain (MMD reference):
+
+  | Model | Before | With the gain | MMD |
+  | --- | --- | --- | --- |
+  | M1 | 138 | 149 | 151 |
+  | M2 | 149 | 156 | 155 |
+  | M3 | 176 | 184 | 179 |
+  | M4 | 188 | 198 | 196 |
+  | M5 | 73 | 78 | 97 |
+
+  No white-clipped pixels appear with the gain. M1's cheek is 191 (MMD 189). M5 stays darker: its hair is
+  darker than in the reference, and the reference framing shows more of its white collar.
+
+#### Code Review #1 Findings (brightness)
+
+An independent read-only agent reviewed `484572619`. No blocker. It confirmed:
+- the step runs before three-vrm builds materials;
+- nothing serialises or hashes `parser.json` after load;
+- factors above 1 are safe in three-vrm;
+- outlines, rim and matcaps are unchanged for the converter's output;
+- applying the gain under every Materials setting is consistent with the hidden setting.
+
+- B-F1 (should-fix): a VRoid model exported to PMX keeps VRoid's material names, so the enhanced retune replaced
+  the converted shading with VRoid's palette before the gain raised it; two comments claimed no earlier step touches
+  these files.
+- B-F2: the step ran outside the unlit step, so a marked unlit-only file could take both gains.
+- B-F3: a `baseColorFactor` that is not an array lost its alpha.
+- B-F4: the NaN guard and test covered input JSON cannot hold; string channels were raised as 1.
+- B-F5: the loader test covered only the default loader settings.
+- B-F6: the marker's name was written in three places; a diagnostics comment was out of date.
+- B-F7: `avatar-animation.md` placed the converted-model sentence in a list that Simple skips.
+
+#### Code Review #1 Revisions (brightness)
+
+All fixed in `de7ab9213`:
+- B-F1: the retune skips marked files; tests compare the loaded colours with the file's own factors, which a retuned
+  shade fails, plus a retune unit test; comments corrected.
+- B-F2: the step now runs between the retune and the unlit step.
+- B-F3, B-F4: a non-array factor reads as glTF's default; an array whose first three channels are not all numbers is
+  left as authored; tests cover a string channel, a short array and a non-array factor.
+- B-F5: the loader test also runs with lilToon and unlit toon shading off.
+- B-F6: `avatarConversionMarker.ts`; the comment updated.
+- B-F7: "under every Materials setting" added.
+
+Also added: licence-review entries for the three new files (`check_source.py` passes).
+
+The same agent confirmed every finding fixed in `de7ab9213` (11 tests in the two touched test files pass) and
+nothing new blocking. Its one new nit, an import out of alphabetical order in `SpringBonePhysicsController.ts`, is
+left: no lint or format rule checks import order.
+
+Result: one repair round; the follow-up is complete.
 
 ### Phase 6: release preparation and verification
 
