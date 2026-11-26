@@ -17,6 +17,7 @@ from animama.logging import get_logger
 from animama.orm.anima import ORMAnima
 from animama.orm.anima_definition import ORMAnimaDefinitionRevision
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
+from animama.orm.settings import ORMUserSettings
 
 from .anima_creation_repo import SQLAlchemyAnimaCreationRepository
 
@@ -166,6 +167,12 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
             return False
         await SQLAlchemyAnimaCreationRepository(self._s).tombstone_anima(anima_id=anima_id)
         await self._purge_anima_memory(anima_id)
+        # The last-active setting has no foreign key either; it must not name a deleted Anima.
+        await self._s.execute(
+            update(ORMUserSettings)
+            .where(ORMUserSettings.user_id == orm.user_id, ORMUserSettings.last_active_anima_id == anima_id)
+            .values(last_active_anima_id=None)
+        )
         await self._s.delete(orm)
         await self._s.flush()
         return True

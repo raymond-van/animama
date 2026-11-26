@@ -9,6 +9,10 @@
   [execution plan](../plans/chat-image-input/chat-image-input-execplan.md)
   Decision Log, approved by the owner with the plan; the agreed behavior is in
   the [specification snapshot](../plans/chat-image-input/chat-image-input-spec.md)
+- Amended: 2026-11-26, deleting an Anima deletes the images only its chats use,
+  reversing D13 (owner decision in
+  [issue #950](https://github.com/raymond-van/animama/issues/950); see
+  Consequences).
 
 ## Context
 
@@ -65,8 +69,11 @@ that deleting an image remove its bytes (R3.3).
 - A deleted or changed image leaves its reference: history shows a
   placeholder, the model sees the placeholder line, and the turn that attached
   it stays readable.
-- Deleting a chat deletes the images only that chat uses (D12); deleting an
-  Anima leaves its chats' images in the Library.
+- Deleting a chat deletes the images only that chat uses (D12). Deleting an
+  Anima first left its chats' images in the Library (D13). Amended 2026-11-26:
+  [issue #950](https://github.com/raymond-van/animama/issues/950) reverses
+  D13, and deleting an Anima now deletes the images only its chats use, by the
+  same rule.
 - OpenAI Responses conversations that OpenAI stores (`store: true`, used for
   the `previous_response_id` cursor) hold the images the provider received;
   that copy follows the provider's retention, not Animama's delete.

@@ -43,6 +43,7 @@ from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
+from animama.app.ports.memory_manager_port import MemoryManagerRepository
 from animama.app.ports.model_provider_port import ModelProviderRepository
 from animama.app.ports.private_file_storage import PrivateFileStorage
 from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
@@ -107,6 +108,11 @@ class ProductRepositories(Protocol):
 
     @property
     def memory_episodes(self) -> MemoryEpisodeRepository: ...
+
+    @property
+    def memory_manager(self) -> MemoryManagerRepository:
+        """Memory Manager runs, which a chat or Anima delete ends when they hold its pending episodes."""
+        ...
 
     @property
     def user_settings(self) -> UserSettingsRepository: ...

@@ -43,6 +43,7 @@ from animama.orm import (
     ORMMemoryManagerMessage,
     ORMMemoryManagerRun,
 )
+from animama.product_http.chat.active_turns import ActiveChatTurns
 from animama.product_http.routes import (
     animas as anima_router,
     memory as memory_entries_router,
@@ -325,7 +326,13 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         user=user,
         ports=_LOCAL_PORTS,
     )
-    await anima_router.delete_anima(anima_id, repositories=SQLAlchemyProductRepositories(async_session), user=user)
+    await anima_router.delete_anima(
+        anima_id,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        user=user,
+        ports=_LOCAL_PORTS,
+        turns=ActiveChatTurns(),
+    )
     with pytest.raises(HTTPException) as deleted_error:
         await memory_manager_router.decide_memory_manager_approval(
             pending.approvals[0].id,

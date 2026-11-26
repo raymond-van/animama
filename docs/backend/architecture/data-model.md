@@ -451,7 +451,9 @@ path index:
   binary status (`pending` or `processed`), processing metadata, and source
   metadata JSON. `processed` means reviewed, whether or not the review changed
   curated memory. Generated daily markdown files under `episodes/**` are
-  projections of this table.
+  projections of this table. The provenance columns have no foreign keys, so
+  chat and Anima deletes remove their `pending` rows explicitly and keep
+  `processed` ones.
 - `ORMMemoryManagerRun`, `ORMMemoryManagerMessage`, and
   `ORMMemoryManagerApproval` map to `memory_manager_runs`,
   `memory_manager_messages`, and `memory_manager_approvals`. Runs persist a

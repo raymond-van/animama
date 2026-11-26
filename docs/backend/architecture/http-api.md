@@ -796,6 +796,13 @@ Direct `anima.profile_picture_url` updates return `422
 use_typed_appearance_command`; use reviewed typed Appearance commands instead.
 Ordinary emotional state/metadata patches do not change definition revision.
 
+`DELETE /v1/animas/{anima_id}` deletes the owner's Anima with its chats and
+messages, its `IDENTITY.md` and `MEMORIES.md`, its pending episode items and
+the chat images only its chats use, and clears a `last_active_anima_id` that
+names it. Shared memory, processed episodes and Library content stay. Like a
+chat delete, it first stops any streaming reply in its chats and returns `409
+chat_turn_stopping` when one does not stop in time (see [Chats](#chats)).
+
 Typed loadout read/plan responses carry `aggregate_revision`. Existing
 `:plan`/`:commit` bodies keep `expected_revision` for the loadout; the reviewed
 digest also fences aggregate revision. A name/identity change between review
@@ -1455,8 +1462,17 @@ product-shaped chat CRUD and message retrieval backed by `chats` and
 
 Chat creation verifies the referenced anima exists and is owned by the
 current user; missing or foreign animas return `404`. Chat reads, updates,
-deletes, and message reads are scoped to the current user's chats. Message
-responses expose `chat_id`, `run_id`, `model_provider`, `model`, and
+deletes, and message reads are scoped to the current user's chats.
+
+`DELETE /v1/chats/{chat_id}` deletes the chat's messages, its pending episode
+items and the chat images only it uses; processed episodes and the memory
+written from them stay (see [Memory](../features/memory.md#episodic-memory-capture)).
+If a reply is streaming in the chat, the delete first stops it as a client
+disconnect would (a reply save that has begun finishes) and waits for it. A
+reply that has not stopped within 10 seconds returns `409` with
+`detail.code = "chat_turn_stopping"`; nothing is deleted, and a retry is safe.
+
+Message responses expose `chat_id`, `run_id`, `model_provider`, `model`, and
 `internal`; identifiers belong to Chats and request-local runs. Visible
 assistant messages also carry nullable `memory_cue`
 (`{episode: {text} | null, memories: {entry_id, version, excerpt} | null}`),

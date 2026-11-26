@@ -173,6 +173,14 @@ episode files and their `episodes/**` parent directories are read-only to
 public memory APIs and ordinary chat memory write tools. Internal episode
 services can still refresh them when source-of-truth episode rows change.
 
+Deleting a chat deletes its `pending` episode items; deleting an Anima deletes
+the pending items captured with it or in any of its chats. Each removed item's
+line leaves its day's log, and a log left with no items keeps only its heading.
+Each refresh appends a log version, so the log's version history still holds
+the removed lines. `processed` items, their lines and the memory written from
+them stay. An episode-processing run holding a removed item ends `failed`; see
+[Status And Recovery Rules](memory-manager-and-episodic-memory.md#status-and-recovery-rules).
+
 ## Chat Memory Cue
 
 A persisted turn records what it remembered on its final visible assistant
@@ -728,7 +736,7 @@ directory there, or moving or renaming an entry within it, returns `403`.
 
 Deleting an Anima (`DELETE /v1/animas/{anima_id}`) permanently removes all of
 its Anima-scoped memory entries and their versions, including `IDENTITY.md` and
-`MEMORIES.md`, and its Reflection coverage, in the same transaction as the Anima row. Memory Manager approvals and messages
+`MEMORIES.md`, its Reflection coverage and its pending episode items, in the same transaction as the Anima row. Memory Manager approvals and messages
 that quoted the identity remain as run history, so a pending proposal can still
 be rejected.
 A legacy directory obstructing the reserved path is not an identity file:

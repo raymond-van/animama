@@ -53,7 +53,7 @@ Relevant code:
 ## Progress
 
 - [x] Plan review and owner approval (gate G0): approved 2026-11-26, with D1–D5.
-- [ ] Phase 1: chat and Anima deletion semantics (backend).
+- [x] Phase 1: chat and Anima deletion semantics (backend). Review passed after 1 repair round. Owner question Q1 is open for G2.
 - [ ] Phase 2: sidebar pins (backend, schema and API).
 - [x] Phase 3: Local content delete hardening (backend). Review passed after 1 repair round. The contracts bump is deferred to D6.
 - [ ] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend).
@@ -77,6 +77,16 @@ Relevant code:
   lines from the log.
 - 2026-11-26 (planning): `item_has_runtime_references` returns only a bool, so
   the 409 for an in-use item cannot yet say what uses it (R15).
+
+- 2026-11-26 (Phase 1):
+  - A delete can wait on an episode-processing run's row lock while that run's
+    model request is in flight, possibly tens of seconds.
+  - Each episode-log refresh adds a memory-entry version, so the log's
+    version history still holds removed pending lines. They are readable
+    through the versions API (see open question Q1).
+  - Rare deadlocks are possible between a delete and a simultaneous "Process
+    episodes" or approval, because their lock orders differ. Postgres aborts
+    one side, and a failed delete changes nothing.
 
 ## Decision Log
 
@@ -120,6 +130,10 @@ Relevant code:
     `contracts/hosted-web.md` and `docs/frontend/desktop/releases.md`. The
     final integration review confirms it landed. This follows the package-set rules.
     Each phase commit carries its own regenerated SDK.
+
+- Open question Q1 (owner, before G2): when a delete removes pending
+  episode lines from a log, should the log's earlier versions that still
+  contain them be purged too? Today they are kept (Phase 1, P1-F3).
 
 ## Phased implementation
 
@@ -189,7 +203,101 @@ New tests:
 
 Completion: all of the above pass, and the review passes.
 
-Check record, commits, Code Review #1 Findings/Revisions: _to be filled in._
+#### Results
+
+- **Turn registry.** `product_http/chat/active_turns.py` (`ActiveChatTurns`)
+  registers a turn at admission and releases it when the turn settles. A stop
+  cancels the response the way a client disconnect does and waits for an
+  in-progress save, within 10 s; otherwise the delete returns 409
+  `chat_turn_stopping`.
+- **Pending removal.** `app/services/pending_episode_removal.py` runs before
+  the row delete, in the same transaction. It:
+  - removes the pending items of the chat, or of the Anima and its chats;
+  - fails any episode run holding them (`source_deleted`, "Its source chat
+    was deleted") and rejects its approvals;
+  - refreshes the affected log days.
+- **Anima images.** Anima delete also removes the images only its chats use
+  (`image_file_ids_only_in_anima_chats`) and clears `last_active_anima_id`.
+- **Automatic processing.** It ignores `source_deleted` runs for backoff and
+  pause.
+- **Shared helpers.** `routes/_deletion.py` holds the routes' shared delete
+  steps.
+- **Docs.** User files, memory, Memory Manager, HTTP API, chat runtime and
+  data model docs are updated, and ADR 0038 is amended (D13 reversed).
+
+#### Check record
+
+Working directory: the worktree root.
+
+- `timeout 900 uv run --no-sync pytest -q` over the new
+  `tests/test_chat_and_anima_delete.py` plus the chats, chat SSE, chat turns,
+  golden, Anima, owner scope, memory directory, Memory Manager (identities,
+  reflection, core, HTTP, Anthropic), episodes, automatic processing, all
+  `test_user_file_*`, shared boundary, OpenAPI export, inventory and local
+  composition tests → 772 passed, 1 skipped (tree `83c3d54c8`). Every new test
+  was red first.
+- `uv run --no-sync ruff check`, `ruff format --check` and `mypy` on the 29
+  touched files → pass. `uv run --no-sync mypy src/backend/animama tests` → no
+  issues. Import boundary → 0 forbidden edges.
+- Not run: the full suite, browser checks.
+
+#### Code Review #1 Findings
+
+Reviewed `c3aa92dbb` (Phase 1 paths), high risk. **Pass, with no blocking
+findings.**
+
+The reviewer reran the record (772 passed, 1 skipped; ruff, mypy, import
+boundary and `check_source.py` all pass). It also ran probes for a stale
+approval after a delete, and for a delete while the model streams and during
+setup.
+
+- **P1-F1.** The `pending_episode_removal.py` docstring claims a deadlock-free
+  lock order. That is false against "Process episodes" (runs, then the batch
+  lock) and against approval decide/undo (approval, then run).
+- **P1-F2.** A stop requested during setup does not stop the response body.
+  The model request and the reply save still happen, and the delete then
+  removes them.
+- **P1-F3.** Removed pending lines remain in the episode log's version history
+  (owner question Q1).
+- **P1-F4.** A new turn admitted for the Anima while its delete runs is not
+  stopped, and could fail on the FK or leave an orphan pending item. It is
+  unlikely; Phase 4 should keep the dialog modal and block sending during a
+  delete.
+- **P1-F5.** Test gaps: no check for "no server error logged", and no test
+  for a stop during setup or while the model streams.
+
+#### Code Review #1 Revisions
+
+- **P1-F1: accepted.** Correct the docstring; record the deadlock as a known
+  limit (Surprises). No deadlock-to-409 mapping.
+- **P1-F2: accepted.** Skip starting the body when the stop came first, and add
+  a test.
+- **P1-F3: recorded as owner question Q1.** R6 and D1 are met as written.
+- **P1-F4: accepted into Phase 4** (modal dialog, sending blocked while
+  deleting). There is no server change.
+- **P1-F5: accepted.** Add the log, setup-stop and streaming-stop tests.
+- **Repair implementation.**
+  - `stream.py` sends an empty, finished response and settles `unstarted`
+    when the stop came before the body. A guard at the top of the body
+    covers a stop that lands just after that check.
+  - The `pending_episode_removal.py` docstring and the Memory Manager doc now
+    state the real lock order.
+  - `tests/test_chat_and_anima_delete.py` now has 15 tests: setup stop, stop
+    as the response begins, stop during streaming, no ERROR logs, and
+    same-session approval after a delete.
+- **Implementer checks.** The setup-stop test was red before the fix; the
+  begins-stop test was red without the guard. `timeout 900 uv run --no-sync
+  pytest -q` over the delete, chat SSE, transport, chat turns, golden,
+  automatic processing and Memory Manager tests → 298 passed. ruff, mypy and
+  the import boundary pass.
+- **Code Review #2 (repair round 1): pass.** Reviewed `a51b719fe`.
+  - P1-F1, P1-F2 and P1-F5 are resolved; the extra guard is correct, with no
+    lost completions or hung responses; there are no regressions.
+  - The reviewer reran 777 passed, 1 skipped; ruff, mypy, the import boundary
+    and its probes (6 passed).
+  - Non-blocking: the immediate-cancel branch in `bind_cancel` is now only
+    defensive.
+  - Repair rounds used: 1 of 2.
 
 ### Phase 2: sidebar pins (backend)
 

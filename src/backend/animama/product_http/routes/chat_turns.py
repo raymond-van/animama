@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 
 from animama.app.contracts.chat import PyAnimaChatRequest
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.chat.active_turns import ActiveTurns
 from animama.product_http.chat.stream import TurnHold, hold_chat_turn, stream_direct_chat_sse
 from animama.product_http.ports import Ports, WriteSession
 from animama.product_http.principal import get_current_principal
@@ -31,6 +32,7 @@ async def chat_anima_direct_sse(
     hold: ChatTurnHold,
     session: WriteSession,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    turns: ActiveTurns,
 ) -> StreamingResponse:
     """Run a direct avatar companion chat turn over SSE."""
     return await stream_direct_chat_sse(
@@ -40,6 +42,7 @@ async def chat_anima_direct_sse(
         anima_id=anima_id,
         req=req,
         user=user,
+        turns=turns,
     )
 
 

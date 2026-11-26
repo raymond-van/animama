@@ -10,13 +10,26 @@ from animama.app.ports.chat_port import ChatRepository
 from animama.domain.chat import Chat
 from animama.logging import get_logger
 
+from .pending_episode_removal import PendingEpisodeRemoval
+
 
 class ChatService:
-    """CRUD service for product chat rows."""
+    """CRUD service for product chat rows.
 
-    def __init__(self, *, chats: ChatRepository, uow: UnitOfWork) -> None:
+    ``pending_episodes``, when given, removes a deleted chat's pending episodes in
+    the same transaction.
+    """
+
+    def __init__(
+        self,
+        *,
+        chats: ChatRepository,
+        uow: UnitOfWork,
+        pending_episodes: PendingEpisodeRemoval | None = None,
+    ) -> None:
         self._chats = chats
         self._uow = uow
+        self._pending_episodes = pending_episodes
         self._log = get_logger("app.services.chat")
 
     async def create(
@@ -78,9 +91,13 @@ class ChatService:
         return saved
 
     async def delete(self, *, chat_id: str, user_id: str) -> bool:
+        """Delete the owner's chat with its messages and pending episodes; processed episodes stay."""
+
         current = await self._chats.get(chat_id)
         if current is None or current.user_id != user_id:
             return False
+        if self._pending_episodes is not None:
+            await self._pending_episodes.remove(user_id=user_id, chat_ids=(chat_id,))
         ok = await self._chats.delete(chat_id)
         if ok:
             await self._uow.commit()

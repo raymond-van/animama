@@ -5,6 +5,8 @@ owner and runtime-revision checks and before anything is written or dispatched,
 checked while the model streams and during the completion steps, and settled
 exactly once: by the ``TurnHold`` when the request fails before its response runs
 (including the composition's own setup commit), otherwise when the response ends.
+The admitted turn is in the app's active-turn registry for that same span, so a
+chat or Anima delete can stop it and wait until it has settled.
 """
 
 from __future__ import annotations
@@ -20,7 +22,8 @@ import anyio
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.types import Receive, Scope, Send
+from starlette.requests import ClientDisconnect
+from starlette.types import Message, Receive, Scope, Send
 
 from animama.app.chat.completion import complete_successful_turn
 from animama.app.chat.speech_tags import speech_tag_provider
@@ -38,6 +41,7 @@ from animama.product_http.ports import (
     refusal_error,
 )
 
+from .active_turns import ActiveChatTurn, ActiveChatTurns
 from .compaction import compact_chat_after_success as _compact_chat_after_success
 from .safety import ai_notice_frame, attach_crisis_resources
 from .server_speech import ServerSpeechFeed
@@ -78,17 +82,23 @@ __all__ = ["DirectChatEventBridge", "TurnHold", "hold_chat_turn", "stream_direct
 
 @dataclass
 class TurnHold:
-    """An admitted turn's lease while its request may still fail before the response runs."""
+    """An admitted turn's lease and registry entry while its request may still fail before the response runs."""
 
     lease: ChatTurnLease | None = None
+    turn: ActiveChatTurn | None = None
 
     async def release(self) -> None:
         """Settle the held lease as ``unstarted``; nothing was dispatched."""
 
         lease, self.lease = self.lease, None
-        if lease is not None:
-            with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
-                await lease.settle("unstarted")
+        turn, self.turn = self.turn, None
+        try:
+            if lease is not None:
+                with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
+                    await lease.settle("unstarted")
+        finally:
+            if turn is not None:
+                turn.settled()
 
 
 async def hold_chat_turn() -> AsyncIterator[TurnHold]:
@@ -142,8 +152,38 @@ class _TurnProgress:
         return "failed" if self.failed else "interrupted"
 
 
+class _SentResponse:
+    """Wraps a response's ``send`` to know how far it got, so a stopped stream can still end properly."""
+
+    def __init__(self, send: Send) -> None:
+        self._send = send
+        self.started = False
+        self.complete = False
+
+    async def send(self, message: Message) -> None:
+        if message["type"] == "http.response.start":
+            self.started = True
+        elif message["type"] == "http.response.body" and not message.get("more_body", False):
+            self.complete = True
+        await self._send(message)
+
+    async def end(self, status: int, headers: list[tuple[bytes, bytes]]) -> None:
+        """Finish a response that a stop cut short or kept from starting; a client that left is ignored."""
+
+        if self.complete:
+            return
+        with suppress(OSError, ClientDisconnect):
+            if not self.started:
+                await self.send({"type": "http.response.start", "status": status, "headers": headers})
+            await self.send({"type": "http.response.body", "body": b"", "more_body": False})
+
+
 class _LeasedStreamingResponse(StreamingResponse):
-    """A turn's stream that settles its lease once the response ends, even if the body never ran."""
+    """A turn's stream that settles its lease once the response ends, even if the body never ran.
+
+    A stop from the active-turn registry (a chat or Anima delete) cancels the
+    response as a client disconnect would, then ends whatever it had sent.
+    """
 
     def __init__(
         self,
@@ -151,6 +191,7 @@ class _LeasedStreamingResponse(StreamingResponse):
         *,
         lease: ChatTurnLease,
         progress: _TurnProgress,
+        turn: ActiveChatTurn,
         headers: dict[str, str],
     ) -> None:
         super().__init__(content, media_type="text/event-stream", headers=headers)
@@ -158,18 +199,33 @@ class _LeasedStreamingResponse(StreamingResponse):
         self._body = content
         self._lease = lease
         self._progress = progress
+        self._turn = turn
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        sent = _SentResponse(send)
         try:
-            await super().__call__(scope, receive, send)
+            if self._turn.stop_requested:
+                # Stopped during setup: the body never starts, so no model request is
+                # sent and the lease settles ``unstarted``.
+                await sent.end(self.status_code, self.raw_headers)
+                return
+            with anyio.CancelScope() as stop_scope:
+                self._turn.bind_cancel(stop_scope.cancel)
+                await super().__call__(scope, receive, sent.send)
+            if stop_scope.cancelled_caught:
+                # End the stream the stop cut short, so the server sees a finished response.
+                await sent.end(self.status_code, self.raw_headers)
         finally:
-            # A disconnect can leave the body suspended at a frame; closing it runs its
-            # shielded cleanup, which stops every turn task, so the composition settles
-            # only once nothing still runs. Settling has its own bound.
-            with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
-                await self._body.aclose()
-            with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
-                await self._lease.settle(self._progress.outcome)
+            # A disconnect or a stop can leave the body suspended at a frame; closing it
+            # runs its shielded cleanup, which stops every turn task, so the composition
+            # settles only once nothing still runs. Settling has its own bound.
+            try:
+                with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
+                    await self._body.aclose()
+                with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
+                    await self._lease.settle(self._progress.outcome)
+            finally:
+                self._turn.settled()
 
 
 async def stream_direct_chat_sse(
@@ -180,6 +236,7 @@ async def stream_direct_chat_sse(
     anima_id: str,
     req: PyAnimaChatRequest,
     user: RequestPrincipal,
+    turns: ActiveChatTurns,
 ) -> StreamingResponse:
     """Prepare and stream one `POST /chat:sse` direct avatar companion turn.
 
@@ -189,6 +246,7 @@ async def stream_direct_chat_sse(
     response whose generator owns the long-running model call and all downstream
     SSE side effects. Stream-time work opens its own short-lived sessions. ``hold``
     settles the admitted lease if the request fails before that response runs.
+    The admitted turn is registered in ``turns`` until it settles.
     """
 
     _log.info("HTTP Anima Direct Chat SSE Start", anima_id=anima_id)
@@ -204,6 +262,8 @@ async def stream_direct_chat_sse(
         raise refusal_error(exc) from exc
     # Until the response runs, a failure (here or in the setup commit) settles through the hold.
     hold.lease = lease
+    # A delete that stops this turn during setup waits for it to settle, after the setup commit.
+    active_turn = hold.turn = turns.register(owner_id=user.id, chat_id=chat_id, anima_id=anima_id)
     progress = _TurnProgress()
     sessions = TurnSessions(ports, user)
     policy = ports.chat_policy
@@ -301,6 +361,10 @@ async def stream_direct_chat_sse(
             chat_id=chat_id,
         )
         try:
+            if active_turn.stop_requested:
+                # A stop that came as the response began may not have cancelled it yet:
+                # dispatch nothing, so the turn ends ``unstarted``.
+                return
             # Title generation is independent from the main assistant response.
             # It runs in parallel and is only surfaced after the direct turn has
             # succeeded so title failures do not corrupt the model stream.
@@ -361,6 +425,8 @@ async def stream_direct_chat_sse(
                 run_prepared_direct_turn(turn.executor, turn.prepared_turn, bridge),
                 name=f"direct-chat-model-client-{run_id}",
             )
+            # The task saves the reply, so a delete waits for it even past the cleanup bound.
+            active_turn.track(active_task)
             progress.dispatched = True
             _log.info(
                 "Direct chat model turn task scheduled",
@@ -633,4 +699,4 @@ async def stream_direct_chat_sse(
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
     }
-    return _LeasedStreamingResponse(_event_stream(), lease=lease, progress=progress, headers=headers)
+    return _LeasedStreamingResponse(_event_stream(), lease=lease, progress=progress, turn=active_turn, headers=headers)

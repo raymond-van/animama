@@ -49,7 +49,10 @@ class AnimaRepository(Protocol):
         raise NotImplementedError
 
     async def delete(self, anima_id: str) -> bool:
-        """Delete the anima; returns True if removed."""
+        """Delete the anima with its chats, Anima-scoped memory and last-active setting; returns True if removed.
+
+        Its pending episodes and chat images are the caller's to remove.
+        """
 
         raise NotImplementedError
 

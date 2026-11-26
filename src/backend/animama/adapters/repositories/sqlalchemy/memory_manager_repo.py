@@ -270,6 +270,8 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
         return self._run_to_domain(obj) if obj is not None else None
 
     async def get_run_for_update(self, *, user_id: str, run_id: str) -> MemoryManagerRun | None:
+        # Read the locked row as it is now: another transaction (a chat delete, or
+        # recovery) may have closed the run since this session last loaded it.
         stmt = (
             select(ORMMemoryManagerRun)
             .where(
@@ -277,6 +279,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
                 ORMMemoryManagerRun.id == run_id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         result = await self._s.execute(stmt)
         obj = result.scalar_one_or_none()
