@@ -1710,8 +1710,10 @@ preference into `useEnhancedRenderingStore`
   screen-space outlines. Colours come from VRoid material-name suffixes
   (`_SKIN`, `_CLOTH`, `_HAIR`, `vroidPalette.ts`) tuned on Annie; eyes, brows
   and mouth stay flat. A model is a VRoid export when an MToon material carries
-  VRoid's face skin name (`_Face_` with `_SKIN`). Every other model keeps all
-  its materials as authored, even ones with VRoid-like suffixes, so no Avatar
+  VRoid's face skin name (`_Face_` with `_SKIN`), unless Animama Avatar
+  Converter marked it as a converted MMD model, whose MToon follows MMD's toon
+  ramps even when the names are VRoid's. Every other model keeps all its
+  materials as authored, even ones with VRoid-like suffixes, so no Avatar
   mixes retuned and authored materials; the lights and tone mapping below
   apply to all models. A change reloads the chat Avatar
   (`AvatarCanvasActor`); other canvases pick it up on their next load.
@@ -1944,7 +1946,8 @@ built, unless the Avatar's Materials setting is Simple:
   under the enhanced chat lights stay within a few percent of the unlit
   texture; classic lighting leaves them about a tenth darker. MMD models
   converted by Animama Avatar Converter, whose MToon is lit for MMD's light,
-  take the same gain on their lit and shade colours
+  take the same gain on their lit and shade colours, under every Materials
+  setting
   ([Converting an MMD model](mmd-model-conversion.md#what-animama-does-with-it)).
 - **Limits:** the look is Animama's, not the author's: a converter that keeps
   the model's own toon materials does better. Any shape key on a face mesh

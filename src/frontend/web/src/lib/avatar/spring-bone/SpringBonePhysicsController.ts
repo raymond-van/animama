@@ -12,6 +12,7 @@ import {
   mergeAvatarIssues,
   type AvatarIssue,
 } from "../diagnostics/issues";
+import { ANIMAMA_CONVERSION_EXTENSION } from "../avatarConversionMarker";
 import type { AvatarAnimationState, EmotionLabel } from "../types";
 import {
   buildSpringBoneSemanticAssignments,
@@ -168,7 +169,7 @@ const HAIR_LIFTED_SHARE = 0.5;
  */
 const CONVERSION_EXTENSIONS = [
   "MOCHIYA_avatar_composition",
-  "ANIMAMA_avatar_conversion",
+  ANIMAMA_CONVERSION_EXTENSION,
 ];
 
 /**

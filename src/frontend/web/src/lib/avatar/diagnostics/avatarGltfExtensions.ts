@@ -1,3 +1,5 @@
+import { ANIMAMA_CONVERSION_EXTENSION } from "../avatarConversionMarker";
+
 /**
  * glTF extensions the Avatar loaders can load (`configureAvatarGltfLoader`):
  * three's GLTFLoader built-ins whose decoders Animama serves (meshopt, not
@@ -44,8 +46,9 @@ export const LOADABLE_GLTF_EXTENSIONS: ReadonlySet<string> = new Set([
   "MOCHIYA_avatar_composition",
   "MOCHIYA_materials_liltoon",
   // Animama Avatar Converter's marker on MMD (PMX) conversions, which the
-  // spring settings read like Mochiya's.
-  "ANIMAMA_avatar_conversion",
+  // spring settings read like Mochiya's and the loader's colour steps read
+  // too (`avatarConversionMarker.ts`).
+  ANIMAMA_CONVERSION_EXTENSION,
 ]);
 
 /**

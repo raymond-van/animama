@@ -15,15 +15,10 @@
 import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 
 import { createLogger } from "@/lib/logger";
+import { isAnimamaConversion } from "./avatarConversionMarker";
 import { LIT_GAIN } from "./unlitToonShading";
 
 const logger = createLogger("AvatarLoader");
-
-/**
- * The marker Animama Avatar Converter writes into every MMD conversion; the
- * spring settings read it too (`SpringBonePhysicsController.ts`).
- */
-export const ANIMAMA_CONVERSION_EXTENSION = "ANIMAMA_avatar_conversion";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -33,34 +28,36 @@ function asRecord(value: unknown): JsonRecord | null {
     : null;
 }
 
-/** Whether a glTF carries Animama Avatar Converter's marker. */
-export function isAnimamaConversion(json: unknown): boolean {
-  const used = asRecord(json)?.extensionsUsed;
-  return Array.isArray(used) && used.includes(ANIMAMA_CONVERSION_EXTENSION);
-}
-
-/** `factor`'s first three channels (default `fallback`) times `gain`. */
+/**
+ * A colour factor raised by `gain`: its first three channels multiplied,
+ * anything after them (alpha) kept. A factor that is not an array counts as
+ * `fallback`, as three's loaders read it. Null when the array's first three
+ * channels are not all numbers; such a material is left as authored.
+ */
 function raised(
   factor: unknown,
-  fallback: number,
+  fallback: readonly number[],
   gain: number,
-): number[] | null {
-  const values = Array.isArray(factor) ? factor : [];
-  const channels = [0, 1, 2].map((channel) =>
-    typeof values[channel] === "number"
-      ? (values[channel] as number)
-      : fallback,
-  );
-  if (channels.some((value) => !Number.isFinite(value))) return null;
-  return [...channels.map((value) => value * gain), ...values.slice(3)];
+): unknown[] | null {
+  const values: unknown[] = Array.isArray(factor) ? factor : [...fallback];
+  const channels = values.slice(0, 3);
+  if (
+    channels.length < 3 ||
+    channels.some((value) => typeof value !== "number")
+  )
+    return null;
+  return [
+    ...(channels as number[]).map((value) => value * gain),
+    ...values.slice(3),
+  ];
 }
 
 /**
  * Raise the lit colour (`baseColorFactor`, glTF's default white when absent)
  * and the shade colour (`shadeColorFactor`, MToon's default black when absent)
- * of every MToon material in a converted file by `LIT_GAIN`. Alpha and every
- * other parameter stay. Returns how many materials it raised; a file without
- * the marker is left alone.
+ * of every MToon material in a converted file (`isAnimamaConversion`) by
+ * `LIT_GAIN`. Alpha and every other parameter stay. Returns how many materials
+ * it raised; a file without the marker is left alone.
  */
 export function raiseConvertedAvatarBrightness(json: unknown): number {
   if (!isAnimamaConversion(json)) return 0;
@@ -74,8 +71,8 @@ export function raiseConvertedAvatarBrightness(json: unknown): number {
     );
     if (!material || !mtoon) continue;
     const pbr = asRecord(material.pbrMetallicRoughness) ?? {};
-    const lit = raised(pbr.baseColorFactor ?? [1, 1, 1, 1], 1, LIT_GAIN);
-    const shade = raised(mtoon.shadeColorFactor ?? [0, 0, 0], 0, LIT_GAIN);
+    const lit = raised(pbr.baseColorFactor, [1, 1, 1, 1], LIT_GAIN);
+    const shade = raised(mtoon.shadeColorFactor, [0, 0, 0], LIT_GAIN);
     if (!lit || !shade) continue;
     material.pbrMetallicRoughness = { ...pbr, baseColorFactor: lit };
     mtoon.shadeColorFactor = shade;
@@ -87,9 +84,9 @@ export function raiseConvertedAvatarBrightness(json: unknown): number {
 /**
  * Raise a converted MMD model's MToon colours in `plugin`'s glTF
  * (`raiseConvertedAvatarBrightness`) before three-vrm builds any material,
- * after every step `plugin` already carries there (the VRM 0.x compat step,
- * the enhanced retune and the unlit toon shading, none of which touch these
- * files).
+ * after every step `plugin` already carries there: the VRM 0.x compat step
+ * and the enhanced retune, which skips converted files. The app's loader runs
+ * the unlit toon shading after it, so a file is never raised by both.
  */
 export function withConvertedAvatarBrightness(
   plugin: VRMLoaderPlugin,

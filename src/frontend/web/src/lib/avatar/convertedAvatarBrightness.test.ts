@@ -5,8 +5,8 @@ import { createAvatarGltfLoader } from "./avatarGltfLoader";
 import {
   ANIMAMA_CONVERSION_EXTENSION,
   isAnimamaConversion,
-  raiseConvertedAvatarBrightness,
-} from "./convertedAvatarBrightness";
+} from "./avatarConversionMarker";
+import { raiseConvertedAvatarBrightness } from "./convertedAvatarBrightness";
 import { PlaceholderTexturePlugin } from "./motion-authoring/headlessVrm";
 import { readTestAvatarBytes } from "./motion-authoring/testing/includedAvatars";
 import { encodeGlb } from "./testing/glb";
@@ -32,7 +32,7 @@ function convertedJson(materials: Json[], marked = true): Json {
   };
 }
 
-function mtoonMaterial(base: number[] | undefined, mtoon: Json = {}): Json {
+function mtoonMaterial(base: unknown[] | undefined, mtoon: Json = {}): Json {
   return {
     pbrMetallicRoughness: base ? { baseColorFactor: base } : {},
     extensions: {
@@ -93,16 +93,31 @@ describe("raiseConvertedAvatarBrightness", () => {
     expect(json).toEqual(before);
   });
 
-  it("skips a material whose colour is not a number", () => {
+  it("reads a non-array factor as glTF's default and leaves a malformed array as authored", () => {
     const json = convertedJson([
-      mtoonMaterial([Number.NaN, 1, 1, 1], {
-        shadeColorFactor: [0.4, 0.2, 0.1],
-      }),
+      // Not an array: three's loaders read glTF's default white.
+      {
+        ...mtoonMaterial(undefined),
+        pbrMetallicRoughness: { baseColorFactor: "red" },
+      },
+      // A string channel and a short array: left alone.
+      mtoonMaterial(["0.5", 1, 1, 1], { shadeColorFactor: [0.4, 0.2, 0.1] }),
+      mtoonMaterial([0.5, 1, 1, 1], { shadeColorFactor: [0.4] }),
     ]);
-    expect(raiseConvertedAvatarBrightness(json)).toBe(0);
-    expect(
-      ((json.materials as Json[])[0]!.extensions as Json).VRMC_materials_mtoon,
-    ).toMatchObject({ shadeColorFactor: [0.4, 0.2, 0.1] });
+    expect(raiseConvertedAvatarBrightness(json)).toBe(1);
+    const [defaulted, stringChannel, shortShade] = json.materials as Json[];
+    closeTo((defaulted!.pbrMetallicRoughness as Json).baseColorFactor, [
+      LIT_GAIN,
+      LIT_GAIN,
+      LIT_GAIN,
+      1,
+    ]);
+    expect(stringChannel).toEqual(
+      mtoonMaterial(["0.5", 1, 1, 1], { shadeColorFactor: [0.4, 0.2, 0.1] }),
+    );
+    expect(shortShade).toEqual(
+      mtoonMaterial([0.5, 1, 1, 1], { shadeColorFactor: [0.4] }),
+    );
   });
 });
 
@@ -137,8 +152,9 @@ type MToonLike = THREE.Material & {
 /** Each MToon material by name, as the app's Avatar loader builds it. */
 async function loadedMToon(
   bytes: ArrayBuffer,
+  options: Parameters<typeof createAvatarGltfLoader>[0],
 ): Promise<Map<string, MToonLike>> {
-  const loader = createAvatarGltfLoader();
+  const loader = createAvatarGltfLoader(options);
   loader.register((parser) => new PlaceholderTexturePlugin(parser));
   const gltf = await loader.parseAsync(bytes, "");
   const materials = new Map<string, MToonLike>();
@@ -155,25 +171,61 @@ async function loadedMToon(
   return materials;
 }
 
+/** Annie's own MToon lit and shade factors by material name. */
+async function annieFactors(): Promise<
+  Map<string, { lit: number[]; shade: number[] }>
+> {
+  const bytes = new Uint8Array(await readTestAvatarBytes("Annie"));
+  const jsonLength = new DataView(bytes.buffer, bytes.byteOffset).getUint32(
+    12,
+    true,
+  );
+  const json = JSON.parse(
+    new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)),
+  ) as { materials: Json[] };
+  const factors = new Map<string, { lit: number[]; shade: number[] }>();
+  for (const material of json.materials) {
+    const mtoon = (material.extensions as Json | undefined)
+      ?.VRMC_materials_mtoon as Json | undefined;
+    if (!mtoon) continue;
+    factors.set(material.name as string, {
+      lit: ((material.pbrMetallicRoughness as Json | undefined)
+        ?.baseColorFactor as number[] | undefined) ?? [1, 1, 1, 1],
+      shade: (mtoon.shadeColorFactor as number[] | undefined) ?? [0, 0, 0],
+    });
+  }
+  return factors;
+}
+
 describe("withConvertedAvatarBrightness", () => {
-  it("draws a converted Avatar's MToon lit and shade colours raised by the gain", async () => {
-    const authored = await loadedMToon(await readTestAvatarBytes("Annie"));
-    const converted = await loadedMToon(await markedAnnie());
-    expect(converted.size).toBe(authored.size);
-    expect(authored.size).toBeGreaterThan(0);
-    for (const [name, material] of authored) {
-      const raised = converted.get(name)!;
-      for (const channel of ["r", "g", "b"] as const) {
-        expect(raised.color[channel]).toBeCloseTo(
-          material.color[channel] * LIT_GAIN,
-          5,
-        );
-        expect(raised.shadeColorFactor[channel]).toBeCloseTo(
-          material.shadeColorFactor[channel] * LIT_GAIN,
-          5,
-        );
+  // Annie is a VRoid export, so this also checks that the enhanced retune
+  // (on by default) leaves a converted file's shade as the file has it.
+  for (const options of [{}, { lilToon: false, unlitToon: false }]) {
+    it(`draws a converted Avatar's own MToon lit and shade colours raised by the gain (${JSON.stringify(options)})`, async () => {
+      const own = await annieFactors();
+      const converted = await loadedMToon(await markedAnnie(), options);
+      expect(own.size).toBeGreaterThan(0);
+      expect(converted.size).toBe(own.size);
+      for (const [name, { lit, shade }] of own) {
+        const raised = converted.get(name)!;
+        expect(raised, name).toBeDefined();
+        (["r", "g", "b"] as const).forEach((channel, index) => {
+          expect(raised.color[channel]).toBeCloseTo(lit[index]! * LIT_GAIN, 5);
+          expect(raised.shadeColorFactor[channel]).toBeCloseTo(
+            shade[index]! * LIT_GAIN,
+            5,
+          );
+        });
       }
-      expect(raised.opacity).toBe(material.opacity);
-    }
+    }, 30_000);
+  }
+
+  it("leaves an Avatar without the marker at the file's colours", async () => {
+    const own = await annieFactors();
+    const authored = await loadedMToon(await readTestAvatarBytes("Annie"), {});
+    for (const [name, { lit }] of own)
+      (["r", "g", "b"] as const).forEach((channel, index) =>
+        expect(authored.get(name)!.color[channel]).toBeCloseTo(lit[index]!, 5),
+      );
   }, 30_000);
 });

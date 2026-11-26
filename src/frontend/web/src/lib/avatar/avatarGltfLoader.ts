@@ -35,13 +35,14 @@ export function createAvatarGltfLoader({
     // lilToon is imported only for files that declare authored lilToon materials.
     // The unlit step wraps the enhanced retune so it runs after it: the
     // retune then sees only the file's own MToon, never the toon look added
-    // to unlit materials. A converted MMD model's colours are raised last
-    // (`convertedAvatarBrightness.ts`); no earlier step touches such a file.
-    return withConvertedAvatarBrightness(
-      withUnlitToonShading(
+    // to unlit materials. A converted MMD model's MToon colours are raised
+    // between the two (`convertedAvatarBrightness.ts`): the retune skips such
+    // a file, and the unlit step's own gain then never adds to this one.
+    return withUnlitToonShading(
+      withConvertedAvatarBrightness(
         withEnhancedMToonPatch(lilToon ? withOnDemandLilToon(plugin) : plugin),
-        unlitToon,
       ),
+      unlitToon,
     );
   });
   loader.register((parser) => new VRMAnimationLoaderPlugin(parser));

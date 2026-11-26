@@ -111,7 +111,8 @@ morphs do follow append bones), and the older PMD format is refused.
   draw an MToon lit colour about a fifth darker than MMD's light, so without
   it a converted face rendered about a tenth darker than in MMD; with it, the
   same face is within a few percent of MMD under enhanced rendering. Outlines,
-  rim light and matcaps keep the file's values.
+  rim light and matcaps keep the file's values, and the enhanced VRoid retune
+  skips marked files, even ones that kept VRoid's material names.
 - **Hair:** face-part detection also finds hair by the Japanese, Chinese and
   Korean names models use (髪, 发, 刘海, 앞머리 …), when springs do not reveal it
   ([Effects](avatar-vfx.md)).
