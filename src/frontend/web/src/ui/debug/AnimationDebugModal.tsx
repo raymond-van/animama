@@ -6095,7 +6095,7 @@ function SpringBoneSnapshotPanel({
             value: snapshot?.overridingSettings ? "true" : "false",
           },
           {
-            // Off for Mochiya conversions: wind, updraft and gust do nothing.
+            // Off for Mochiya and MMD conversions: wind, updraft and gust do nothing.
             label: "Ambient forces",
             value: snapshot
               ? snapshot.ambientForces

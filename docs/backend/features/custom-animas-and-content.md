@@ -369,7 +369,8 @@ import fail with `package_definition_invalid`. Beside the standard glTF and VRM
 extensions the web loaders read (including `VRMC_springBone_extended_collider`,
 which `vrm:optimize` keeps), the list holds what converted and optimized
 Avatars carry: Mochiya Avatar Tools' `MOCHIYA_avatar_composition` and
-`MOCHIYA_materials_liltoon`, and the `EXT_meshopt_compression` and
+`MOCHIYA_materials_liltoon`, Animama Avatar Converter's
+`ANIMAMA_avatar_conversion` (MMD conversions), and the `EXT_meshopt_compression` and
 `KHR_draco_mesh_compression` mesh compressions. Meshopt Avatars load. The
 browser runtime does not serve the Draco decoder yet
 (`UNDECODED_GLTF_EXTENSIONS`), so a Draco Avatar imports instead of the package

@@ -1901,6 +1901,7 @@ export default interface Resources {
       "label": "Avatar selection",
       "loadFailed": "Avatars could not be loaded. Your selection is preserved.",
       "loading": "Loading Avatars…",
+      "mmdHint": "Have a MikuMikuDance (.pmx) model? Convert it to VRM with <link>Animama Avatar Converter</link>, then upload the VRM.",
       "nameUsed": "That name is already used. Enter a new name, or explicitly replace the matching Avatar below. An Avatar used by a live Anima cannot be replaced here.",
       "needsAttention": "This Avatar needs attention. Choose another source or retry.",
       "noMatches": "No matching Avatars. Your selected Avatar has not changed.",

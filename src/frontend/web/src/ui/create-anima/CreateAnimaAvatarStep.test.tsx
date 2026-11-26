@@ -153,6 +153,12 @@ describe("Avatar handoff and admission", () => {
     expect(html).not.toContain("Choose a VRM file</button>");
     expect(html).not.toContain("VRM 0.0 or 1.0");
     expect(html).not.toContain("Selected: selected-avatar");
+    // MMD models upload only as VRM: the step points to the converter, and the picker stays VRM-only.
+    expect(html).toContain("Have a MikuMikuDance (.pmx) model?");
+    expect(html).toContain(
+      'href="https://github.com/raymond-van/animama-avatar-converter#mmd-models"',
+    );
+    expect(html).toContain('accept=".vrm"');
   });
 
   it("lists every source together, with portraits where available", () => {

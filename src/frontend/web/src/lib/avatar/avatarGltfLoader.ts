@@ -4,6 +4,7 @@ import type * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { configureAvatarGltfLoader } from "./configureAvatarGltfLoader";
+import { withConvertedAvatarBrightness } from "./convertedAvatarBrightness";
 import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
 import { withOnDemandLilToon } from "./liltoon/lilToon";
 import { UnmetallicMaterialsPlugin } from "./unmetallicMaterials";
@@ -34,9 +35,13 @@ export function createAvatarGltfLoader({
     // lilToon is imported only for files that declare authored lilToon materials.
     // The unlit step wraps the enhanced retune so it runs after it: the
     // retune then sees only the file's own MToon, never the toon look added
-    // to unlit materials.
+    // to unlit materials. A converted MMD model's MToon colours are raised
+    // between the two (`convertedAvatarBrightness.ts`): the retune skips such
+    // a file, and the unlit step's own gain then never adds to this one.
     return withUnlitToonShading(
-      withEnhancedMToonPatch(lilToon ? withOnDemandLilToon(plugin) : plugin),
+      withConvertedAvatarBrightness(
+        withEnhancedMToonPatch(lilToon ? withOnDemandLilToon(plugin) : plugin),
+      ),
       unlitToon,
     );
   });

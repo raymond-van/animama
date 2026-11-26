@@ -85,9 +85,10 @@ const LOOKS: Record<UnlitToonLook, ToonParameters> = {
 /**
  * The lit side's brightness relative to the texture. An unlit material shows
  * its texture at full strength; MToon multiplies it by the scene's lights,
- * which leave the lit side darker than that under the chat lights.
+ * which leave the lit side darker than that under the chat lights. Converted
+ * MMD models take the same gain (`convertedAvatarBrightness.ts`).
  */
-const LIT_GAIN = 1.25;
+export const LIT_GAIN = 1.25;
 
 /** A morph target moves a vertex when it displaces it further than this (m). */
 const MOVED_EPSILON = 1e-4;

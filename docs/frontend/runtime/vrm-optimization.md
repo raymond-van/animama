@@ -41,7 +41,8 @@ and `EXT_texture_webp` declarations that WebP images need, and the metadata.
 Every other part of the JSON, including every VRM extension, index and name,
 is untouched. It accepts only the extensions it knows to be safe to carry,
 including Mochiya's `MOCHIYA_avatar_composition` and
-`MOCHIYA_materials_liltoon` while they point at nothing in the binary. It
+`MOCHIYA_materials_liltoon` and Animama Avatar Converter's
+`ANIMAMA_avatar_conversion`, while they point at nothing in the binary. It
 refuses:
 - VRM 0 files;
 - files with external buffers or images;

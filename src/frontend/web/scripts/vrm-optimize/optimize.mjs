@@ -35,17 +35,20 @@ const SUPPORTED_EXTENSIONS = new Set([
   "KHR_texture_transform",
   "KHR_materials_emissive_strength",
   "EXT_texture_webp",
-  // Mochiya Avatar Tools' conversion record and authored lilToon materials.
-  // They are JSON that points at textures by index, never into the binary,
-  // which `assertSupported` checks, so new buffer storage cannot break them.
+  // Mochiya Avatar Tools' conversion record and authored lilToon materials,
+  // and Animama Avatar Converter's conversion record. They are JSON that
+  // points at textures by index, never into the binary, which
+  // `assertSupported` checks, so new buffer storage cannot break them.
   "MOCHIYA_avatar_composition",
   "MOCHIYA_materials_liltoon",
+  "ANIMAMA_avatar_conversion",
 ]);
 
 /** Extensions carried only while nothing in them names a buffer view or accessor. */
 const JSON_ONLY_EXTENSIONS = [
   "MOCHIYA_avatar_composition",
   "MOCHIYA_materials_liltoon",
+  "ANIMAMA_avatar_conversion",
 ];
 
 /**

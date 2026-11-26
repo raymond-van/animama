@@ -158,7 +158,9 @@ export const zAvatarEffectDrift = z.object({
  * Face cleanup options for eye and mouth effects.
  *
  * Where an option applies, ``forceBlink``, ``hideEyeDetails`` and ``faceCleanup`` default on and
- * ``skinBackdrop`` defaults off.
+ * ``skinBackdrop`` defaults off, except that eye art which closes the eyes and hides their details on
+ * an MMD model converted by Animama Avatar Converter covers each closed eye with a skin patch unless
+ * it is ``false``.
  */
 export const zAvatarEffectFaceOptions = z.object({
     faceCleanup: z.optional(z.union([
