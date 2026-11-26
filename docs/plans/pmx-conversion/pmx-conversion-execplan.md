@@ -118,6 +118,7 @@ About 190 KB of C#; its notice must be kept with ported code.
 - [x] Phase 4: physics and look-at (converter `49e9729`; review passed after one repair round and a trivial repair).
 - [x] Phase 5: Animama recognises converted MMD models (Animama `879bf6e91`; high-risk review, fixes verified by the final integration review).
 - [x] Phase 5 follow-up, converted Avatars' brightness (owner request, 2026-11-26): Animama `484572619` and `de7ab9213`, after merging `origin/main` (`0a9026d87`); review passed after one repair round.
+- [x] Phase 5 follow-up, eye effects on converted Avatars (owner request, 2026-11-26): Animama `438f9e665`, `a2b57dc94` and `88a5736c8`; review passed after two repair rounds.
 - [ ] Phase 6: release preparation and verification. Steps 1–4 and the macOS run are done (converter `de6efd7`, `b51a0f4`, `4c7442f`; G1 met by a five-model corpus); G2 (Windows), G4 and G3 wait for the owner.
 - [x] Final integration review (one repair round; the full checks ran on the final candidates).
 
@@ -162,9 +163,10 @@ From the five-model evaluation of 2026-11-26 (private renders; counts only):
     models;
   - two models lay opaque, skin-coloured meshes over the cheeks and around the
     eyes, which hide face paint beneath them;
-  - eye effects close the eyes but cannot hide MMD lashes and lid lines, which
-    sit in shared or differently named meshes, so the closed lash line shows
-    under heart eyes on all five.
+  - eye effects closed the eyes but could not hide MMD lashes and lid lines,
+    which sit in shared or differently named meshes, so the closed lash line
+    showed under heart eyes on all five. Fixed by the eye-effects follow-up in
+    Phase 5.
 
 ## Decision Log
 
@@ -196,6 +198,11 @@ From the five-model evaluation of 2026-11-26 (private renders; counts only):
   the hint reaches users) is for the owner at G3.
 - **2026-11-26, owner:** after comparing #926's Automatic toon shading with the converted test model, "Yes, add the
   lift": Animama raises converted files' MToon colours by #926's gain.
+- **2026-11-26, owner:** "do the eye effect fixes"; a skin-tone patch was left open in case hiding the lashes was not
+  clean.
+- **2026-11-26, agent (eye effects):** hiding alone left two models unclean (an exposed iris, painted closed lines),
+  so the patch is in, by default only on marked models and only for eye art that closes the eyes and hides their
+  details; the lash search is gated on the marker too, so other Avatars are unchanged.
 - **2026-11-26, agent (brightness):**
   - the gain applies under every Materials setting, because the setting is not offered for these files;
   - the enhanced VRoid retune skips marked files;
@@ -1016,6 +1023,108 @@ nothing new blocking. Its one new nit, an import out of alphabetical order in `S
 left: no lint or format rule checks import order.
 
 Result: one repair round; the follow-up is complete.
+
+#### Follow-up: eye effects on converted models (2026-11-26)
+
+The owner asked whether eye effects such as heart eyes can close a converted model's eyes and hide its lashes and
+lid lines, as they do on VRoid Avatars, and whether a skin-tone patch should back that up. Under heart eyes the closed
+lash line stayed on all five private models: thin on three, thick on two, and on one it also clipped the art.
+
+Causes:
+- **Lashes not searched.** Face-part detection looked for lashes in the face mesh (primitives `blink` and `aa` both
+  morph), the face skin and the eye meshes. The converter keeps each material in a mesh of its own, so `aa` never
+  morphs a lash mesh. Such a mesh is often shared with the brows (M1) or the irises (M4, M5).
+- **Found regions not hidden.** The VFX controller hid regions only in primitives holding a part of their own.
+- **Closed eyes made of lashes.** Two models close their eyes with the lash pieces themselves, or carry painted
+  closed lines on the face's lids. Hiding the lashes then shows the iris (M5) or leaves the painted lines (M3).
+
+Review tier: standard; detection is shared by every Avatar, so the change is gated on the marker.
+
+Changes (Animama `438f9e665`, repaired in `a2b57dc94` and `88a5736c8`):
+- On files carrying the marker, detection also searches head meshes that `blink` morphs and `aa` does not (not
+  eye-bone, hair or body meshes) for lash and line islands. It never takes them whole, so brows and eyes sharing them
+  stay.
+- The controller hides regions in any primitive.
+- On those files, each eye landmark carries a `closedCover`: the box its iris, lines and lashes span open and closed,
+  their front including the face's lids, and the front without the lashes. Eye art that closes the eyes:
+  - sits in front of the cover;
+  - when it also hides eye details, gets a skin patch over each eye (`skinBackdrop` defaults on there; `false` turns it
+    off). The patch is a soft ellipse in the sampled skin colour, the cover's size within 0.75 × 0.7 of the eye
+    spacing, half a millimetre in front of the iris and lids, so hair in front of the face still covers its edge. It
+    is fixed in head space and fades with the art.
+
+Checks:
+- Full pre-push suite on `88a5736c8` (tree `7231b0c7`):
+  - `check_source.py` and `pnpm openapi-ts:check`: pass.
+  - `make check-test`: exit 0; 6073 passed, 30 skipped.
+  - `pnpm verify`: exit 0; 6566 passed, 2 skipped.
+  - `pnpm prettier:check`: exit 0.
+  - `pnpm web:test:browser`: 139 of 141.
+    - "records the take after a failed one as it records alone" passed when its file was rerun alone.
+    - "plays a combination and copies it as a cue sheet take" (playback within 15% of real time on the Included
+      Avatars) failed alone too, at 1.17×. It also failed 3 of 3 runs on `origin/main` `4ba6db1c5` in a temporary
+      worktree on the same machine with no other heavy job: a failure already on `main`.
+- Mutation checks: each change's tests fail without it (the blink-only search, region hiding outside parts, the
+  covers, the patch default, the art's depth, the gate and the hide-details condition).
+- Heart eyes on the Included Avatars: pixel-identical to the render before any change (0 differing pixels).
+- Five private models, heart eyes and one-eye art, front, three-quarter and face views:
+  - all five close cleanly with no lash or lid line;
+  - one model's art is no longer clipped;
+  - one-eye art closes and patches both eyes.
+  - Left visible: on two models the patch edge reads lighter than skin shaded under the bangs or overlaps a strand of
+    hair beside the eye. The patch takes the face's average colour.
+
+#### Code Review #1 Findings (eye effects)
+
+An independent read-only agent reviewed `438f9e665`. No blocker. It confirmed:
+- the tests are not vacuous;
+- the controller's primitive map is rebuilt and cleared with the bindings;
+- the patch's draw order is correct;
+- non-marked Avatars take the old path.
+
+- E-F1 (should-fix): the blink-only filter also admitted eye-bone meshes morphed by `aa`, on every Avatar; a highlight
+  taken as a line region could turn off the per-eyelid cleanup.
+- E-F2 (should-fix): the search was not gated; on other Avatars with separate lash meshes it could replace name
+  matching or hide a closed-lid piece.
+- E-F3 (should-fix): patches followed the art's planes, so one-eye art patched one eye and centred art one ellipse
+  between the eyes, while both eyes close.
+- E-F4: the default patch ignored `hideEyeDetails`.
+- E-F5: a face whose colour cannot be sampled warned on every closing eye effect.
+- E-F6: the creator switch and two docs still read `skinBackdrop` as off.
+- E-F7: one-sided cover assertions; no single-side, centred or transform-edit tests.
+
+#### Code Review #1 Revisions (eye effects)
+
+In `a2b57dc94`:
+- E-F1, E-F2 fixed: the search runs only on marked files, without `aa`-morphed or eye-bone meshes; a test checks that
+  an unmarked Avatar is not searched.
+- E-F3 fixed: one patch per eye with a cover, in the effect's group in head space; tests for one-eye and centred art
+  and a transform edit.
+- E-F4, E-F5 fixed.
+- E-F6: docs and the face-options docstring now say when the patch is on. The creator switch keeps writing `true` or
+  `false`, so off is a real off that also removes the patch; an unset value keeps the default.
+- E-F7 fixed: upper bounds on the cover and the new tests.
+
+#### Code Review #2 Findings (eye effects)
+
+The same agent confirmed E-F1 to E-F7 fixed in `a2b57dc94` (24 tests pass), and found:
+- E-F8 (should-fix, would fail CI): the face-options docstring is copied into the generated client, which was not
+  regenerated, so the SDK freshness check fails.
+- E-F9: without the face-mesh exclusion, a marked model whose `aa` morphs no mesh would list a line or lash primitive
+  found whole a second time as regions.
+- E-F10: explicit `skinBackdrop: true` on eye art that leaves the eyes open drew eye-sized patches over open eyes.
+
+#### Code Review #2 Revisions (eye effects)
+
+In `88a5736c8`: the client is regenerated (`openapi-ts:check` passes) and the docstring names the hide-details
+condition; the exclusion is restored; patches need a forced blink, and a test keeps the art-sized backdrop for open
+eyes.
+
+The same agent confirmed E-F8 to E-F10 fixed in `88a5736c8` (`openapi-ts:check` current; 24 tests pass) and nothing
+new. It also checked explicit `skinBackdrop: true` with `hideEyeDetails: false`: the patches sit behind the lashes,
+which stay visible, as such an effect asks.
+
+Result: two repair rounds; the follow-up is complete.
 
 ### Phase 6: release preparation and verification
 
