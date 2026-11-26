@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, text as sa_text
+from sqlalchemy import TIMESTAMP, CheckConstraint, ForeignKey, Integer, String, text as sa_text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,6 +53,8 @@ class ORMChat(SqlalchemyBase, TimestampMixin, AuditMixin):
     cum_output_reasoning_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("0"))
     active_context_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("0"))
     next_turn: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("1"))
+    # When the owner pinned the chat in the sidebar; NULL when unpinned.
+    pinned_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)
 
     anima: Mapped[ORMAnima] = relationship("ORMAnima", back_populates="chats")
     messages: Mapped[list[ORMChatMessage]] = relationship(

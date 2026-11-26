@@ -200,7 +200,9 @@ async def patch_anima(
             )
         display_name = anima_patch.display_name if anima_patch else None
         changed = changed or (display_name is not None and display_name != dom.display_name)
-        await repo.update(anima_update_request_to_domain(req, dom))
+        if anima_patch is not None:
+            # A pin-only request writes nothing else, so the row's updated_at stays put.
+            await repo.update(anima_update_request_to_domain(req, dom))
         if changed:
             assert req.expected_aggregate_revision is not None
             await repo.record_definition_revision(
@@ -210,6 +212,9 @@ async def patch_anima(
                 reason="anima_definition_update",
                 display_name=display_name,
             )
+        if req.pinned is not None:
+            # A pin is runtime state: it needs no expected revision and never advances it.
+            await repo.set_pinned(user_id=user.id, anima_id=anima_id, pinned=req.pinned)
         await uow.commit()
     except AnimaDefinitionError as exc:
         await uow.rollback()

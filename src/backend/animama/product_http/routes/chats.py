@@ -49,6 +49,7 @@ def _to_schema(chat: Chat, *, last_message_at: datetime | None = None) -> PyChat
         metadata=chat.metadata or {},
         created_at=chat.created_at,
         updated_at=chat.updated_at,
+        pinned_at=chat.pinned_at,
         last_message_at=last_message_at,
         usage=_usage_to_schema(chat.usage),
         active_context_tokens=int(getattr(chat, "active_context_tokens", 0) or 0),
@@ -261,6 +262,7 @@ async def update_chat(
         user_id=user.id,
         title=req.title,
         metadata=req.metadata,
+        pinned=req.pinned,
     )
     if chat is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")

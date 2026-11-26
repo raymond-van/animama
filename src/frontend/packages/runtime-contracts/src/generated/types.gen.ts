@@ -2843,6 +2843,12 @@ export type PyAnimaListItem = {
      */
     organization_id?: string | null;
     /**
+     * Pinned At
+     *
+     * When the Anima was pinned; null when unpinned.
+     */
+    pinned_at?: string | null;
+    /**
      * Pocket Voice Catalog Url
      */
     pocket_voice_catalog_url?: string | null;
@@ -2972,6 +2978,12 @@ export type PyAnimaResponse = {
      * Organization Id
      */
     organization_id?: string | null;
+    /**
+     * Pinned At
+     *
+     * When the Anima was pinned; null when unpinned.
+     */
+    pinned_at?: string | null;
     /**
      * Pocket Voice Catalog Url
      */
@@ -3235,6 +3247,12 @@ export type PyAnimaUpdateRequest = {
      * Required for explicit name, Avatar, or profile edits.
      */
     expected_aggregate_revision?: number | null;
+    /**
+     * Pinned
+     *
+     * Pin (true) or unpin (false) the Anima in the sidebar; omitted keeps the current state. A pin is runtime state: it needs no expected_aggregate_revision and does not advance it.
+     */
+    pinned?: boolean | null;
 };
 
 /**
@@ -4485,6 +4503,12 @@ export type PyChatResponse = {
         [key: string]: unknown;
     } | null;
     /**
+     * Pinned At
+     *
+     * When the chat was pinned; null when unpinned.
+     */
+    pinned_at?: string | null;
+    /**
      * Title
      */
     title?: string | null;
@@ -4595,6 +4619,12 @@ export type PyChatUpdate = {
     metadata?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Pinned
+     *
+     * Pin (true) or unpin (false) the chat in the sidebar; omitted keeps the current state.
+     */
+    pinned?: boolean | null;
     /**
      * Title
      */

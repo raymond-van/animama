@@ -67,25 +67,41 @@ class ChatService:
         user_id: str,
         title: str | None = None,
         metadata: dict[str, Any] | None = None,
+        pinned: bool | None = None,
     ) -> Chat | None:
+        """Change the owner's chat; ``None`` leaves a field as it is.
+
+        ``pinned`` pins or unpins the chat without counting as an edit (see
+        ``ChatRepository.set_pinned``). Returns ``None`` when the chat is missing
+        or another owner's.
+        """
+
         current = await self._chats.get(chat_id)
         if current is None or current.user_id != user_id:
             return None
-        updated = Chat(
-            id=current.id,
-            anima_id=current.anima_id,
-            user_id=current.user_id,
-            title=title if title is not None else current.title,
-            api_standard=current.api_standard,
-            last_model_client=current.last_model_client,
-            last_model_id=current.last_model_id,
-            last_model_provider_id=current.last_model_provider_id,
-            openai_previous_response_id=current.openai_previous_response_id,
-            metadata=metadata if metadata is not None else current.metadata,
-            created_at=current.created_at,
-            updated_at=current.updated_at,
-        )
-        saved = await self._chats.update(updated)
+        saved: Chat | None = current
+        if title is not None or metadata is not None:
+            saved = await self._chats.update(
+                Chat(
+                    id=current.id,
+                    anima_id=current.anima_id,
+                    user_id=current.user_id,
+                    title=title if title is not None else current.title,
+                    api_standard=current.api_standard,
+                    last_model_client=current.last_model_client,
+                    last_model_id=current.last_model_id,
+                    last_model_provider_id=current.last_model_provider_id,
+                    openai_previous_response_id=current.openai_previous_response_id,
+                    metadata=metadata if metadata is not None else current.metadata,
+                    created_at=current.created_at,
+                    updated_at=current.updated_at,
+                    pinned_at=current.pinned_at,
+                )
+            )
+        if pinned is not None:
+            saved = await self._chats.set_pinned(chat_id=chat_id, user_id=user_id, pinned=pinned)
+        if saved is None:
+            return None
         await self._uow.commit()
         self._log.info("Chat Updated", id=saved.id)
         return saved

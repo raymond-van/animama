@@ -56,6 +56,16 @@ class AnimaRepository(Protocol):
 
         raise NotImplementedError
 
+    async def set_pinned(self, *, user_id: str, anima_id: str, pinned: bool) -> Anima | None:
+        """Pin or unpin the owner's Anima, without committing; ``None`` when no such Anima.
+
+        A pin is runtime state: it takes no definition lock and never advances
+        ``aggregate_revision``. Pinning keeps an existing pin time, and
+        ``updated_at`` stays unchanged.
+        """
+
+        raise NotImplementedError
+
     async def stored_emotional_state(self, anima_id: str) -> dict[str, int] | None:
         """Return the Anima's stored emotional state, normalized, or ``None`` when none is stored."""
 

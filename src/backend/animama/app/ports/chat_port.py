@@ -44,6 +44,15 @@ class ChatRepository(Protocol):
     ) -> Chat | None:
         raise NotImplementedError
 
+    async def set_pinned(self, *, chat_id: str, user_id: str, pinned: bool) -> Chat | None:
+        """Pin or unpin the owner's chat, without committing; ``None`` when no such chat.
+
+        A pin is not an edit: ``updated_at``, which orders recent chats, stays
+        unchanged. Pinning keeps an existing pin time.
+        """
+
+        raise NotImplementedError
+
     async def delete(self, chat_id: str) -> bool:
         raise NotImplementedError
 

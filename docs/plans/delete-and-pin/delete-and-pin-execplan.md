@@ -54,7 +54,7 @@ Relevant code:
 
 - [x] Plan review and owner approval (gate G0): approved 2026-11-26, with D1–D5.
 - [x] Phase 1: chat and Anima deletion semantics (backend). Review passed after 1 repair round. Owner question Q1 is open for G2.
-- [ ] Phase 2: sidebar pins (backend, schema and API).
+- [x] Phase 2: sidebar pins (backend, schema and API). Review passed after 1 repair round.
 - [x] Phase 3: Local content delete hardening (backend). Review passed after 1 repair round. The contracts bump is deferred to D6.
 - [ ] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend).
 - [ ] Phase 5: Library Delete action (frontend).
@@ -87,6 +87,14 @@ Relevant code:
   - Rare deadlocks are possible between a delete and a simultaneous "Process
     episodes" or approval, because their lock orders differ. Postgres aborts
     one side, and a failed delete changes nothing.
+
+- 2026-11-26 (Phase 2):
+  - The generated Zod `z.iso.datetime()` rejects the server's timezone-less
+    timestamps (`pinned_at`, like `created_at` already). Frontend callers pass
+    `responseValidator: undefined`, as existing chat and Anima calls do.
+  - `origin/main` moved to `0eb0520ef` (PR #936; generated-SDK descriptions
+    only, no migration). Merge it before the PR and regenerate the SDK rather
+    than hand-merging generated files.
 
 ## Decision Log
 
@@ -334,7 +342,66 @@ Recovery: `downgrade()` drops both columns.
 Completion: a fresh install and an upgraded install have the same schema, pin
 and unpin round-trip, and the review passes.
 
-Check record, commits, Code Review #1 Findings/Revisions: _to be filled in._
+#### Results
+
+- **Migration.** `0003_sidebar_pins.py` (`sidebar_pins_20261126`) adds
+  nullable `pinned_at timestamp without time zone` to `chats` and `anima`.
+  The ORM, domain and mappers carry it.
+- **Setting a pin.** `set_pinned` is one owner-scoped UPDATE:
+  - re-pinning keeps the original time (`coalesce`);
+  - `updated_at` is left unchanged, so a pinned chat keeps its place within
+    the pinned group.
+- **Routes.** `PATCH /v1/chats/{id}` and `PATCH /v1/animas/{id}` accept
+  `pinned`, and responses expose `pinned_at`. An Anima pin needs no aggregate
+  revision and never advances it.
+- **SDK.** Regenerated. runtime-contracts declarations changed; product-ui's
+  did not (66 `.d.ts` hashes equal).
+
+#### Check record
+
+Working directory: the worktree root. Tree `edf958639`.
+
+- `timeout 900 uv run --no-sync pytest -q -n0 tests/test_alembic_fresh_install.py tests/test_product_http_chats.py tests/test_product_http_animas.py`
+  → 17 passed. Red first: 5 failures for the expected reasons.
+- Related sets with `pytest -n 4` → 228 + 115 + 77 passed: chats, Anima
+  mapping and loadouts, delete, owner scope, inventory, composition, chat
+  SSE, OpenAPI export, capabilities, wiring, creation, starters, and the
+  migration and bootstrap tests.
+- ruff, ruff format check and mypy (19 files, then
+  `mypy src/backend/animama tests`) → pass. Import boundary → 0. 
+  `check_source.py` → pass.
+- `src/frontend`: `pnpm openapi-ts` (two identical runs),
+  `pnpm openapi-ts:check`, `pnpm packages:build` and `pnpm check` → pass.
+  `src/frontend/web`: `npx tsc -b` → pass.
+
+#### Code Review #1 Findings
+
+Reviewed `edf958639`, high risk. **Pass, with no blocking findings.** Reruns:
+17 + 420 passed; ruff, mypy, the import boundary, `check_source.py` and
+`pnpm openapi-ts:check` pass. The migration was checked by hand against the
+Persistence Rules.
+
+- **P2-F1 (non-blocking).** A pin-only Anima PATCH still ran `repo.update`,
+  which can normalize `emotional_state` and metadata and so change
+  `updated_at`. That contradicts the docs and the docstring.
+- **P2-F2 (note).** Zod rejects naive timestamps (see Surprises).
+- **P2-F3 (note).** main moved; regenerate the SDK on integration.
+
+#### Code Review #1 Revisions
+
+- **P2-F1: accepted.** `patch_anima` calls `repo.update` only when the
+  request carries an `anima` part. Verification:
+  `timeout 900 uv run --no-sync pytest -q -p no:cacheprovider -n 4 tests/test_product_http_animas.py tests/test_anima_avatar_mapping.py tests/test_product_http_owner_scope.py tests/test_anima_loadouts_api.py tests/test_product_http_anima_runtime.py tests/test_local_http_composition.py`
+  → 12 passed; ruff, format check and mypy on `animas.py` → pass.
+- **P2-F2 and P2-F3: recorded** (Surprises; Phase 4 brief; integration).
+- **Code Review #2 (repair round 1): pass.** Reviewed `8da618fb4`.
+  - P2-F1 is resolved, with no regressions; the docs' `updated_at`
+    statements now hold for a pin-only request.
+  - The reviewer reran 320 passed across every Anima PATCH caller and the
+    Anima tests. A throwaway probe confirmed that a pin, an unpin and `{}`
+    leave `updated_at`, `emotional_state` and metadata untouched. ruff, mypy
+    and the import boundary pass.
+  - Repair rounds used: 1 of 2.
 
 ### Phase 3: Local content delete hardening (backend)
 

@@ -795,6 +795,12 @@ and loadout once; name plus Avatar in one PATCH still increments each once.
 Direct `anima.profile_picture_url` updates return `422
 use_typed_appearance_command`; use reviewed typed Appearance commands instead.
 Ordinary emotional state/metadata patches do not change definition revision.
+Body `pinned: true` pins the Anima in the sidebar and `false` unpins it;
+omitting it keeps the pin. A pin is runtime state: it needs no
+`expected_aggregate_revision` and changes neither aggregate revision nor
+`updated_at`. A rename sent with it still needs the revision. Pinning a pinned
+Anima keeps its pin time. Anima responses carry nullable `pinned_at`.
+`GET /v1/animas` keeps its creation order; clients list pinned Animas first.
 
 `DELETE /v1/animas/{anima_id}` deletes the owner's Anima with its chats and
 messages, its `IDENTITY.md` and `MEMORIES.md`, its pending episode items and
@@ -1463,6 +1469,13 @@ product-shaped chat CRUD and message retrieval backed by `chats` and
 Chat creation verifies the referenced anima exists and is owned by the
 current user; missing or foreign animas return `404`. Chat reads, updates,
 deletes, and message reads are scoped to the current user's chats.
+
+`PATCH /v1/chats/{chat_id}` takes `pinned: true` to pin the chat in the
+sidebar and `false` to unpin it; omitting it keeps the pin. A pin is not an
+edit: `updated_at` stays unchanged, so `GET /v1/chats` keeps its most recent
+first order and clients list pinned chats first. Pinning a pinned chat keeps
+its pin time. Chat responses carry nullable `pinned_at`. Deleting a chat or its
+Anima deletes the pin with it.
 
 `DELETE /v1/chats/{chat_id}` deletes the chat's messages, its pending episode
 items and the chat images only it uses; processed episodes and the memory

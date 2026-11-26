@@ -2607,6 +2607,10 @@ export const zPyChatUpdate = z.object({
         z.record(z.string(), z.unknown()),
         z.null()
     ])),
+    pinned: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
     title: z.optional(z.union([
         z.string(),
         z.null()
@@ -3063,6 +3067,10 @@ export const zPyAnimaResponse = z.object({
         z.string(),
         z.null()
     ])),
+    pinned_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
     pocket_voice_catalog_url: z.optional(z.union([
         z.string(),
         z.null()
@@ -3133,6 +3141,10 @@ export const zPyAnimaUpdateRequest = z.object({
     ])),
     expected_aggregate_revision: z.optional(z.union([
         z.int().gte(1),
+        z.null()
+    ])),
+    pinned: z.optional(z.union([
+        z.boolean(),
         z.null()
     ]))
 });
@@ -5277,6 +5289,10 @@ export const zPyAnimaListItem = z.object({
         z.string(),
         z.null()
     ])),
+    pinned_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
     pocket_voice_catalog_url: z.optional(z.union([
         z.string(),
         z.null()
@@ -5977,6 +5993,10 @@ export const zPyChatResponse = z.object({
     ])),
     metadata: z.optional(z.union([
         z.record(z.string(), z.unknown()),
+        z.null()
+    ])),
+    pinned_at: z.optional(z.union([
+        z.iso.datetime(),
         z.null()
     ])),
     title: z.optional(z.union([
