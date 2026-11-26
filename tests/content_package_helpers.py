@@ -17,11 +17,13 @@ from animama.domain.content_catalog import ContentKind
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
 
-# glTF extensions that converted (Mochiya Avatar Tools) and optimized (meshopt,
-# Draco) Avatar files carry; packages accept them beside the standard set.
+# glTF extensions that converted (Mochiya Avatar Tools, Animama Avatar Converter)
+# and optimized (meshopt, Draco) Avatar files carry; packages accept them beside
+# the standard set.
 CONVERTED_AVATAR_EXTENSIONS = (
     "MOCHIYA_avatar_composition",
     "MOCHIYA_materials_liltoon",
+    "ANIMAMA_avatar_conversion",
     "EXT_meshopt_compression",
     "KHR_draco_mesh_compression",
 )

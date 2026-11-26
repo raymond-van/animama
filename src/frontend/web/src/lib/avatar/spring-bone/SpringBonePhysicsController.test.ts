@@ -93,6 +93,11 @@ describe("SpringBonePhysicsController ambient forces", () => {
     ).toBe(true);
     expect(
       springsTunedWithoutAmbientForces({
+        extensionsUsed: ["VRMC_vrm", "ANIMAMA_avatar_conversion"],
+      }),
+    ).toBe(true);
+    expect(
+      springsTunedWithoutAmbientForces({
         extensionsUsed: ["VRMC_vrm", "VRMC_springBone"],
       }),
     ).toBe(false);

@@ -101,8 +101,8 @@ _PARTICLE_BEHAVIORS = frozenset(
 # glTF extensions a packaged VRM or VRMA may use or require. The web loaders
 # register the VRM, VRMAnimation and lilToon plugins and the meshopt decoder on
 # Three's GLTFLoader (``avatarGltfLoader.ts``). Packages also accept what
-# converted and optimized Avatars carry: Mochiya Avatar Tools' extensions and
-# both mesh compressions. The Draco decoder is not served yet, so the import
+# converted and optimized Avatars carry: Mochiya Avatar Tools' extensions,
+# Animama Avatar Converter's marker and both mesh compressions. The Draco decoder is not served yet, so the import
 # review and the runtime report a Draco Avatar as not loadable
 # (``avatar_extension_unsupported``) instead of the package refusing it. Basis
 # textures stay out: no decoder. Adding a name needs no package capability; an
@@ -118,7 +118,8 @@ _GLTF_EXTENSIONS = frozenset(
     "KHR_materials_iridescence KHR_materials_anisotropy KHR_materials_unlit KHR_materials_volume "
     "KHR_texture_transform KHR_mesh_quantization KHR_materials_emissive_strength EXT_materials_bump "
     "EXT_texture_webp EXT_texture_avif EXT_mesh_gpu_instancing "
-    "MOCHIYA_avatar_composition MOCHIYA_materials_liltoon EXT_meshopt_compression KHR_draco_mesh_compression".split()
+    "MOCHIYA_avatar_composition MOCHIYA_materials_liltoon ANIMAMA_avatar_conversion EXT_meshopt_compression "
+    "KHR_draco_mesh_compression".split()
 )
 # Accepted compression the runtime cannot decode yet (web
 # ``UNDECODED_GLTF_EXTENSIONS``); three fails on it wherever it is used.

@@ -79,6 +79,7 @@
     "label": "虛擬形象選擇",
     "loadFailed": "無法載入虛擬形象。你的選擇已保留。",
     "loading": "正在載入虛擬形象…",
+    "mmdHint": "有 MikuMikuDance（.pmx）模型？請先用 <link>Animama Avatar Converter</link> 轉換為 VRM，再上傳。",
     "nameUsed": "該名稱已被使用。請輸入新名稱，或在下方明確取代符合的虛擬形象。正被執行中的 Anima 使用的虛擬形象無法在此取代。",
     "needsAttention": "此虛擬形象需要處理。請選擇其他來源或重試。",
     "noMatches": "沒有符合的虛擬形象。你選擇的虛擬形象未變更。",

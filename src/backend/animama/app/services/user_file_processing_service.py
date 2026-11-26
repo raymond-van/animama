@@ -290,13 +290,18 @@ class UserFileProcessingService:
             )
             if reused is not None:
                 self._log.info(
-                    "User-file processed content reused",
+                    "User-file processed content reused"
+                    if reused.status == JOB_STATUS_SUCCEEDED
+                    else "User-file processing stopped: the file was deleted",
                     job_id=claimed.job.id,
                     file_id=claimed.job.file_id,
                     user_id=claimed.job.user_id,
                 )
                 await self._uow.commit()
                 return reused
+            # End the reuse attempt's transaction, and any file-row lock it took,
+            # before parsing: a delete must not wait for the parse and embedding.
+            await self._uow.rollback()
 
         extension = claimed.normalized_extension.lower()
         parse_started = time.perf_counter()

@@ -1458,7 +1458,8 @@ wind and the updraft (`SpringBonePhysicsController.setAmbientStrength`; 0
 adds none):
 
 - **Automatic** keeps the choice below: ambient forces, except for Avatars
-  converted by Mochiya and Avatars whose hair is too soft to hold against them.
+  converted by Mochiya or by Animama Avatar Converter from an MMD model, and
+  Avatars whose hair is too soft to hold against them.
 - **On** and **Off** force ambient forces on or off
   (`SpringBonePhysicsController.setAmbientForces`).
 - **Springs off** also holds every spring joint at its rest rotation.
@@ -1467,17 +1468,20 @@ adds none):
   resumes the simulation from rest. `avatarSpringMode.test.ts` pins this
   against the installed three-vrm.
 
-Under Automatic, Avatars converted by Mochiya Avatar Tools, the supported
-VRChat conversion route, get no ambient forces: no wind, no updraft and, at
-the default gravity multiplier, no zero-gravity baseline. `Avatar.load` detects them by the
-`MOCHIYA_avatar_composition` glTF extension Mochiya adds to every Avatar it
-converts (`springsTunedWithoutAmbientForces`), so detection holds only while a
-re-export keeps that extension. The snapshot and the debug panel's Spring Bones
-section report it ("Ambient forces: off (converted Avatar)"). Their springs come from
-PhysBones tuned with low pull and little gravity for a world without ambient
-forces. VRM-authored hair is stiff enough to resist the updraft; such springs
-are not, and a hanging ponytail would point straight up. The drag multiplier
-still applies.
+Under Automatic, converted Avatars get no ambient forces: no wind, no updraft
+and, at the default gravity multiplier, no zero-gravity baseline. That covers
+Avatars converted by Mochiya Avatar Tools, the supported VRChat conversion
+route, and MikuMikuDance models converted by Animama Avatar Converter
+([MMD model conversion](mmd-model-conversion.md)). `Avatar.load` detects them
+by the glTF extension each converter adds to every file it writes,
+`MOCHIYA_avatar_composition` or `ANIMAMA_avatar_conversion`
+(`springsTunedWithoutAmbientForces`), so detection holds only while a re-export
+keeps that extension. The snapshot and the debug panel's Spring Bones section
+report it ("Ambient forces: off (converted Avatar)"). Their springs come from
+PhysBones tuned with low pull and little gravity, or from MMD's rigid bodies,
+both made for a world without ambient forces. VRM-authored hair is stiff enough
+to resist the updraft; such springs are not: a hanging ponytail would point
+straight up and a skirt would balloon. The drag multiplier still applies.
 
 Under Automatic, an Avatar whose hair the updraft would lift at the chosen
 strength also gets no ambient forces (`SpringBonePhysicsController.updraftLiftsHair`,
@@ -1706,8 +1710,10 @@ preference into `useEnhancedRenderingStore`
   screen-space outlines. Colours come from VRoid material-name suffixes
   (`_SKIN`, `_CLOTH`, `_HAIR`, `vroidPalette.ts`) tuned on Annie; eyes, brows
   and mouth stay flat. A model is a VRoid export when an MToon material carries
-  VRoid's face skin name (`_Face_` with `_SKIN`). Every other model keeps all
-  its materials as authored, even ones with VRoid-like suffixes, so no Avatar
+  VRoid's face skin name (`_Face_` with `_SKIN`), unless Animama Avatar
+  Converter marked it as a converted MMD model, whose MToon follows MMD's toon
+  ramps even when the names are VRoid's. Every other model keeps all its
+  materials as authored, even ones with VRoid-like suffixes, so no Avatar
   mixes retuned and authored materials; the lights and tone mapping below
   apply to all models. A change reloads the chat Avatar
   (`AvatarCanvasActor`); other canvases pick it up on their next load.
@@ -1938,7 +1944,11 @@ built, unless the Avatar's Materials setting is Simple:
 - **Unchanged:** blended (transparent) and untextured materials stay unlit.
 - **Brightness:** the lit colour is raised by 1.25 (`LIT_GAIN`), so lit areas
   under the enhanced chat lights stay within a few percent of the unlit
-  texture; classic lighting leaves them about a tenth darker.
+  texture; classic lighting leaves them about a tenth darker. MMD models
+  converted by Animama Avatar Converter, whose MToon is lit for MMD's light,
+  take the same gain on their lit and shade colours, under every Materials
+  setting
+  ([Converting an MMD model](mmd-model-conversion.md#what-animama-does-with-it)).
 - **Limits:** the look is Animama's, not the author's: a converter that keeps
   the model's own toon materials does better. Any shape key on a face mesh
   makes the parts it moves face parts, so on a one-mesh model a body, bust or

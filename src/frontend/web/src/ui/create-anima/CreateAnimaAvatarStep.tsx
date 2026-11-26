@@ -1,6 +1,6 @@
 import { Check, Upload } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
 
 import type {
@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
+import { ModelLink } from "@/ui/components/model-link";
 import { contentEntryName } from "@/lib/content/nameIdentifiers";
 import { itemReference } from "./createAnimaContent";
 import { AvatarThumbnail } from "@/ui/avatar-preview/AvatarThumbnail";
@@ -31,6 +32,10 @@ import { creatorErrorText } from "./createAnimaErrors";
 import { checkCreationVrm } from "./createAnimaFiles";
 import type { CreationStageAvatar } from "./CreateAnimaStage";
 import { CreateAnimaUploadDiagnostics } from "./CreateAnimaUploadDiagnostics";
+
+/** The converter's guide for MikuMikuDance (PMX) models, which upload only as VRM. */
+const MMD_CONVERTER_GUIDE =
+  "https://github.com/raymond-van/animama-avatar-converter#mmd-models";
 
 /** The server remains authoritative; offer only an unambiguous caller-editable collision. */
 export function avatarCollisionTarget(
@@ -227,6 +232,13 @@ export function CreateAnimaAvatarStep({
               <span className="hidden sm:inline">{t("avatarStep.upload")}</span>
             </Button>
           </div>
+          <p className="text-muted-foreground text-xs">
+            <Trans
+              t={t}
+              i18nKey="avatarStep.mmdHint"
+              components={{ link: <ModelLink href={MMD_CONVERTER_GUIDE} /> }}
+            />
+          </p>
           {sources.avatars.isLoading ? (
             <p role="status" className="text-muted-foreground text-sm">
               {t("avatarStep.loading")}

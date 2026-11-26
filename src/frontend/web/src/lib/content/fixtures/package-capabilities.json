@@ -445,6 +445,7 @@
   ],
   "gltfExtensions": {
     "accepted": [
+      "ANIMAMA_avatar_conversion",
       "EXT_materials_bump",
       "EXT_mesh_gpu_instancing",
       "EXT_meshopt_compression",

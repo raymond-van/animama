@@ -12,7 +12,8 @@ from typing import Any, cast
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.content_store.private_file_store import (
@@ -42,6 +43,9 @@ from animama.app.services.user_file_processing_service import (
 )
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_file import (
+    STATUS_ABORTED,
+    STATUS_DELETE_PENDING,
+    STATUS_DELETED,
     STATUS_FAILED,
     STATUS_PROCESSING,
     STATUS_READY,
@@ -49,6 +53,7 @@ from animama.domain.user_file import (
     STATUS_UPLOADED,
 )
 from animama.domain.user_file_processing import (
+    FILE_REMOVED_DURING_PROCESSING_ERROR,
     JOB_STATUS_FAILED,
     JOB_STATUS_QUEUED,
     JOB_STATUS_RUNNING,
@@ -1029,6 +1034,116 @@ async def test_claim_fails_interrupted_last_attempts_but_spares_files_with_newer
     assert old_job.status == JOB_STATUS_FAILED
     assert new_job.status == JOB_STATUS_QUEUED
     assert (requeued_file.status, requeued_file.last_error) == (STATUS_PROCESSING, None)
+
+
+async def _finish_running_job(repo: SQLAlchemyUserFileProcessingRepository, outcome: str) -> UserFileProcessingJob:
+    """Finish the running ``job-removed`` the way the processor would for ``outcome``."""
+
+    if outcome == "processed":
+        return await repo.replace_chunks_and_mark_success(
+            job_id="job-removed",
+            user_id="user-1",
+            file_id="file-removed",
+            sha256="b" * 64,
+            chunks=[
+                UserFileChunkDraft(
+                    chunk_index=0,
+                    text="Deleted notes",
+                    char_count=13,
+                    token_estimate=3,
+                    metadata={},
+                )
+            ],
+            file_status=STATUS_READY,
+            processing_metadata={"parser": "test"},
+            processed_at=_now(),
+        )
+    if outcome == "reused":
+        job = await repo.reuse_processed_file(
+            job_id="job-removed", user_id="user-1", file_id="file-removed", sha256="b" * 64, processed_at=_now()
+        )
+        assert job is not None
+        return job
+    return await repo.mark_job_failure(
+        job_id="job-removed",
+        user_id="user-1",
+        file_id="file-removed",
+        error="parse failed",
+        now=_now(),
+        retry_delay_seconds=10,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("removed_status", [STATUS_DELETED, STATUS_DELETE_PENDING, STATUS_ABORTED])
+@pytest.mark.parametrize("outcome", ["processed", "reused", "failed"])
+async def test_job_finishing_after_its_file_was_deleted_leaves_the_file_deleted(
+    async_session, clean_user_file_tables, removed_status: str, outcome: str
+) -> None:
+    """A delete that lands while a job runs must not be undone when the job finishes."""
+
+    await _insert_file(async_session, file_id="file-removed", status=removed_status)
+    await _insert_job(
+        async_session, job_id="job-removed", file_id="file-removed", status=JOB_STATUS_RUNNING, attempts=1
+    )
+    repo = SQLAlchemyUserFileProcessingRepository(async_session)
+
+    job = await _finish_running_job(repo, outcome)
+    await async_session.commit()
+
+    stored_file = await async_session.get(ORMUserFile, "file-removed", populate_existing=True)
+    chunk_count = len(
+        (await async_session.execute(select(ORMUserFileChunk).where(ORMUserFileChunk.file_id == "file-removed")))
+        .scalars()
+        .all()
+    )
+    assert (job.status, job.last_error, job.locked_by) == (
+        JOB_STATUS_FAILED,
+        FILE_REMOVED_DURING_PROCESSING_ERROR,
+        None,
+    )
+    assert job.finished_at is not None
+    assert stored_file is not None
+    assert stored_file.status == removed_status
+    assert chunk_count == 0
+
+
+@pytest.mark.asyncio
+async def test_parsing_leaves_the_file_row_unlocked_so_a_delete_need_not_wait(
+    async_session, async_session_factory, clean_user_file_tables
+) -> None:
+    """Only the short final write locks the file; a delete during a long parse proceeds at once."""
+
+    await _insert_file(async_session, file_id="file-parsing", status=STATUS_PROCESSING, extension=".txt")
+    await _insert_job(async_session, job_id="job-file-parsing", file_id="file-parsing", status=JOB_STATUS_RUNNING)
+    lock_during_parse: list[str] = []
+
+    class LockProbeParser:
+        async def parse(self, *, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
+            async with async_session_factory() as other:
+                try:
+                    await other.execute(text("SELECT id FROM user_file WHERE id = 'file-parsing' FOR UPDATE NOWAIT"))
+                    lock_during_parse.append("free")
+                except DBAPIError:
+                    lock_during_parse.append("locked")
+                await other.rollback()
+            return ParsedUserFileDocument(text="Parsed notes", parser_name="probe", metadata={})
+
+    async with async_session_factory() as session:
+        service = UserFileProcessingService(
+            processing=SQLAlchemyUserFileProcessingRepository(session),
+            uow=SQLAlchemyUnitOfWork(session),
+        )
+        completed = await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id="file-parsing", extension=".txt"),
+            payload=b"Parsed notes",
+            parser=LockProbeParser(),
+            embedder=None,
+            max_process_bytes=1024,
+        )
+
+    assert lock_during_parse == ["free"]
+    assert completed.status == JOB_STATUS_SUCCEEDED
 
 
 def test_only_unexpected_failures_are_retried() -> None:
