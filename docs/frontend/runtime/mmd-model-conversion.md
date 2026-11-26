@@ -69,6 +69,18 @@ npx animama-avatar-converter <model.pmx> --out <private-dir>/<name>.vrm
     parts. As on VRoid models, a mood preset equals its `Fcl_ALL_` part: the
     three regions together, or the model's own `Fcl_ALL_<Mood>` morph when it has
     one. `--expression` overrides keep the two in step.
+  - Bone morphs are baked into vertex offsets, which Animama adds. When a mood's
+    brow, eye and mouth morphs each turn the same bones (or one turns a bone
+    below another's, under the head), as ears that droop with the brows and with
+    the frown, the mood keeps the first part's turn (brows, then eyes, then
+    mouth). The later parts play through bone-free copies (`<name> (no bones)`
+    morph targets, written only for such moods), or drop out when they move
+    nothing else, and the report notes them. Added turns would swing the bone
+    past both and stretch what it carries. Bones that inherit (付与) a turned or
+    moved bone count, for the kind of change they take; a bone part that
+    neither turns nor moves its bone, or a part chosen at weight 0, does not. Parts chosen with `--expression` are kept as given and the other
+    parts are judged against them; a mood chosen whole is left alone. The
+    morphs keep their turns everywhere else.
 - **Physics:**
   - Simulated rigid bodies become spring joints; bodies that follow a bone
     become colliders.

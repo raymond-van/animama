@@ -119,6 +119,7 @@ About 190 KB of C#; its notice must be kept with ported code.
 - [x] Phase 5: Animama recognises converted MMD models (Animama `879bf6e91`; high-risk review, fixes verified by the final integration review).
 - [x] Phase 5 follow-up, converted Avatars' brightness (owner request, 2026-11-26): Animama `484572619` and `de7ab9213`, after merging `origin/main` (`0a9026d87`); review passed after one repair round.
 - [x] Phase 5 follow-up, eye effects on converted Avatars (owner request, 2026-11-26): Animama `438f9e665`, `a2b57dc94` and `88a5736c8`; review passed after two repair rounds.
+- [x] Phase 6 follow-up, moods whose parts turn the same bones (owner request, 2026-11-26): converter `03c21b5`, `dc3e892` and `70339f9`; review passed after two repair rounds.
 - [ ] Phase 6: release preparation and verification. Steps 1–4 and the macOS run are done (converter `de6efd7`, `b51a0f4`, `4c7442f`; G1 met by a five-model corpus); G2 (Windows), G4 and G3 wait for the owner.
 - [x] Final integration review (one repair round; the full checks ran on the final candidates).
 
@@ -154,8 +155,8 @@ From the five-model evaluation of 2026-11-26 (private renders; counts only):
   the five visemes and the five moods are visible at full weight. One model's
   brow, eye and mouth morphs each turn its ears with bone morphs. Its sad and
   angry moods combine two or three of them, and the baked targets add linearly,
-  so the ears swing out flat and stretch. Converter follow-up: bake a mood's
-  parts together when two or more move the same bones.
+  so the ears swing out flat and stretch. Fixed by the bone-turns follow-up in
+  Phase 6.
 - **Avatar Effects:** 70 of 75 renders (15 Included effects × 5 models) pass
   `effects:render`'s check; all head, chest, sticker, silhouette and emote effects
   land correctly. Animama follow-ups:
@@ -203,6 +204,11 @@ From the five-model evaluation of 2026-11-26 (private renders; counts only):
 - **2026-11-26, agent (eye effects):** hiding alone left two models unclean (an exposed iris, painted closed lines),
   so the patch is in, by default only on marked models and only for eye art that closes the eyes and hides their
   details; the lash search is gated on the marker too, so other Avatars are unchanged.
+- **2026-11-26, owner:** "make the fix" for stacked bone turns, after the trade-off was explained: each mood keeps
+  one part's turn (brows, then eyes, then mouth); the morphs keep their turns everywhere else.
+- **2026-11-26, agent (bone turns):** later parts play through bone-free copies written only where a mood needs one,
+  rather than combined targets per mood, because Animama plays the region parts as separate expressions and adds
+  them.
 - **2026-11-26, agent (brightness):**
   - the gain applies under every Materials setting, because the setting is not offered for these files;
   - the enhanced VRoid retune skips marked files;
@@ -1275,6 +1281,82 @@ and "as the report lists them") were fixed and confirmed by the same agent on `4
 
 None further. Phase 6 steps 1–3 committed as `de6efd7` (`feat(pmx)[p6]: document MMD models and prepare version
 0.2.0`, tree `4e1141f7`), pushed to raymond-van/animama-avatar-converter#4.
+
+#### Follow-up: moods whose parts turn the same bones (2026-11-26)
+
+On one private model (M2), the brow, eye and mouth morphs each also turn the ear bones with bone morphs. Its sad mood
+combined two of them and angry three. The converter bakes each bone morph into vertex offsets, which VRM adds, so the
+ears swung out flat and stretched (two turns of about 25° and 65° add up to an ear about 37% longer, at 76°). The
+owner asked for the fix ("make the fix") after the trade-off was explained: each mood keeps one part's turn, so the
+extra droop from stacking goes, and the morphs keep their turns everywhere else.
+
+Review tier: standard.
+
+Changes (converter `03c21b5`, repaired in `dc3e892` and `70339f9`):
+- `unstackBones` keeps a mood's bone turns from its first part that makes them (brows, then eyes, then mouth). A
+  later part whose bones overlap plays through a bone-free copy: a `<name> (no bones)` morph target with the morph's
+  vertex movement alone. A part with no vertex movement drops out of the mood.
+- Parts overlap when they turn a common bone, or one turns a bone below the head that carries the other's. A head or
+  neck turn overlaps only itself.
+- Copies are written only for moods that need them: the faces are composed once before the meshes are built
+  (`planBoneFreeCopies`), overrides included. The report notes each case and the copies are not counted as face
+  morphs.
+- Parts chosen with `--expression` stay as given and the others are judged against them; a mood chosen whole is left
+  alone. Bones that inherit (付与) a turned or moved bone count, for the kind of change they take; a part that
+  neither turns nor moves its bone, or a bind at weight 0, does not.
+- README, changelog and the Animama docs page (`mmd-model-conversion.md`) describe it.
+
+Checks (macOS, Node 24):
+- `npm test` on `70339f9`: 168 passed. `node scripts/check.mjs`: OK at 0.2.0.
+- Mutation checks: the new tests fail without the overlap rule, the copies, the copy's region, the zero-turn filter,
+  inheritance or its kinds, the head rule, the weight-0 rule, the override region lookup or the degenerate-triangle
+  rule.
+- Private corpus reconverted on `dc3e892` and again on `70339f9` (identical): M1, M3, M4 and M5 are byte-identical to before. M2 grows by 21 KB, and its
+  report lists sad (mouth without bones) and angry (eyes and mouth without bones). Animama's upload validator accepts
+  it. Against `03c21b5` it differs only in angry's blink blend, back to "blend".
+- `effects:render --expression` on M2: sad tilts the ears about 25° at their normal length, and angry takes the
+  author's angry ear pose, where both had swung out flat and stretched.
+
+#### Code Review #1 Findings (bone turns)
+
+An independent read-only agent reviewed `03c21b5` and reproduced its findings with a scratch script. No blocker; no
+dependency or network code.
+
+- T-F1 (should-fix): a mood whose eyes play through a copy lost its blink blend (the copy had no region).
+- T-F2 (should-fix): bone parts that neither turn nor move counted as turns.
+- T-F3 (should-fix): bones that inherit (付与) a turned bone were not counted.
+- T-F4 (should-fix): the unstacking ran before `--expression` overrides, ignoring the user's parts and writing unused
+  copies for a mood chosen whole.
+- T-F5: the planning pass counted degenerate triangles' vertices as drawn, unlike the meshes.
+- T-F6: the note said a dropped part played without its bones.
+- T-F7: a copy could be counted as a dropped target.
+- Test gaps: the head rule, an eye part, a pure bone part, a partial weight, overrides, inheritance, the report count.
+- Pre-existing: overrides read a morph's region by list position, not by target.
+
+#### Code Review #1 Revisions (bone turns)
+
+All fixed in `dc3e892`: the unstacking is its own step after the overrides (`unstackBones`), shared by both passes; a
+copy takes its morph's region; zero turns are skipped and inheriting bones added; a part whose copy was never planned
+stays as it is, and drawn vertices follow the meshes' rule; the note names dropped parts; copies are out of both
+counts; overrides read regions by target; tests cover every gap.
+
+#### Code Review #2 Findings (bone turns)
+
+The same agent confirmed T-F1 to T-F7 and the override bug fixed in `dc3e892` (166 tests pass; its probe agrees), and
+found:
+- T-F8: a bind at weight 0 (`--expression …=困る*0`) still counted as a turn.
+- T-F9: inheriting bones were added whatever kind of change they inherit.
+- T-F10: `applyOverrides` lost its doc comment to `composeAll`.
+- Untested: the override region fix and the degenerate-triangle rule.
+
+#### Code Review #2 Revisions (bone turns)
+
+All fixed in `70339f9`, with a test for each and for the two untested fixes.
+
+The same agent confirmed T-F8 to T-F10 fixed in `70339f9` (168 tests pass) and nothing new; reverting each new rule
+in a scratch copy fails exactly one test.
+
+Result: two repair rounds; the follow-up is complete.
 
 ### Owner gates
 
