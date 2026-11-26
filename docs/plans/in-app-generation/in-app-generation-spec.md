@@ -5,8 +5,9 @@ Owner decision: accepted as written by the owner on 2026-11-24, including the
 choices this draft proposed (P1 and P3 to P12; P2 was withdrawn). Revised on
 2026-11-26 only where work delivered since then changed a fact: the ChatGPT
 plan connection (#919) and chat image input (#904). No agreed decision changed.
+On 2026-11-26 the owner added R3.7 (decision 12).
 Authority: [#942](https://github.com/raymond-van/animama/issues/942). This file
-is a snapshot of that issue captured 2026-11-26T18:33:27Z; change the issue,
+is a snapshot of that issue captured 2026-11-26T19:02:50Z; change the issue,
 not this file.
 
 ## Problem and intended users
@@ -120,6 +121,10 @@ Non-goals:
   Saving is always the person's action; the assistant never saves by itself.
 - **R3.6** "Open in creator" moves a draft into the creator as an unsaved
   document for manual edits.
+- **R3.7** Gesture and Reaction drafts follow one facial expression guidance.
+  The assistant keys named blendshapes according to what the chosen Avatar
+  offers: VRM presets and VRoid's parts, MMD morphs under their Japanese
+  names, ARKit shapes, and blendshapes the Avatar's author added.
 
 ### R4: Checks and repair
 
@@ -233,8 +238,10 @@ Non-goals:
   under the existing Markdown policy.
 - **Privacy.** Requests, references and frames go only to the model provider
   the person selected. Frames sent to a model are rendered on the Included
-  Avatars; the person's own Avatar is never sent. Reference images follow the
-  storage and metadata rules of chat image input (#904, ADR 0038).
+  Avatars; the person's own Avatar is never shown to a model. Only the names
+  of its expressions and blendshapes are sent, so the assistant can key them
+  (R3.7). Reference images follow the storage and metadata rules of chat
+  image input (#904, ADR 0038).
 - **One source of truth.** The app and the `animama-animation` skill share the
   same check logic and authoring guidance, and the skill keeps working.
 - **Cost bounds.** Repair rounds (R4.3), batch size (R7.4) and frames per
@@ -283,6 +290,10 @@ Non-goals:
   Every shipped inspiration passes the licence inventory check.
 - [ ] Tests show that the assistant's conversations appear in no chat list,
   memory file or chat search result.
+- [ ] Tests show that the assistant is given the chosen Avatar's expression
+  and blendshape names, and that Gesture and Reaction requests carry the same
+  facial expression guidance. The owner checks a Gesture and a Reaction made
+  for an Avatar with ARKit or MMD shapes: both key names that Avatar has.
 - [ ] A paired client creates a draft that appears in the Generate page. An
   unpaired or revoked client is refused, and the connector offers only the
   authoring tools.
@@ -317,6 +328,10 @@ Agreed by the owner (2026-11-24):
 11. **Sign-in split out.** The ChatGPT sign-in, its tokens and its use for
     Anima chat are specified in the ChatGPT plan spec, which this spec
     depends on.
+12. **Facial expressions (2026-11-26).** Gesture and Reaction generation
+    share one facial expression guidance. It keys named blendshapes (VRoid
+    presets, MMD morphs with their Japanese labels, ARKit shapes and
+    custom-authored blendshapes) according to what is available (R3.7).
 
 Proposed by this draft and accepted by the owner on 2026-11-24:
 
@@ -369,11 +384,11 @@ This issue.
 
 ## ExecPlan
 
-Required before implementation. It is being drafted as
+Approved by the owner on 2026-11-26 (G0), including D1 to D17. Tracked as
 `docs/plans/in-app-generation/in-app-generation-execplan.md` on branch
-`feat/in-app-generation` for the owner's review, and is linked here at its
-reviewed revision once approved.
+`feat/in-app-generation`; it is linked here at its reviewed revision once the
+branch is pushed.
 
 ## Delivery links
 
-To be added when the ExecPlan is approved.
+To be added as phases complete.
