@@ -5466,8 +5466,10 @@ export class AvatarVFXController {
     // or a centred one), since the effect closes both eyes and hides both
     // eyes' details. They stay over the eyes, apart from the art's transform.
     const closedEyePatches: THREE.Material[] = [];
+    // Eye art that leaves the eyes open keeps the backdrop sized to the art.
     if (
       isEyeHoverVFXEntry(effect) &&
+      shouldForceBlink(effect) &&
       hoverSkinBackdropColor &&
       hoverBackdropSourceBinding
     ) {

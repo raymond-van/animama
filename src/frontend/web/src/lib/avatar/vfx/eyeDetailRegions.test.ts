@@ -325,5 +325,14 @@ describe("closed-eye skin patches on a converted MikuMikuDance model", () => {
       await applyEyeArt(avatar, eyeArt("eye-art", undefined, options));
       expect(named(avatar, ":closed-eye-patch")).toEqual([]);
     }
+
+    // Art that leaves the eyes open keeps the backdrop sized to the art.
+    const { avatar } = await annieWithLashesInBrows();
+    await applyEyeArt(
+      avatar,
+      eyeArt("eye-art", undefined, { forceBlink: false, skinBackdrop: true }),
+    );
+    expect(named(avatar, ":closed-eye-patch")).toEqual([]);
+    expect(named(avatar, ":backdrop")).toHaveLength(2);
   });
 });

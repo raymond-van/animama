@@ -1553,6 +1553,7 @@ function detectFromSignals(context: Context): {
         (candidate) =>
           blink.has(candidate.entry.object) &&
           !aa.has(candidate.entry.object) &&
+          !faceMeshCandidates.includes(candidate) &&
           !eyeKeys.has(candidate.entry.bindingKey) &&
           candidate.entry !== faceSkin &&
           candidate.shares.spring_head < HAIR_MIN_SPRING_SHARE &&
