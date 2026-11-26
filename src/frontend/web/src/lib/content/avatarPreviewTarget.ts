@@ -1,4 +1,7 @@
-import type { ItemRevisionRef } from "@animama/runtime-contracts/api-types";
+import type {
+  ItemRevisionRef,
+  PyAvatarContent,
+} from "@animama/runtime-contracts/api-types";
 import { getAvatarContent, type Client } from "@animama/runtime-contracts/sdk";
 
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
@@ -63,27 +66,36 @@ export async function avatarItemRuntimeEntry(
   return avatarPreviewEntry(preview, "");
 }
 
-/**
- * The previewed Local Avatar revision when its portrait is missing or was
- * captured from another revision (after Replace VRM, for example), so the
- * Dock can capture it again. Null for an Included Avatar or a current one.
- */
-export async function avatarPreviewPortraitRetake(
+/** Read an Avatar's typed item, whose portrait records its capture revision. */
+export async function readAvatarContent(
   apiClient: Client,
-  preview: PyContentPreview,
+  itemId: string,
   signal?: AbortSignal,
-): Promise<ItemRevisionRef | null> {
-  if (!preview.item_id) return null;
+): Promise<PyAvatarContent> {
   const { data } = await getAvatarContent({
     client: apiClient,
-    path: { item_id: preview.item_id },
+    path: { item_id: itemId },
     signal,
     responseValidator: undefined,
     throwOnError: true,
   });
+  return data;
+}
+
+/**
+ * The previewed Local Avatar revision when its portrait is missing or was
+ * captured from another revision (after Replace VRM, for example), so the
+ * Dock can capture it again. Null for an Included Avatar, a current or
+ * imported portrait, or an unknown item.
+ */
+export function avatarPreviewPortraitRetake(
+  preview: PyContentPreview,
+  avatar: PyAvatarContent | null,
+): ItemRevisionRef | null {
+  if (!preview.item_id || !avatar) return null;
   return portraitRetakeTarget(
     { item_id: preview.item_id, revision_sha256: preview.revision_sha256 },
-    [data],
+    [avatar],
   );
 }
 

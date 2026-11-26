@@ -39,6 +39,7 @@ import { typedActionPreview } from "@/lib/content/typedPreviewAdapters";
 import {
   avatarPreviewPortraitRetake,
   avatarPreviewTarget,
+  readAvatarContent,
 } from "@/lib/content/avatarPreviewTarget";
 import { componentPreviewTarget } from "@/lib/content/componentPreviewTarget";
 import {
@@ -572,21 +573,26 @@ export function LibraryContentInventory({
   ) => {
     if (!avatar.catalog_item_id) return;
     soundPreview.stop();
-    const preview = await previewCatalogItem(
-      apiClient,
-      avatar.catalog_item_id,
-      undefined,
-      "avatar",
-    );
     // A Local Avatar whose portrait shows another revision (a replaced model)
-    // gets a new one from the Dock; a failed check only skips that.
-    const portraitRetake =
+    // gets a new one from the Dock; a failed read only skips that.
+    const [preview, content] = await Promise.all([
+      previewCatalogItem(
+        apiClient,
+        avatar.catalog_item_id,
+        undefined,
+        "avatar",
+      ),
       avatar.origin === "local"
-        ? await avatarPreviewPortraitRetake(apiClient, preview).catch(
-            () => null,
-          )
-        : null;
-    openPreview(avatarPreviewTarget(preview, avatar.name, portraitRetake));
+        ? readAvatarContent(apiClient, avatar.catalog_item_id).catch(() => null)
+        : null,
+    ]);
+    openPreview(
+      avatarPreviewTarget(
+        preview,
+        avatar.name,
+        avatarPreviewPortraitRetake(preview, content),
+      ),
+    );
   };
   const manageCard = (card: LibraryProductCard) =>
     card.source &&

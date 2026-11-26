@@ -7,23 +7,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryAvatarModelRow } from "./LibraryAvatarModelRow";
 
 const REVISION = "a".repeat(64);
-const NEWER = "b".repeat(64);
 const SAVED = "c".repeat(64);
 
 const mocks = vi.hoisted(() => ({
   apiClient: {},
   animas: [] as Array<Record<string, unknown>>,
   faceParts: null as Record<string, unknown> | null,
-  storedRevision: "",
   getAvatarFaceParts: vi.fn(),
-  getContentItem: vi.fn(),
   saveAvatarContent: vi.fn(),
 }));
 
 vi.mock("@animama/runtime-contracts/sdk", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getAvatarFaceParts: mocks.getAvatarFaceParts,
-  getContentItemV1ContentItemsItemIdGet: mocks.getContentItem,
   saveAvatarContent: mocks.saveAvatarContent,
 }));
 vi.mock("@animama/product-ui", async (importOriginal) => ({
@@ -116,7 +112,6 @@ beforeEach(() => {
     { id: "a3", display_name: "Cy", avatar_catalog_item_id: "item-9" },
   ];
   mocks.faceParts = null;
-  mocks.storedRevision = REVISION;
   mocks.getAvatarFaceParts.mockReset();
   mocks.getAvatarFaceParts.mockImplementation(async () => ({
     data: {
@@ -124,14 +119,6 @@ beforeEach(() => {
       revision: REVISION,
       source: mocks.faceParts ? "local_metadata" : "none",
       face_parts: mocks.faceParts,
-    },
-  }));
-  mocks.getContentItem.mockReset();
-  mocks.getContentItem.mockImplementation(async () => ({
-    data: {
-      item_id: "item-7",
-      revision_sha256: mocks.storedRevision,
-      relative_locator: "avatars/mika.vrm",
     },
   }));
   mocks.saveAvatarContent.mockReset();
@@ -201,8 +188,8 @@ describe("Library Replace VRM", () => {
 
     expect(mocks.saveAvatarContent).toHaveBeenCalledTimes(1);
     const [options] = mocks.saveAvatarContent.mock.calls[0];
-    // The stored file's own name, not the display name.
-    expect(options.path).toEqual({ entry_name: "mika" });
+    // The item id: an existing item keeps its own file whatever its name.
+    expect(options.path).toEqual({ entry_name: "item-7" });
     expect(options.body).toEqual({
       operation_id: expect.any(String),
       files: [file],
@@ -214,8 +201,40 @@ describe("Library Replace VRM", () => {
     expect(replaced).toEqual([{ item_id: "item-7", revision_sha256: SAVED }]);
   });
 
-  it("refuses to write when the Avatar changed after the review", async () => {
-    mocks.storedRevision = NEWER;
+  it("resends the same operation after an uncertain failure", async () => {
+    mocks.saveAvatarContent.mockRejectedValueOnce(
+      new TypeError("Failed to fetch"),
+    );
+    render();
+    await settle(() => mocks.getAvatarFaceParts.mock.calls.length > 0);
+    await choose(vrmFile(VALID_VRM));
+    await settle(() => button("Replace")?.disabled === false);
+    await act(async () => button("Replace")!.click());
+    await settle(() => document.body.querySelector('[role="alert"]') !== null);
+    expect(replaced).toEqual([]);
+
+    await act(async () => button("Replace")!.click());
+    await settle(() => replaced.length > 0);
+
+    const [first, second] = mocks.saveAvatarContent.mock.calls.map(
+      ([options]) => options.body,
+    );
+    // The server replays a write it already made instead of writing again.
+    expect(second.operation_id).toBe(first.operation_id);
+    expect(second.expected_revision).toBe(first.expected_revision);
+  });
+
+  it("reads the details again when the server reports a newer revision", async () => {
+    mocks.saveAvatarContent.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        detail: {
+          code: "catalog_revision_conflict",
+          message: "Catalog revision changed",
+        },
+      },
+      response: { status: 409 },
+    });
     render();
     await settle(() => mocks.getAvatarFaceParts.mock.calls.length > 0);
     await choose(vrmFile(VALID_VRM));
@@ -223,10 +242,26 @@ describe("Library Replace VRM", () => {
     await act(async () => button("Replace")!.click());
     await settle(() => text().includes("changed since you chose the file"));
 
-    expect(mocks.saveAvatarContent).not.toHaveBeenCalled();
     expect(replaced).toEqual([]);
     // The details are read again before the owner confirms a second time.
     await settle(() => mocks.getAvatarFaceParts.mock.calls.length > 1);
     expect(mocks.getAvatarFaceParts.mock.calls.length).toBeGreaterThan(1);
+
+    await act(async () => button("Replace")!.click());
+    await settle(() => replaced.length > 0);
+    const [first, second] = mocks.saveAvatarContent.mock.calls.map(
+      ([options]) => options.body,
+    );
+    // A refused write starts a new operation.
+    expect(second.operation_id).not.toBe(first.operation_id);
+  });
+
+  it("says so when the Avatar's details cannot be read", async () => {
+    mocks.getAvatarFaceParts.mockRejectedValue(new Error("offline"));
+    render();
+    await choose(vrmFile(VALID_VRM));
+    await settle(() => text().includes("could not be read"));
+
+    expect(button("Replace")?.disabled).toBe(true);
   });
 });

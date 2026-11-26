@@ -29,8 +29,8 @@ export type LibraryAvatarTarget = {
  * Materials) and its Diagnostics. The settings are the Anima settings' rows
  * for the same Avatar item, so a change applies wherever the Avatar is used,
  * the preview dock included. Where the runtime keeps no settings (the hosted
- * app) it offers Diagnostics only. A Local Avatar also offers Replace VRM;
- * `onReplaced` receives the new revision.
+ * app) it offers no settings rows. A Local Avatar also offers Replace VRM
+ * everywhere; `onReplaced` receives the new revision.
  */
 export function LibraryAvatarSettingsDialog({
   avatar,

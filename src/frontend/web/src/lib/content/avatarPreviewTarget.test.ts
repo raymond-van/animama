@@ -1,4 +1,7 @@
-import type { PyTypedContentPreview } from "@animama/runtime-contracts/api-types";
+import type {
+  PyAvatarContent,
+  PyTypedContentPreview,
+} from "@animama/runtime-contracts/api-types";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
@@ -6,6 +9,7 @@ import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvat
 import {
   avatarPreviewPortraitRetake,
   avatarPreviewTarget,
+  readAvatarContent,
 } from "./avatarPreviewTarget";
 import { typedPreviewTransport } from "./catalogApi";
 
@@ -136,31 +140,36 @@ describe("avatarPreviewPortraitRetake", () => {
     files: [],
     metadata: { content_type: "avatar" },
   };
-  const content = (captured: string | null, source = "local") => ({
-    data: {
+  const content = (captured: string | null, source = "local") =>
+    ({
       item_id: "item-7",
       revision_sha256: revision,
       source,
       name: "Mika",
       editable: source === "local",
       portrait: { url: "/p.webp", avatar_revision_sha256: captured },
-    },
-  });
+    }) as PyAvatarContent;
 
   it("retakes a Local portrait captured from another revision", async () => {
-    sdk.getAvatarContent.mockResolvedValueOnce(content("e".repeat(64)));
-    const retake = await avatarPreviewPortraitRetake({} as never, preview);
+    sdk.getAvatarContent.mockResolvedValueOnce({
+      data: content("e".repeat(64)),
+    });
+    const avatar = await readAvatarContent({} as never, "item-7");
+    const retake = avatarPreviewPortraitRetake(preview, avatar);
     expect(retake).toEqual({ item_id: "item-7", revision_sha256: revision });
 
     const target = avatarPreviewTarget(preview, "Mika", retake);
     expect(target.portraitRetake).toEqual(retake);
   });
 
-  it("keeps a current or Included portrait", async () => {
-    sdk.getAvatarContent.mockResolvedValueOnce(content(revision));
-    expect(await avatarPreviewPortraitRetake({} as never, preview)).toBeNull();
-    sdk.getAvatarContent.mockResolvedValueOnce(content(null, "included"));
-    expect(await avatarPreviewPortraitRetake({} as never, preview)).toBeNull();
+  it("keeps a current, imported or Included portrait", () => {
+    expect(avatarPreviewPortraitRetake(preview, content(revision))).toBeNull();
+    // An imported portrait records no capture revision.
+    expect(avatarPreviewPortraitRetake(preview, content(null))).toBeNull();
+    expect(
+      avatarPreviewPortraitRetake(preview, content(null, "included")),
+    ).toBeNull();
+    expect(avatarPreviewPortraitRetake(preview, null)).toBeNull();
     expect(avatarPreviewTarget(preview, "Mika")).not.toHaveProperty(
       "portraitRetake",
     );

@@ -86,6 +86,8 @@ wherever that Avatar is used:
 
 The Library offers the same rows for any Avatar item (see
 [Library](library.md)); both use `AvatarSettingsRows`, keyed by Avatar item.
+For a Local Avatar the Library also offers Replace VRM, which changes the
+model of every Anima that uses it.
 Create Anima has no settings: an unsaved upload has no Avatar item to keep
 them for.
 

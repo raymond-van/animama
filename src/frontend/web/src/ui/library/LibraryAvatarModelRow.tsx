@@ -10,6 +10,7 @@ import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
 import { useReplaceAvatarModel } from "@/query/mutations/useReplaceAvatarModel";
 import { Button } from "@/ui/components/button";
 import { checkCreationVrm } from "@/ui/create-anima/createAnimaFiles";
+import { creatorErrorText } from "@/ui/create-anima/createAnimaErrors";
 
 /**
  * The Library Avatar settings row that replaces a Local Avatar's VRM in
@@ -28,7 +29,11 @@ export function LibraryAvatarModelRow({
   const { fileSize, list } = useFormatters();
   const inputId = useId();
   const input = useRef<HTMLInputElement>(null);
-  const operationId = useRef<string | null>(null);
+  // One write attempt: a retry after an uncertain failure resends the same
+  // operation and revision, so the server replays its saved result.
+  const attempt = useRef<{ operationId: string; revision: string } | null>(
+    null,
+  );
   const [file, setFile] = useState<File | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,17 +50,15 @@ export function LibraryAvatarModelRow({
     if (!next) return;
     setError(null);
     setFile(null);
-    operationId.current = null;
+    attempt.current = null;
     setChecking(true);
     try {
       await checkCreationVrm(next);
       setFile(next);
     } catch (cause) {
-      // Create Anima's checks word their failures in the UI locale.
       setError(
-        cause instanceof Error
-          ? cause.message
-          : t("inventory.avatarSettings.model.invalid"),
+        creatorErrorText(cause, t("inventory.avatarSettings.model.invalid"))
+          .message,
       );
     } finally {
       setChecking(false);
@@ -67,29 +70,29 @@ export function LibraryAvatarModelRow({
   const cancel = () => {
     setFile(null);
     setError(null);
-    operationId.current = null;
+    attempt.current = null;
   };
 
   const confirm = async () => {
     const revision = faceParts.data?.revision;
     if (!file || !revision) return;
     setError(null);
-    operationId.current ??= crypto.randomUUID();
+    attempt.current ??= { operationId: crypto.randomUUID(), revision };
     try {
       const saved = await replace.mutateAsync({
         itemId,
-        expectedRevision: revision,
+        expectedRevision: attempt.current.revision,
         file,
-        operationId: operationId.current,
+        operationId: attempt.current.operationId,
       });
       setFile(null);
-      operationId.current = null;
+      attempt.current = null;
       onReplaced(saved);
     } catch (cause) {
       const failure = toContentSaveApiError(cause);
       if (failure.code === "catalog_revision_conflict") {
         // Show what changed before the owner confirms again.
-        operationId.current = null;
+        attempt.current = null;
         setError(t("inventory.avatarSettings.model.changed"));
         void faceParts.refetch();
         void animas.refetch();
@@ -157,6 +160,11 @@ export function LibraryAvatarModelRow({
           <p className="text-muted-foreground text-xs">
             {t("inventory.avatarSettings.model.keeps")}
           </p>
+          {faceParts.isError ? (
+            <p className="text-destructive text-xs">
+              {t("inventory.avatarSettings.model.unreadable")}
+            </p>
+          ) : null}
           {faceParts.data?.face_parts ? (
             <p className="text-muted-foreground text-xs">
               {t("inventory.avatarSettings.model.faceParts")}
