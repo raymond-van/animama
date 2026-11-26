@@ -6,15 +6,19 @@ published from the agreed [spec](in-app-generation-spec.md) and captured at
 and P3 to P12. It was revised on 2026-11-26 where delivered work changed a
 fact (the ChatGPT plan connection, #919, and chat image input, #904), and the
 owner added R3.7 the same day.
-Authorized scope: the owner approved this plan on 2026-11-26 (G0), including
-D1 to D17. No phase is authorized yet; the owner names the phases to
-implement. D18 to D20 were added after G0 to meet R3.7.
+Authorized scope: Phases 0 to 3. The owner approved this plan on 2026-11-26
+(G0), including D1 to D17, and authorized Phases 0 to 3 the same day. D18 to
+D20 were added after G0 to meet R3.7. Gates G1 to G8 still apply where the
+phases name them.
 Planning baseline: `origin/main` at `4ba6db1c5`, which the line numbers below
-refer to.
+refer to. Implementation base: `origin/main` at `be048d5b3`, merged as
+`c2f9fa3b5`; the two commits between them change only lifecycle and licensing
+documents.
 Workspace: worktree `in-app-generation`, branch `feat/in-app-generation`; the
-spec snapshot is commit `4e53de1aa`. No stack is running. A phase that needs
-one starts `./reset.sh --name generate --base-port <free port>` and stops it
-afterwards; it holds only test data.
+spec snapshot is commit `4e53de1aa`. Task stack `animama-generate` at
+`http://animama-generate.localhost:9300` (development mode), started with
+`./reset.sh --name generate --base-port 9300` when a phase needs it and
+stopped afterwards; it holds only test data.
 
 ## Purpose and context
 
@@ -263,7 +267,13 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] G0: the owner approved this plan, including D1 to D17 (2026-11-26).
 - [x] R3.7 added by the owner (2026-11-26): #942 updated and read back, the
   snapshot refreshed, D18 to D20 added.
-- [ ] Phase 0: feasibility trial (C2, evidence for C5).
+- [x] Workspace setup (2026-11-26): `origin/main` merged, Phases 0 to 3
+  recorded, the branch pushed, the plan linked in #942 at `efbb04497`, the
+  issue moved to `triage:ready-for-agent`, dependencies installed with
+  Python 3.12.13. No stack started.
+- [x] Phase 0: feasibility trial (2026-11-26). The page trial answers C2.
+  The authoring trial ran on a live plan model (G1, 13 of 15 requests) and
+  confirms D4, D8, D18 and D19. Code Review #2 passed.
 - [ ] Phase 1: checks, validation, frames and guidance in app source.
 - [ ] Phase 2: the assistant's backend.
 - [ ] Phase 3: the Generate page. Ends the spec's first usable phase.
@@ -339,6 +349,106 @@ All from planning, 2026-11-26.
   big-headed Avatar. It was not tested. D7 keeps checks on the Included
   Avatars, where the skill's results already hold.
 
+### Page trial, 2026-11-26
+
+`pnpm -s generation:trial` ran in headless Chromium on the software renderer
+(SwiftShader) and on the machine's GPU (an Apple M5 through Metal), with five
+Included Gestures from 2 KB to 56 KB and 1 s to 9.5 s long.
+
+| Subject | Observed |
+| --- | --- |
+| Loading an Avatar for checks | 9 to 25 ms each in the page (5 MB files, placeholder textures); 30 ms for both in a worker. |
+| Checking a clip on both Avatars | 28 ms for a 1 s clip, 82 to 164 ms for clips of 4 to 9.5 s, and 314 to 346 ms for the slowest (8.25 s). The same on both renderers, because checks draw nothing. |
+| The main thread | A check on the main thread blocks it for its whole length. In a worker the check took the same time and the page's timer never slipped more than 6 ms. |
+| Findings | Identical between the command line, the page and the worker for all five clips, compared as formatted reports. |
+| Loading an Avatar for frames | 142 to 234 ms each, with its materials. |
+| A sheet pair on a second renderer | 0.9 s (GPU) and 2.6 s (software) the first time, about 25 ms afterwards. |
+| A sheet pair through a render target on a renderer the page already has | 1.1 s (GPU) and 2.5 s (software) the first time, then 0.18 s (GPU) and 1.0 s (software). |
+| Render-target pixels | Linear as read back: a mean difference of 14.6 in 255 from the second renderer's sheet. Encoded to sRGB after reading, the difference is 0.4. |
+| Sheet size | 944 × 2008 px for six rows of four 220 × 330 tiles: about 0.8 MB as PNG and 0.17 to 0.19 MB as JPEG at quality 0.85. |
+
+What this settles for C2:
+
+- The motion checks and the frame rendering both run in the app. A Gesture
+  of ordinary length checks on both Included Avatars in well under half a
+  second, and a review's frames take about a second the first time.
+- Checks run in a worker. On the main thread a check would freeze the page
+  for up to a third of a second per draft version.
+- Frames are drawn through a render target on the preview's own renderer and
+  encoded to sRGB after reading, so no second WebGL context is needed. The
+  shared sheet code takes the tile-drawing step as a parameter, which lets
+  `animation:render` keep its own renderer and its present output.
+- Frames are uploaded as JPEG, about a fifth of the PNG's size.
+
+Left for later phases:
+
+- The pose catalog that the checks import bundles every Included Gesture and
+  Reaction clip (`poses/catalog.ts`, an eager glob). A worker gets its own
+  copy of what it imports, so Phase 1 measures the built worker's size and
+  passes the base pose in if the catalog makes it large.
+- A hidden or covered window was not tried: a headless page always counts as
+  visible. Neither path waits for an animation frame, so neither should
+  depend on visibility; Phase 3's manual check confirms it.
+- GPU memory with the Included Avatars loaded beside the previewed Avatar
+  was not measured. Phase 1 releases them after each review unless that
+  proves too slow.
+- Providers scale large images down before a model sees them. Whether a
+  sheet of 220 × 330 tiles stays readable is a question for the authoring
+  trial, which also tries a squarer sheet.
+- One Included Gesture, `meme-dab`, reports two FAIL findings on today's
+  checks. A draft that ends with warnings is therefore not unusual.
+
+### Authoring trial, 2026-11-26
+
+`scripts/generation_probe.py` ran in the signed-in task stack's server
+container on `gpt-6-luna` through the plan connection, 13 requests in all. Each pass is one fresh
+request with the skill's five reference files and the joint list as
+instructions (about 16,000 tokens) and the pass's tools. No effort was named
+unless the row says so. Clips were checked with `pnpm -s animation check`.
+Nothing below identifies the account.
+
+| Pass | Result |
+| --- | --- |
+| Write "a shy little wave with a small smile" | One request, 20 s, 16,284 input and 1,036 output tokens. A valid clip (3 KB saved) with six beats, a hand shape, a face and muted layers. Every motion check passed on both Avatars. |
+| Write "thinking with a hand on the chin, held while the Anima thinks" | One request, 22 s, 16,290 input and 1,162 output tokens. Valid, with a solved head contact. Checks: 3 FAIL (the hand through the head and neck on its way up, the forearm in the torso) and 6 WARN. |
+| Write "a hearty laugh" | Two requests: it read an example first (2 s), then submitted (33 s, 18,840 input and 1,801 output tokens). Valid, and every check passed. |
+| Repair the thinking clip by rewriting it | One request, 22 s, 17,744 input and 1,152 output tokens. Valid; 4 FAIL and 8 WARN remained. |
+| Repair it through `edit_draft` | One request, 8 s, 17,795 input and 356 output tokens: 13 `set` operations by JSON Pointer, all applied. Valid; 4 FAIL and 7 WARN remained. |
+| Repair it through `edit_draft`, naming medium and then high effort | One request each, 7 s, 290 and 321 output tokens and no reasoning tokens reported. 3 and 4 FAIL remained: naming an effort changed neither the time nor the result. |
+| Three `edit_draft` repair passes in a row, each on the last one's findings | 3 FAIL, then 2, then 2. The hand stopped passing through the head. The forearm still overlapped the torso by about 3 cm against a limit of 1.5 cm. |
+| Review frames of the wave with two faults seeded (an angry face, an arm that stays low); two 944 × 2008 sheets | One request, 4 s, 21,827 input and 119 output tokens. It replaced the angry face with a smile and judged the low arm an acceptable small wave. |
+| The same review with 330 × 495 tiles (two 1384 × 2008 sheets) | One request, 4 s, 23,943 input tokens. The same edit and the same judgement. |
+| Write "a cheeky wink with the tongue poking out, then a small grin" with 111 expression names of an Avatar with ARKit and MMD shapes | One request, 17 s, 17,007 input and 854 output tokens. It keyed `happy`, `relaxed`, `blinkRight` and three `Fcl_*_Fun` parts, then `tongueOut`, `mouthSmileLeft` and `mouthSmileRight` from the list, and no MMD name. |
+
+The expression names came from the runtime's own ARKit and MMD tables with a
+few invented author shapes, not from `vrm:inspect` on a private Avatar file.
+
+What it shows:
+
+- The plan route accepts function tools whose arguments are free-form
+  objects, inside the namespace, and a whole clip arrives in one tool call.
+- A write is usually one request of about 20 seconds. Two of three requests
+  passed every check at once.
+- `edit_draft` works: the model addressed keys by JSON Pointer correctly, at
+  a third of the output and under half the time of a rewrite.
+- Repair is partial on a hard pose. One pass did not clear a hand-to-chin
+  contact with either tool, and three passes in a row reduced three failures
+  to two. Such drafts end with warnings, as R4.3 allows.
+- Naming a reasoning effort made no measurable difference on this route: the
+  usage reported no reasoning tokens with or without one. The assistant
+  therefore names none and leaves the model at its default.
+- A pass sends 16,000 to 24,000 tokens. With room for a large clip and its
+  findings, a model needs a context of about 64,000 tokens (Phase 4's
+  eligibility rule).
+- The frame review reads a face on the default sheet. Larger tiles changed
+  nothing, so the sheet stays six rows of 220 × 330 tiles.
+- Given an Avatar's names, the model follows D18: a portable mood first,
+  then the Avatar's own shapes on top. It also stacked a preset with parts of
+  the same mood, which the faces guidance must warn against.
+- No request reported cached input, although each repeated the same 16,000
+  tokens under one cache key. Chat on this route did report cached tokens
+  (the ChatGPT plan's record). Phase 2 looks at what differs.
+
 ## Decision Log
 
 - 2026-11-24, owner: the spec is accepted as written, including P1 and P3 to
@@ -356,8 +466,8 @@ All from planning, 2026-11-26.
   resolved; R4.4, R8.2 and R8.3 name the delivered image input; R2.4 and R6.3
   name the delivered plan failures and plan notice. No agreed decision
   changed.
-- 2026-11-26, owner: this plan is approved at G0, including D1 to D17. No
-  phase is named yet.
+- 2026-11-26, owner: this plan is approved at G0, including D1 to D17.
+  Phases 0 to 3 are authorized.
 - 2026-11-26, owner: Gesture and Reaction generation share one facial
   expression guidance, which keys named blendshapes (VRoid presets, MMD
   morphs with their Japanese labels, ARKit shapes and custom-authored
@@ -445,6 +555,27 @@ All from planning, 2026-11-26.
     every FAIL. WARN findings are given to the model in that pass and listed
     on the draft.
 
+- 2026-11-26, agent, from the page trial (Phase 0 step 3). Each applies a
+  rule the approved plan already set, and none changes agreed behavior.
+  - **Checks run in a Web Worker**, which keeps the page responsive (the
+    spec's responsiveness constraint).
+  - **Frames use a render target on the preview's renderer**, encoded to sRGB
+    after reading, and go to the backend as JPEG. This keeps one WebGL
+    context, as the preview's one-canvas rule intends.
+  - **D7 stands.** Nothing measured argues for checking the person's own
+    Avatar: cost is not the obstacle, and the reasons in D7 are unchanged.
+- 2026-11-26, agent, from the authoring trial (Phase 0 step 3). Each refines
+  an approved decision inside its intent.
+  - **D4's tool set, as tried.** `submit_draft` (the whole clip with its
+    name, AI description and Selector ID, so a write is one request),
+    `edit_draft` (set and remove by JSON Pointer), `accept_draft` in the
+    review pass, `read_example`, and `ask_questions`. A valid submission or
+    edit ends its pass.
+  - **D8's sheet stays** six rows of four 220 × 330 tiles for each Included
+    Avatar.
+  - **No reasoning effort is named.** The run uses the model's default.
+  - **Phase 1 starts on the page trial's answers.** The authoring trial's
+    results bear on Phase 2 and on the faces guidance only.
 - 2026-11-26, agent, to meet R3.7. Implementation choices; the guidance text
   itself is reviewed at G7.
   - **D18. One faces guidance for both kinds.** A shared file describes the
@@ -537,11 +668,110 @@ revised. If the evidence argues against D7, the owner decides before Phase 1.
 
 Bound: at most 15 plan requests (G1).
 
-Recovery: the probe writes clips to a scratch directory and changes no stored
-data.
+Recovery: the probe writes clips to a scratch directory and no database row.
+It is a second process over the stack's session file: if it renews the token,
+the running server's copy goes stale, so restart the server after a probe
+session or sign in again.
 
-Records: no checks run, commits or reviews yet. Code Review #1 Findings and
-Revisions go here.
+As built (2026-11-26, from `c2f9fa3b5`):
+
+- Page trial: `src/frontend/web/scripts/generation-trial.mjs`
+  (`pnpm -s generation:trial`), its page and worker under
+  `scripts/generation-trial/`, and `generation-trial.browser.test.mjs`. The
+  test asserts that the command line, a page and a worker report the same
+  findings for a clean clip and for one with a seeded fault, and that
+  render-target sheets match a second renderer's once encoded to sRGB.
+- Probe: `scripts/generation_probe.py` with `tests/test_generation_probe.py`.
+  It composes the delivered session and plan client and holds no token code.
+  A pass offers a tool set narrower than D4 named: `submit_draft` carries the
+  whole clip with its name, AI description and Selector ID, so a write is one
+  request; `edit_draft` takes `set` and `remove` operations by JSON Pointer;
+  `accept_draft` exists only in the review pass; `read_example` returns one
+  of three Included Gestures. `ask_questions` was not tried: it needs no
+  model capability the others lack. Phase 2 builds on this set.
+- The request bound counts HTTP requests to the plan's route, at most 15
+  across invocations in one shared count file.
+- The probe and its tests stay as developer tooling, for trying the guidance
+  on another model. Phase 1 turns the page trial's test into the lasting
+  parity test.
+
+Check record, from the worktree root unless noted, on working tree
+`a5c2706e55deb183b0472b3fa770e0c48b7f4426`:
+
+| Check | Result |
+| --- | --- |
+| `uv run --no-sync pytest -q tests/test_generation_probe.py -p no:cacheprovider` | 64 passed |
+| `uv run --no-sync ruff check` and `ruff format --check` on the probe and its tests | Clean |
+| `uv run --no-sync mypy scripts/generation_probe.py tests/test_generation_probe.py` | No issues in 2 files |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| `node --test --test-concurrency=1 scripts/generation-trial.browser.test.mjs` (from `src/frontend/web`) | 3 passed |
+| `pnpm exec eslint` on the trial scripts and `pnpm exec tsc -p tsconfig.scripts.json --noEmit` (from `src/frontend/web`) | Clean |
+| `pnpm -s generation:trial --gl swiftshader` and `--gl gpu` | Exit 0; results under "Page trial" |
+| The probe's `list` inside the task stack's server container | Exit 0 |
+
+Not run: the full pre-push suite and the wider backend and frontend suites.
+
+Live trial (G1): the account holder signed in on the task stack on
+2026-11-26. The probe's passes are under "Authoring trial". The first nine
+were sent before repair round 1, when a call's retries were not counted; all
+nine succeeded on their first answer, so no retry is expected to have gone
+out.
+
+#### Code Review #1 Findings
+
+Independent review, standard tier, of working tree
+`62eb3ee84dcaad0807a8ddd4af0fc59841fd5faa` against baseline `c2f9fa3b5`. The
+reviewer reused the recorded checks and reran the trial's browser test (2
+passed). Result: blocked by F1.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P0-R1-F1 | Required | The request bound counted calls to the model client, but one call could send up to four requests: the client resends once after a refused token and twice on a temporary failure. Measured with a mock transport. |
+| P0-R1-F2 | Optional | With Git present the out-directory guard accepted an untracked, un-ignored folder inside the repository, which `git add -A` would stage. |
+| P0-R1-F3 | Optional | The trial named sheet files after a clip's `id` unsanitised, so an `id` with path separators wrote outside `--out`. |
+| P0-R1-F4 | Optional | Odd tool arguments (a list as `op`, a 4,300-digit index) raised uncaught errors after the request was counted, losing the pass's record. |
+| P0-R1-F5 | Optional | Fifteen was a default, not a ceiling: `--max-requests` took any value and another `--out` started a new count. |
+| P0-R1-F6 | Optional | The docstring said tool arguments reach only `--out`, but printed problems can quote short names the model wrote. |
+| P0-R1-F7 | Optional | The plan did not record that the probe's tool set differs from D4, that a token renewal rewrites the session file, or what happens to the tooling afterwards. |
+
+#### Code Review #1 Revisions
+
+Every finding was verified and accepted. Each code fix has a test that fails
+without it.
+
+| ID | Fix |
+| --- | --- |
+| P0-R1-F1 | Every request carries call limits, so the client does not retry, and a session wrapper counts a resend after a refused token before it is sent and stops it when the count is used up. Four tests drive the real plan client over a mock transport. |
+| P0-R1-F2 | The guard no longer asks Git: inside the repository only a folder under `.animama-drafts/` is accepted. |
+| P0-R1-F3 | Sheet files are named through `sheetFileStem`, which keeps plain characters only. |
+| P0-R1-F4 | `op` and `path` must be strings, a long index is a pointer error, and any unexpected failure in a tool becomes a refused call with fixed text. |
+| P0-R1-F5 | `--max-requests` is 0 to 15 and the count file is shared by every out directory. |
+| P0-R1-F6 | Docstring corrected. |
+| P0-R1-F7 | Recorded above ("As built") and under Recovery. |
+
+Also added in this round: an optional `--effort` on the model passes, and a
+refused request's sanitised reason saved with the pass's details.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `a5c2706e55deb183b0472b3fa770e0c48b7f4426`.
+The reviewer reused the recorded checks and measured the request bound
+through the real plan client over a mock transport: requests sent never
+exceeded requests counted in 15 named cases and 400 random passes. Result:
+pass. F1 to F6 are resolved; F7 is a record edit outside the reviewer's
+scope.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P0-R2-F1 | Optional | Without the Git query, the out-directory rule knows only its own checkout, so a tracked folder in another checkout is accepted. |
+
+#### Code Review #2 Revisions
+
+P0-R2-F1 is not acted on. It needs an unusual path on the host, and inside
+the server container, where the probe is meant to run, `/app` is the only
+checkout. The repair budget for this phase has one round left unused.
+
+Phase commit: this commit (`test(generate)[p0]`).
 
 ### Phase 1: Checks, validation, frames and guidance in app source
 

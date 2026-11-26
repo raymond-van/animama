@@ -7,7 +7,7 @@ choices this draft proposed (P1 and P3 to P12; P2 was withdrawn). Revised on
 plan connection (#919) and chat image input (#904). No agreed decision changed.
 On 2026-11-26 the owner added R3.7 (decision 12).
 Authority: [#942](https://github.com/raymond-van/animama/issues/942). This file
-is a snapshot of that issue captured 2026-11-26T19:02:50Z; change the issue,
+is a snapshot of that issue captured 2026-11-26T19:06:58Z; change the issue,
 not this file.
 
 ## Problem and intended users
@@ -384,10 +384,10 @@ This issue.
 
 ## ExecPlan
 
-Approved by the owner on 2026-11-26 (G0), including D1 to D17. Tracked as
-`docs/plans/in-app-generation/in-app-generation-execplan.md` on branch
-`feat/in-app-generation`; it is linked here at its reviewed revision once the
-branch is pushed.
+Approved by the owner on 2026-11-26 (G0), including D1 to D17; Phases 0 to 3
+were authorized the same day. The reviewed plan is
+[in-app-generation-execplan.md](https://github.com/raymond-van/animama/blob/efbb0449755128f9fb76eed78a67208f386f0382/docs/plans/in-app-generation/in-app-generation-execplan.md),
+kept current on branch `feat/in-app-generation`.
 
 ## Delivery links
 
