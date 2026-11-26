@@ -76,6 +76,8 @@ export type AvatarFaceEyeLandmarkSnapshot = {
   closedCover?: {
     boundsLocal: AvatarFaceLandmarkBounds;
     frontZLocal: number;
+    /** The iris's and the face skin lids' front, without the lashes. */
+    skinFrontZLocal: number;
   };
 };
 

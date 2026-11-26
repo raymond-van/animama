@@ -15,6 +15,7 @@ import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import type { Avatar } from "../Avatar";
+import { isAnimamaConversion } from "../avatarConversionMarker";
 import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
 import { createBoneClassifier, type BoneClass } from "./boneClasses";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
@@ -651,14 +652,23 @@ export function measureEyelidBounds(
 export type ClosedEyeCover = {
   /** In anchor space: the eye's parts, open and closed. */
   bounds: THREE.Box3;
-  /** The frontmost anchor-space depth (z) of those parts, open or closed. */
+  /**
+   * The frontmost anchor-space depth (z) of those parts and of the face
+   * skin's lids there, open or closed.
+   */
   front: number;
+  /**
+   * The frontmost depth of the iris and of the face skin blink moves on this
+   * side, open or closed: without the lashes, which stand further out and
+   * which eye art hides.
+   */
+  skinFront: number;
 };
 
 /**
  * Each eye's closed cover: the box, in `anchor` space, that the eye's iris
  * and the eye lines and lashes on its side span, at rest and with `blink`
- * closing them, and their frontmost depth. A converted MikuMikuDance model
+ * closing them, and the frontmost depth of those and of the face skin's lids. A converted MikuMikuDance model
  * often closes an eye with its lash mesh rather than the face skin, so eye
  * art that hides the lashes needs a skin patch this size in front of it.
  * Whole primitives and part regions count; sides follow the head's
@@ -677,10 +687,17 @@ export function measureClosedEyeCovers(
   };
   const byKey = new Map(entries.map((entry) => [entry.bindingKey, entry]));
   // Each primitive's vertices that count: all of a part primitive's, or a
-  // region's triangles' corners.
+  // region's triangles' corners; and which primitives hold an iris.
   const vertices = new Map<RuntimePrimitiveBindingEntry, Set<number> | null>();
+  const irises = new Set<RuntimePrimitiveBindingEntry>();
   for (const role of ["eye_left", "eye_right", "eyeline", "eyelash"] as const) {
     const part = map.parts[role];
+    if (role === "eye_left" || role === "eye_right") {
+      for (const key of part.bindings) {
+        const entry = byKey.get(key);
+        if (entry) irises.add(entry);
+      }
+    }
     const regionKeys = new Set(
       (part.regions ?? []).map((region) => region.bindingKey),
     );
@@ -704,13 +721,23 @@ export function measureClosedEyeCovers(
     left: null,
     right: null,
   };
+  const ahead = (z: number, of: number) => (z - of) * context.frontSign > 0;
+  const skinFronts: Record<"left" | "right", number | null> = {
+    left: null,
+    right: null,
+  };
+  const addSkin = (side: "left" | "right", point: THREE.Vector3) => {
+    const front = skinFronts[side];
+    if (front === null || ahead(point.z, front)) skinFronts[side] = point.z;
+  };
   const add = (side: "left" | "right", point: THREE.Vector3) => {
     const cover = (covers[side] ??= {
       bounds: new THREE.Box3(),
       front: point.z,
+      skinFront: point.z,
     });
     cover.bounds.expandByPoint(point);
-    if ((point.z - cover.front) * context.frontSign > 0) cover.front = point.z;
+    if (ahead(point.z, cover.front)) cover.front = point.z;
   };
   for (const [entry, only] of vertices) {
     const mesh = entry.object;
@@ -722,17 +749,59 @@ export function measureClosedEyeCovers(
       (blink.get(mesh) ?? []).map((index) => ({ index, weight: 1 })),
       (vertex, point, delta) => closed.set(vertex, point.clone().add(delta)),
     );
+    const iris = irises.has(entry);
     const visit = (vertex: number) => {
       const point = points[vertex];
       if (!point) return;
       // The side comes from the rest position, which a closed lid shares.
       const side = point.x * context.frontSign >= 0 ? "left" : "right";
-      add(side, point);
       const shut = closed.get(vertex);
-      if (shut) add(side, shut);
+      for (const at of shut ? [point, shut] : [point]) {
+        add(side, at);
+        if (iris) addSkin(side, at);
+      }
     };
     if (only) only.forEach(visit);
     else points.forEach((_, vertex) => visit(vertex));
+  }
+  // The face skin's lids, open and closed: on each side, the vertices blink
+  // moves at least BLINK_REGION_MIN_SHARE as far as the farthest there, not
+  // the cheeks and brows it drags a little.
+  for (const key of map.parts.face_skin.bindings) {
+    const mesh = byKey.get(key)?.object;
+    if (!mesh) continue;
+    const moved: {
+      side: "left" | "right";
+      point: THREE.Vector3;
+      shut: THREE.Vector3;
+      distance: number;
+    }[] = [];
+    const farthest = { left: 0, right: 0 };
+    forEachMorphDelta(
+      context,
+      mesh,
+      (blink.get(mesh) ?? []).map((index) => ({ index, weight: 1 })),
+      (_vertex, point, delta) => {
+        const side = point.x * context.frontSign >= 0 ? "left" : "right";
+        const distance = delta.length();
+        farthest[side] = Math.max(farthest[side], distance);
+        moved.push({ side, point, shut: point.clone().add(delta), distance });
+      },
+    );
+    for (const { side, point, shut, distance } of moved) {
+      if (distance < farthest[side] * BLINK_REGION_MIN_SHARE) continue;
+      addSkin(side, point);
+      addSkin(side, shut);
+    }
+  }
+  for (const side of ["left", "right"] as const) {
+    const cover = covers[side];
+    const skin = skinFronts[side];
+    if (!cover) continue;
+    // Without iris or lids there, the skin is taken to be at the cover's
+    // front; lids in front of the lashes move the cover's front forward.
+    cover.skinFront = skin ?? cover.front;
+    if (ahead(cover.skinFront, cover.front)) cover.front = cover.skinFront;
   }
   return covers;
 }
@@ -1470,24 +1539,29 @@ function detectFromSignals(context: Context): {
     }
   }
 
-  // Head meshes blink alone morphs. A converted MikuMikuDance model keeps
-  // each material in a mesh of its own, so aa, which moves only the mouth,
-  // never morphs its lash mesh, and that mesh often also holds the brows or
-  // the eyes. Their lash islands are found by the region search below, never
-  // the whole mesh, so brows and eyes sharing it stay. Hair and meshes that
-  // hold the body never count.
-  const blinkOnlyMeshes = candidates.filter(
-    (candidate) =>
-      blink.has(candidate.entry.object) &&
-      !faceMeshCandidates.includes(candidate) &&
-      candidate.entry !== faceSkin &&
-      candidate.shares.spring_head < HAIR_MIN_SPRING_SHARE &&
-      candidate.shares.head +
-        candidate.shares.eye_left +
-        candidate.shares.eye_right >=
-        MAJORITY_SHARE &&
-      candidate.shares.other <= BODY_SKIN_SHARE,
-  );
+  // Head meshes blink alone morphs, on a MikuMikuDance model converted by
+  // Animama Avatar Converter (its marker). The converter keeps each material
+  // in a mesh of its own, so aa, which moves only the mouth, never morphs its
+  // lash mesh, and that mesh often also holds the brows or the eyes. Their
+  // lash islands are found by the region search below, never the whole mesh,
+  // so brows and eyes sharing it stay. Eye-bone meshes (searched as irises
+  // and whites already), hair and meshes that hold the body never count.
+  // Other Avatars keep the name fallback for such meshes.
+  const blinkOnlyMeshes = !isAnimamaConversion(context.gltf.parser.json)
+    ? []
+    : candidates.filter(
+        (candidate) =>
+          blink.has(candidate.entry.object) &&
+          !aa.has(candidate.entry.object) &&
+          !eyeKeys.has(candidate.entry.bindingKey) &&
+          candidate.entry !== faceSkin &&
+          candidate.shares.spring_head < HAIR_MIN_SPRING_SHARE &&
+          candidate.shares.head +
+            candidate.shares.eye_left +
+            candidate.shares.eye_right >=
+            MAJORITY_SHARE &&
+          candidate.shares.other <= BODY_SKIN_SHARE,
+      );
   if (faceSkin) {
     const reference = measureMorphDisplacement(faceSkin.object, blink);
     // A whole-body primitive's face is its head region.

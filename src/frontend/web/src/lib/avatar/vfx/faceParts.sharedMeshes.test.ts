@@ -5,6 +5,7 @@ import type { Avatar } from "../Avatar";
 import { appendTriangle } from "../testing/appendTriangle";
 import { addBlinkStrand, blinkTargets } from "../testing/blinkStrand";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
+import { markAnimamaConversion } from "../testing/markConversion";
 import { removeEyeBones } from "../testing/removeEyeBones";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
@@ -292,14 +293,16 @@ function unbind(
   }
 }
 
-// A converted MikuMikuDance model keeps each material in a mesh of its own, so
-// blink morphs its lash mesh while aa, which moves only the mouth, does not.
+// A MikuMikuDance model converted by Animama Avatar Converter keeps each
+// material in a mesh of its own, so blink morphs its lash mesh while aa, which
+// moves only the mouth, does not.
 describe("eye details in meshes blink alone morphs", () => {
   it("finds an eye-line mesh aa does not morph island by island", async () => {
     const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     const line = entryOf(avatar, before.eyeline.bindings[0]!);
     unbind(avatar, "aa", line.object);
+    markAnimamaConversion(avatar);
     await avatar.setFacePartCorrections(null);
 
     // Never the whole mesh, which could also hold brows or eyes; every
@@ -326,6 +329,7 @@ describe("eye details in meshes blink alone morphs", () => {
     const firstNew = brow.object.geometry.getIndex()!.count / 3;
     for (const eye of eyeCenters(avatar))
       addBlinkStrand(avatar, brow, eye, 0.01);
+    markAnimamaConversion(avatar);
     await avatar.setFacePartCorrections(null);
 
     // The brow itself, which blink drags part way, stays.
@@ -336,6 +340,22 @@ describe("eye details in meshes blink alone morphs", () => {
       { bindingKey: brow.bindingKey, triangles: [firstNew, firstNew + 1] },
     ]);
     expect(parts.face_skin.bindings).toEqual(before.face_skin.bindings);
+  });
+
+  it("searches no such mesh on an Avatar the converter did not write", async () => {
+    const avatar = await loadedTestAvatar("Annie");
+    const brow = buildRuntimePrimitiveBindings(avatar).entries.find((entry) =>
+      [entry.object.material].flat()[0]?.name.includes("FaceBrow"),
+    )!;
+    unbind(avatar, "aa", brow.object);
+    for (const eye of eyeCenters(avatar))
+      addBlinkStrand(avatar, brow, eye, 0.01);
+    await avatar.setFacePartCorrections(null);
+
+    const parts = avatar.facePartMap!.parts;
+    expect(
+      [parts.eyeline, parts.eyelash].flatMap((part) => part.regions ?? []),
+    ).toEqual([]);
   });
 });
 

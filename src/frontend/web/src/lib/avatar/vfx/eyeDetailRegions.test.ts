@@ -2,9 +2,9 @@ import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "../Avatar";
-import { ANIMAMA_CONVERSION_EXTENSION } from "../avatarConversionMarker";
 import { addBlinkStrand } from "../testing/blinkStrand";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
+import { markAnimamaConversion } from "../testing/markConversion";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { AvatarVFXController } from "./AvatarVFXController";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
@@ -103,8 +103,11 @@ function drawn(entry: RuntimePrimitiveBindingEntry, triangle: number): boolean {
   );
 }
 
-/** Annie with a lash strand over each eye in her brow mesh, which aa no longer morphs. */
-async function annieWithLashesInBrows(): Promise<{
+/**
+ * Annie with a lash strand over each eye in her brow mesh, which aa no longer
+ * morphs, marked as a converted MMD model unless `converted` is false.
+ */
+async function annieWithLashesInBrows(converted = true): Promise<{
   avatar: Avatar;
   brow: RuntimePrimitiveBindingEntry;
   strands: number[];
@@ -128,6 +131,7 @@ async function annieWithLashesInBrows(): Promise<{
       new THREE.Vector3().copy(eye.centerLocal),
       0.01,
     );
+  if (converted) markAnimamaConversion(avatar);
   await avatar.setFacePartCorrections(null);
   const face = buildRuntimePrimitiveBindings(avatar).entries.find(
     (entry) =>
@@ -135,46 +139,6 @@ async function annieWithLashesInBrows(): Promise<{
   )!;
   baseTextureOf(face.object)!.image = new StubCanvas();
   return { avatar, brow, strands: [firstNew, firstNew + 1] };
-}
-
-describe("eye effects on lashes inside a mesh holding no face part", () => {
-  it("hide the lash regions and keep the brows, until the effect ends", async () => {
-    const { avatar, brow, strands } = await annieWithLashesInBrows();
-    expect(avatar.facePartMap!.parts.eyelash.regions).toEqual([
-      { bindingKey: brow.bindingKey, triangles: strands },
-    ]);
-    const browTriangles = Array.from(
-      { length: strands[0]! },
-      (_, index) => index,
-    );
-
-    const controller = new AvatarVFXController(avatar);
-    avatar.vfxController = controller;
-    expect(
-      await applyAvatarVFXEffectById({
-        avatar,
-        effectId: HEART_EYES.id,
-        effectEntry: HEART_EYES,
-      }),
-    ).toBe(true);
-    expect(controller.getSnapshot().warnings).toEqual([]);
-    expect(strands.some((triangle) => drawn(brow, triangle))).toBe(false);
-    expect(brow.object.visible).toBe(true);
-    expect(browTriangles.every((triangle) => drawn(brow, triangle))).toBe(true);
-
-    controller.clearAllEffects();
-    expect(strands.every((triangle) => drawn(brow, triangle))).toBe(true);
-  });
-});
-
-/** Mark the Avatar as converted by Animama Avatar Converter, then find its face again. */
-async function markConverted(avatar: Avatar): Promise<void> {
-  const json = avatar.sourceGltf!.parser.json as { extensionsUsed?: string[] };
-  json.extensionsUsed = [
-    ...(json.extensionsUsed ?? []),
-    ANIMAMA_CONVERSION_EXTENSION,
-  ];
-  await avatar.setFacePartCorrections(null);
 }
 
 /** Where `object` is in the face landmarks' anchor (head) space. */
@@ -193,7 +157,28 @@ function named(avatar: Avatar, suffix: string): THREE.Object3D[] {
   return found;
 }
 
-async function applyHeartEyes(
+/** Eye art with this attachment and face options (heart eyes by default). */
+function eyeArt(
+  id: string,
+  attachment: { side?: "left" | "right"; mirror?: boolean } = {
+    side: "right",
+    mirror: true,
+  },
+  faceOptions: Record<string, unknown> = {},
+) {
+  return parseAvatarEffectDefinition(
+    {
+      schema: "animama/avatar-effect/2",
+      region: "eyes",
+      attachment: { kind: "face_landmark", landmark: "eyes", ...attachment },
+      ...(Object.keys(faceOptions).length ? { faceOptions } : {}),
+      art: { image: `${id}.png` },
+    },
+    { id, label: id, description: "", assetPath: `blob:${id}` },
+  );
+}
+
+async function applyEyeArt(
   avatar: Avatar,
   entry: typeof HEART_EYES = HEART_EYES,
 ): Promise<AvatarVFXController> {
@@ -210,90 +195,135 @@ async function applyHeartEyes(
   return controller;
 }
 
+/** The closed-eye patches' sides and their anchor-space positions. */
+function patchesOf(avatar: Avatar, effectId: string) {
+  return Object.fromEntries(
+    named(avatar, ":closed-eye-patch").map((patch) => {
+      expect(patch.name.startsWith(`${effectId}:`)).toBe(true);
+      return [patch.name.split(":")[1], inAnchorSpace(avatar, patch)];
+    }),
+  );
+}
+
+describe("eye effects on lashes inside a mesh holding no face part", () => {
+  it("hide the lash regions and keep the brows, until the effect ends", async () => {
+    const { avatar, brow, strands } = await annieWithLashesInBrows();
+    expect(avatar.facePartMap!.parts.eyelash.regions).toEqual([
+      { bindingKey: brow.bindingKey, triangles: strands },
+    ]);
+    const browTriangles = Array.from(
+      { length: strands[0]! },
+      (_, index) => index,
+    );
+
+    const controller = await applyEyeArt(avatar);
+    expect(strands.some((triangle) => drawn(brow, triangle))).toBe(false);
+    expect(brow.object.visible).toBe(true);
+    expect(browTriangles.every((triangle) => drawn(brow, triangle))).toBe(true);
+
+    controller.clearAllEffects();
+    expect(strands.every((triangle) => drawn(brow, triangle))).toBe(true);
+  });
+});
+
 describe("closed-eye skin patches on a converted MikuMikuDance model", () => {
   it("measure each eye's cover, open and closed, only on a converted model", async () => {
-    const { avatar } = await annieWithLashesInBrows();
+    const plain = await annieWithLashesInBrows(false);
     expect(
-      avatar.getFaceLandmarksSnapshot()!.eyes.left!.closedCover,
+      plain.avatar.getFaceLandmarksSnapshot()!.eyes.left!.closedCover,
     ).toBeUndefined();
-    await markConverted(avatar);
 
+    const { avatar } = await annieWithLashesInBrows();
     const { left, right } = avatar.getFaceLandmarksSnapshot()!.eyes;
+    const spacing = Math.abs(left!.centerLocal.x - right!.centerLocal.x);
     for (const eye of [left!, right!]) {
       const cover = eye.closedCover!.boundsLocal;
       // The iris, and the lash strand both where it rests above the eye and
-      // where blink lowers it (2 cm, below the eye's centre).
+      // where blink lowers it (2 cm, below the eye's centre); no further.
       expect(cover.min.x).toBeLessThanOrEqual(eye.boundsLocal.min.x + 1e-6);
       expect(cover.max.x).toBeGreaterThanOrEqual(eye.boundsLocal.max.x - 1e-6);
       expect(cover.max.y).toBeGreaterThanOrEqual(eye.centerLocal.y + 0.012);
       expect(cover.min.y).toBeLessThanOrEqual(eye.centerLocal.y - 0.008 + 1e-6);
-      expect(eye.closedCover!.frontZLocal).toBeCloseTo(cover.max.z, 6);
+      expect(cover.size.x).toBeLessThan(spacing);
+      expect(cover.size.y).toBeLessThan(spacing);
+      expect(cover.center.x * eye.centerLocal.x).toBeGreaterThan(0);
+      expect(eye.closedCover!.frontZLocal).toBeGreaterThanOrEqual(
+        cover.max.z - 1e-6,
+      );
+      expect(eye.closedCover!.skinFrontZLocal).toBeLessThanOrEqual(
+        eye.closedCover!.frontZLocal,
+      );
     }
   });
 
   it("puts a skin patch over each closed eye, under the art in front of it", async () => {
     const { avatar } = await annieWithLashesInBrows();
-    await markConverted(avatar);
     const { left, right } = avatar.getFaceLandmarksSnapshot()!.eyes;
-    const controller = await applyHeartEyes(avatar);
+    const controller = await applyEyeArt(avatar);
 
-    const patches = named(avatar, ":closed-eye-patch");
-    expect(patches.map((patch) => patch.name).sort()).toEqual([
-      `${HEART_EYES.id}:left:closed-eye-patch`,
-      `${HEART_EYES.id}:right:closed-eye-patch`,
-    ]);
+    const patches = patchesOf(avatar, HEART_EYES.id);
+    expect(Object.keys(patches).sort()).toEqual(["left", "right"]);
     for (const [label, eye] of [
       ["left", left!],
       ["right", right!],
     ] as const) {
       const cover = eye.closedCover!;
-      const patch = inAnchorSpace(
-        avatar,
-        patches.find((object) => object.name.includes(`:${label}:`))!,
-      );
+      const patch = patches[label]!;
       const art = inAnchorSpace(
         avatar,
         named(avatar, `${HEART_EYES.id}:${label}`)[0]!,
       );
       expect(patch.x).toBeCloseTo(cover.boundsLocal.center.x, 4);
       expect(patch.y).toBeCloseTo(cover.boundsLocal.center.y, 4);
-      // Just in front of the closed lids and lashes, the art further still.
-      expect(patch.z).toBeGreaterThan(cover.frontZLocal);
+      // Just in front of the iris and lids, the art in front of everything
+      // there, lashes included.
+      expect(patch.z).toBeCloseTo(cover.skinFrontZLocal + 0.0005, 6);
+      expect(art.z).toBeGreaterThan(cover.frontZLocal);
       expect(art.z).toBeGreaterThan(patch.z);
     }
+
+    // Moving the art leaves the patches over the eyes.
+    expect(
+      controller.updateEffectTransform(HEART_EYES.id, {
+        kind: "face",
+        transform: {
+          offset: { x: 0.01, y: 0.015, z: 0.005 },
+          scale: { x: 1.2, y: 1.2, z: 1 },
+          rotation: { x: 0, y: 0, z: 0.3 },
+        },
+      }),
+    ).toBe(true);
+    expect(patchesOf(avatar, HEART_EYES.id)).toEqual(patches);
 
     controller.clearAllEffects();
     expect(named(avatar, ":closed-eye-patch")).toEqual([]);
   });
 
-  it("adds none on other models or when the effect turns its backdrop off", async () => {
-    const unconverted = await annieWithLashesInBrows();
-    await applyHeartEyes(unconverted.avatar);
+  it.each([
+    ["one eye's art", { side: "right" as const, mirror: false }],
+    ["centred art", { mirror: false }],
+  ])("covers both closed eyes under %s", async (_, attachment) => {
+    const { avatar } = await annieWithLashesInBrows();
+    const art = eyeArt("eye-art", attachment);
+    await applyEyeArt(avatar, art);
+    expect(Object.keys(patchesOf(avatar, art.id)).sort()).toEqual([
+      "left",
+      "right",
+    ]);
+  });
+
+  it("adds none on other models, or for art that turns the backdrop or eye hiding off", async () => {
+    const unconverted = await annieWithLashesInBrows(false);
+    await applyEyeArt(unconverted.avatar);
     expect(named(unconverted.avatar, ":closed-eye-patch")).toEqual([]);
 
-    const converted = await annieWithLashesInBrows();
-    await markConverted(converted.avatar);
-    const withoutBackdrop = parseAvatarEffectDefinition(
-      {
-        schema: "animama/avatar-effect/2",
-        region: "eyes",
-        attachment: {
-          kind: "face_landmark",
-          landmark: "eyes",
-          mirror: true,
-          side: "right",
-        },
-        faceOptions: { skinBackdrop: false },
-        art: { image: "heart-eyes.png" },
-      },
-      {
-        id: "heart-eyes-bare",
-        label: "heart-eyes-bare",
-        description: "",
-        assetPath: "blob:heart-eyes-bare",
-      },
-    );
-    await applyHeartEyes(converted.avatar, withoutBackdrop);
-    expect(named(converted.avatar, ":closed-eye-patch")).toEqual([]);
+    for (const options of [
+      { skinBackdrop: false },
+      { hideEyeDetails: false },
+    ]) {
+      const { avatar } = await annieWithLashesInBrows();
+      await applyEyeArt(avatar, eyeArt("eye-art", undefined, options));
+      expect(named(avatar, ":closed-eye-patch")).toEqual([]);
+    }
   });
 });

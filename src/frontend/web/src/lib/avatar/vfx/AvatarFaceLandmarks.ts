@@ -309,6 +309,7 @@ export class AvatarFaceLandmarks {
             closedCover: {
               boundsLocal: toBoundsSnapshot(eye.closedCover.bounds),
               frontZLocal: eye.closedCover.front,
+              skinFrontZLocal: eye.closedCover.skinFront,
             },
           }
         : {}),
