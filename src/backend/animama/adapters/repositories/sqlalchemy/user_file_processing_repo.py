@@ -554,11 +554,16 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         """Atomically clone a same-user digest match into the claimed target file.
 
         Vectors are copied only from ``embedding_model_id``; other chunks are
-        left for re-embedding.
+        left for re-embedding. The target file row is locked only once a source
+        exists: a ``None`` result leaves it unlocked, so the parse that follows
+        does not hold off a delete.
         """
 
-        job_obj, file_obj = await self._lock_job_and_file(job_id=job_id, user_id=user_id, file_id=file_id)
+        file_obj = await self._s.get(ORMUserFile, file_id)
+        if file_obj is None or file_obj.user_id != user_id:
+            raise ValueError(f"user file not found: {file_id}")
         if file_obj.status in REMOVED_FILE_STATUSES:
+            job_obj, _ = await self._lock_job_and_file(job_id=job_id, user_id=user_id, file_id=file_id)
             return await self._finish_job_for_removed_file(job_obj, now=processed_at)
 
         source_has_chunks = (
@@ -585,6 +590,10 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         source_file = (await self._s.execute(source_stmt)).scalar_one_or_none()
         if source_file is None:
             return None
+
+        job_obj, file_obj = await self._lock_job_and_file(job_id=job_id, user_id=user_id, file_id=file_id)
+        if file_obj.status in REMOVED_FILE_STATUSES:
+            return await self._finish_job_for_removed_file(job_obj, now=processed_at)
 
         await self._s.execute(delete(ORMUserFileChunk).where(ORMUserFileChunk.file_id == file_id))
         # One statement copies the chunks inside the database: vectors never pass

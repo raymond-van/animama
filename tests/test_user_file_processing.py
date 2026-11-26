@@ -12,7 +12,8 @@ from typing import Any, cast
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.content_store.private_file_store import (
@@ -1105,6 +1106,44 @@ async def test_job_finishing_after_its_file_was_deleted_leaves_the_file_deleted(
     assert stored_file is not None
     assert stored_file.status == removed_status
     assert chunk_count == 0
+
+
+@pytest.mark.asyncio
+async def test_parsing_leaves_the_file_row_unlocked_so_a_delete_need_not_wait(
+    async_session, async_session_factory, clean_user_file_tables
+) -> None:
+    """Only the short final write locks the file; a delete during a long parse proceeds at once."""
+
+    await _insert_file(async_session, file_id="file-parsing", status=STATUS_PROCESSING, extension=".txt")
+    await _insert_job(async_session, job_id="job-file-parsing", file_id="file-parsing", status=JOB_STATUS_RUNNING)
+    lock_during_parse: list[str] = []
+
+    class LockProbeParser:
+        async def parse(self, *, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
+            async with async_session_factory() as other:
+                try:
+                    await other.execute(text("SELECT id FROM user_file WHERE id = 'file-parsing' FOR UPDATE NOWAIT"))
+                    lock_during_parse.append("free")
+                except DBAPIError:
+                    lock_during_parse.append("locked")
+                await other.rollback()
+            return ParsedUserFileDocument(text="Parsed notes", parser_name="probe", metadata={})
+
+    async with async_session_factory() as session:
+        service = UserFileProcessingService(
+            processing=SQLAlchemyUserFileProcessingRepository(session),
+            uow=SQLAlchemyUnitOfWork(session),
+        )
+        completed = await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id="file-parsing", extension=".txt"),
+            payload=b"Parsed notes",
+            parser=LockProbeParser(),
+            embedder=None,
+            max_process_bytes=1024,
+        )
+
+    assert lock_during_parse == ["free"]
+    assert completed.status == JOB_STATUS_SUCCEEDED
 
 
 def test_only_unexpected_failures_are_retried() -> None:
