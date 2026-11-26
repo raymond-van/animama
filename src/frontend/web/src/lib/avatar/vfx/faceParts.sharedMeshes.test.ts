@@ -278,6 +278,67 @@ describe("eye details inside the face mesh", () => {
   );
 });
 
+/** Take `mesh` out of `expression`'s binds, so that expression no longer morphs it. */
+function unbind(
+  avatar: Avatar,
+  expression: string,
+  mesh: THREE.Object3D,
+): void {
+  for (const bind of avatar.vrm!.expressionManager!.getExpression(expression)!
+    .binds as unknown as { primitives?: THREE.Object3D[] }[]) {
+    bind.primitives = bind.primitives?.filter(
+      (primitive) => primitive !== mesh,
+    );
+  }
+}
+
+// A converted MikuMikuDance model keeps each material in a mesh of its own, so
+// blink morphs its lash mesh while aa, which moves only the mouth, does not.
+describe("eye details in meshes blink alone morphs", () => {
+  it("finds an eye-line mesh aa does not morph island by island", async () => {
+    const avatar = await loadedTestAvatar("Annie");
+    const before = avatar.facePartMap!.parts;
+    const line = entryOf(avatar, before.eyeline.bindings[0]!);
+    unbind(avatar, "aa", line.object);
+    await avatar.setFacePartCorrections(null);
+
+    // Never the whole mesh, which could also hold brows or eyes; every
+    // triangle of it that blink lowers with the lid is a line or lash region.
+    const parts = avatar.facePartMap!.parts;
+    expect(parts.eyeline.bindings).toEqual([]);
+    const hidden = [parts.eyeline, parts.eyelash]
+      .flatMap((part) => part.regions ?? [])
+      .filter((region) => region.bindingKey === line.bindingKey)
+      .flatMap((region) => region.triangles)
+      .sort((a, b) => a - b);
+    const count = line.object.geometry.getIndex()!.count / 3;
+    expect(hidden).toEqual(Array.from({ length: count }, (_, index) => index));
+    expect(parts.face_skin.bindings).toEqual(before.face_skin.bindings);
+  });
+
+  it("finds lash strands in a mesh shared with the brows and leaves the brows", async () => {
+    const avatar = await loadedTestAvatar("Annie");
+    const before = avatar.facePartMap!.parts;
+    const brow = buildRuntimePrimitiveBindings(avatar).entries.find((entry) =>
+      [entry.object.material].flat()[0]?.name.includes("FaceBrow"),
+    )!;
+    unbind(avatar, "aa", brow.object);
+    const firstNew = brow.object.geometry.getIndex()!.count / 3;
+    for (const eye of eyeCenters(avatar))
+      addBlinkStrand(avatar, brow, eye, 0.01);
+    await avatar.setFacePartCorrections(null);
+
+    // The brow itself, which blink drags part way, stays.
+    const parts = avatar.facePartMap!.parts;
+    expect(parts.eyeline.bindings).toEqual(before.eyeline.bindings);
+    expect(parts.eyelash.bindings).toEqual(before.eyelash.bindings);
+    expect(parts.eyelash.regions).toEqual([
+      { bindingKey: brow.bindingKey, triangles: [firstNew, firstNew + 1] },
+    ]);
+    expect(parts.face_skin.bindings).toEqual(before.face_skin.bindings);
+  });
+});
+
 describe("a face skinned partly to the neck", () => {
   it("is still the face skin, with bounds from its head vertices", async () => {
     const avatar = await loadedTestAvatar("Andrew");

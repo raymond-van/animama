@@ -67,6 +67,16 @@ export type AvatarFaceEyeLandmarkSnapshot = {
    * the face there rather than at a fixed share of the face's depth.
    */
   surfaceFrontZLocal?: number;
+  /**
+   * Present on a model converted by Animama Avatar Converter (its glTF
+   * marker): the box its iris, eye lines and lashes span on this side, open
+   * and closed, and their frontmost depth (`measureClosedEyeCovers`). Eye art
+   * that closes the eyes sits in front of it, over a skin patch this size.
+   */
+  closedCover?: {
+    boundsLocal: AvatarFaceLandmarkBounds;
+    frontZLocal: number;
+  };
 };
 
 export type AvatarFaceLandmarksSnapshot = {

@@ -113,6 +113,13 @@ morphs do follow append bones), and the older PMD format is refused.
   same face is within a few percent of MMD under enhanced rendering. Outlines,
   rim light and matcaps keep the file's values, and the enhanced VRoid retune
   skips marked files, even ones that kept VRoid's material names.
+- **Eye effects:** heart eyes and other eye art close the eyes and hide the
+  lashes and lid lines, which the converter leaves in meshes of their own,
+  often shared with the brows or eyes; face-part detection finds them there
+  island by island. Because such a model may close its eyes with those
+  lashes, eye art also draws a skin patch over each closed eye and sits in
+  front of the closed lids
+  ([Face cleanup](avatar-vfx.md#face-cleanup)).
 - **Hair:** face-part detection also finds hair by the Japanese, Chinese and
   Korean names models use (髪, 发, 刘海, 앞머리 …), when springs do not reveal it
   ([Effects](avatar-vfx.md)).

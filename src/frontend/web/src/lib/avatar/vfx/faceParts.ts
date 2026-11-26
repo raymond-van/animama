@@ -647,6 +647,96 @@ export function measureEyelidBounds(
   };
 }
 
+/** An eye's closed cover: see {@link measureClosedEyeCovers}. */
+export type ClosedEyeCover = {
+  /** In anchor space: the eye's parts, open and closed. */
+  bounds: THREE.Box3;
+  /** The frontmost anchor-space depth (z) of those parts, open or closed. */
+  front: number;
+};
+
+/**
+ * Each eye's closed cover: the box, in `anchor` space, that the eye's iris
+ * and the eye lines and lashes on its side span, at rest and with `blink`
+ * closing them, and their frontmost depth. A converted MikuMikuDance model
+ * often closes an eye with its lash mesh rather than the face skin, so eye
+ * art that hides the lashes needs a skin patch this size in front of it.
+ * Whole primitives and part regions count; sides follow the head's
+ * left-right axis. Null for a side with none of those parts.
+ */
+export function measureClosedEyeCovers(
+  vrm: VRM,
+  map: AvatarFacePartMap,
+  entries: readonly RuntimePrimitiveBindingEntry[],
+  anchor: THREE.Object3D,
+): { left: ClosedEyeCover | null; right: ClosedEyeCover | null } {
+  const context = {
+    anchor,
+    points: new Map<THREE.Mesh, THREE.Vector3[]>(),
+    frontSign: (vrm.meta?.metaVersion === "0" ? -1 : 1) as 1 | -1,
+  };
+  const byKey = new Map(entries.map((entry) => [entry.bindingKey, entry]));
+  // Each primitive's vertices that count: all of a part primitive's, or a
+  // region's triangles' corners.
+  const vertices = new Map<RuntimePrimitiveBindingEntry, Set<number> | null>();
+  for (const role of ["eye_left", "eye_right", "eyeline", "eyelash"] as const) {
+    const part = map.parts[role];
+    const regionKeys = new Set(
+      (part.regions ?? []).map((region) => region.bindingKey),
+    );
+    for (const key of part.bindings) {
+      const entry = byKey.get(key);
+      if (entry && !regionKeys.has(key)) vertices.set(entry, null);
+    }
+    for (const region of part.regions ?? []) {
+      const entry = byKey.get(region.bindingKey);
+      const index = entry?.object.geometry.getIndex();
+      if (!entry || !index || vertices.get(entry) === null) continue;
+      const set = vertices.get(entry) ?? new Set<number>();
+      for (const triangle of region.triangles)
+        for (let corner = 0; corner < 3; corner += 1)
+          set.add(index.getX(triangle * 3 + corner));
+      vertices.set(entry, set);
+    }
+  }
+  const blink = collectMorphBinds(vrm, "blink");
+  const covers: Record<"left" | "right", ClosedEyeCover | null> = {
+    left: null,
+    right: null,
+  };
+  const add = (side: "left" | "right", point: THREE.Vector3) => {
+    const cover = (covers[side] ??= {
+      bounds: new THREE.Box3(),
+      front: point.z,
+    });
+    cover.bounds.expandByPoint(point);
+    if ((point.z - cover.front) * context.frontSign > 0) cover.front = point.z;
+  };
+  for (const [entry, only] of vertices) {
+    const mesh = entry.object;
+    const points = anchorSpacePoints(context, mesh);
+    const closed = new Map<number, THREE.Vector3>();
+    forEachMorphDelta(
+      context,
+      mesh,
+      (blink.get(mesh) ?? []).map((index) => ({ index, weight: 1 })),
+      (vertex, point, delta) => closed.set(vertex, point.clone().add(delta)),
+    );
+    const visit = (vertex: number) => {
+      const point = points[vertex];
+      if (!point) return;
+      // The side comes from the rest position, which a closed lid shares.
+      const side = point.x * context.frontSign >= 0 ? "left" : "right";
+      add(side, point);
+      const shut = closed.get(vertex);
+      if (shut) add(side, shut);
+    };
+    if (only) only.forEach(visit);
+    else points.forEach((_, vertex) => visit(vertex));
+  }
+  return covers;
+}
+
 /**
  * Each side's eyelid box on a face primitive: the vertices blink moves, open
  * and closed, so the box spans the opening a lid closes over even when only
@@ -1380,11 +1470,30 @@ function detectFromSignals(context: Context): {
     }
   }
 
-  // Eye lines and lashes: small face-mesh primitives the blink moves strongly.
+  // Head meshes blink alone morphs. A converted MikuMikuDance model keeps
+  // each material in a mesh of its own, so aa, which moves only the mouth,
+  // never morphs its lash mesh, and that mesh often also holds the brows or
+  // the eyes. Their lash islands are found by the region search below, never
+  // the whole mesh, so brows and eyes sharing it stay. Hair and meshes that
+  // hold the body never count.
+  const blinkOnlyMeshes = candidates.filter(
+    (candidate) =>
+      blink.has(candidate.entry.object) &&
+      !faceMeshCandidates.includes(candidate) &&
+      candidate.entry !== faceSkin &&
+      candidate.shares.spring_head < HAIR_MIN_SPRING_SHARE &&
+      candidate.shares.head +
+        candidate.shares.eye_left +
+        candidate.shares.eye_right >=
+        MAJORITY_SHARE &&
+      candidate.shares.other <= BODY_SKIN_SHARE,
+  );
   if (faceSkin) {
     const reference = measureMorphDisplacement(faceSkin.object, blink);
     // A whole-body primitive's face is its head region.
     const faceArea = headRegion?.area ?? measure(faceSkin).area;
+    // Eye lines and lashes: small face-mesh primitives the blink moves
+    // strongly.
     const details = faceMeshCandidates
       .filter((candidate) => candidate.entry !== faceSkin)
       .filter((candidate) => {
@@ -1420,12 +1529,17 @@ function detectFromSignals(context: Context): {
       };
     }
 
-    // Lines and lashes kept inside the face or eye primitives as their own
-    // islands. An eye line found as a primitive leaves every region a lash;
-    // otherwise each eye's largest region that follows its lid all the way is
-    // its line.
+    // Lines and lashes kept inside the face or eye primitives, or inside a
+    // head mesh blink alone morphs, as their own islands. An eye line found as
+    // a primitive leaves every region a lash; otherwise each eye's largest
+    // region that follows its lid all the way is its line.
     const regions = findEyeDetailRegions(context, {
-      entries: unique([faceSkin, ...eyeParts.iris, ...eyeParts.white]),
+      entries: unique([
+        faceSkin,
+        ...eyeParts.iris,
+        ...eyeParts.white,
+        ...blinkOnlyMeshes.map((candidate) => candidate.entry),
+      ]),
       blink,
       referenceMax: reference.max,
       faceArea,

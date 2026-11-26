@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { isAnimamaConversion } from "../avatarConversionMarker";
 import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
 import type {
   AvatarFaceBoxCoordinate,
@@ -16,6 +17,8 @@ import {
   resolveAvatarFacePartEntries,
   type AvatarEyeEstimate,
   type AvatarEyeEstimateGeometry,
+  measureClosedEyeCovers,
+  type ClosedEyeCover,
 } from "./faceParts";
 import {
   collectPrimitiveData,
@@ -54,6 +57,8 @@ type InternalEyeLandmark = {
   estimate?: AvatarEyeEstimate;
   /** An estimated eye's surface front; see the snapshot field. */
   surfaceFrontZ?: number;
+  /** A converted MMD model's closed cover; see the snapshot field. */
+  closedCover?: ClosedEyeCover;
 };
 
 type PrimitiveIsland = {
@@ -299,6 +304,14 @@ export class AvatarFaceLandmarks {
       ...(eye.surfaceFrontZ !== undefined
         ? { surfaceFrontZLocal: eye.surfaceFrontZ }
         : {}),
+      ...(eye.closedCover
+        ? {
+            closedCover: {
+              boundsLocal: toBoundsSnapshot(eye.closedCover.bounds),
+              frontZLocal: eye.closedCover.front,
+            },
+          }
+        : {}),
     };
   }
 
@@ -420,6 +433,27 @@ export class AvatarFaceLandmarks {
         { code: "landmarks_eyes_missing" },
         "No eye iris landmark islands were derived from the current bindings.",
       );
+    }
+
+    // A converted MikuMikuDance model's eyes also carry their closed cover,
+    // which eye art that closes the eyes covers with a skin patch.
+    const map = this._avatar.facePartMap;
+    if (
+      map &&
+      this._avatar.vrm &&
+      isAnimamaConversion(this._avatar.sourceGltf?.parser.json)
+    ) {
+      const covers = measureClosedEyeCovers(
+        this._avatar.vrm,
+        map,
+        runtimeResult.entries,
+        anchorObject,
+      );
+      for (const side of ["left", "right"] as const) {
+        const eye = this._eyes[side];
+        const cover = covers[side];
+        if (eye && cover) eye.closedCover = cover;
+      }
     }
 
     const boxHoverFront = resolveBoxHoverFrontClearance({

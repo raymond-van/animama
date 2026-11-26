@@ -249,6 +249,11 @@ type HoverPlacementInstance = {
   mirrored: boolean;
   position: THREE.Vector3;
   referenceSizeLocal: AvatarFaceTextureReferenceSize | null;
+  /**
+   * An eye placement's closed cover on a converted MikuMikuDance model (both
+   * eyes' for a centred one): where its skin patch goes.
+   */
+  closedCover?: THREE.Box3;
 };
 
 type TexturePlacementInstance = {
@@ -302,6 +307,11 @@ type HoverPlaneInstanceState = {
   /** Holds the authored rotation for the art and its backdrop. */
   staticGroup: THREE.Group;
   backdropMesh: THREE.Mesh | null;
+  /**
+   * A closed-eye skin patch: fixed over the eye, in anchor space, whatever
+   * the art's offset, rotation or scale.
+   */
+  coverPatch: { mesh: THREE.Mesh; center: THREE.Vector3 } | null;
   /** Plane size before the authored scale. */
   baseWidth: number;
   baseHeight: number;
@@ -372,6 +382,25 @@ const HOVER_SKIN_BACKDROP_TEXTURE_SIZE = 256;
 const HOVER_SKIN_BACKDROP_WIDTH_SCALE = 1.0;
 const HOVER_SKIN_BACKDROP_HEIGHT_SCALE = 0.4;
 const HOVER_SKIN_BACKDROP_Z_OFFSET = -0.0001;
+/**
+ * A closed-eye skin patch's size over its eye's closed cover, at most
+ * {@link CLOSED_EYE_PATCH_MAX_SHARE} of the eye spacing, so the patches of
+ * two eyes never meet and never reach past the face.
+ */
+const CLOSED_EYE_PATCH_SCALE = 1.15;
+const CLOSED_EYE_PATCH_MAX_SHARE = { width: 0.75, height: 0.7 };
+/**
+ * The share of a closed-eye patch's radius that fades out: narrower than
+ * the face cleanup's, so a patch little larger than its eye covers it and
+ * spills little onto hair beside the eye.
+ */
+const CLOSED_EYE_PATCH_FEATHER = 0.2;
+/**
+ * How far (m) in front of its closed cover's front a closed-eye patch sits:
+ * just clear of the lids and lashes, so bangs hanging in front of the eyes
+ * still cover it as they cover the face.
+ */
+const CLOSED_EYE_PATCH_CLEARANCE = 0.0005;
 const HOVER_RENDER_ORDER = 950;
 const EYE_HOVER_FORCE_BLINK_EXPRESSION = "blink";
 /**
@@ -979,12 +1008,18 @@ function drawHoverSkinBackdropEllipse(args: {
   width: number;
   height: number;
   fillColor: AvatarVFXFlattenColorSnapshot;
+  /** The share of the radius that fades out; the face cleanup's by default. */
+  feather?: number;
 }): void {
   const centerX = args.width * 0.5;
   const centerY = args.height * 0.5;
   const radiusX = args.width * 0.5;
   const radiusY = args.height * 0.5;
-  const innerStop = clampNumber(1 - FACE_FLATTEN_EDGE_FEATHER_RATIO, 0, 0.98);
+  const innerStop = clampNumber(
+    1 - (args.feather ?? FACE_FLATTEN_EDGE_FEATHER_RATIO),
+    0,
+    0.98,
+  );
   const opaqueColor = args.fillColor.cssColor;
   const transparentColor = toCssColor({
     r: args.fillColor.r,
@@ -1012,6 +1047,7 @@ function createHoverSkinBackdropTexture(args: {
   width: number;
   height: number;
   templateTexture: THREE.Texture;
+  feather?: number;
 }): THREE.CanvasTexture {
   const { canvas, context } = createCanvas(args.width, args.height);
   drawHoverSkinBackdropEllipse({
@@ -1019,6 +1055,7 @@ function createHoverSkinBackdropTexture(args: {
     width: args.width,
     height: args.height,
     fillColor: args.fillColor,
+    feather: args.feather,
   });
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -1029,6 +1066,7 @@ function createHoverSkinBackdropTexture(args: {
 function createHoverSkinBackdropMaterial(args: {
   sourceBinding: BindingState;
   fillColor: AvatarVFXFlattenColorSnapshot;
+  feather?: number;
 }): THREE.Material | null {
   const sourceMaterial = args.sourceBinding.originalMainMaterial;
   if (!sourceMaterial) {
@@ -1048,6 +1086,7 @@ function createHoverSkinBackdropMaterial(args: {
   const height = templateSlot.height || HOVER_SKIN_BACKDROP_TEXTURE_SIZE;
   const generatedTexture = createHoverSkinBackdropTexture({
     fillColor: args.fillColor,
+    feather: args.feather,
     width,
     height,
     templateTexture: templateSlot.texture,
@@ -1835,12 +1874,25 @@ function resolveEyeHoverPosition(
     toVector3(eye.projectedFrontLocal),
     EYE_HOVER_SURFACE_LERP,
   );
-  if (eye.surfaceFrontZLocal === undefined) return position;
-  const clear =
-    eye.surfaceFrontZLocal +
-    surface.frontSign * surface.spacing * EYE_HOVER_SURFACE_CLEARANCE;
-  if ((clear - position.z) * surface.frontSign > 0) position.z = clear;
+  // A converted MikuMikuDance model's closed lids and lashes may stand in
+  // front of that point, so its plane also clears them.
+  for (const front of [eye.surfaceFrontZLocal, eye.closedCover?.frontZLocal]) {
+    if (front === undefined) continue;
+    const clear =
+      front + surface.frontSign * surface.spacing * EYE_HOVER_SURFACE_CLEARANCE;
+    if ((clear - position.z) * surface.frontSign > 0) position.z = clear;
+  }
   return position;
+}
+
+/** An eye landmark's closed cover as a box (see the snapshot field). */
+function closedCoverBox(
+  eye: AvatarFaceEyeLandmarkSnapshot,
+): THREE.Box3 | undefined {
+  const bounds = eye.closedCover?.boundsLocal;
+  return bounds
+    ? new THREE.Box3(toVector3(bounds.min), toVector3(bounds.max))
+    : undefined;
 }
 
 /**
@@ -2003,6 +2055,12 @@ function resolveHoverPlacementInstances(args: {
     };
     const leftHover = resolveEyeHoverPosition(leftEye, surface);
     const rightHover = resolveEyeHoverPosition(rightEye, surface);
+    const covers = {
+      left: closedCoverBox(leftEye),
+      right: closedCoverBox(rightEye),
+    };
+    const coverOf = (label: "left" | "right") =>
+      covers[label] ? { closedCover: covers[label] } : {};
     const side = effect.side ?? "right";
     if (effect.requiresMirror) {
       const primaryPosition = side === "left" ? leftHover : rightHover;
@@ -2013,6 +2071,7 @@ function resolveHoverPlacementInstances(args: {
         {
           label: primaryLabel,
           mirrored: false,
+          ...coverOf(primaryLabel),
           position: applyHoverPlacementOffset(
             primaryPosition,
             effect.transform.offset,
@@ -2023,6 +2082,7 @@ function resolveHoverPlacementInstances(args: {
         {
           label: oppositeLabel,
           mirrored: true,
+          ...coverOf(oppositeLabel),
           // The mirrored eye mirrors its lateral offset (avatar-effect/2).
           position: applyHoverPlacementOffset(
             oppositePosition,
@@ -2040,6 +2100,7 @@ function resolveHoverPlacementInstances(args: {
         {
           label: side,
           mirrored: false,
+          ...coverOf(side),
           position: applyHoverPlacementOffset(
             singlePosition,
             effect.transform.offset,
@@ -2054,6 +2115,9 @@ function resolveHoverPlacementInstances(args: {
       {
         label: "center",
         mirrored: false,
+        ...(covers.left && covers.right
+          ? { closedCover: covers.left.clone().union(covers.right) }
+          : {}),
         position: applyHoverPlacementOffset(
           midpointVector3(leftHover, rightHover),
           effect.transform.offset,
@@ -2139,13 +2203,56 @@ function resolveHoverFacingRotationY(
   return resolveHoverFrontSign(faceLandmarks) < 0 ? Math.PI : 0;
 }
 
+/**
+ * Whether hover art gets a skin backdrop: as the effect says, and by default
+ * for eye art that closes the eyes of a converted MikuMikuDance model (eyes
+ * with a closed cover), whose lids may be the lashes eye art hides.
+ */
 function hasHoverSkinBackdrop(
   effect: AvatarHoverVFXEntry,
+  faceLandmarks: AvatarFaceLandmarksSnapshot | null,
 ): effect is AvatarEyeHoverVFXEntry | AvatarMouthHoverVFXEntry {
+  if (isMouthHoverVFXEntry(effect)) return Boolean(effect.skinBackdrop);
+  if (!isEyeHoverVFXEntry(effect)) return false;
   return (
-    (isEyeHoverVFXEntry(effect) || isMouthHoverVFXEntry(effect)) &&
-    Boolean(effect.skinBackdrop)
+    effect.skinBackdrop ??
+    (shouldForceBlink(effect) &&
+      Boolean(
+        faceLandmarks?.eyes.left?.closedCover &&
+        faceLandmarks.eyes.right?.closedCover,
+      ))
   );
+}
+
+/**
+ * Where a closed-eye skin patch goes, in anchor space: centred on its cover
+ * and {@link CLOSED_EYE_PATCH_CLEARANCE} in front of the cover's front.
+ */
+function closedEyePatchCenter(
+  cover: THREE.Box3,
+  frontSign: 1 | -1,
+): THREE.Vector3 {
+  const center = cover.getCenter(new THREE.Vector3());
+  center.z =
+    (frontSign > 0 ? cover.max.z : cover.min.z) +
+    frontSign * CLOSED_EYE_PATCH_CLEARANCE;
+  return center;
+}
+
+/**
+ * Put a closed-eye skin patch at `center` (anchor space) from a placement
+ * root at `placementPosition` turned by `facingRotationY` about y (0 or pi).
+ */
+function placeCoverPatch(
+  mesh: THREE.Mesh,
+  center: THREE.Vector3,
+  placementPosition: THREE.Vector3,
+  facingRotationY: number,
+): void {
+  mesh.position
+    .copy(center)
+    .sub(placementPosition)
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), -facingRotationY);
 }
 
 /**
@@ -2221,6 +2328,12 @@ export class AvatarVFXController {
   private _warnings: string[] = [];
   private _issues: AvatarIssue[] = [];
   private readonly _regionHider = new PrimitiveRegionHider();
+  /**
+   * Every primitive by binding key, part or not: a part's regions may lie in a
+   * primitive that holds no part of its own (a converted MikuMikuDance
+   * model's lash mesh, shared with the brows or eyes).
+   */
+  private readonly _primitivesByKey = new Map<string, THREE.Mesh>();
   /** Bindings hidden for `Fcl_EYE_Iris_Hide`, or null while it is not held. */
   private _irisHideKeys: string[] | null = null;
   private _snapshot: AvatarVFXSnapshot;
@@ -3464,6 +3577,7 @@ export class AvatarVFXController {
     this._regionHider.restoreAll();
     this._listeners.clear();
     this._bindings.clear();
+    this._primitivesByKey.clear();
     this._applyTokens.clear();
     this._pendingIntensities.clear();
     this._nextAppliedOrder = 0;
@@ -3517,6 +3631,14 @@ export class AvatarVFXController {
       );
       if (!placement) continue;
       instance.placementRoot.position.copy(placement.position);
+      if (instance.coverPatch) {
+        placeCoverPatch(
+          instance.coverPatch.mesh,
+          instance.coverPatch.center,
+          placement.position,
+          instance.placementRoot.rotation.y,
+        );
+      }
       instance.staticGroup.rotation.set(
         effect.transform.rotation.x,
         effect.transform.rotation.y,
@@ -4408,6 +4530,9 @@ export class AvatarVFXController {
       : [];
     this._cachedFaceFlattenState = null;
     this._bindings.clear();
+    this._primitivesByKey.clear();
+    for (const entry of runtimeResult.entries)
+      this._primitivesByKey.set(entry.bindingKey, entry.object);
 
     // Roles come from the Avatar's face part map (spec signals, then names,
     // then corrections); an Avatar without a map uses name matching.
@@ -5139,7 +5264,8 @@ export class AvatarVFXController {
   /**
    * Hide the parts kept as regions of shared primitives (part `regions`),
    * which hiding whole primitives cannot reach: eye lines and lashes inside
-   * the face or eye primitives, and face skin that is the head region of a
+   * the face or eye primitives, or inside a primitive holding no part (a lash
+   * mesh shared with the brows), and face skin that is the head region of a
    * primitive holding the whole body. The face the effect's own art is on
    * (`sourceBinding`) stays visible, as a hidden binding would.
    */
@@ -5159,11 +5285,13 @@ export class AvatarVFXController {
         ) {
           continue;
         }
-        const binding = this._bindings.get(region.bindingKey);
-        if (!binding) continue;
+        const object =
+          this._bindings.get(region.bindingKey)?.object ??
+          this._primitivesByKey.get(region.bindingKey);
+        if (!object) continue;
         const hidden = this._regionHider.hide(
           sourceEffectId,
-          binding.object.geometry,
+          object.geometry,
           region.triangles,
         );
         if (!hidden) {
@@ -5274,13 +5402,19 @@ export class AvatarVFXController {
     const staticScaleX = resolveStaticScaleComponent(effect.transform.scale.x);
     const staticScaleY = resolveStaticScaleComponent(effect.transform.scale.y);
     const staticScaleZ = resolveStaticScaleComponent(effect.transform.scale.z);
-    const hoverBackdropSourceBinding = hasHoverSkinBackdrop(effect)
+    const hoverBackdropSourceBinding = hasHoverSkinBackdrop(
+      effect,
+      faceLandmarks,
+    )
       ? this._resolveFaceFlattenBinding()
       : null;
     const hoverSkinBackdropColor = hoverBackdropSourceBinding
       ? this._getCachedFaceFlattenState(hoverBackdropSourceBinding).sampledColor
       : null;
-    if (hasHoverSkinBackdrop(effect) && !hoverSkinBackdropColor) {
+    if (
+      hasHoverSkinBackdrop(effect, faceLandmarks) &&
+      !hoverSkinBackdropColor
+    ) {
       this._pushWarning(
         {
           code: "effect_skin_color_unavailable",
@@ -5397,7 +5531,54 @@ export class AvatarVFXController {
 
       let backdropMaterialForFade: THREE.Material | null = null;
       let backdropMeshForUpdate: THREE.Mesh | null = null;
-      if (hoverSkinBackdropColor && hoverBackdropSourceBinding) {
+      let coverPatch: HoverPlaneInstanceState["coverPatch"] = null;
+      const cover = isEyeHoverVFXEntry(effect) ? placement.closedCover : null;
+      if (hoverSkinBackdropColor && hoverBackdropSourceBinding && cover) {
+        // A closed-eye patch: the eye's closed cover, whatever the art's size.
+        const size = cover.getSize(new THREE.Vector3());
+        const spacing = Math.abs(
+          (faceLandmarks.eyes.left?.centerLocal.x ?? 0) -
+            (faceLandmarks.eyes.right?.centerLocal.x ?? 0),
+        );
+        const patchMaterial = createHoverSkinBackdropMaterial({
+          sourceBinding: hoverBackdropSourceBinding,
+          fillColor: hoverSkinBackdropColor,
+          feather: CLOSED_EYE_PATCH_FEATHER,
+        });
+        if (patchMaterial) {
+          const patch = new THREE.Mesh(
+            new THREE.PlaneGeometry(
+              Math.min(
+                size.x * CLOSED_EYE_PATCH_SCALE,
+                spacing * CLOSED_EYE_PATCH_MAX_SHARE.width,
+              ),
+              Math.min(
+                size.y * CLOSED_EYE_PATCH_SCALE,
+                spacing * CLOSED_EYE_PATCH_MAX_SHARE.height,
+              ),
+            ),
+            patchMaterial,
+          );
+          patch.name = `${effect.id}:${placement.label}:closed-eye-patch`;
+          const center = closedEyePatchCenter(
+            cover,
+            resolveHoverFrontSign(faceLandmarks),
+          );
+          placeCoverPatch(patch, center, placement.position, facingRotationY);
+          patch.renderOrder = HOVER_RENDER_ORDER - 1;
+          patch.frustumCulled = false;
+          // three sorts by the nearest group's render order first: the art's
+          // static group has none, so the patch's group has none either and
+          // the patch draws just before the art.
+          const patchGroup = new THREE.Group();
+          patchGroup.name = `${effect.id}:${placement.label}:closed-eye`;
+          patchGroup.add(patch);
+          placementRoot.add(patchGroup);
+          runtimeMaterials.push(patchMaterial);
+          backdropMaterialForFade = patchMaterial;
+          coverPatch = { mesh: patch, center };
+        }
+      } else if (hoverSkinBackdropColor && hoverBackdropSourceBinding) {
         const backdropGeometry = new THREE.PlaneGeometry(
           planeSize.width * HOVER_SKIN_BACKDROP_WIDTH_SCALE,
           planeSize.height * HOVER_SKIN_BACKDROP_HEIGHT_SCALE,
@@ -5442,6 +5623,7 @@ export class AvatarVFXController {
         animatedGroup,
         staticGroup,
         backdropMesh: backdropMeshForUpdate,
+        coverPatch,
         baseWidth: planeSize.width,
         baseHeight: planeSize.height,
         planeWidth: planeSize.width * staticScaleX,
