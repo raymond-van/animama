@@ -13,7 +13,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { invalidateAnimaLoadoutAndRuntime } from "@/query/animaLoadoutInvalidation";
-import { queryKeys } from "@/query/keys";
 
 export type AvatarSelectionInput = {
   avatar: Pick<PyAvatarContent, "item_id" | "logical_key" | "source">;
@@ -82,14 +81,10 @@ export function useAvatarSelection(animaId: string | null) {
     onSettled: async () => {
       // A refused change (a stale revision) also refreshes, so the picker
       // shows the Loadout the owner would change next.
-      if (!owner || !animaId) return;
-      await Promise.all([
-        invalidateAnimaLoadoutAndRuntime(queryClient, owner, animaId),
-        // Profile fallbacks and lists name the Anima's Avatar.
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.animas.all(owner),
-        }),
-      ]);
+      // This also refreshes the Anima's detail and list, which name its
+      // Avatar (profile fallbacks).
+      if (owner && animaId)
+        await invalidateAnimaLoadoutAndRuntime(queryClient, owner, animaId);
     },
     retry: false,
   });

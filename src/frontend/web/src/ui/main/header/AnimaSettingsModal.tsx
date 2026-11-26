@@ -158,7 +158,7 @@ function AvatarDiagnosticsRow({ animaId }: { animaId: string }) {
 }
 
 type AnimaSettingsModalProps = {
-  /** The Anima whose Avatar the Diagnostics section describes. */
+  /** The Anima whose Avatar section (choice, settings, Diagnostics) this shows. */
   animaId?: string | null;
 };
 

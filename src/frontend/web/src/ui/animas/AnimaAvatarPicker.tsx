@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
-import { apiErrorLine } from "@/lib/errors/apiError";
+import { apiErrorLine, type ApiErrorText } from "@/lib/errors/apiError";
 import { poolChangeFailureText } from "@/lib/errors/loadoutErrors";
 import { cn } from "@/lib/utils";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/query/hooks/useAnimaCreation";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
 import { useAvatarSelection } from "@/query/mutations/useAvatarSelection";
+import { remountWhenIdle } from "@/ui/animas/remountWhenIdle";
 import { useOptionalMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
 import { Button } from "@/ui/components/button";
 import {
@@ -26,7 +27,7 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
-import { AvatarThumbnail } from "@/ui/create-anima/CreateAnimaAvatarStep";
+import { AvatarThumbnail } from "@/ui/avatar-preview/AvatarThumbnail";
 import { creatorErrorText } from "@/ui/create-anima/createAnimaErrors";
 import { checkCreationVrm } from "@/ui/create-anima/createAnimaFiles";
 
@@ -60,7 +61,7 @@ export function AnimaAvatarPicker({
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [working, setWorking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorText | null>(null);
 
   const current = loadout.data?.avatar_source?.catalog_item_id ?? null;
   const selected = chosen ?? current;
@@ -91,8 +92,7 @@ export function AnimaAvatarPicker({
     } catch (cause) {
       setFile(null);
       setError(
-        creatorErrorText(cause, t("animaSettings.avatarPicker.readFailed"))
-          .message,
+        creatorErrorText(cause, t("animaSettings.avatarPicker.readFailed")),
       );
     } finally {
       setWorking(false);
@@ -118,9 +118,8 @@ export function AnimaAvatarPicker({
       setError(
         cause instanceof ContentSaveApiError &&
           cause.code === "content_path_exists"
-          ? t("animaSettings.avatarPicker.nameUsed")
-          : creatorErrorText(cause, t("animaSettings.avatarPicker.saveFailed"))
-              .message,
+          ? { message: t("animaSettings.avatarPicker.nameUsed"), detail: null }
+          : creatorErrorText(cause, t("animaSettings.avatarPicker.saveFailed")),
       );
     } finally {
       setWorking(false);
@@ -134,8 +133,9 @@ export function AnimaAvatarPicker({
     setError(null);
     try {
       await selection.mutateAsync({ avatar, expectedRevision: revision });
-      // A chat showing this Anima loads its new runtime now, not on next visit.
-      if (mounted?.animaId === animaId) void mounted.remountLatest();
+      // A chat showing this Anima loads its new runtime without a revisit,
+      // after any reply, speech or voice turn in progress.
+      if (mounted?.animaId === animaId) remountWhenIdle(mounted.remountLatest);
       toast.success(
         t("animaSettings.avatarPicker.changed", {
           anima: animaName,
@@ -147,12 +147,10 @@ export function AnimaAvatarPicker({
     } catch (cause) {
       setChosen(null);
       setError(
-        apiErrorLine(
-          poolChangeFailureText(
-            cause,
-            t("animaSettings.avatarPicker.changedElsewhere"),
-            t("animaSettings.avatarPicker.changeFailed"),
-          ),
+        poolChangeFailureText(
+          cause,
+          t("animaSettings.avatarPicker.changedElsewhere"),
+          t("animaSettings.avatarPicker.changeFailed"),
         ),
       );
     }
@@ -321,7 +319,7 @@ export function AnimaAvatarPicker({
         </div>
         {error ? (
           <p role="alert" className="text-destructive text-sm">
-            {error}
+            {apiErrorLine(error)}
           </p>
         ) : null}
         <DialogFooter>
