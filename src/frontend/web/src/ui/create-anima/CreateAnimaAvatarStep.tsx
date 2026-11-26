@@ -25,6 +25,7 @@ import {
 import { Input } from "@/ui/components/input";
 import { contentEntryName } from "@/lib/content/nameIdentifiers";
 import { itemReference } from "./createAnimaContent";
+import { useAvatarPortraitUrl } from "@/stores/avatar-portrait-version-store";
 import { sameRef, type CreateAnimaDraft } from "./createAnimaDraft";
 import { creatorErrorText } from "./createAnimaErrors";
 import { checkCreationVrm } from "./createAnimaFiles";
@@ -55,7 +56,15 @@ const UNLOADED_STAGE: CreationStageAvatar = { avatar: null, status: "loading" };
  * Avatar was first shown here) or a placeholder. A portrait that fails to
  * load falls back to the placeholder.
  */
-function AvatarThumbnail({ url }: { url: string | null | undefined }) {
+function AvatarThumbnail({
+  itemId,
+  portraitUrl,
+}: {
+  itemId: string;
+  portraitUrl: string | null | undefined;
+}) {
+  // A portrait retaken this session keeps its URL; this one names the save.
+  const url = useAvatarPortraitUrl(itemId, portraitUrl);
   const [failed, setFailed] = useState<string | null>(null);
   return (
     <div className="bg-muted/30 flex h-28 items-center justify-center overflow-hidden rounded-lg">
@@ -310,7 +319,10 @@ export function CreateAnimaAvatarStep({
                       value={item.item_id}
                       onChange={() => void choose(itemReference(item))}
                     />
-                    <AvatarThumbnail url={item.portrait?.url} />
+                    <AvatarThumbnail
+                      itemId={item.item_id}
+                      portraitUrl={item.portrait?.url}
+                    />
                     <span className="flex items-center justify-between gap-2 text-sm font-medium">
                       <span className="min-w-0 break-words">{item.name}</span>
                       {checked ? (

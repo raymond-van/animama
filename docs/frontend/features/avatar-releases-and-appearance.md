@@ -33,7 +33,10 @@ Dock follows the same rules (`useDockPortraitRetake`). When the Library previews
 a Local Avatar whose portrait is missing or from another revision, as after
 [Replace VRM](library.md), the Dock captures it once the model has loaded and
 no Action is playing. Included Avatars, unsaved uploads and imported portraits
-are never recaptured. Avatar portraits (Appearances naming an Avatar in
+are never recaptured. A retaken Local portrait keeps its file URL, so the
+Library card and Create Anima's Avatar list add that Avatar's save count from
+`avatar-portrait-version-store` to the URL and show the new image without a
+reload. Avatar portraits (Appearances naming an Avatar in
 `presentation.avatar_item_id`, generated or imported) are not offered as
 Profile or Background images. Creation itself submits null Profile and Background
 bindings. Background Default means the normal app stage.

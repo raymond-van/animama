@@ -11,6 +11,10 @@ import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
+  useAvatarPortraitVersionStore,
+  versionedPortraitUrl,
+} from "@/stores/avatar-portrait-version-store";
+import {
   ChevronDown,
   ChevronRight,
   LayoutGrid,
@@ -462,6 +466,10 @@ export function LibraryContentInventory({
     sort: search.sort,
     enabled: includes("avatars"),
   });
+  // A portrait retaken this session (after Replace VRM) keeps its URL.
+  const portraitVersions = useAvatarPortraitVersionStore(
+    (state) => state.versions,
+  );
   const [avatarSettings, setAvatarSettings] =
     useState<LibraryAvatarTarget | null>(null);
   const [managedSound, setManagedSound] = useState<PyCatalogViewItem | null>(
@@ -761,7 +769,12 @@ export function LibraryContentInventory({
                 <LibraryProductRow
                   key={avatar.avatar_id}
                   layout={layout}
-                  portraitUrl={avatar.preview_url}
+                  portraitUrl={versionedPortraitUrl(
+                    avatar.preview_url,
+                    avatar.catalog_item_id
+                      ? portraitVersions[avatar.catalog_item_id]
+                      : undefined,
+                  )}
                   row={{
                     family: "avatar",
                     name: avatar.name,
