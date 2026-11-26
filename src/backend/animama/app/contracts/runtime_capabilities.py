@@ -81,6 +81,8 @@ class RuntimeCapabilities(BaseModel):
     When true the UI shows the threshold setting and the chat's progress line, both
     served by ``/v1/memory/automatic-processing``. Absent means false.
     """
+    chatgpt_plan: bool = False
+    """Whether the owner may sign in with a ChatGPT plan (spec #919): local compositions only."""
     library_previews: bool = True
     """Whether Library cards load item previews; when false they show family icons and request none.
 

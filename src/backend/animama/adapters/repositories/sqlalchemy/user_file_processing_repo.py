@@ -675,6 +675,53 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         )
         return cast(CursorResult[Any], result).rowcount > 0
 
+    async def image_file_ids_only_in_chat(self, *, user_id: str, chat_id: str) -> list[str]:
+        # Saved user messages list their images in message_data.images (see
+        # app/chat/direct_turn/message_builders.py); an image attached again from
+        # the Library can appear in several chats.
+        # Only user messages carry images. A chat without images returns at once;
+        # other chats are searched only for this chat's image ids.
+        result = await self._s.execute(
+            text(
+                """
+                SELECT DISTINCT image ->> 'file_id' AS file_id
+                FROM chat_messages AS message
+                JOIN chats AS chat ON chat.id = message.chat_id
+                CROSS JOIN LATERAL jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(message.message_data -> 'images') = 'array'
+                         THEN message.message_data -> 'images' ELSE '[]'::jsonb END
+                ) AS image
+                WHERE message.chat_id = :chat_id
+                  AND message.role = 'user'
+                  AND chat.user_id = :user_id
+                  AND image ->> 'file_id' IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM chat_messages AS other
+                      JOIN chats AS other_chat ON other_chat.id = other.chat_id
+                      WHERE other.chat_id <> :chat_id
+                        AND other.role = 'user'
+                        AND other_chat.user_id = :user_id
+                        AND other.message_data -> 'images'
+                            @> jsonb_build_array(jsonb_build_object('file_id', image ->> 'file_id'))
+                  )
+                """
+            ),
+            {"chat_id": chat_id, "user_id": user_id},
+        )
+        return sorted(str(row.file_id) for row in result if row.file_id)
+
+    async def record_file_deleted(self, *, user_id: str, file_id: str, object_deleted: bool) -> None:
+        await self._s.execute(
+            update(ORMUserFile)
+            .where(ORMUserFile.id == file_id, ORMUserFile.user_id == user_id)
+            .values(
+                status=STATUS_DELETED if object_deleted else STATUS_DELETE_PENDING,
+                last_error=None if object_deleted else "Delete cleanup will retry",
+            )
+        )
+        await self._s.flush()
+
     async def delete_chunks_for_file(self, *, user_id: str, file_id: str) -> None:
         await self._s.execute(
             delete(ORMUserFileChunk).where(

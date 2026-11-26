@@ -1,12 +1,14 @@
 {
   "menu": {
     "about": "{{name}} について",
+    "checkForUpdates": "アップデートを確認…",
     "services": "サービス",
     "hide": "{{name}} を非表示",
     "hideOthers": "ほかを非表示",
     "showAll": "すべてを表示",
     "quitApp": "{{name}} を終了",
     "file": "ファイル",
+    "importAnima": "Anima をインポート…",
     "closeWindow": "ウィンドウを閉じる",
     "close": "閉じる",
     "exit": "終了",

@@ -53,6 +53,12 @@
       "searching": "검색하는 중…",
       "setUpLater": "나중에 설정"
     },
+    "noModelPrompt": {
+      "continue": "모델 없이 계속",
+      "description": "아직 답할 수 있는 모델이 없어 Anima와 채팅할 수 없습니다. 여기에서 제공자를 연결하고 모델을 추가하거나, 나중에 앱 설정 → 모델에서 추가하세요.",
+      "stay": "계속 설정",
+      "title": "채팅 모델 없이 계속할까요?"
+    },
     "builtin": {
       "serverKey": "이 서버에 설정된 {{name}} 키를 사용합니다.",
       "serverKeyMissing": "{{name}}을(를) 사용하려면 서버에 {{env}}를 설정하세요."

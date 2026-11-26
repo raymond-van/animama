@@ -69,11 +69,12 @@ def response_final_parts(
     response: Response,
     *,
     previous_response_id: str | None,
+    provider_type: str = OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
 ) -> ResponseFinalParts:
     """Extract text, metadata, usage, and tool calls from a completed Response."""
 
     metadata: dict[str, Any] = {
-        "provider": OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+        "provider": provider_type,
         "api": OPENAI_API,
     }
     response_id = clean_str(response.id)

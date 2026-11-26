@@ -346,7 +346,7 @@ def _build_logging_config() -> dict[str, Any]:
             "level": logging.DEBUG if _DEBUG_ENABLED else logging.INFO,
             "propagate": True,
         },
-        # Uvicorn server logs (raise to INFO to see HTTP/access logs)
+        # Uvicorn server logs. Access lines stay off: see uvicorn.access below.
         "uvicorn": {
             "level": "INFO",
             "propagate": True,
@@ -355,9 +355,14 @@ def _build_logging_config() -> dict[str, Any]:
             "level": "INFO",
             "propagate": True,
         },
+        # Off, as the launcher's ``access_log=False`` intends: a request line carries its
+        # query, which for the ChatGPT sign-in return holds a one-time code and state.
+        # Uvicorn writes access lines whenever this logger has a handler, so it gets
+        # none and does not propagate to the root handlers.
         "uvicorn.access": {
             "level": "INFO",
-            "propagate": True,
+            "handlers": [],
+            "propagate": False,
         },
         # Optional: client logs (httpx). Many details are DEBUG-level in httpx/httpcore.
         # The provider SDKs log through httpx2/httpcore2, configured the same way.
@@ -376,6 +381,16 @@ def _build_logging_config() -> dict[str, Any]:
         "httpcore2": {
             "level": "WARNING",
             "propagate": False,
+        },
+        # At DEBUG the provider SDKs log each request body, with the chat's text
+        # and any images it sends, so they stay at INFO even with ANIMAMA_DEBUG.
+        "anthropic": {
+            "level": "INFO",
+            "propagate": True,
+        },
+        "openai": {
+            "level": "INFO",
+            "propagate": True,
         },
     }
 

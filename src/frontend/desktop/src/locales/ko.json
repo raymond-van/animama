@@ -1,12 +1,14 @@
 {
   "menu": {
     "about": "{{name}}에 관하여",
+    "checkForUpdates": "업데이트 확인…",
     "services": "서비스",
     "hide": "{{name}} 가리기",
     "hideOthers": "기타 가리기",
     "showAll": "모두 보기",
     "quitApp": "{{name}} 종료",
     "file": "파일",
+    "importAnima": "Anima 가져오기…",
     "closeWindow": "창 닫기",
     "close": "닫기",
     "exit": "끝내기",

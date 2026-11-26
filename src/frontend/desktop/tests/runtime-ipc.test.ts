@@ -512,6 +512,38 @@ describe("privileged runtime IPC", () => {
     expect(setLoginItem).toHaveBeenCalledOnce();
   });
 
+  it("hands a menu command only to the main window's app, once", async () => {
+    await expect(invoke("menu:take", main.event)).resolves.toBeNull();
+    const takeMenuCommand = vi
+      .fn<() => "import-anima" | null>()
+      .mockReturnValueOnce("import-anima")
+      .mockReturnValue(null);
+    operations.takeMenuCommand = takeMenuCommand;
+
+    // The announcement names no command and reaches the main window alone.
+    callers.announceMenuCommand();
+    expect(main.contents.send).toHaveBeenCalledWith("animama:menu:command");
+    expect(recovery.contents.send).not.toHaveBeenCalled();
+
+    const companion = caller(4, "http://127.0.0.1:41234/desktop/pip/a");
+    for (const event of [recovery.event, companion.event])
+      await expect(invoke("menu:take", event)).rejects.toThrow(
+        "ipc_caller_rejected",
+      );
+    await expect(invoke("menu:take", main.event, "updates")).rejects.toThrow(
+      "ipc_arguments_invalid",
+    );
+    expect(takeMenuCommand).not.toHaveBeenCalled();
+    await expect(invoke("menu:take", main.event)).resolves.toBe("import-anima");
+    await expect(invoke("menu:take", main.event)).resolves.toBeNull();
+
+    // A window that left the application origin is told nothing.
+    main.contents.send.mockClear();
+    main.frame.url = "https://hostile.invalid";
+    callers.announceMenuCommand();
+    expect(main.contents.send).not.toHaveBeenCalled();
+  });
+
   it("keeps one cleanup when a window is registered again for a reloaded page", () => {
     callers.register(recovery.window, "recovery", "data:text/html,reloaded");
     expect(

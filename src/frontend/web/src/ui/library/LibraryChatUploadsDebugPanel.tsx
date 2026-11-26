@@ -24,25 +24,17 @@ import {
   resolveUserFileUploadCardStatus,
   type UserFileUploadCardStatus,
 } from "@/lib/user-files/upload-card-status";
-import {
-  getUserFileErrorMessage,
-  USER_FILE_ACTIVE_JOB_STATUSES,
-} from "@/lib/user-files/uploads";
+import { getUserFileErrorMessage } from "@/lib/user-files/uploads";
 import { cn } from "@/lib/utils";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useDeleteUserFile } from "@/query/mutations/useDeleteUserFile";
+import { canProcessLibraryUpload } from "@/lib/uploads/libraryUploads";
 import { useProcessUserFile } from "@/query/mutations/useProcessUserFile";
 import { Button } from "@/ui/components/button";
 import { Checkbox } from "@/ui/components/checkbox";
 
 const EMPTY_USER_FILES: PyUserFileResponse[] = [];
-const PROCESSABLE_STATUSES = new Set([
-  "uploaded",
-  "failed",
-  "ready",
-  "ready_keyword_only",
-]);
 type UppyFilesState = ReturnType<UserFileUploadUppy["getState"]>["files"];
 
 /** Debug-only timestamp text; this panel stays English. */
@@ -60,10 +52,6 @@ function formatUserFileTimestamp(value: string | null | undefined) {
 function userFileStatusLabel(status: string | null | undefined) {
   if (!status) return "Unknown";
   return status.replaceAll("_", " ");
-}
-function isActiveJob(file: PyUserFileResponse) {
-  const jobStatus = file.latest_processing_job?.status;
-  return Boolean(jobStatus && USER_FILE_ACTIVE_JOB_STATUSES.has(jobStatus));
 }
 
 function isForceProcessStatus(status: string) {
@@ -422,11 +410,9 @@ export function LibraryChatUploadsDebugPanel() {
                   <div className="text-right">Action</div>
                 </div>
                 {files.map((file) => {
-                  const activeJob = isActiveJob(file);
-                  const canProcess =
-                    processingEnabled &&
-                    PROCESSABLE_STATUSES.has(file.status) &&
-                    !activeJob;
+                  const canProcess = canProcessLibraryUpload(file, {
+                    processingEnabled,
+                  });
                   const processLabel = isForceProcessStatus(file.status)
                     ? "Reprocess"
                     : "Process";

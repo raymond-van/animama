@@ -88,6 +88,31 @@ class LocalHTTPAdmission:
                 result[decoded] = value.decode("latin-1")
         return result
 
+    def _sign_in_return(self, scope: Scope, headers: dict[str, str]) -> bool:
+        """Whether this is the system browser arriving back from OpenAI's sign-in (T1).
+
+        The return is a cross-site top-level navigation to ``127.0.0.1``, so it
+        carries neither the page's ``Host`` (on a ``localhost`` stack), an
+        ``Origin``, nor the desktop cookie. Only an exact ``GET`` of the return
+        path with no body, no ``Origin`` and navigation fetch metadata, at the
+        exact return authority, skips the browser checks; anything else falls
+        through to them unchanged. The route itself admits only a return whose
+        ``state`` matches the pending attempt.
+        """
+        authority = self.config.sign_in_return_authority
+        return (
+            authority is not None
+            # A WebSocket scope has no method, so this also excludes every upgrade.
+            and scope.get("method") == "GET"
+            and scope["path"] == self.config.sign_in_return_path
+            and headers.get("host", "").strip().lower() == authority
+            and "origin" not in headers
+            and "transfer-encoding" not in headers
+            and headers.get("content-length", "0") == "0"
+            and headers.get("sec-fetch-mode", "navigate").lower() == "navigate"
+            and headers.get("sec-fetch-dest", "document").lower() == "document"
+        )
+
     def _browser_status(self, scope: Scope, headers: dict[str, str]) -> int | None:
         origin = headers.get("origin")
         site = headers.get("sec-fetch-site")
@@ -128,7 +153,8 @@ class LocalHTTPAdmission:
         if headers is None:
             await self._reject(scope, receive, send, 400, "gateway_request_rejected")
             return
-        if headers.get("host", "").strip().lower() != self.config.authority:
+        sign_in_return = self._sign_in_return(scope, headers)
+        if not sign_in_return and headers.get("host", "").strip().lower() != self.config.authority:
             await self._reject(scope, receive, send, 421, "gateway_request_rejected")
             return
         path = scope["path"]
@@ -146,7 +172,7 @@ class LocalHTTPAdmission:
             ):
                 await self._reject(scope, receive, send, 404, "not_found")
                 return
-        else:
+        elif not sign_in_return:
             if scope["type"] == "websocket" and path != "/v1/logs":
                 await self._reject(scope, receive, send, 404, "not_found")
                 return

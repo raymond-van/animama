@@ -1,5 +1,6 @@
 import { Menu, type MenuItemConstructorOptions } from "electron";
 
+import type { MenuCommand } from "../../../../shared/desktop-runtime.js";
 import type { ShellStrings } from "../locale/shell-locale.js";
 
 type MenuRole = NonNullable<MenuItemConstructorOptions["role"]>;
@@ -9,6 +10,45 @@ const item = (role: MenuRole, label: string): MenuItemConstructorOptions => ({
   role,
   label,
 });
+/** An item of Animama's own, which runs `click` instead of an Electron role. */
+const command = (
+  label: string,
+  click: () => void,
+): MenuItemConstructorOptions => ({ label, click: () => click() });
+
+/**
+ * Menu items that act in the main window's web app. An item is offered only
+ * while its command is supplied: a build that cannot update has no check.
+ */
+export type ApplicationMenuCommands = {
+  checkForUpdates?: () => void;
+  importAnima?: () => void;
+};
+
+/** How long a chosen command waits for the main window's app to take it. */
+export const MENU_COMMAND_TTL_MS = 20_000;
+
+/**
+ * The menu command waiting for the main window's web app. The app takes it
+ * when told one was chosen and when it starts, which covers a window that was
+ * closed (macOS) or still loading. It is handed over once and only while
+ * fresh, so a command chosen during first-run setup does not fire when setup
+ * ends minutes later.
+ */
+export class PendingMenuCommand {
+  private pending: { command: MenuCommand; at: number } | null = null;
+  constructor(private readonly now: () => number = Date.now) {}
+  set(command: MenuCommand): void {
+    this.pending = { command, at: this.now() };
+  }
+  take(): MenuCommand | null {
+    const pending = this.pending;
+    this.pending = null;
+    return pending && this.now() - pending.at <= MENU_COMMAND_TTL_MS
+      ? pending.command
+      : null;
+  }
+}
 
 /**
  * Electron's default application menu (`lib/browser/default-menu.ts` and its
@@ -18,15 +58,28 @@ const item = (role: MenuRole, label: string): MenuItemConstructorOptions => ({
  * builds always had an empty Help menu; unpackaged runs drop Electron's own
  * documentation links from it. Packaged builds also leave out the View menu's
  * DevTools item.
+ *
+ * Two items are Animama's own (`commands`): **Check for Updates…** under About
+ * on macOS and in Help elsewhere, where there is no application menu, and
+ * **Import Anima…** at the top of File. The Windows main window hides its
+ * title bar and so shows no menu bar; there the items are unreachable, and the
+ * sidebar user menu's update check, App Settings and the Library are the way in.
  */
 export function applicationMenuTemplate(
   { text }: ShellStrings,
   platform: NodeJS.Platform,
   appName: string,
   packaged = false,
+  commands: ApplicationMenuCommands = {},
 ): MenuItemConstructorOptions[] {
   const mac = platform === "darwin";
   const name = { name: appName };
+  const checkForUpdates = commands.checkForUpdates
+    ? [command(text("menu.checkForUpdates"), commands.checkForUpdates)]
+    : [];
+  const importAnima = commands.importAnima
+    ? [command(text("menu.importAnima"), commands.importAnima), separator]
+    : [];
   const quit = item(
     "quit",
     mac
@@ -39,6 +92,7 @@ export function applicationMenuTemplate(
     label: appName,
     submenu: [
       item("about", text("menu.about", name)),
+      ...checkForUpdates,
       separator,
       item("services", text("menu.services")),
       separator,
@@ -77,7 +131,10 @@ export function applicationMenuTemplate(
     {
       role: "fileMenu",
       label: text("menu.file"),
-      submenu: [mac ? item("close", text("menu.closeWindow")) : quit],
+      submenu: [
+        ...importAnima,
+        mac ? item("close", text("menu.closeWindow")) : quit,
+      ],
     },
     {
       role: "editMenu",
@@ -129,7 +186,11 @@ export function applicationMenuTemplate(
       ],
     },
     // The role gives macOS its Help search field.
-    { role: "help", label: text("menu.help"), submenu: [] },
+    {
+      role: "help",
+      label: text("menu.help"),
+      submenu: mac ? [] : checkForUpdates,
+    },
   ];
 }
 
@@ -138,10 +199,17 @@ export function installApplicationMenu(
   strings: ShellStrings,
   appName: string,
   packaged: boolean,
+  commands: ApplicationMenuCommands = {},
 ): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
-      applicationMenuTemplate(strings, process.platform, appName, packaged),
+      applicationMenuTemplate(
+        strings,
+        process.platform,
+        appName,
+        packaged,
+        commands,
+      ),
     ),
   );
 }

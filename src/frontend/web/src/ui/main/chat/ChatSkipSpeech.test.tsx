@@ -11,6 +11,10 @@ vi.mock("@/query/hooks/useAnima", () => ({ useAnima: () => ({}) }));
 vi.mock("@/query/hooks/useModelProviders", () => ({
   useModelProviders: () => ({}),
 }));
+// Whether the Anima's model has a key is covered by its own tests.
+vi.mock("./useAnimaModelKeyState", () => ({
+  useAnimaModelKeyState: () => null,
+}));
 // The desktop app has global shortcuts, so tooltips name them.
 vi.mock("@/platform/RuntimePlatformProvider", () => ({
   useRuntimePlatform: () => ({ isDesktop: true, os: "darwin" }),

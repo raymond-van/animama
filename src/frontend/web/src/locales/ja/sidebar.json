@@ -64,6 +64,7 @@
     "account": "アカウント",
     "accountUnavailable": "アカウントにアクセスできません。",
     "appSettings": "アプリ設定",
+    "checkForUpdates": "アップデートを確認…",
     "fallbackName": "あなた",
     "signOut": "サインアウト",
     "usage": "使用量と上限"

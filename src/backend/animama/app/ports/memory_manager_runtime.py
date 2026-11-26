@@ -52,6 +52,12 @@ class MemoryManagerRuntimeResult:
     metadata: dict[str, Any] | None = None
     error: str | None = None
     outcome: str = MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED
+    keeps_conversation_state: bool = False
+    """True only for a step on stored OpenAI Responses, whose cursor covers the conversation.
+
+    After any other step (Chat Completions, Anthropic, a ChatGPT plan) the run's stored cursor
+    no longer covers the conversation, so the service drops it and a later stored-response step
+    replays the run."""
 
 
 class MemoryManagerRuntimeError(Exception):
@@ -84,9 +90,12 @@ class MemoryManagerPinnedModelUnavailableError(MemoryManagerRuntimeError):
 
     code = "memory_manager_pinned_model_unavailable"
 
-    def __init__(self) -> None:
+    def __init__(self, detail: str | None = None) -> None:
+        """``detail`` says why when the model is there but cannot serve the run now (a ChatGPT plan's state)."""
+
         super().__init__(
-            "The model that proposed this change is no longer available for the Memory Manager. "
+            detail
+            or "The model that proposed this change is no longer available for the Memory Manager. "
             "Restore it in App Settings and approve again, or reject the change."
         )
 

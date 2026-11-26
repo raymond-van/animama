@@ -118,6 +118,12 @@ class ModelProvider:
     connection: ModelConnection | None = None
 
     @property
+    def accepts_images(self) -> bool:
+        """Whether the model takes image input, as its catalog row or the owner declares."""
+
+        return "image" in self.capabilities.accepts
+
+    @property
     def accepts_developer_role(self) -> bool:
         """Whether requests may send ``developer`` messages to this row.
 

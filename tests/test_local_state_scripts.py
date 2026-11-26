@@ -93,13 +93,18 @@ def test_backup_keeps_legacy_exclusions_without_recreating_gateway_credentials()
     restore = (REPO_ROOT / "scripts/restore-local.sh").read_text()
     assert "--exclude='./internal/gateway/token'" in backup
     assert (
-        "ANIMAMA_BACKUP_EXCLUDED=content-included,browser-cache,model-cache,downloaded-model-assets,secrets,gateway-token"
-        in backup
+        "ANIMAMA_BACKUP_EXCLUDED=content-included,browser-cache,model-cache,downloaded-model-assets,secrets,gateway-token,"
+        "chatgpt-plan-session" in backup
     )
     # Downloaded model assets are large; a restore keeps the installed ones.
     for script in (backup, restore):
         assert "--exclude='./internal/model-assets'" in script
         assert "--exclude='./staging/model-assets'" in script
+    # The ChatGPT plan session holds tokens: never archived, and never extracted by a restore.
+    common = (REPO_ROOT / "scripts/local-stack-state-common.sh").read_text()
+    for script in (backup, restore):
+        assert "--exclude='./internal/chatgpt-plan'" in script
+    assert 'tar -xzf "$archive" -C "$root" --exclude=\'./internal/chatgpt-plan\'' in common
     assert "gateway_token" not in restore
     assert "local-gateway-token.sh" not in restore
     assert "content_cli" in restore

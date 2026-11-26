@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from animama.local.http.assets import LocalAssets
 from animama.local.http.config import DesktopAccess, LocalHTTPConfig
 from animama.local.http.telemetry import TelemetryConfig, TelemetryDestinations, TelemetryForwarder
+from animama.server.chatgpt_plan import CALLBACK_PATH
 from animama.server.config import Settings
 from animama.server.model_assets import AssetStoreModelMounts
 
@@ -19,7 +20,9 @@ def local_http_config(settings: Settings) -> LocalHTTPConfig:
     if (renderer is None) != (control is None):
         raise ValueError("Desktop HTTP requires both renderer and control credentials")
     desktop = DesktopAccess(renderer, control) if renderer is not None and control is not None else None
-    return LocalHTTPConfig(public_origin=settings.animama_public_origin, desktop=desktop)
+    return LocalHTTPConfig(
+        public_origin=settings.animama_public_origin, desktop=desktop, sign_in_return_path=CALLBACK_PATH
+    )
 
 
 def local_assets(settings: Settings, application: FastAPI) -> LocalAssets | None:

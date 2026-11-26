@@ -177,6 +177,45 @@ describe("private local state and vault", () => {
     ).not.toBe(password);
   });
 
+  it("keeps the ChatGPT plan session key apart from status and child environments", async () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    const vault = await CredentialVault.open(file, crypto, false);
+    const key = await vault.chatgptPlanStoreKey();
+    expect(key).toMatch(/^[a-f0-9]{64}$/u);
+    expect(await vault.chatgptPlanStoreKey()).toBe(key);
+    expect(readFileSync(file).includes(Buffer.from(key))).toBe(false);
+    expect(vault.secrets()).toContain(key);
+    expect(JSON.stringify(vault.list())).not.toContain(key);
+    expect(JSON.stringify(vault.childEnvironment())).not.toContain(key);
+    const restarted = await CredentialVault.open(file, crypto, true);
+    expect(await restarted.chatgptPlanStoreKey()).toBe(key);
+    // Two first uses at once create one key: the second write sees the first's.
+    const fresh = await CredentialVault.open(
+      path.join(fixture(), "vault.bin"),
+      crypto,
+      false,
+    );
+    const [one, two] = await Promise.all([
+      fresh.chatgptPlanStoreKey(),
+      fresh.chatgptPlanStoreKey(),
+    ]);
+    expect(one).toBe(two);
+
+    // A stored key that is not 32 bytes of hex makes the vault unreadable, not silently replaced.
+    const stored = JSON.parse(crypto.unseal(readFileSync(file)));
+    writeFileSync(
+      file,
+      crypto.seal(JSON.stringify({ ...stored, chatgptPlanStoreKey: "short" })),
+      { mode: 0o600 },
+    );
+    await expect(
+      CredentialVault.open(file, crypto, true),
+    ).rejects.toMatchObject({
+      code: "vault_unreadable",
+    });
+  });
+
   it("opens a vault in the layout Electron 44 builds saved", async () => {
     const file = path.join(fixture(), "vault.bin");
     const crypto = encryption();

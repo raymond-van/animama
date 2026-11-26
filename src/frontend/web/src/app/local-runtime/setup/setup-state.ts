@@ -16,6 +16,7 @@ import {
 import {
   ANTHROPIC_DEFAULT_MODEL_ID,
   ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+  CHATGPT_PLAN_PROVIDER_TYPE,
   RESPONSES_PROVIDER_TYPE,
   alternateModelIds,
   modelDisplayName,
@@ -29,6 +30,7 @@ import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import { recommendedSttChoice } from "@/lib/speech/stt-choices";
 import {
   connectionLocation,
+  modelKeyMissing,
   roleCandidates,
 } from "@/ui/settings/models/model-configuration-state";
 
@@ -116,6 +118,34 @@ export function setupBuiltins(
   };
 }
 
+/**
+ * The ChatGPT plan as the AI step tracks it: usable once the account signed
+ * in with plan use, and then the plan model that becomes the chat model. It
+ * is chosen like saving a key: only when the plan becomes usable in setup.
+ */
+export function setupChatGPTPlan(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+  systemDefaultId: string | null | undefined,
+): Pick<SetupBuiltin, "ready" | "modelId"> {
+  const plan = connections.find(
+    (connection) =>
+      connection.source === "builtin" && connection.preset === "chatgpt_plan",
+  );
+  if (plan?.credential_state !== "configured")
+    return { ready: false, modelId: null };
+  const candidates = roleCandidates(items, "chat").filter(
+    (item) =>
+      item.connection_id === plan.id &&
+      item.model_provider === CHATGPT_PLAN_PROVIDER_TYPE,
+  );
+  // The model the system uses by default, if the plan lists it, else the plan's first.
+  const defaultModel = items.find((item) => item.id === systemDefaultId)?.model;
+  const chosen =
+    candidates.find((item) => item.model === defaultModel) ?? candidates[0];
+  return { ready: true, modelId: chosen?.id ?? null };
+}
+
 /** A chat model on one of the owner's connections, as the AI step tracks it. */
 export type SetupModelChoice = {
   id: string;
@@ -195,6 +225,25 @@ export function ownerModelChoices(
     label: modelDisplayName(item, alternates.has(item.id)),
     connectionName: byId.get(item.connection_id ?? "")?.name ?? "",
   }));
+}
+
+/**
+ * Whether the model Animas chat with after setup can reply: `modelId` (the
+ * model chosen in this setup, else the system default) is on a connection
+ * whose key is set or that needs none. No model at all cannot reply; a model
+ * the lists do not describe is not reported, so setup warns only about what
+ * it knows.
+ */
+export function setupChatModelReady(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+  modelId: string | null | undefined,
+): boolean {
+  if (!modelId) return false;
+  return !modelKeyMissing(
+    items.find((item) => item.id === modelId),
+    connections,
+  );
 }
 
 /**

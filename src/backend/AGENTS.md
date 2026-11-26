@@ -175,8 +175,15 @@ Every local composition processes uploads inside the server.
 `server/user_file_processing.py` runs one durable job at a time and parses each
 file in a `parse-upload` child (`adapters/parsers/parse_child.py`) under time
 and memory limits with network access blocked; never parse upload bytes in the
-server process. Parser libraries come from the `documents` extra, which the
-hosted composition does not need. Admission stays in the service, not just the
+server process. A chat image is the one exception, and it is not a processing
+job: `:finalize` (and `:process`, for an image an interrupted finalize left at
+`uploaded`) decodes the bytes in the server with Pillow through
+`canonicalize_chat_image_stream`, which shares the bounded opener and pixel
+limits content images use and adds the GIF decoder, two at a time on a worker
+thread. `ANIMAMA_USER_FILE_PROCESSING_ENABLED` does not apply to images, and an
+image's original is replaced by its canonical copy, never kept.
+Parser libraries come from the `documents` extra, which the hosted composition
+does not need. Admission stays in the service, not just the
 renderer: `ANIMAMA_USER_FILE_PROCESSING_ENABLED=false` keeps originals and
 rejects enqueue with `file_processing_unavailable`, while an enabled but
 starting or stale processor still accepts durable work. Keep heartbeat instance

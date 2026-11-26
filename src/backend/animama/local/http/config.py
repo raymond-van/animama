@@ -78,6 +78,7 @@ class LocalHTTPConfig:
     max_body_bytes: int = TRANSPORT_BODY_LIMIT
     body_timeout_seconds: float = 120.0
     allow_same_site_fetches: bool = False
+    sign_in_return_path: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "public_origin", canonical_origin(self.public_origin))
@@ -94,8 +95,28 @@ class LocalHTTPConfig:
             raise ValueError("The request body deadline must be positive and no longer than 120 seconds")
         if type(self.allow_same_site_fetches) is not bool:
             raise ValueError("Same-site admission must be an explicit boolean")
+        if self.sign_in_return_path is not None and not re.fullmatch(r"(/[a-z]+)+", self.sign_in_return_path):
+            raise ValueError("The sign-in return path must be a fixed lower-case path")
 
     @property
     def authority(self) -> str:
         """The single expected Host header, including a non-default port."""
         return urlsplit(self.public_origin).netloc
+
+    @property
+    def sign_in_return_authority(self) -> str | None:
+        """The ``Host`` of an OpenAI sign-in return, ``127.0.0.1:<port>``, or None when it cannot reach this server.
+
+        OpenAI sends the browser back only to ``http://127.0.0.1:<port>``. That
+        address reaches this server only when its own origin is loopback
+        ``http`` at the same port (D14): ``127.0.0.1``, ``localhost`` or a
+        ``*.localhost`` name, which browsers resolve to loopback (RFC 6761).
+        """
+        if self.sign_in_return_path is None:
+            return None
+        parsed = urlsplit(self.public_origin)
+        host = parsed.hostname or ""
+        if parsed.scheme != "http" or not (host in {"localhost", "127.0.0.1"} or host.endswith(".localhost")):
+            return None
+        # Browsers omit the default port from Host, so port 80 is a bare address.
+        return "127.0.0.1" if parsed.port in (None, 80) else f"127.0.0.1:{parsed.port}"

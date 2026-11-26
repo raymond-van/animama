@@ -390,6 +390,7 @@
     "filteredCount": "{{total}} 件中 {{shown}} 件",
     "genericKind": "ファイル",
     "heading": "チャットのアップロード",
+    "imageRefused": "この画像は使えません。",
     "keywordOnly": "このファイルはキーワード検索のみ利用できます。",
     "live": {
       "empty": "チャットのアップロードはまだありません。",

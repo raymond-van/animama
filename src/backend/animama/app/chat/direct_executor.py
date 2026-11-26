@@ -48,7 +48,8 @@ from animama.app.model_clients.context_budget import (
     context_budget_for_model,
     estimate_prompt_tokens,
 )
-from animama.app.model_clients.prompt import ChatCompletionResponseFormat, copy_direct_chat_prompt
+from animama.app.model_clients.image_parts import ModelClientImage, image_file_ids, select_images
+from animama.app.model_clients.prompt import ChatCompletionResponseFormat, copy_direct_chat_prompt, prompt_messages
 from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
 from animama.app.safety.moderation import (
@@ -81,18 +82,21 @@ from .direct_turn.events import (
 )
 from .direct_turn.message_builders import (
     assistant_messages_for_persistence,
+    attached_image_parts,
     chat_metadata_patch_from_prompt,
+    user_message_data,
+    user_message_text,
     user_provider_message,
 )
 from .direct_turn.model_stream import DirectTurnModelStreamCollector, RunStatusObserver
 from .direct_turn.provider_state import (
     build_memory_tool_config,
     build_model_client_provider_options,
-    chat_completions_disallows_reasoning_with_function_tools,
     compiled_context_history,
     memory_tool_config_for_model,
     native_memory_apply_patch_enabled,
     openai_responses_continuation_from_chat,
+    reasoning_effort_blocks_function_tools,
     should_skip_context_fetch_for_responses_cursor,
     turn_memory_context_manifest,
     turn_reasoning_effort,
@@ -109,7 +113,10 @@ from .direct_turn.response_format import (
     turn_response_schema_name,
 )
 from .direct_turn.types import (
+    ChatImageLoader,
+    DirectChatAttachedImage,
     DirectChatAttachmentContext,
+    DirectChatTurnImagesUnsupportedError,
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
     DirectChatTurnStreamError,
@@ -375,6 +382,7 @@ class DirectChatTurnExecutor:
         web_search_tool: WebSearchToolService | None = None,
         episodic_memory_arm: EpisodicMemoryArm = DEFAULT_EPISODIC_MEMORY_ARM,
         crisis_moderator: CrisisModerator | None = None,
+        image_loader: ChatImageLoader | None = None,
     ) -> None:
         self._registry = registry
         self._profile_service = profile_service
@@ -391,6 +399,9 @@ class DirectChatTurnExecutor:
         # Only the model benchmark chooses an arm (app/chat/memory_arm.py); production keeps the default.
         self._episodic_memory_arm = episodic_memory_arm
         self._crisis_moderator = crisis_moderator
+        self._image_loader = image_loader
+        # One executor serves one turn, so images load once for all its requests.
+        self._loaded_images: dict[str, ModelClientImage] = {}
 
     async def stream(self, model_request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Proxy one provider-neutral request to the registered shared model client."""
@@ -399,12 +410,41 @@ class DirectChatTurnExecutor:
         client = self._registry.get(provider_type)
         if client is None:
             raise ModelClientNotFoundError(f"No model client registered for provider type {provider_type!r}")
+        model_request = await self._with_images(model_request)
         _log.info(
             "Direct chat model client dispatch started",
             **model_client_request_log_context(model_request, include_prompt_preview=True),
         )
         async for delta in client.stream(model_request):
             yield delta
+
+    async def _with_images(self, model_request: ModelClientRequest) -> ModelClientRequest:
+        """Return the request with the bytes of every image its prompt names.
+
+        Every request of a turn passes through here (tool rounds and a retry
+        that reloads history included), so this is the one place bytes enter.
+        An image that cannot be loaded is left out and its adapter sends its
+        placeholder instead.
+        """
+
+        file_ids = list(dict.fromkeys(image_file_ids(model_request.prompt.messages)))
+        if not file_ids:
+            return model_request
+        missing = [file_id for file_id in file_ids if file_id not in self._loaded_images]
+        if missing and self._image_loader is not None:
+            try:
+                self._loaded_images.update(await self._image_loader.load(missing))
+            except Exception as exc:
+                # A storage or session failure costs the images, not the reply.
+                _log.warning("Direct chat image loading failed", image_count=len(missing), error=str(exc))
+        images = {file_id: self._loaded_images[file_id] for file_id in file_ids if file_id in self._loaded_images}
+        if len(images) < len(file_ids):
+            _log.warning(
+                "Direct chat images unavailable for a request",
+                requested_image_count=len(file_ids),
+                loaded_image_count=len(images),
+            )
+        return replace(model_request, images=images)
 
     async def stream_turn(self, request: DirectChatTurnRequest) -> AsyncIterator[Event]:
         """Run one direct chat turn through the model-client boundary."""
@@ -453,6 +493,8 @@ class DirectChatTurnExecutor:
             request_options=request.options,
             memory_tools_active=memory_tool_config.active or web_search_active,
         )
+        if request.attached_images and not model_provider.accepts_images:
+            raise DirectChatTurnImagesUnsupportedError(f"model_does_not_accept_images: {model_provider.id}")
         if self._registry.get(model_provider.provider_type) is None:
             raise ModelClientNotFoundError(
                 f"No model client registered for provider type {model_provider.provider_type!r}"
@@ -933,16 +975,14 @@ class DirectChatTurnExecutor:
                     run_id=prepared.request.run_id,
                     message_type="message",
                     role=MessageRole.USER,
-                    content=prepared.request.user_message,
-                    data=(
-                        {"attached_file_ids": list(prepared.request.attached_file_ids)}
-                        if prepared.request.attached_file_ids
-                        else None
-                    ),
+                    content=user_message_text(prepared.request),
+                    data=user_message_data(prepared.request),
                     usage=None,
                     turn=None,
                     created_at=None,
-                    raw_provider_message=user_provider_message(prepared.request.user_message),
+                    raw_provider_message=user_provider_message(
+                        prepared.request.user_message, images=attached_image_parts(prepared.request)
+                    ),
                 ),
                 assistant_msg=assistant_messages_for_persistence(
                     request=prepared.request,
@@ -1019,9 +1059,7 @@ class DirectChatTurnExecutor:
             reason = "model_without_tools"
         elif model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER:
             reason = "provider_without_function_tools"
-        elif request.options.reasoning_effort and chat_completions_disallows_reasoning_with_function_tools(
-            model_provider
-        ):
+        elif reasoning_effort_blocks_function_tools(model_provider, request.options.reasoning_effort):
             reason = "reasoning_with_function_tools"
         if reason is None:
             return True
@@ -1154,16 +1192,19 @@ class DirectChatTurnExecutor:
 
         # Fit below the trigger so tool rounds and a repair have room; use the
         # whole budget only when the fixed prompt leaves no such headroom.
+        accepts_images = prepared.model_request.model_provider.accepts_images
         fitted_history = fit_history(
             history,
             available_tokens=budget.pre_send_trigger_tokens,
             prompt_tokens_for=prompt_tokens_for,
+            count_images=accepts_images,
         )
         if fitted_history is None:
             fitted_history = fit_history(
                 history,
                 available_tokens=budget.available_tokens,
                 prompt_tokens_for=prompt_tokens_for,
+                count_images=accepts_images,
             )
         if fitted_history is None:
             yield self._context_exceeded_event(prepared, budget, fixed_tokens)
@@ -1266,8 +1307,9 @@ class DirectChatTurnExecutor:
             if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
             else INSTRUCTION_STYLE_DEFAULT
         )
-        return self._prompt_assembler.assemble(
+        prompt = self._prompt_assembler.assemble(
             user_message=request.user_message,
+            user_images=attached_image_parts(request),
             anima_identity=memory_context.anima_identity,
             anima_name=memory_context.anima_name,
             anima_memories=getattr(memory_context, "anima_memories", None),
@@ -1319,6 +1361,13 @@ class DirectChatTurnExecutor:
                     model_provider=model_provider,
                 ),
             },
+        )
+        # Earlier turns' images are replayed while their turn stays in the history;
+        # beyond the request limit, or for a model without image input, they become
+        # placeholders. Fitting rebuilds through here, so it sees the same choice.
+        return copy_direct_chat_prompt(
+            prompt,
+            messages=select_images(prompt_messages(prompt), accepts_images=model_provider.accepts_images),
         )
 
     def _model_stream_collector(
@@ -1454,8 +1503,11 @@ def _assistant_message_from_record_result(record_result: Any) -> ChatMessage | N
 
 
 __all__ = [
+    "ChatImageLoader",
+    "DirectChatAttachedImage",
     "DirectChatAttachmentContext",
     "DirectChatTurnExecutor",
+    "DirectChatTurnImagesUnsupportedError",
     "DirectChatTurnRequest",
     "DirectChatTurnSetupError",
     "DirectChatTurnStreamError",

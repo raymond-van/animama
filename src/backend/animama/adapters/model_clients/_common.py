@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import base64
 import inspect
 from collections.abc import Mapping
 from typing import Any
+
+from animama.app.model_clients.image_parts import ModelClientImage
 
 
 def jsonable(value: Any) -> Any:
@@ -36,6 +39,12 @@ def openai_cache_breakpoint_text_part(text: str, *, part_type: str) -> dict[str,
     return {"type": part_type, "text": text, "prompt_cache_breakpoint": {"mode": "explicit"}}
 
 
+def image_data_url(image: ModelClientImage) -> str:
+    """Return a stored chat image as the ``data:`` URL the OpenAI APIs accept."""
+
+    return f"data:{image.media_type};base64,{base64.b64encode(image.content).decode('ascii')}"
+
+
 async def close_maybe_async(value: Any) -> None:
     """Call ``close``/``aclose`` on SDK resources when present."""
 
@@ -52,6 +61,7 @@ async def close_maybe_async(value: Any) -> None:
 __all__ = [
     "close_maybe_async",
     "get_value",
+    "image_data_url",
     "jsonable",
     "openai_cache_breakpoint_text_part",
 ]

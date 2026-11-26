@@ -137,6 +137,7 @@ tar -C "$ANIMAMA_STATE_LOCAL_ROOT" -czf "${rollback_dir}/content-local.tar.gz" .
 tar -C "$ANIMAMA_STATE_DATA_ROOT" \
   --exclude='./internal/gateway/token' \
   --exclude='./internal/gateway/.gateway-token.*' \
+  --exclude='./internal/chatgpt-plan' \
   --exclude='./internal/model-assets' \
   --exclude='./staging/model-assets' \
   --exclude='./.restore-model-assets' \

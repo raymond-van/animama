@@ -32,13 +32,18 @@ def history_groups(history: Sequence[Any]) -> tuple[list[Any], list[list[Any]]]:
     return summaries, groups
 
 
-def history_item_tokens(item: Any) -> int:
-    """Return a conservative estimate for one history item as it will be sent."""
+def history_item_tokens(item: Any, *, count_images: bool = True) -> int:
+    """Return a conservative estimate for one history item as it will be sent.
+
+    ``count_images`` is false for a model without image input, which receives
+    each earlier image as its short placeholder.
+    """
 
     if isinstance(item, ChatMessage):
         raw = item.raw_provider_message
-        return estimate_value_tokens(raw if raw is not None else {"role": str(item.role), "content": item.content})
-    return estimate_value_tokens(item)
+        value = raw if raw is not None else {"role": str(item.role), "content": item.content}
+        return estimate_value_tokens(value, count_images=count_images)
+    return estimate_value_tokens(item, count_images=count_images)
 
 
 def newest_history_within(
@@ -46,15 +51,16 @@ def newest_history_within(
     *,
     budget_tokens: int,
     keep_summaries: bool = True,
+    count_images: bool = True,
 ) -> list[Any]:
     """Return the summaries (if kept) plus the newest whole groups whose estimate fits the budget."""
 
     summaries, groups = history_groups(history)
     kept_summaries = summaries if keep_summaries else []
-    remaining = budget_tokens - sum(history_item_tokens(item) for item in kept_summaries)
+    remaining = budget_tokens - sum(history_item_tokens(item, count_images=count_images) for item in kept_summaries)
     kept_groups: list[list[Any]] = []
     for group in reversed(groups):
-        tokens = sum(history_item_tokens(item) for item in group)
+        tokens = sum(history_item_tokens(item, count_images=count_images) for item in group)
         if tokens > remaining:
             break
         remaining -= tokens
@@ -78,6 +84,7 @@ def fit_history(
     *,
     available_tokens: int,
     prompt_tokens_for: Callable[[list[Any]], int],
+    count_images: bool = True,
 ) -> list[Any] | None:
     """Return the longest recent history whose whole prompt fits, or ``None`` when nothing fits.
 
@@ -96,6 +103,7 @@ def fit_history(
             history,
             budget_tokens=available_tokens - base_tokens,
             keep_summaries=keep_summaries,
+            count_images=count_images,
         )
         # Per-item estimates omit the prompt's JSON framing; drop more until the whole prompt fits.
         while prompt_tokens_for(candidate) > available_tokens:

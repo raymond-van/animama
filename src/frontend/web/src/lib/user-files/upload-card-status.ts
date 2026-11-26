@@ -2,6 +2,7 @@ import { getI18n } from "react-i18next";
 
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
+import { isUserImageFile } from "@/lib/user-files/chat-images";
 
 /**
  * Frontend-only upload stages stored in transient Uppy file metadata.
@@ -93,6 +94,7 @@ export type UserFileUploadCardTone =
   | "destructive";
 
 export type UserFileUploadStatusFile = {
+  name?: string;
   error?: string | null;
   meta?: {
     file_id?: string;
@@ -228,8 +230,10 @@ export function storedUploadErrorLine(file: PyUserFileResponse): string | null {
     file.last_error ?? file.latest_processing_job?.last_error ?? null;
   if (!stored) return null;
   const t = getI18n().getFixedT(null, "library");
-  const generic =
-    file.status === "ready_keyword_only"
+  // An image is never processed: its error is the server's refusal at upload.
+  const generic = isUserImageFile(file)
+    ? t("uploads.imageRefused")
+    : file.status === "ready_keyword_only"
       ? t("uploads.keywordOnly")
       : t("uploads.processingFailed");
   return apiErrorLine(uncodedErrorText(stored, generic));

@@ -41,8 +41,8 @@ them and fall back to existing behavior on Avatars that do not.
 
 ## Evidence
 
-- `src/frontend/web/src/lib/avatar/Avatar.ts` (`_createGLTFLoader`, `_loadVrm`):
-  loading requires a VRM.
+- `src/frontend/web/src/lib/avatar/Avatar.ts` (`_loadVrm`): loading requires
+  a VRM.
 - `src/backend/animama/app/services/content_gltf.py` (`_validate_vrm_humanoid`):
   uploads require a VRM humanoid.
 - `src/frontend/web/src/lib/avatar/arkitFaceCapability.ts` and

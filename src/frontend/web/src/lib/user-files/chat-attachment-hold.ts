@@ -5,6 +5,7 @@ import {
   resolveUserFileUploadCardStatus,
   type UserFileUploadStatusFile,
 } from "@/lib/user-files/upload-card-status";
+import { isUserImageFileName } from "@/lib/user-files/uploads";
 
 /**
  * Whether the composer tray's new uploads let a turn be sent, from each
@@ -12,11 +13,13 @@ import {
  *
  * - `waiting` while any is still preparing, uploading, finalizing, queued or
  *   processing, or saved but not yet queued while processing is on;
- * - `blocked` while any failed, or is a saved original that will not be
+ * - `blocked` while any failed, or is a saved document that will not be
  *   processed because processing is off; the person must remove it;
  * - `none` once every one is `ready` or `ready_keyword_only`.
  *
  * `blocked` wins over `waiting`: waiting alone would never release the send.
+ * An image is never processed: finalize makes it `ready`, so a saved image
+ * waits for its row whether or not processing is on.
  * Files chosen from the Library are not passed in and never hold a send,
  * because the picker offers only readable files.
  */
@@ -47,7 +50,9 @@ export function resolveChatAttachmentHold({
       case "failed":
         return "blocked";
       case "uploaded":
-        if (!processingEnabled) return "blocked";
+        if (!processingEnabled && !isUserImageFileName(file.name)) {
+          return "blocked";
+        }
         waiting = true;
         break;
       default:

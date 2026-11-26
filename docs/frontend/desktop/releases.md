@@ -29,12 +29,13 @@ the tooling reference. CI publication remains unconfigured.
 
 A build whose sealed `runtime/update-policy.json` says `"updates": "ended"`,
 as the final release does, never checks for updates: it verifies no publisher,
-creates no updater session, makes no feed request and shows no update row or
-notice, as an unpackaged build does. Nothing read at run time turns checks back
+creates no updater session, makes no feed request and shows no update row,
+menu item or notice, as an unpackaged build does. Nothing read at run time turns checks back
 on. The rest of this section describes a build that offers updates.
 
-A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. Settings →
-General also offers **Check for updates**. A notice offers **Download update**;
+A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. App Settings →
+About, the sidebar user menu and, on macOS, the Animama menu also offer a
+check on request. A notice offers **Download update**;
 the separate **Restart to install** action asks for confirmation before stopping
 local services. Closing the notice or quitting normally does not install a
 downloaded update. Unpackaged or unconfigured builds do not offer updates.
@@ -107,12 +108,13 @@ purpose:
 `tests/windows-release.test.mjs` passes every generated feed through 0.1.6's
 validation, kept unchanged in `tests/fixtures/update-policy-0.1.6.ts`, and
 through the current app.
-[ADR 0038](../../adr/0038-windows-update-feed-minimum-is-frozen.md) records
+[ADR 0040](../../adr/0040-windows-update-feed-minimum-is-frozen.md) records
 the decision and its limits.
 
-The first Windows release built from this source also updates the README
-download row and the installation page's current-release text. Until then
-both describe 0.1.6, which requires Windows 11.
+The first Windows release after 0.1.6 also updates the Windows download row in
+`README.md`, `README.ja.md`, `README.ko.md` and `README.zh-Hans.md`, and the
+installation page's current-release text. Until then they describe 0.1.6,
+which requires Windows 11.
 
 ## Distribution selection
 
@@ -860,7 +862,7 @@ steps, each with its own approval:
 4. **Animama Cloud follow-ups.** Its landing download links, hosted privacy
    terms, operator dashboard download analytics and its copy of
    `included-content-attribution.txt` need the same change, and its next
-   repin admits `local-http` 23 and `runtime-contracts` 0.23.0.
+   repin admits `local-http` 25 and `runtime-contracts` 0.25.0.
 
 Before the cut-off, a revert restores updates and downloads for a new build;
 after it, reconnecting the custom domain restores service while the bucket

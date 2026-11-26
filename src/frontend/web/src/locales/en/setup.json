@@ -57,6 +57,12 @@
       "searching": "Searching…",
       "setUpLater": "Set up later"
     },
+    "noModelPrompt": {
+      "continue": "Continue without a model",
+      "description": "No model is ready to reply yet, so your Animas can't chat. Connect a provider and add a model here, or add one later in App Settings → Models.",
+      "stay": "Keep setting up",
+      "title": "Continue without a chat model?"
+    },
     "providedModels": "This installation provides its own models, so there is nothing to choose here.",
     "providerTabs": "{{location}} providers",
     "purpose": "Pick the model your Animas chat with."

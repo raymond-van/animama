@@ -1,8 +1,11 @@
 """Application-layer direct chat helpers."""
 
 from .direct_executor import (
+    ChatImageLoader,
+    DirectChatAttachedImage,
     DirectChatAttachmentContext,
     DirectChatTurnExecutor,
+    DirectChatTurnImagesUnsupportedError,
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
     DirectChatTurnStreamError,
@@ -22,6 +25,8 @@ from .openai_prompt import DirectChatPrompt, DirectChatPromptAssembler, scoped_p
 from .options import DirectChatOptions, DirectChatTtsOptions
 
 __all__ = [
+    "ChatImageLoader",
+    "DirectChatAttachedImage",
     "DirectChatAttachmentContext",
     "DirectChatMemoryContext",
     "DirectChatMemoryContextError",
@@ -32,6 +37,7 @@ __all__ = [
     "DirectChatOptions",
     "DirectChatTtsOptions",
     "DirectChatTurnExecutor",
+    "DirectChatTurnImagesUnsupportedError",
     "DirectChatTurnRequest",
     "DirectChatTurnSetupError",
     "DirectChatTurnStreamError",

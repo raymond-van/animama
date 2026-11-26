@@ -12,11 +12,17 @@ import {
   resolveApiUploadUrl,
 } from "@/lib/content/contentUploads";
 import { createLogger } from "@/lib/logger";
-import type { UserFileUploadStage } from "@/lib/user-files/upload-card-status";
+import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
+import { isUserImageFile } from "@/lib/user-files/chat-images";
+import {
+  storedUploadErrorLine,
+  type UserFileUploadStage,
+} from "@/lib/user-files/upload-card-status";
 import {
   getUserFileErrorMessage,
   USER_FILE_UPLOAD_RESTRICTIONS,
   userFileUploadLocale,
+  isUserImageFileName,
 } from "@/lib/user-files/uploads";
 import { useFinalizeUserFileUpload } from "@/query/mutations/useFinalizeUserFileUpload";
 import { useInitUserFileUpload } from "@/query/mutations/useInitUserFileUpload";
@@ -99,6 +105,11 @@ function processStageFromResponse(
     return "processing";
   }
   return "processing";
+}
+
+/** The generic reason for a refused chat image, in the UI Locale. */
+function imageRefusedText(): string {
+  return getI18n().getFixedT(null, "library")("uploads.imageRefused");
 }
 
 export function useUserFileUpload({
@@ -281,8 +292,9 @@ export function useUserFileUpload({
         ...safeFileLogFields(uppy.opts.id, file, fileId),
       });
 
+      let finalizedFile: PyUserFileResponse | null = null;
       try {
-        const finalizedFile = await currentFinalizeUpload.mutateAsync({
+        finalizedFile = await currentFinalizeUpload.mutateAsync({
           fileId,
         });
         logger.info("Finalize", "Upload finalize request completed", {
@@ -291,6 +303,34 @@ export function useUserFileUpload({
           status: finalizedFile.status,
         });
       } catch (error) {
+        // An image whose finalize stopped after the upload was saved is
+        // completed by the process route, which stores its canonical copy.
+        if (isUserImageFileName(file.name)) {
+          const recovered = await currentProcessFile
+            .mutateAsync({ fileId, force: false })
+            .catch(() => null);
+          if (
+            recovered?.file_status === "ready" ||
+            recovered?.file_status === "failed"
+          ) {
+            const refused = recovered.file_status === "failed";
+            logger.info("Finalize", "Image finalize completed by process", {
+              ...safeFileLogFields(uppy.opts.id, file, fileId),
+              status: recovered.file_status,
+            });
+            // A refused image's card shows the stored reason from its row.
+            setAnimaFileMeta(uppy, file.id, {
+              anima_stage: refused ? "failed" : "uploaded",
+              anima_error: refused ? imageRefusedText() : undefined,
+            });
+            if (refused) {
+              toast.error(t("uploads.needsAttention"), {
+                description: imageRefusedText(),
+              });
+            }
+            return;
+          }
+        }
         const message = getUserFileErrorMessage(
           error,
           t("uploads.finalizeFailedAfterUpload"),
@@ -307,6 +347,22 @@ export function useUserFileUpload({
         toast.error(t("uploads.needsAttention"), {
           description: message,
         });
+        return;
+      }
+
+      if (finalizedFile && isUserImageFile(finalizedFile)) {
+        // An image is ready (or refused) once finalized: it is never processed.
+        const refused = finalizedFile.status === "failed";
+        const reason = refused
+          ? (storedUploadErrorLine(finalizedFile) ?? imageRefusedText())
+          : undefined;
+        setAnimaFileMeta(uppy, file.id, {
+          anima_stage: refused ? "failed" : "uploaded",
+          anima_error: reason,
+        });
+        if (reason) {
+          toast.error(t("uploads.needsAttention"), { description: reason });
+        }
         return;
       }
 
@@ -414,8 +470,10 @@ export function useUserFileUpload({
 
     function handleRestrictionFailed(
       _file: UppyFile<UserFileUploadMeta, UserFileUploadBody> | undefined,
-      error: Error,
+      error: Error & { isUserFacing?: boolean },
     ) {
+      // A refusal the composer already explained (onBeforeFileAdded).
+      if (error.isUserFacing === false) return;
       const t = getI18n().getFixedT(null, "app");
       toast.error(t("uploads.rejected"), {
         description: error.message,

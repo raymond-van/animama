@@ -69,6 +69,7 @@ vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
 vi.mock("@/ui/animas/VoiceCloneLibrary", () => ({
   VoiceCloneLibrary: () => null,
 }));
+vi.mock("./SavedVoiceClones", () => ({ SavedVoiceClones: () => null }));
 vi.mock("@/query/mutations/useModelAssetActions", () => ({
   useModelAssetAction: () => ({
     mutate: manager.mutate,

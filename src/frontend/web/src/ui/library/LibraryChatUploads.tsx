@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/ui/components/card";
 import { Input } from "@/ui/components/input";
 import { LibraryChatUploadsDebugPanel } from "@/ui/library/LibraryChatUploadsDebugPanel";
 import { LibraryFilterMenu } from "@/ui/library/LibraryFilterMenu";
+import { UserFileThumbnail } from "@/ui/components/user-file-thumbnail";
 import { useSearchDraft } from "@/ui/library/useSearchDraft";
 
 const STATUS_STYLES: Record<LibraryUploadStatusTone, string> = {
@@ -75,9 +76,16 @@ function UploadRow({ row }: { row: LibraryUploadListRow }) {
   ];
   return (
     <div className="border-border/70 flex min-w-0 flex-wrap items-center gap-3 border-b px-4 py-3 last:border-b-0 sm:flex-nowrap">
-      <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
-        <FileText className="size-4" aria-hidden="true" />
-      </span>
+      {row.imageFileId ? (
+        <UserFileThumbnail
+          fileId={row.imageFileId}
+          className="size-9 rounded-lg"
+        />
+      ) : (
+        <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+          <FileText className="size-4" aria-hidden="true" />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{row.name}</p>
         <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">

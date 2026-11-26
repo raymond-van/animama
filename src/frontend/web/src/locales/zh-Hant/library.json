@@ -390,6 +390,7 @@
     "filteredCount": "{{shown}} / {{total}}",
     "genericKind": "檔案",
     "heading": "聊天上傳",
+    "imageRefused": "無法使用此圖片。",
     "keywordOnly": "此檔案僅支援關鍵字搜尋。",
     "live": {
       "empty": "還沒有聊天上傳。",

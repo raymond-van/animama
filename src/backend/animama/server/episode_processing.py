@@ -64,14 +64,28 @@ EPISODE_PROCESSING_REST_SECONDS = 300.0
 _RUN_HISTORY_LIMIT = EPISODE_PROCESSING_DAILY_RUN_LIMIT + EPISODE_PROCESSING_PAUSE_AFTER_FAILURES + 5
 
 EpisodeProcessingState = Literal[
-    "off", "memory_off", "needs_model", "running", "paused", "backing_off", "waiting", "ready"
+    "off",
+    "memory_off",
+    "needs_model",
+    "needs_plan_agreement",
+    "needs_plan_sign_in",
+    "plan_paused",
+    "running",
+    "paused",
+    "backing_off",
+    "waiting",
+    "ready",
 ]
+
+ModelReadiness = Literal["usable", "needs_model", "needs_plan_agreement", "needs_plan_sign_in", "plan_paused"]
+"""Whether the Memory Manager's model may run work that starts by itself, and if not, why."""
 
 MemoryManagerFactory = Callable[[AsyncSession, str], Awaitable[MemoryManagerService]]
 """Build the owner's Memory Manager service on a session."""
 
-ModelCheck = Callable[[AsyncSession, str], Awaitable[bool]]
-"""Whether the owner's Memory Manager role resolves a tool-capable model whose key is present."""
+ModelCheck = Callable[[AsyncSession, str], Awaitable[ModelReadiness]]
+"""Whether the owner's Memory Manager model may run automatic work: a tool-capable model whose key is
+present, or a ChatGPT plan model the owner agreed to and that no usage limit paused (spec #919 D5, D6)."""
 
 _STATE_ATTR = "automatic_episode_processing_worker"
 _log = get_logger("server.episode_processing")
@@ -82,7 +96,10 @@ class EpisodeProcessingStatus:
     """What automatic processing will do next, as the setting and the chat show it.
 
     ``state`` is ``off``, ``memory_off`` (App Settings memory or memory updates off),
-    ``needs_model``, ``running``, ``paused`` (after repeated failures),
+    ``needs_model``, ``needs_plan_agreement``, ``needs_plan_sign_in`` or ``plan_paused``
+    (a ChatGPT plan model without the owner's agreement, whose sign-in or plan use
+    needs attention, or after a usage limit), ``running``, ``paused``
+    (after repeated failures),
     ``backing_off`` (after a failure, or at the daily limit, until ``next_attempt_at``),
     ``waiting`` (fewer than ``threshold`` notes pending) or ``ready``.
     """
@@ -199,8 +216,9 @@ class AutomaticEpisodeProcessingWorker:
         memory: dict[str, Any] = raw_memory if isinstance(raw_memory, dict) else {}
         if memory.get("disable_influence") is True or memory.get("disable_updates") is True:
             return replace(base, state="memory_off")
-        if not await self._model_usable(session, self._owner_id):
-            return replace(base, state="needs_model")
+        readiness = await self._model_usable(session, self._owner_id)
+        if readiness != "usable":
+            return replace(base, state=readiness)
 
         owner_success = await runs_repo.latest_processed_owner_episode_run(user_id=self._owner_id)
         owner_task = _task_state(owner_success) if owner_success is not None else None

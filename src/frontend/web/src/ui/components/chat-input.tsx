@@ -3,8 +3,11 @@ import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useUpdateAnimaChatProfile } from "@/query/mutations/useUpdateAnimaChatProfile";
 import { USER_FILE_UPLOAD_ACCEPT } from "@/lib/user-files/uploads";
+import { isUserImageFile } from "@/lib/user-files/chat-images";
+import { UserFileThumbnail } from "@/ui/components/user-file-thumbnail";
 import { Button } from "@/ui/components/button";
 import { attachmentSize } from "@/ui/components/chat-input-file-tray";
+import { ChatGPTPlanUsageNote } from "@/ui/components/chatgpt-plan-usage-note";
 import { Checkbox } from "@/ui/components/checkbox";
 import {
   Command,
@@ -70,10 +73,11 @@ import {
 } from "lucide-react";
 import {
   alternateModelIds,
-  modelConnectionLabel,
   modelDisplayName,
   modelOptionDetail,
   modelOptionLabel,
+  listsChatGPTPlanModels,
+  pickerModelGroups,
   selectableChatModels,
   supportedReasoningEfforts,
 } from "@/lib/chat/model-catalog";
@@ -81,7 +85,14 @@ import type React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useFormatters, type LocaleFormatters } from "@animama/product-ui/i18n";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import {
@@ -266,10 +277,17 @@ function ChatInputFileUploadButtonInner({
                           onSelect={() => onToggleExistingFile(file)}
                           className="items-start py-2"
                         >
-                          <FileText
-                            className="mt-0.5 size-4"
-                            aria-hidden="true"
-                          />
+                          {isUserImageFile(file) ? (
+                            <UserFileThumbnail
+                              fileId={file.file_id}
+                              className="mt-0.5 size-5"
+                            />
+                          ) : (
+                            <FileText
+                              className="mt-0.5 size-4"
+                              aria-hidden="true"
+                            />
+                          )}
                           <span className="min-w-0 flex-1">
                             <span className="block truncate">
                               {file.original_filename}
@@ -315,18 +333,6 @@ function ChatInputFileUploadUnavailable({ reason }: { reason: string }) {
   );
 }
 
-function groupModelOptions(items: PyModelProviderCatalogItem[]) {
-  const groups = new Map<string, PyModelProviderCatalogItem[]>();
-  for (const item of items) {
-    const key = modelConnectionLabel(item);
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
-  return Array.from(groups, ([providerLabel, models]) => ({
-    providerLabel,
-    models,
-  }));
-}
-
 /** Why web search is unavailable for a model row, in the active locale. */
 function searchUnavailableText(
   t: TFunction<"chat">,
@@ -342,7 +348,7 @@ function searchUnavailableText(
   }
 }
 
-/** Size, chunk count and search status for an attached file. */
+/** Size, chunk count and search status for an attached file; an image has no chunks. */
 function attachmentDetails(
   t: TFunction<"chat">,
   formatters: LocaleFormatters,
@@ -352,6 +358,10 @@ function attachmentDetails(
     formatters,
     file.stored_size_bytes ?? file.declared_size_bytes,
   );
+  if (isUserImageFile(file)) {
+    const status = t("composer.files.ready");
+    return size ? t("composer.attach.imageDetails", { size, status }) : status;
+  }
   const values = {
     chunks: t("composer.attach.chunks", { count: file.chunk_count ?? 0 }),
     status:
@@ -397,11 +407,22 @@ function reasoningEffortLabel(t: TFunction<"chat">, effort: string) {
   }
 }
 
+/** Drives the model picker from outside it, e.g. the composer's no-key notice. */
+export type ChatModelSelectorControl = {
+  /** Open the picker on its model list. */
+  openModels: () => void;
+  /** Switch to `item` exactly as choosing it in the list does. */
+  select: (item: PyModelProviderCatalogItem) => Promise<void>;
+};
+
 type ChatInputModelSelectorProps = React.ComponentProps<typeof Button> & {
   animaId: string;
   activeChat?: PyChatResponse | null;
   closeSignal?: number;
+  controlRef?: React.Ref<ChatModelSelectorControl>;
   disabled?: boolean;
+  /** The active model's connection has no key, so it cannot reply. */
+  keyMissing?: boolean;
   onIncompatibleModelSelect?: (item: PyModelProviderCatalogItem) => void;
   onModelChange?: () => void;
 };
@@ -411,12 +432,14 @@ function ChatInputModelSelector({
   animaId,
   className,
   closeSignal = 0,
+  controlRef,
   disabled: disabledProp,
+  keyMissing = false,
   onIncompatibleModelSelect,
   onModelChange,
   ...props
 }: ChatInputModelSelectorProps) {
-  const { t } = useTranslation("chat");
+  const { t, i18n } = useTranslation("chat");
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"reasoning" | "models" | "features">(
     "reasoning",
@@ -446,7 +469,12 @@ function ChatInputModelSelector({
   // A removed model (or connection) leaves the Anima's choice unavailable.
   const activeUnavailable =
     Boolean(activeItemId) && catalogLoaded && !activeItem;
-  const modelGroups = useMemo(() => groupModelOptions(models), [models]);
+  const modelGroups = useMemo(
+    () => pickerModelGroups(models),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- headings read the UI Locale, which can change while the chat is open
+    [models, i18n.language],
+  );
+  const splitOpenAI = useMemo(() => listsChatGPTPlanModels(models), [models]);
   // Rows sharing a name on one connection are told apart without naming APIs.
   const alternateIds = useMemo(() => alternateModelIds(models), [models]);
   // The same options the chat session sends with each turn.
@@ -489,8 +517,13 @@ function ChatInputModelSelector({
   const isDisabled = Boolean(
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
   );
-  const tooltipLabel = activeItem
+  const activeLabel = activeItem
     ? modelOptionLabel(activeItem, alternateIds.has(activeItem.id), t)
+    : null;
+  const tooltipLabel = activeLabel
+    ? keyMissing
+      ? t("composer.model.keyMissing", { model: activeLabel })
+      : activeLabel
     : activeUnavailable
       ? t("composer.model.unavailable")
       : anima?.chat_profile
@@ -532,6 +565,14 @@ function ChatInputModelSelector({
     setView("reasoning");
     onModelChange?.();
   };
+  useImperativeHandle(controlRef, () => ({
+    openModels: () => {
+      if (isDisabled) return;
+      setOpen(true);
+      setView("models");
+    },
+    select: handleSelect,
+  }));
 
   const handleNativeToolChange = (tool: string, checked: boolean) => {
     if (isDisabled || !activeItem || !nativeTools.includes(tool)) return;
@@ -637,7 +678,7 @@ function ChatInputModelSelector({
             >
               {updateAnimaChatProfile.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
-              ) : activeUnavailable ? (
+              ) : activeUnavailable || keyMissing ? (
                 <TriangleAlert className="text-destructive size-4" />
               ) : (
                 <ModelSelectorLogo
@@ -862,13 +903,18 @@ function ChatInputModelSelector({
                           alternateIds.has(item.id),
                           t,
                         );
-                        const providerName = modelOptionDetail(item);
+                        const providerName = modelOptionDetail(
+                          item,
+                          splitOpenAI,
+                        );
                         return (
                           <CommandItem
                             key={item.id}
-                            // The index keeps values unique without making the
-                            // row's internal id searchable.
-                            value={`${providerName} ${modelName} ${item.model} ${index}`}
+                            // The group heading keeps "OpenAI" searchable on
+                            // rows that say only "API key"; the index keeps
+                            // values unique without making the row's internal
+                            // id searchable.
+                            value={`${group.providerLabel} ${providerName} ${modelName} ${item.model} ${index}`}
                             disabled={
                               isDisabled || rowUnsupported || rowNeedsWindow
                             }
@@ -903,6 +949,14 @@ function ChatInputModelSelector({
             )}
           </>
         )}
+        {view === "features" ? null : (
+          <ChatGPTPlanUsageNote
+            model={activeItem}
+            className={
+              view === "models" ? "mx-1 mt-1 px-2 pt-2 pb-1" : "mt-4 pt-3"
+            }
+          />
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -913,11 +967,17 @@ ChatInputModelSelector.displayName = "ChatInputModelSelector";
 type ChatInputDictationProps = React.ComponentProps<typeof Button> & {
   /** Lines under the Dictate tooltip, e.g. its speech engine. */
   engineDetails?: readonly string[] | null;
+  /**
+   * Speech recognition is not set up here but can be: while idle, the button
+   * opens its settings instead of dictating, and says so.
+   */
+  onSetUp?: (() => void) | null;
 };
 
 function ChatInputDictation({
   className,
   engineDetails,
+  onSetUp = null,
   ...props
 }: ChatInputDictationProps) {
   const { t } = useTranslation("chat");
@@ -1037,11 +1097,15 @@ function ChatInputDictation({
             "text-muted-foreground hover:text-foreground rounded-full",
             className,
           )}
-          onClick={onDictationStart}
+          onClick={onSetUp ?? onDictationStart}
           {...props}
         >
           <Mic className="h-4 w-4" />
-          <span className="sr-only">{t("composer.dictation.start")}</span>
+          <span className="sr-only">
+            {onSetUp
+              ? t("composer.speechSetup.title")
+              : t("composer.dictation.start")}
+          </span>
         </Button>
       </TooltipTrigger>
       {/* Flips above a composer at the window's bottom edge, like Voice
@@ -1049,12 +1113,16 @@ function ChatInputDictation({
       <TooltipContent side="bottom">
         <TooltipDetails
           title={
-            <TooltipLabel
-              label={t("composer.dictation.start")}
-              shortcut={shortcuts?.dictation}
-            />
+            onSetUp ? (
+              <TooltipLabel label={t("composer.speechSetup.title")} />
+            ) : (
+              <TooltipLabel
+                label={t("composer.dictation.start")}
+                shortcut={shortcuts?.dictation}
+              />
+            )
           }
-          lines={engineDetails}
+          lines={onSetUp ? [t("composer.speechSetup.detail")] : engineDetails}
         />
       </TooltipContent>
     </Tooltip>

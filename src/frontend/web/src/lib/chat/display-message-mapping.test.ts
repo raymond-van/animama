@@ -343,4 +343,60 @@ describe("display message ordering", () => {
       ]).map((message) => message.id),
     ).toEqual(["run-1-user", "run-1-assistant", "run-2-user"]);
   });
+
+  it("shows a user message with images as the person's text and its images", () => {
+    expect(
+      mapServerMessagesForDisplay([
+        {
+          id: 7,
+          chat_id: "chat-1",
+          run_id: "run-1",
+          role: "user",
+          content: "What is this?\n\n[Image: cat.png]\n[Image: dog.jpg]",
+          data: {
+            attached_file_ids: ["file-1", "file-2", "doc-1"],
+            images: [
+              { file_id: "file-1", name: "cat.png", width: 40, height: 20 },
+              { file_id: "file-2", name: "dog.jpg" },
+            ],
+            user_text: "What is this?",
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        id: chatRunMessageId("run-1", "user"),
+        role: "user",
+        text: "What is this?",
+        images: [
+          { fileId: "file-1", name: "cat.png", width: 40, height: 20 },
+          { fileId: "file-2", name: "dog.jpg" },
+        ],
+      },
+    ]);
+  });
+
+  it("ignores image entries it cannot read and keeps the saved text without them", () => {
+    expect(
+      mapServerMessagesForDisplay([
+        {
+          id: 8,
+          chat_id: "chat-1",
+          run_id: "run-2",
+          role: "user",
+          content: "Look\n\n[Image: cat.png]",
+          data: {
+            images: [{ name: "no id" }, "file-1", null],
+            user_text: "Look",
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        id: chatRunMessageId("run-2", "user"),
+        role: "user",
+        text: "Look\n\n[Image: cat.png]",
+      },
+    ]);
+  });
 });

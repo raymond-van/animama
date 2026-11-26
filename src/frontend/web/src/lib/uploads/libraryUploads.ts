@@ -2,6 +2,7 @@ import { getI18n } from "react-i18next";
 
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import type { LibraryUploadStatus } from "@/lib/content/librarySearch";
+import { isUserImageFile } from "@/lib/user-files/chat-images";
 import { storedUploadErrorLine } from "@/lib/user-files/upload-card-status";
 import {
   USER_FILE_ACTIVE_JOB_STATUSES,
@@ -34,6 +35,8 @@ export type LibraryUploadListRow = {
   statusTone: LibraryUploadStatusTone;
   active: boolean;
   error: string | null;
+  /** A ready chat image's file id, for its thumbnail; null for anything else. */
+  imageFileId: string | null;
 };
 
 export type LibraryUploadViewState =
@@ -127,6 +130,8 @@ export function presentLibraryUpload(
     statusTone: status.statusTone,
     active: status.active,
     error: storedUploadErrorLine(file),
+    imageFileId:
+      isUserImageFile(file) && file.status === "ready" ? file.file_id : null,
   };
 }
 
@@ -151,6 +156,28 @@ export function filterLibraryUploads(
       file.declared_content_type,
     ].some((value) => value?.toLocaleLowerCase().includes(query));
   });
+}
+
+const PROCESSABLE_STATUSES = new Set([
+  "uploaded",
+  "failed",
+  "ready",
+  "ready_keyword_only",
+]);
+
+/**
+ * Whether the debug panel offers Process or Reprocess for an upload. A chat
+ * image is never processed: `:process` only completes one left at `uploaded`
+ * by an interrupted finalize, which the processing switch does not govern.
+ */
+export function canProcessLibraryUpload(
+  file: PyUserFileResponse,
+  { processingEnabled }: { processingEnabled: boolean },
+): boolean {
+  const jobStatus = file.latest_processing_job?.status;
+  if (jobStatus && USER_FILE_ACTIVE_JOB_STATUSES.has(jobStatus)) return false;
+  if (isUserImageFile(file)) return file.status === "uploaded";
+  return processingEnabled && PROCESSABLE_STATUSES.has(file.status);
 }
 
 /** True while backend file or processing-job state still needs polling. */

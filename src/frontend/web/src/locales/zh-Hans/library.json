@@ -390,6 +390,7 @@
     "filteredCount": "{{shown}} / {{total}}",
     "genericKind": "文件",
     "heading": "聊天上传",
+    "imageRefused": "无法使用此图片。",
     "keywordOnly": "此文件仅支持关键词搜索。",
     "live": {
       "empty": "还没有聊天上传。",

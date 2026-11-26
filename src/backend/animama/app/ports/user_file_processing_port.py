@@ -140,6 +140,14 @@ class UserFileProcessingRepository(Protocol):
     async def delete_chunks_for_file(self, *, user_id: str, file_id: str) -> None:
         raise NotImplementedError
 
+    async def image_file_ids_only_in_chat(self, *, user_id: str, chat_id: str) -> list[str]:
+        """Return the chat images this chat's messages attach and no other chat of the owner does."""
+        raise NotImplementedError
+
+    async def record_file_deleted(self, *, user_id: str, file_id: str, object_deleted: bool) -> None:
+        """Mark a file deleted, or delete-pending when its bytes could not be removed."""
+        raise NotImplementedError
+
     async def keyword_search(
         self,
         *,

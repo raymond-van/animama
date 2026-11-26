@@ -64,6 +64,7 @@
     "account": "账户",
     "accountUnavailable": "无法访问账户。",
     "appSettings": "应用设置",
+    "checkForUpdates": "检查更新…",
     "fallbackName": "你",
     "signOut": "退出登录",
     "usage": "用量和限额"

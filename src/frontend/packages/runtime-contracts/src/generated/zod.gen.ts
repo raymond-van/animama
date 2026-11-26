@@ -2095,6 +2095,9 @@ export const zPyAutomaticEpisodeProcessingStatus = z.object({
         'off',
         'memory_off',
         'needs_model',
+        'needs_plan_agreement',
+        'needs_plan_sign_in',
+        'plan_paused',
         'running',
         'paused',
         'backing_off',
@@ -2460,6 +2463,87 @@ export const zPyChatCreate = z.object({
     ])),
     title: z.optional(z.union([
         z.string().max(200),
+        z.null()
+    ]))
+});
+
+/**
+ * PyChatGPTPlanModels
+ *
+ * The plan's model rows after a refresh: their ids, active and listed by OpenAI for this account.
+ */
+export const zPyChatGptPlanModels = z.object({
+    model_provider_ids: z.array(z.string())
+});
+
+/**
+ * PyChatGPTPlanPreferences
+ */
+export const zPyChatGptPlanPreferences = z.object({
+    background_agreed: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
+    confirmed: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * PyChatGPTPlanSignIn
+ */
+export const zPyChatGptPlanSignIn = z.object({
+    authorize_url: z.string()
+});
+
+/**
+ * PyChatGPTPlanSignInRequest
+ */
+export const zPyChatGptPlanSignInRequest = z.object({
+    enable_plan_use: z.optional(z.boolean()).default(false),
+    ui_locale: z.optional(z.union([
+        z.enum([
+            'en',
+            'ja',
+            'ko',
+            'zh-Hans',
+            'zh-Hant'
+        ]),
+        z.null()
+    ]))
+});
+
+/**
+ * PyChatGPTPlanSignOut
+ */
+export const zPyChatGptPlanSignOut = z.object({
+    confirmed: z.boolean(),
+    was_signed_in: z.boolean()
+});
+
+/**
+ * PyChatGPTPlanStatus
+ */
+export const zPyChatGptPlanStatus = z.object({
+    background_agreed: z.boolean(),
+    confirmation_due: z.boolean(),
+    email: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    failure: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    paused: z.boolean(),
+    plan_use_granted: z.boolean(),
+    sign_in_available: z.boolean(),
+    sign_in_pending: z.boolean(),
+    state: z.enum([
+        'signed_out',
+        'signed_in',
+        'sign_in_required'
+    ]),
+    unavailable_reason: z.optional(z.union([
+        z.enum(['remote_origin', 'secure_storage_unavailable']),
         z.null()
     ]))
 });
@@ -6890,6 +6974,7 @@ export const zRuntimeCapabilities = z.object({
     ])),
     chat: z.boolean(),
     chat_file_uploads: z.boolean(),
+    chatgpt_plan: z.optional(z.boolean()).default(false),
     companion_safety: zCompanionSafetyCapability,
     gemini_tts: z.optional(z.union([
         zGeminiTtsCapability,
@@ -7776,6 +7861,72 @@ export const zUpdateAvatarV1AvatarsAvatarIdPatchData = z.object({
  */
 export const zUpdateAvatarV1AvatarsAvatarIdPatchResponse = zPyAvatarResponse;
 
+export const zGetChatgptPlanV1ChatgptPlanGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetChatgptPlanV1ChatgptPlanGetResponse = zPyChatGptPlanStatus;
+
+export const zRefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponse = zPyChatGptPlanModels;
+
+export const zUpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutData = z.object({
+    body: zPyChatGptPlanPreferences,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zUpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutResponse = zPyChatGptPlanStatus;
+
+export const zCancelChatgptPlanSignInV1ChatgptPlanSignInDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zCancelChatgptPlanSignInV1ChatgptPlanSignInDeleteResponse = z.void();
+
+export const zBeginChatgptPlanSignInV1ChatgptPlanSignInPostData = z.object({
+    body: zPyChatGptPlanSignInRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zBeginChatgptPlanSignInV1ChatgptPlanSignInPostResponse = zPyChatGptPlanSignIn;
+
+export const zSignOutOfChatgptPlanV1ChatgptPlanSignOutPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSignOutOfChatgptPlanV1ChatgptPlanSignOutPostResponse = zPyChatGptPlanSignOut;
+
 export const zListChatsV1ChatsGetData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
@@ -8257,6 +8408,25 @@ export const zGetUserFileV1FilesFileIdGetData = z.object({
  * Successful Response
  */
 export const zGetUserFileV1FilesFileIdGetResponse = zPyUserFileResponse;
+
+export const zGetUserFileContentV1FilesFileIdContentGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        file_id: z.string()
+    }),
+    query: z.optional(z.object({
+        variant: z.optional(z.union([
+            z.enum(['thumbnail', 'preview']),
+            z.null()
+        ]))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
 
 export const zUploadUserFileContentV1FilesFileIdContentPutData = z.object({
     body: z.optional(z.never()),

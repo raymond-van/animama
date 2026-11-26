@@ -203,6 +203,7 @@
       "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
       "landmarks_face_bounds_failed": "The face skin could not be measured.",
       "landmarks_face_skin_missing": "No face skin was found, so face landmarks are unavailable.",
+      "materials_unlit": "Every material in this file ignores light, so it looks flat as made. Animama adds toon shading and outlines unless the Avatar's Materials setting is Simple.",
       "morph_target_names_mismatched_one": "{{count}} mesh stores shape key names that disagree with each other or with its shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
       "morph_target_names_mismatched_other": "{{count}} meshes store shape key names that disagree with each other or with their shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
       "scene_bindings_unavailable": "The loaded model's mesh parts could not be listed.",
@@ -577,6 +578,7 @@
     "cloning": {
       "change": "Change sample",
       "checking": "Checking voice cloning…",
+      "chooseHint": "Each Anima chooses its own voice under Voices on its page.",
       "clone": "Clone voice",
       "cloningVoice": "Cloning voice…",
       "delete": {
@@ -622,7 +624,10 @@
       "savingVoice": "Saving voice…",
       "sectionLabel": "Voice cloning",
       "title": "Voice Cloning",
-      "upload": "Upload voice sample"
+      "upload": "Upload voice sample",
+      "usedBy": "{{anima}}'s voice",
+      "usedFor": "{{voice}} is now {{anima}}'s voice. It applies the next time you open the chat.",
+      "useFor": "Use for {{anima}}"
     },
     "elevenLabs": {
       "idLabel": "Voice ID",

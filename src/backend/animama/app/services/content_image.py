@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import BinaryIO, cast
 
-from PIL import Image, ImageOps, ImageStat, UnidentifiedImageError
+from PIL import Image, ImageOps, ImageStat
 
 from .content_file_validation import ContentFileInvalidError, ContentFileValidation
 
@@ -25,6 +25,24 @@ THUMBNAIL_MAX_BYTES = 256 * 1024
 AVATAR_PORTRAIT_SOURCE_DIMENSION = 1024
 AVATAR_PORTRAIT_DIMENSION = 512
 AVATAR_PORTRAIT_MAX_BYTES = 256 * 1024
+CHAT_IMAGE_MAX_DIMENSION = 2000
+# 3.5 MiB stays under 5 MB once base64-encoded, the strictest per-image limit
+# among the model providers a chat image is sent to.
+CHAT_IMAGE_MAX_BYTES = 3_670_016
+_CHAT_IMAGE_JPEG_QUALITIES = (90, 82, 74, 66, 58, 50)
+_CHAT_IMAGE_FORMATS = frozenset({"PNG", "JPEG", "MPO", "WEBP", "GIF"})
+# Screenshots and drawings arrive in these formats; they stay lossless when they fit.
+_LOSSLESS_CHAT_IMAGE_FORMATS = frozenset({"PNG", "GIF"})
+_EXIF_ORIENTATION_TAG = 0x0112
+_EXIF_TRANSPOSITIONS = {
+    2: Image.Transpose.FLIP_LEFT_RIGHT,
+    3: Image.Transpose.ROTATE_180,
+    4: Image.Transpose.FLIP_TOP_BOTTOM,
+    5: Image.Transpose.TRANSPOSE,
+    6: Image.Transpose.ROTATE_270,
+    7: Image.Transpose.TRANSVERSE,
+    8: Image.Transpose.ROTATE_90,
+}
 _FORMATS_BY_EXTENSION = {
     "png": frozenset({"PNG"}),
     "jpg": frozenset({"JPEG", "MPO"}),
@@ -81,6 +99,17 @@ class CanonicalAvatarPortrait:
     height: int
     source_width: int
     source_height: int
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalChatImage:
+    """Stripped PNG or JPEG bytes of one chat image, ready to store and send to a model."""
+
+    content: bytes
+    media_type: str
+    width: int
+    height: int
     sha256: str
 
 
@@ -325,32 +354,135 @@ def canonicalize_avatar_portrait(*, content: BinaryIO) -> CanonicalAvatarPortrai
     )
 
 
+def canonicalize_chat_image_stream(
+    *,
+    content: BinaryIO,
+    maximum_bytes: int = CHAT_IMAGE_MAX_BYTES,
+) -> CanonicalChatImage:
+    """Turn an uploaded chat image into the one copy that is stored and sent to models.
+
+    The image is recognised by its bytes, whatever the upload was called: PNG, JPEG,
+    WebP or GIF. An animation contributes its first frame. The result has its EXIF
+    orientation applied, a long edge of at most ``CHAT_IMAGE_MAX_DIMENSION`` and no
+    metadata (EXIF, GPS location, text chunks or colour profile). It is PNG for a
+    lossless source that fits ``maximum_bytes``, otherwise JPEG with transparency
+    flattened onto white. WebP is never produced: OpenAI-compatible local servers
+    do not all accept it.
+    """
+
+    image, source_format, _width, _height, _frames = _open_bounded_formats(
+        allowed_formats=_CHAT_IMAGE_FORMATS,
+        content=content,
+    )
+    working: list[Image.Image] = []
+    try:
+        try:
+            image.seek(0)
+            image.load()
+            mode = "RGBA" if "A" in image.getbands() or "transparency" in image.info else "RGB"
+            # Convert before scaling: Pillow scales palette and 1-bit images with
+            # nearest-neighbour, which destroys small text in a GIF or palette PNG.
+            pixels = _eight_bit(image).convert(mode)
+            working.append(pixels)
+            pixels.thumbnail((CHAT_IMAGE_MAX_DIMENSION, CHAT_IMAGE_MAX_DIMENSION), Image.Resampling.LANCZOS)
+            transposition = _EXIF_TRANSPOSITIONS.get(_exif_orientation(image) or 0)
+            if transposition is not None:
+                pixels = pixels.transpose(transposition)
+                working.append(pixels)
+            # Pasting into a new image leaves every kind of source metadata behind.
+            stripped = Image.new(mode, pixels.size)
+            working.append(stripped)
+            stripped.paste(pixels)
+        except MemoryError:
+            raise
+        except Exception as exc:
+            # Pillow's decoders raise many types on damaged input (SyntaxError,
+            # IndexError, struct.error and more). All of them mean the same thing here.
+            raise ContentFileInvalidError(field="file", reason="invalid_image") from exc
+        # Nothing below reads the uploaded bytes. A failure from here on, other
+        # than the size limit, is a server fault and not a bad image: it
+        # propagates, so the caller keeps the upload instead of refusing it.
+        encoded, media_type = _encode_chat_image(
+            stripped,
+            lossless_source=source_format in _LOSSLESS_CHAT_IMAGE_FORMATS,
+            maximum_bytes=maximum_bytes,
+        )
+        width, height = stripped.size
+    finally:
+        for temporary in working:
+            temporary.close()
+        image.close()
+    return CanonicalChatImage(
+        content=encoded,
+        media_type=media_type,
+        width=width,
+        height=height,
+        sha256=hashlib.sha256(encoded).hexdigest(),
+    )
+
+
+def _eight_bit(image: Image.Image) -> Image.Image:
+    """Scale a 16-bit greyscale image to 8 bits; converting it directly clips to white."""
+
+    if not image.mode.startswith("I;16"):
+        return image
+    return image.convert("I").point(lambda value: value * (1 / 256)).convert("L")
+
+
+def _exif_orientation(image: Image.Image) -> int | None:
+    """Return the EXIF orientation, or None when there is none or the EXIF is damaged.
+
+    ``ImageOps.exif_transpose`` is not used for chat images: it rewrites the EXIF
+    block it reads, which fails on a photo with one malformed tag, and that block
+    is discarded here anyway.
+    """
+
+    try:
+        orientation = image.getexif().get(_EXIF_ORIENTATION_TAG)
+    except Exception:
+        return None
+    return orientation if isinstance(orientation, int) else None
+
+
 def _open_bounded_image(
     *,
     extension: str,
     content: BinaryIO,
 ) -> tuple[Image.Image, str, int, int, int]:
-    normalized_extension = extension.lower().lstrip(".")
-    allowed_formats = _FORMATS_BY_EXTENSION.get(normalized_extension)
+    """Open a source whose allowed decoders follow from its file extension."""
+
+    allowed_formats = _FORMATS_BY_EXTENSION.get(extension.lower().lstrip("."))
     if allowed_formats is None:
         raise ContentFileInvalidError(field="file", reason="unsupported_image_format")
+    return _open_bounded_formats(allowed_formats=allowed_formats, content=content)
+
+
+def _open_bounded_formats(
+    *,
+    allowed_formats: frozenset[str],
+    content: BinaryIO,
+) -> tuple[Image.Image, str, int, int, int]:
+    """Open untrusted bytes with only the allowed decoders, within the pixel limits."""
+
     content.seek(0)
+    # MPO has no decoder of its own; the JPEG decoder recognises it.
+    decoders = sorted(allowed_formats - {"MPO"})
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             # Pillow reads the seek/read/tell interface; it never owns this stream.
-            image = Image.open(cast(BinaryIO, _BorrowedImageStream(content)))
+            # ``formats`` keeps every other decoder away from the bytes.
+            image = Image.open(cast(BinaryIO, _BorrowedImageStream(content)), formats=decoders)
             source_format = image.format or ""
             width, height = image.size
             frame_count = int(getattr(image, "n_frames", 1))
-    except (
-        UnidentifiedImageError,
-        EOFError,
-        OSError,
-        ValueError,
-        Image.DecompressionBombError,
-        Image.DecompressionBombWarning,
-    ) as exc:
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+        raise ContentFileInvalidError(field="file", reason="image_pixel_budget") from exc
+    except MemoryError:
+        raise
+    except Exception as exc:
+        # Unrecognised bytes, or a header damaged in a way a decoder reports with
+        # its own exception type (counting GIF frames can raise IndexError).
         raise ContentFileInvalidError(field="file", reason="unsupported_image_format") from exc
     if source_format not in allowed_formats:
         image.close()
@@ -406,13 +538,77 @@ def _encode_bounded_webp(
     raise ContentFileInvalidError(field="file", reason="canonical_image_size_limit")
 
 
+def _encode_chat_image(
+    image: Image.Image,
+    *,
+    lossless_source: bool,
+    maximum_bytes: int,
+) -> tuple[bytes, str]:
+    """Return the encoded chat image and its media type."""
+
+    if lossless_source:
+        output = BytesIO()
+        image.save(output, format="PNG")
+        encoded = output.getvalue()
+        if 0 < len(encoded) <= maximum_bytes:
+            return encoded, "image/png"
+    opaque = _flattened_onto_white(image)
+    try:
+        return _encode_chat_jpeg(opaque, maximum_bytes=maximum_bytes), "image/jpeg"
+    finally:
+        if opaque is not image:
+            opaque.close()
+
+
+def _flattened_onto_white(image: Image.Image) -> Image.Image:
+    """Return an opaque image; JPEG has no transparency, and white suits screenshots."""
+
+    if image.mode != "RGBA":
+        return image
+    opaque = Image.new("RGB", image.size, (255, 255, 255))
+    opaque.paste(image, mask=image.getchannel("A"))
+    return opaque
+
+
+def _jpeg_bytes(image: Image.Image, *, quality: int) -> bytes:
+    """Encode one JPEG attempt.
+
+    Colour is kept at full resolution (``subsampling=0``) so small coloured text in
+    a screenshot stays readable to a model. ``optimize`` stays off: Pillow then
+    needs the whole file in one buffer sized from the pixel count, which a noisy
+    photo at this quality overflows ("broken data stream").
+    """
+
+    output = BytesIO()
+    image.save(output, format="JPEG", quality=quality, subsampling=0)
+    return output.getvalue()
+
+
+def _encode_chat_jpeg(image: Image.Image, *, maximum_bytes: int) -> bytes:
+    """Encode an opaque image as JPEG within ``maximum_bytes``, or refuse it.
+
+    Nearly every image fits at the first quality. A very detailed one steps down;
+    below the last step text in the image stops being reliably readable, so the
+    image is refused instead.
+    """
+
+    for quality in _CHAT_IMAGE_JPEG_QUALITIES:
+        encoded = _jpeg_bytes(image, quality=quality)
+        if 0 < len(encoded) <= maximum_bytes:
+            return encoded
+    raise ContentFileInvalidError(field="file", reason="canonical_image_size_limit")
+
+
 __all__ = [
     "AVATAR_PORTRAIT_DIMENSION",
     "AVATAR_PORTRAIT_MAX_BYTES",
     "AVATAR_PORTRAIT_SOURCE_DIMENSION",
     "CANONICAL_IMAGE_MAX_BYTES",
     "CANONICAL_IMAGE_MAX_DIMENSION",
+    "CHAT_IMAGE_MAX_BYTES",
+    "CHAT_IMAGE_MAX_DIMENSION",
     "CanonicalAvatarPortrait",
+    "CanonicalChatImage",
     "CanonicalImage",
     "DerivedImageThumbnail",
     "MAX_IMAGE_DIMENSION",
@@ -420,6 +616,7 @@ __all__ = [
     "THUMBNAIL_MAX_BYTES",
     "THUMBNAIL_MAX_DIMENSION",
     "canonicalize_avatar_portrait",
+    "canonicalize_chat_image_stream",
     "canonicalize_image_stream",
     "derive_image_thumbnail",
 ]

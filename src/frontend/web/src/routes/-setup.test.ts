@@ -23,6 +23,8 @@ import {
   ownerModelChoices,
   resolveSetupTtsProvider,
   setupBuiltins,
+  setupChatGPTPlan,
+  setupChatModelReady,
   setupStepPosition,
   setupTtsOptions,
   resolveSetupSttChoice,
@@ -52,6 +54,13 @@ const fixture = vi.hoisted(() => ({
   deepseekHuggingface: true,
   /** The offline speech set shown as downloading, if any. */
   downloadingAsset: null as string | null,
+}));
+// The plan card reads its own session; setup's layout around it is what these tests check.
+vi.mock("@/ui/settings/models/ChatGPTPlanCard", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/ui/settings/models/ChatGPTPlanCard")
+  >()),
+  ChatGPTPlanCard: () => createElement("p", null, "Plan card"),
 }));
 vi.mock("@/platform/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/platform/env")>();
@@ -412,6 +421,37 @@ describe("local first-run setup", () => {
     }
   });
 
+  it("shows the ChatGPT plan above the API key on OpenAI's tab where the plan is offered", () => {
+    const data = fixture.capabilities.data;
+    fixture.capabilities.data = { ...data, chatgpt_plan: true };
+    fixture.desktopKeys = false;
+    fixture.connections = [anthropicConnection, builtinConnection];
+    fixture.providers = catalog;
+    try {
+      const html = renderSetup({ ...welcomeDone, step: "ai" });
+      // No tab of its own: the plan is the other way to use OpenAI's models.
+      expect(html).not.toContain("-chatgpt-plan");
+      const positions = [
+        "through your ChatGPT plan or with an API key",
+        "Plan card",
+        "Use an API key",
+        "Pay OpenAI per request",
+        "Uses the OpenAI key configured on this server.",
+      ].map((text) => html.indexOf(text));
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+
+      // Where the runtime does not offer it, OpenAI's tab is the key alone.
+      fixture.capabilities.data = { ...data, chatgpt_plan: false };
+      const keyOnly = renderSetup({ ...welcomeDone, step: "ai" });
+      expect(keyOnly).not.toContain("Plan card");
+      expect(keyOnly).not.toContain("Use an API key");
+    } finally {
+      fixture.capabilities.data = data;
+      fixture.desktopKeys = true;
+    }
+  });
+
   it("shows no model choice on the hosted composition's AI step", () => {
     fixture.capabilities = {
       isPending: false,
@@ -745,6 +785,75 @@ describe("setup step logic", () => {
     expect(
       setupBuiltins(catalog, [builtinConnection], OPENAI_MODEL).anthropic,
     ).toEqual({ provider: "anthropic", ready: false, modelId: null });
+  });
+
+  it("chooses a plan model once the ChatGPT plan is usable, preferring the system default's model", () => {
+    const plan = (
+      credential_state: PyModelConnection["credential_state"],
+    ): PyModelConnection => ({
+      id: "chatgpt_plan",
+      name: "ChatGPT plan",
+      preset: "chatgpt_plan",
+      source: "builtin",
+      compatibility: {},
+      credential_state,
+      models: [],
+    });
+    const planRow = (slug: string) => ({
+      ...catalog.find((entry) => entry.id === OPENAI_MODEL)!,
+      id: `ChatGPTPlanResponsesHTTPAgent:${slug}`,
+      model: slug,
+      connection_id: "chatgpt_plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+    });
+    const items = [
+      ...catalog,
+      planRow("gpt-5.6-terra"),
+      planRow(catalog.find((entry) => entry.id === OPENAI_MODEL)!.model),
+    ];
+
+    expect(setupChatGPTPlan(items, [plan("configured")], OPENAI_MODEL)).toEqual(
+      {
+        ready: true,
+        modelId: `ChatGPTPlanResponsesHTTPAgent:${
+          catalog.find((entry) => entry.id === OPENAI_MODEL)!.model
+        }`,
+      },
+    );
+    expect(setupChatGPTPlan(items, [plan("configured")], null).modelId).toBe(
+      "ChatGPTPlanResponsesHTTPAgent:gpt-5.6-terra",
+    );
+    expect(setupChatGPTPlan(items, [plan("missing")], OPENAI_MODEL)).toEqual({
+      ready: false,
+      modelId: null,
+    });
+    expect(setupChatGPTPlan(items, [], OPENAI_MODEL).ready).toBe(false);
+  });
+
+  it("counts a chat model as ready only when its connection can reply", () => {
+    const connections = [anthropicConnection, builtinConnection, ollama];
+    // The system default (OpenAI, key set) and a keyless local model can reply.
+    expect(setupChatModelReady(catalog, connections, OPENAI_MODEL)).toBe(true);
+    expect(
+      setupChatModelReady(
+        catalog,
+        connections,
+        "OpenAIHTTPAgent:conn-ollama:qwen3:8b",
+      ),
+    ).toBe(true);
+    // Anthropic's key is not set, and without any model nothing can reply.
+    expect(setupChatModelReady(catalog, connections, HAIKU)).toBe(false);
+    expect(setupChatModelReady(catalog, connections, null)).toBe(false);
+    // With OpenAI's key missing, the untouched system default cannot reply.
+    expect(
+      setupChatModelReady(
+        catalog,
+        [{ ...builtinConnection, credential_state: "missing" }],
+        OPENAI_MODEL,
+      ),
+    ).toBe(false);
+    // A model the lists do not describe is not reported.
+    expect(setupChatModelReady(catalog, connections, "unlisted")).toBe(true);
   });
 
   it("offers to add only detected models not yet added at that address", () => {

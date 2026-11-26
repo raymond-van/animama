@@ -307,13 +307,18 @@ function ModelConnectionFields({
     draftOrigin !== null &&
     draftOrigin !== keyOrigin(connection?.base_url);
   const originVariable = managedKeys ? null : keyOriginVariable(draft.envName);
+  // A new connection to a provider that needs a key is not saved without one
+  // (desktop: the key; self-hosted: its variable), since none of its models
+  // could reply. Editing may still remove a saved key.
+  const keyRequired = !connection && Boolean(preset?.expects_key) && !sendsKey;
   const timeout = draft.timeout.trim() ? Number(draft.timeout) : null;
   const valid =
     Boolean(draft.name.trim()) &&
     Boolean(draft.baseUrl.trim()) &&
     (timeout === null || (Number.isFinite(timeout) && timeout > 0)) &&
     !insecure &&
-    !keyForAnotherAddress;
+    !keyForAnotherAddress &&
+    !keyRequired;
   const change = (patch: Partial<Draft>) =>
     setDraft((current) => ({ ...current, ...patch }));
   const setSaving = (next: boolean) => {

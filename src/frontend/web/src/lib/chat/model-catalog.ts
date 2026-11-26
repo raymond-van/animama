@@ -17,8 +17,15 @@ type LabeledModel = Pick<
     >
   >;
 
-/** The connection a model runs on, so pickers group its models together. */
+/**
+ * The connection a model runs on, so pickers group its models together. The
+ * ChatGPT plan's connection is named in the UI Locale, as App Settings does.
+ */
 export function modelConnectionLabel(item: LabeledModel): string {
+  if (item.model_provider === CHATGPT_PLAN_PROVIDER_TYPE) {
+    const t = getI18n().getFixedT(null, "models");
+    return t("providers.chatgptPlan");
+  }
   return (
     item.connection_name?.trim() ||
     item.provider_label?.trim() ||
@@ -27,12 +34,92 @@ export function modelConnectionLabel(item: LabeledModel): string {
   );
 }
 
+/** The built-in OpenAI connection, whose models run on an API key. */
+const BUILTIN_OPENAI_CONNECTION_ID = "openai";
+
 /**
- * The line under a model's name in pickers: its connection. The app picks
- * the API, so pickers never name it; a model's Info panel in App Settings
- * does.
+ * How an OpenAI model is used, where pickers must tell the two apart: through
+ * the owner's ChatGPT plan or on the built-in connection's API key. Null for
+ * every other model.
  */
-export function modelOptionDetail(item: LabeledModel): string {
+export function openaiModelAccess(item: LabeledModel): "plan" | "key" | null {
+  if (item.model_provider === CHATGPT_PLAN_PROVIDER_TYPE) return "plan";
+  if (item.connection_id === BUILTIN_OPENAI_CONNECTION_ID) return "key";
+  return null;
+}
+
+/**
+ * Whether a picker lists ChatGPT plan models, so it must tell OpenAI's two
+ * ways apart. Never true in the hosted composition, nor before a sign-in.
+ */
+export function listsChatGPTPlanModels(
+  items: readonly LabeledModel[],
+): boolean {
+  return items.some((item) => openaiModelAccess(item) === "plan");
+}
+
+/**
+ * The heading of a model's group in the chat picker: its connection. With
+ * `splitOpenAI` (the picker lists plan models), OpenAI's two ways read
+ * "OpenAI · ChatGPT plan" and "OpenAI · API key".
+ */
+export function modelPickerGroupLabel(
+  item: LabeledModel,
+  splitOpenAI: boolean,
+): string {
+  const t = getI18n().getFixedT(null, "models");
+  const access = splitOpenAI ? openaiModelAccess(item) : null;
+  if (access === "plan") return t("picker.openaiPlan");
+  if (access === "key") return t("picker.openaiKey");
+  return modelConnectionLabel(item);
+}
+
+/**
+ * The chat picker's groups: models by `modelPickerGroupLabel` in catalog
+ * order. Where the picker lists plan models, OpenAI's two ways (ChatGPT plan,
+ * then API key) sit side by side; otherwise OpenAI's models keep one group.
+ */
+export function pickerModelGroups<T extends LabeledModel>(
+  items: readonly T[],
+): { providerLabel: string; models: T[] }[] {
+  const splitOpenAI = listsChatGPTPlanModels(items);
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = modelPickerGroupLabel(item, splitOpenAI);
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  const list = Array.from(groups, ([providerLabel, models]) => ({
+    providerLabel,
+    models,
+  }));
+  const access = (group: (typeof list)[number]) =>
+    group.models[0] ? openaiModelAccess(group.models[0]) : null;
+  const plan = list.findIndex((group) => access(group) === "plan");
+  if (plan < 0 || !list.some((group) => access(group) === "key")) return list;
+  const [planGroup] = list.splice(plan, 1);
+  list.splice(
+    list.findIndex((group) => access(group) === "key"),
+    0,
+    planGroup,
+  );
+  return list;
+}
+
+/**
+ * The line under a model's name in pickers: its connection. With
+ * `splitOpenAI` (the picker lists plan models), OpenAI's models say which way
+ * they are used, "ChatGPT plan" or "API key". The app picks the API, so
+ * pickers never name it; a model's Info panel in App Settings does.
+ */
+export function modelOptionDetail(
+  item: LabeledModel,
+  splitOpenAI = false,
+): string {
+  if (splitOpenAI && openaiModelAccess(item) === "key") {
+    // Called through `t` so the catalog extractor finds the key.
+    const t = getI18n().getFixedT(null, "models");
+    return t("picker.apiKey");
+  }
   return modelConnectionLabel(item);
 }
 
@@ -92,6 +179,8 @@ export function modelDisplayName(
  */
 export const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
 export const CHAT_COMPLETIONS_PROVIDER_TYPE = "OpenAIHTTPAgent";
+/** Models the signed-in ChatGPT plan lists: OpenAI Responses through the plan (spec #919). */
+export const CHATGPT_PLAN_PROVIDER_TYPE = "ChatGPTPlanResponsesHTTPAgent";
 export type ModelProviderType =
   | typeof RESPONSES_PROVIDER_TYPE
   | typeof CHAT_COMPLETIONS_PROVIDER_TYPE

@@ -58,7 +58,8 @@
           "automatic": "自動",
           "liltoon": "lilToon",
           "simple": "簡單"
-        }
+        },
+        "unlitDescription": "此虛擬形象的材質不受光照影響，因此自動會加上卡通陰影和輪廓線；簡單材質則依檔案原樣平面繪製。適用於使用此虛擬形象的所有地方，並會重新載入它。"
       },
       "wind": {
         "description": "風和上升氣流如何吹動此虛擬形象的頭髮和衣服。適用於使用此虛擬形象的所有地方。",
@@ -220,9 +221,12 @@
       "label": "自動處理經歷筆記",
       "memoryOff": "開啟「記憶」和「記憶更新」後才能自動處理筆記。",
       "needsModel": "需要支援工具的記憶管理器模型，請在模型設定中選擇。",
+      "needsPlanAgreement": "記憶管理器模型使用你的 ChatGPT 方案。若要自動處理筆記，請在模型設定中允許自動記憶更新使用方案。",
+      "needsPlanSignIn": "記憶管理器模型使用你的 ChatGPT 方案。請在模型設定中重新登入 ChatGPT，或開啟方案使用。",
       "notes_other": "每 {{count}} 則筆記",
       "off": "關閉",
       "paused": "多次失敗後已暫停。變更此設定即可重試。最後的錯誤：{{error}}",
+      "planPaused": "已因 ChatGPT 方案用量上限而暫停。你自己在方案上的請求成功後會繼續。",
       "retrying": "失敗後將稍後重試。最後的錯誤：{{error}}",
       "running_other": "正在將 {{count}} 則筆記整理進記憶…",
       "updateFailed": "無法更新筆記自動處理設定。"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
@@ -16,6 +17,7 @@ from animama.domain.user_file import (
     STATUS_DELETED,
     STATUS_FAILED,
     STATUS_PENDING_UPLOAD,
+    STATUS_READY,
     STATUS_UPLOADED,
     UserFile,
 )
@@ -40,6 +42,14 @@ ALLOWED_USER_FILE_EXTENSIONS = frozenset(
         ".xlsx",
     }
 )
+
+# Chat images are user files too, but they are never parsed, chunked or searched:
+# finalizing one stores a canonical copy and makes it ready at once.
+IMAGE_USER_FILE_EXTENSIONS = frozenset({".gif", ".jpeg", ".jpg", ".png", ".webp"})
+MAX_USER_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024
+USER_FILE_KIND_IMAGE = "image"
+# Formats people commonly try that no decoder here reads; the refusal names them.
+_UNREADABLE_IMAGE_FORMATS = {".heic": "HEIC", ".heif": "HEIF"}
 
 BLOCKED_USER_FILE_EXTENSIONS = frozenset(
     {
@@ -101,6 +111,10 @@ class UserFileGoneError(UserFileServiceError):
     """Raised when an upload has expired."""
 
 
+class UserFileStorageError(UserFileServiceError):
+    """Raised when a file's bytes could not be written to private storage."""
+
+
 @dataclass(frozen=True, slots=True)
 class ValidatedUserFileUpload:
     """Normalized upload request values used before local byte streaming."""
@@ -109,6 +123,7 @@ class ValidatedUserFileUpload:
     normalized_extension: str
     declared_content_type: str
     declared_size_bytes: int
+    is_image: bool = False
 
 
 def new_user_file_id() -> str:
@@ -128,11 +143,21 @@ def validate_user_file_upload_request(
 
     original_filename = _normalize_original_filename(filename)
     normalized_extension = PurePosixPath(original_filename).suffix.lower()
-    if normalized_extension in BLOCKED_USER_FILE_EXTENSIONS or normalized_extension not in ALLOWED_USER_FILE_EXTENSIONS:
+    unreadable_format = _UNREADABLE_IMAGE_FORMATS.get(normalized_extension)
+    if unreadable_format is not None:
+        raise UserFileValidationError(
+            f"{unreadable_format} images are not supported. Convert the image to JPEG or PNG and try again."
+        )
+    is_image = normalized_extension in IMAGE_USER_FILE_EXTENSIONS
+    if normalized_extension in BLOCKED_USER_FILE_EXTENSIONS or not (
+        is_image or normalized_extension in ALLOWED_USER_FILE_EXTENSIONS
+    ):
         raise UserFileValidationError("Unsupported file extension")
 
     if size_bytes <= 0:
         raise UserFileValidationError("File size must be positive")
+    if is_image and size_bytes > MAX_USER_IMAGE_UPLOAD_BYTES:
+        raise UserFileValidationError(f"Image upload exceeds the {MAX_USER_IMAGE_UPLOAD_BYTES} byte limit")
     if size_bytes > max_upload_bytes:
         raise UserFileValidationError(f"File upload exceeds the {max_upload_bytes} byte limit")
 
@@ -147,7 +172,14 @@ def validate_user_file_upload_request(
         normalized_extension=normalized_extension,
         declared_content_type=declared_content_type,
         declared_size_bytes=size_bytes,
+        is_image=is_image,
     )
+
+
+def is_image_user_file(user_file: UserFile) -> bool:
+    """Return whether a user file is a chat image; its kind is recorded when the upload starts."""
+
+    return (user_file.metadata or {}).get("kind") == USER_FILE_KIND_IMAGE
 
 
 def _normalize_original_filename(filename: str) -> str:
@@ -214,7 +246,7 @@ class UserFileService:
             declared_size_bytes=validated.declared_size_bytes,
             status=STATUS_PENDING_UPLOAD,
             upload_expires_at=upload_expires_at,
-            metadata={},
+            metadata={"kind": USER_FILE_KIND_IMAGE} if validated.is_image else {},
         )
         created = await self._user_files.create_user_file(user_file)
         await self._uow.commit()
@@ -306,6 +338,76 @@ class UserFileService:
         await self._uow.commit()
         return updated
 
+    async def complete_image_upload(
+        self,
+        *,
+        user_id: str,
+        file_id: str,
+        stored_size_bytes: int,
+        sha256: str,
+        media_type: str,
+        width: int,
+        height: int,
+        store_canonical: Callable[[], Awaitable[bool]],
+        now: datetime | None = None,
+    ) -> UserFile:
+        """Store an uploaded image's canonical copy and make the file ready.
+
+        ``store_canonical`` replaces the uploaded bytes. It runs while the row is
+        held for update, and only if the file is still an uploaded image. Decoding
+        happens before this call without a lock, so the check is what stops a
+        write after the file was deleted, or a second write after another request
+        already finished it.
+        """
+
+        self._log.info("UserFileService.complete_image_upload", file_id=file_id, user_id=user_id)
+        user_file = await self._uploaded_image_for_update(user_id=user_id, file_id=file_id)
+        if not await store_canonical():
+            raise UserFileStorageError("Local file write failed")
+        user_file.status = STATUS_READY
+        user_file.stored_size_bytes = stored_size_bytes
+        user_file.sha256 = sha256
+        user_file.detected_content_type = media_type
+        user_file.processed_at = _as_aware_utc(now or utc_now())
+        user_file.last_error = None
+        user_file.metadata = {
+            **(user_file.metadata or {}),
+            "image": {"width": width, "height": height, "media_type": media_type},
+        }
+        updated = await self._user_files.update_user_file(user_file)
+        await self._uow.commit()
+        return updated
+
+    async def fail_image_upload(
+        self,
+        *,
+        user_id: str,
+        file_id: str,
+        reason: str,
+        discard_upload: Callable[[], Awaitable[bool]],
+    ) -> UserFile:
+        """Fail an uploaded file that cannot be stored as a chat image.
+
+        ``discard_upload`` deletes the uploaded bytes under the same row lock as
+        ``complete_image_upload``: a refused upload may be a real photo, and its
+        original, with its metadata, must not stay in storage. If the delete
+        fails, deleting the file later removes the bytes.
+        """
+
+        self._log.info("UserFileService.fail_image_upload", file_id=file_id, user_id=user_id)
+        user_file = await self._uploaded_image_for_update(user_id=user_id, file_id=file_id)
+        if not await discard_upload():
+            self._log.warning("UserFileService.fail_image_upload kept the upload", file_id=file_id, user_id=user_id)
+        return await self._mark_failed(user_file, reason)
+
+    async def _uploaded_image_for_update(self, *, user_id: str, file_id: str) -> UserFile:
+        user_file = await self._user_files.get_user_file_for_update(user_id=user_id, file_id=file_id)
+        if user_file is None:
+            raise UserFileNotFoundError("File not found")
+        if not is_image_user_file(user_file) or user_file.status != STATUS_UPLOADED:
+            raise UserFileConflictError("File is not an uploaded image")
+        return user_file
+
     async def mark_file_delete_result(
         self,
         *,
@@ -378,15 +480,20 @@ __all__ = [
     "ALLOWED_USER_FILE_EXTENSIONS",
     "BLOCKED_USER_FILE_EXTENSIONS",
     "DEFAULT_UPLOAD_CONTENT_TYPE",
+    "IMAGE_USER_FILE_EXTENSIONS",
     "MAX_DECLARED_CONTENT_TYPE_LENGTH",
     "MAX_ORIGINAL_FILENAME_LENGTH",
+    "MAX_USER_IMAGE_UPLOAD_BYTES",
+    "USER_FILE_KIND_IMAGE",
     "UserFileConflictError",
     "UserFileGoneError",
     "UserFileNotFoundError",
     "UserFileService",
     "UserFileServiceError",
+    "UserFileStorageError",
     "UserFileValidationError",
     "ValidatedUserFileUpload",
+    "is_image_user_file",
     "new_user_file_id",
     "validate_user_file_upload_request",
 ]

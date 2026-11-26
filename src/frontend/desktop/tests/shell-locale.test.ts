@@ -19,7 +19,11 @@ import {
   ShellLocale,
   shellStrings,
 } from "../src/main-process/locale/shell-locale.js";
-import { applicationMenuTemplate } from "../src/main-process/ui/application-menu.js";
+import {
+  applicationMenuTemplate,
+  MENU_COMMAND_TTL_MS,
+  PendingMenuCommand,
+} from "../src/main-process/ui/application-menu.js";
 
 vi.mock("electron", () => ({ Menu: {} }));
 // A beta catalog with a missing key, to show the English fallback.
@@ -250,6 +254,86 @@ describe("application menu", () => {
       },
       { role: "help", label: "Help", submenu: [] },
     ]);
+  });
+
+  it("offers Check for Updates and Import Anima only when the shell can act on them", () => {
+    const checkForUpdates = vi.fn();
+    const importAnima = vi.fn();
+    const menus = (platform: NodeJS.Platform, commands = {}) =>
+      applicationMenuTemplate(
+        shellStrings("en"),
+        platform,
+        "Animama",
+        true,
+        commands,
+      );
+    const submenu = (items: MenuItemConstructorOptions[], role: string) =>
+      items.find((menu) => menu.role === role)!
+        .submenu as MenuItemConstructorOptions[];
+
+    // macOS: Check for Updates sits under About; Import Anima opens File.
+    const mac = menus("darwin", { checkForUpdates, importAnima });
+    expect(outline(submenu(mac, "appMenu")).slice(0, 3)).toEqual([
+      { role: "about", label: "About Animama" },
+      { label: "Check for Updates…" },
+      "-",
+    ]);
+    expect(outline(submenu(mac, "fileMenu"))).toEqual([
+      { label: "Import Anima…" },
+      "-",
+      { role: "close", label: "Close Window" },
+    ]);
+    expect(submenu(mac, "help")).toEqual([]);
+    submenu(mac, "appMenu")[1]!.click!({} as never, undefined, {} as never);
+    submenu(mac, "fileMenu")[0]!.click!({} as never, undefined, {} as never);
+    expect(checkForUpdates).toHaveBeenCalledOnce();
+    expect(importAnima).toHaveBeenCalledOnce();
+
+    // Without an application menu, Help holds the update check. Windows
+    // builds this menu too, though its main window shows no menu bar.
+    const windows = menus("win32", { checkForUpdates, importAnima });
+    expect(outline(submenu(windows, "help"))).toEqual([
+      { label: "Check for Updates…" },
+    ]);
+    expect(outline(submenu(windows, "fileMenu"))).toEqual([
+      { label: "Import Anima…" },
+      "-",
+      { role: "quit", label: "Exit" },
+    ]);
+
+    // A build that cannot update offers no check.
+    const sealed = menus("darwin", { importAnima });
+    expect(JSON.stringify(outline(sealed))).not.toContain("Check for Updates");
+    expect(outline(submenu(sealed, "fileMenu"))[0]).toEqual({
+      label: "Import Anima…",
+    });
+
+    // The translated catalogs word both items (ko is the stub above).
+    for (const locale of ["ja", "zh-Hans", "zh-Hant"] as const) {
+      const labels = (key: "menu.checkForUpdates" | "menu.importAnima") =>
+        shellStrings(locale).text(key);
+      expect(labels("menu.checkForUpdates")).not.toBe("Check for Updates…");
+      expect(labels("menu.importAnima")).not.toBe("Import Anima…");
+      expect(labels("menu.importAnima")).toContain("Anima");
+    }
+  });
+
+  it("keeps a chosen command for the app's window to take once, while fresh", () => {
+    let now = 1_000;
+    const pending = new PendingMenuCommand(() => now);
+    expect(pending.take()).toBeNull();
+
+    pending.set("check-for-updates");
+    pending.set("import-anima");
+    now += MENU_COMMAND_TTL_MS;
+    // The latest choice wins, and it is handed over only once.
+    expect(pending.take()).toBe("import-anima");
+    expect(pending.take()).toBeNull();
+
+    // A command chosen during first-run setup must not fire when setup ends.
+    pending.set("import-anima");
+    now += MENU_COMMAND_TTL_MS + 1;
+    expect(pending.take()).toBeNull();
   });
 
   it.each(["darwin", "win32"] as const)(

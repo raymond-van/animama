@@ -24,6 +24,8 @@ _MAX_RETRY_AFTER_SECONDS = 2.0
 _MAX_PROVIDER_ERROR_MESSAGE_LENGTH = 512
 _BEARER_TOKEN_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+\-/=]+", re.IGNORECASE)
 _SECRET_TOKEN_RE = re.compile(r"\b(?:sk-[A-Za-z0-9_~+\-/=]+|hf_[A-Za-z0-9_~+\-/=]+)\b")
+# A JSON Web Token: the ChatGPT plan's access and ID tokens take this shape.
+_JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,11 +76,21 @@ def classify_openai_exception(
             previous_response_id=previous_response_id,
         )
     if isinstance(exc, APIError):
-        return _info(
-            "OpenAI request failed",
-            code="openai_request_failed",
-            metadata={**context, "exception_type": exc.__class__.__name__},
-        )
+        # The SDK raises a bare APIError for an `error` event inside a stream and
+        # keeps the provider's payload (type, code, message) in `body`.
+        metadata = {**context, "exception_type": exc.__class__.__name__}
+        _merge_provider_error_fields(metadata, exc.body)
+        if previous_response_id is not None and is_previous_response_unresolvable({"body": exc.body}):
+            return _info(
+                "OpenAI Responses previous_response_id could not be resolved",
+                code=OPENAI_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
+                metadata=metadata,
+            )
+        classified = _stream_error_classification(exc.body)
+        if classified is not None:
+            code, message = classified
+            return _info(message, code=code, metadata=metadata)
+        return _info("OpenAI request failed", code="openai_request_failed", metadata=metadata)
     return _info(
         "OpenAI request failed",
         code="openai_request_failed",
@@ -140,7 +152,9 @@ def classify_openai_response_event(
         metadata["event_type"] = event_type
     if isinstance(previous_response_id, str) and previous_response_id.strip():
         metadata["previous_response_id"] = previous_response_id.strip()
-    _merge_provider_error_fields(metadata, event_metadata)
+    # The event's own type is `event_type`; the provider fields and class come from its error.
+    error_metadata = {key: value for key, value in event_metadata.items() if key != "type"}
+    _merge_provider_error_fields(metadata, error_metadata)
 
     if previous_response_id is not None and is_previous_response_unresolvable(event_metadata):
         return _info(
@@ -148,6 +162,10 @@ def classify_openai_response_event(
             code=OPENAI_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
             metadata=metadata,
         )
+    classified = _stream_error_classification(error_metadata)
+    if classified is not None:
+        code, message = classified
+        return _info(message, code=code, metadata=metadata)
     return _info(
         "OpenAI Responses stream failed",
         code="openai_stream_error",
@@ -231,9 +249,18 @@ def _base_metadata(*, api: str, provider_type: str, model: str) -> dict[str, Any
     }
 
 
+# An HTTP 429 or stream error that names one of these is quota or billing, not a rate limit.
+_QUOTA_TERMS = ("insufficient_quota", "quota", "billing", "credit", "monthly")
+
+
 def _status_classification(status_code: int, body: Any) -> tuple[str, str, bool]:
     values = [value.lower() for value in _error_field_values({"body": body})]
-    text = " ".join(values)
+    return _classification_for_status(status_code, " ".join(values))
+
+
+def _classification_for_status(status_code: int, text: str) -> tuple[str, str, bool]:
+    """The code, message and retryability for an HTTP status; `text` is the error's lower-cased fields."""
+
     if status_code == 400:
         return "openai_bad_request", "OpenAI rejected the request", False
     if status_code == 401:
@@ -249,7 +276,7 @@ def _status_classification(status_code: int, body: Any) -> tuple[str, str, bool]
     if status_code == 422:
         return "openai_unprocessable_entity", "OpenAI could not process the request", False
     if status_code == 429:
-        if any(term in text for term in ("insufficient_quota", "quota", "billing", "credits", "monthly")):
+        if any(term in text for term in _QUOTA_TERMS):
             return "openai_quota_exceeded", "OpenAI quota or billing limit exceeded", False
         return "openai_rate_limit", "OpenAI rate limit exceeded", True
     if status_code == 503:
@@ -257,6 +284,48 @@ def _status_classification(status_code: int, body: Any) -> tuple[str, str, bool]
     if status_code in {500, 502, 504}:
         return "openai_server_error", "OpenAI server error", True
     return "openai_http_error", "OpenAI request failed", False
+
+
+# A stream error event's type or code, as the HTTP status that reports the same failure.
+_STREAM_ERROR_STATUSES: tuple[tuple[tuple[str, ...], int], ...] = (
+    (_QUOTA_TERMS, 429),
+    (("rate_limit",), 429),
+    (("server_error", "internal_error"), 500),
+    (("overloaded", "service_unavailable"), 503),
+    (("invalid_api_key", "authentication"), 401),
+    (("permission",), 403),
+    # OpenAI's image errors (image_too_large, invalid_base64_image, ...) are bad requests.
+    (("invalid_request", "invalid_prompt", "image"), 400),
+)
+
+
+def _stream_error_classification(payload: Any) -> tuple[str, str] | None:
+    """The code and message for an error reported inside a stream, or None if unknown.
+
+    The provider reports it with the same type and code as the HTTP error, so it
+    gets that error's code and message. It is never retried: the stream began.
+    """
+
+    errors = [candidate for candidate in _error_payload_candidates(payload) if isinstance(candidate, Mapping)]
+    # Only the error's type and code pick the class (callers drop an event's own type).
+    identifiers = " ".join(_field_texts(errors, ("type", "code")))
+    for terms, status_code in _STREAM_ERROR_STATUSES:
+        if any(term in identifiers for term in terms):
+            # The message also counts for quota versus rate limit, as for an HTTP 429.
+            code, message, _retryable = _classification_for_status(
+                status_code, " ".join(_field_texts(errors, ("type", "code", "message")))
+            )
+            return code, message
+    return None
+
+
+def _field_texts(errors: list[Mapping[str, Any]], keys: tuple[str, ...]) -> list[str]:
+    return [
+        value.strip().lower()
+        for error in errors
+        for key in keys
+        if isinstance(value := error.get(key), str) and value.strip()
+    ]
 
 
 def _response_body(exc: APIStatusError) -> Any:
@@ -324,6 +393,10 @@ def _merge_provider_error_fields(metadata: dict[str, Any], payload: Any) -> None
                 metadata[target_key] = sanitize_provider_error_message(value)
             else:
                 metadata[target_key] = value.strip()
+        # Some routes refuse a request with only ``{"detail": "..."}`` (the ChatGPT plan's admission).
+        detail = candidate.get("detail")
+        if isinstance(detail, str) and detail.strip() and "provider_error_message" not in metadata:
+            metadata["provider_error_message"] = sanitize_provider_error_message(detail)
 
 
 def _error_field_values(metadata: Mapping[str, Any]) -> list[str]:
@@ -355,11 +428,12 @@ def _error_payload_candidates(payload: Any) -> list[Any]:
 
 
 def sanitize_provider_error_message(value: str) -> str:
-    """Trim a provider error message and redact bearer tokens and API-key shapes (OpenAI and Anthropic)."""
+    """Trim a provider error message and redact bearer tokens, API-key shapes (OpenAI and Anthropic) and JWTs."""
 
     text = value.strip()
     text = _BEARER_TOKEN_RE.sub("Bearer [redacted]", text)
     text = _SECRET_TOKEN_RE.sub("[redacted]", text)
+    text = _JWT_RE.sub("[redacted]", text)
     if len(text) > _MAX_PROVIDER_ERROR_MESSAGE_LENGTH:
         return f"{text[:_MAX_PROVIDER_ERROR_MESSAGE_LENGTH].rstrip()}..."
     return text

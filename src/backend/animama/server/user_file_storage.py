@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from typing import BinaryIO
@@ -9,6 +10,7 @@ from typing import BinaryIO
 from animama.adapters.content_store.private_file_store import (
     FilesystemPrivateFileStorage,
 )
+from animama.app.ports.private_file_storage import PrivateFileUnavailableError, StoredPrivateFile
 from animama.server.config import settings
 from animama.server.local_runtime import initialize_local_runtime
 
@@ -83,6 +85,19 @@ def private_file_metadata(storage_locator: str | None) -> dict[str, object] | No
     return _storage().head(normalized) if normalized is not None else None
 
 
+def open_private_file(
+    storage_locator: str | None,
+    *,
+    expected_size_bytes: int,
+) -> AbstractContextManager[StoredPrivateFile]:
+    """Open a stored private file for reading; it must still have the expected size."""
+
+    normalized = _normalize_posix_key(storage_locator)
+    if normalized is None:
+        raise PrivateFileUnavailableError("Invalid private file locator")
+    return _storage().open_bounded(normalized, expected_size_bytes=expected_size_bytes)
+
+
 def delete_private_file(storage_locator: str | None) -> bool:
     normalized = _normalize_posix_key(storage_locator)
     return _storage().delete(normalized) if normalized is not None else False
@@ -113,6 +128,7 @@ __all__ = [
     "build_user_file_storage_locator",
     "build_user_file_storage_prefix",
     "delete_private_file",
+    "open_private_file",
     "private_upload_url",
     "private_file_metadata",
     "is_user_file_storage_locator",

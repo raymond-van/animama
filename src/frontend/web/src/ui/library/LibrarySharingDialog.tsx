@@ -90,7 +90,8 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
         onCloseAutoFocus={(event) => {
           // Both triggers share one dialog; restore the button that opened it.
           event.preventDefault();
-          returnFocus.current?.focus();
+          // Opened from the desktop menu, no trigger was pressed: use Import.
+          (returnFocus.current ?? importTrigger.current)?.focus();
         }}
         className={`flex max-h-[calc(100dvh-2rem)] flex-col gap-5 overflow-hidden p-5 sm:p-8 ${isImportSelection ? "sm:w-[36rem]" : flow.screen === "import-review" || flow.screen === "import-upload" || flow.screen === "import-recovery" ? "sm:w-[48rem]" : "sm:w-[64rem]"}`}
       >

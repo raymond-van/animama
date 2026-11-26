@@ -25,6 +25,12 @@ ERROR_PROVIDER_ERROR = "provider_error"
 ERROR_INVALID_BASE_URL = "invalid_base_url"
 ERROR_UNEXPECTED_RESPONSE = "unexpected_response"
 """The endpoint answered, but not with an OpenAI-compatible response."""
+ERROR_USAGE_LIMIT = "usage_limit"
+"""A subscription's usage limit was reached (the ChatGPT plan); it resets on the provider's schedule."""
+ERROR_NOT_ELIGIBLE = "not_eligible"
+"""The signed-in account's plan does not include this use."""
+ERROR_SIGN_IN_REQUIRED = "sign_in_required"
+"""A connection whose credential is a sign-in needs the person to sign in again."""
 
 _CATEGORY_BY_CODE = {
     "openai_connection_error": ERROR_UNREACHABLE,
@@ -55,6 +61,12 @@ _CATEGORY_BY_CODE = {
     "anthropic_server_error": ERROR_SERVER_ERROR,
     "anthropic_context_exceeded": ERROR_CONTEXT_EXCEEDED,
     "anthropic_bad_request": ERROR_BAD_REQUEST,
+    "chatgpt_plan_usage_limit": ERROR_USAGE_LIMIT,
+    "chatgpt_plan_not_eligible": ERROR_NOT_ELIGIBLE,
+    "chatgpt_plan_unavailable": ERROR_SERVER_ERROR,
+    "chatgpt_plan_unsupported_request": ERROR_BAD_REQUEST,
+    "chatgpt_plan_sign_in_required": ERROR_SIGN_IN_REQUIRED,
+    "chatgpt_plan_use_not_granted": ERROR_SIGN_IN_REQUIRED,
 }
 
 
@@ -103,12 +115,15 @@ __all__ = [
     "ERROR_CREDENTIAL_REJECTED",
     "ERROR_INVALID_BASE_URL",
     "ERROR_MODEL_NOT_FOUND",
+    "ERROR_NOT_ELIGIBLE",
     "ERROR_PROVIDER_ERROR",
     "ERROR_QUOTA_EXCEEDED",
     "ERROR_RATE_LIMITED",
     "ERROR_SERVER_ERROR",
+    "ERROR_SIGN_IN_REQUIRED",
     "ERROR_TIMEOUT",
     "ERROR_UNEXPECTED_RESPONSE",
     "ERROR_UNREACHABLE",
+    "ERROR_USAGE_LIMIT",
     "model_error_category",
 ]

@@ -64,6 +64,7 @@
     "account": "계정",
     "accountUnavailable": "계정에 접근할 수 없습니다.",
     "appSettings": "앱 설정",
+    "checkForUpdates": "업데이트 확인…",
     "fallbackName": "나",
     "signOut": "로그아웃",
     "usage": "사용량 및 한도"

@@ -30,7 +30,7 @@ Animama 会在屏幕一角放上一位迷人又富有表现力的伙伴，无论
 
 ### 应用
 
-- **[私密且可自托管](https://docs.animama.ai/zh-hans/self-host)：** 使用你自己的 API 密钥或本地模型（Ollama、LM Studio、llama.cpp、vLLM）在你的电脑上运行。可以自托管后在浏览器中使用，也可以自己构建桌面应用。
+- **[私密且可自托管](https://docs.animama.ai/zh-hans/self-host)：** 使用你的 ChatGPT 套餐、你自己的 API 密钥或本地模型（Ollama、LM Studio、llama.cpp、vLLM）在你的电脑上运行。可以自托管后在浏览器中使用，也可以自己构建桌面应用。
 - **[按你的喜好打造](https://docs.animama.ai/zh-hans/animas)：** 随心编辑 Anima 的身份设定、记忆和行为，直到恰到好处。
 - **[VRM 虚拟形象](https://docs.animama.ai/zh-hans/avatars)：** 支持任何 VRM 0.x 或 1.0 虚拟形象，VRoid Studio 制作的效果最好。VRChat 虚拟形象可用 [Animama Avatar Converter](https://github.com/raymond-van/animama-avatar-converter)转换，其他 3D 模型可在 Blender 中用 [VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender)转换。
 - **[语音模式](https://docs.animama.ai/zh-hans/voice)：** 自动检测你何时说完，无需动手即可对话。语音处理可以完全在本地运行。
@@ -55,19 +55,22 @@ Animama 会在屏幕一角放上一位迷人又富有表现力的伙伴，无论
 
 在 Windows 上，由于 Animama 是新应用，SmartScreen 可能会提示“Windows 已保护你的电脑”。请选择**更多信息**，确认发布者为 Raymond Van，然后选择**仍要运行**。
 
-## AI 模型（BYOK）
+## AI 模型
 
-采用自带密钥（BYOK）模式：在初始设置或**应用设置**中添加你所选服务商的 API 密钥。密钥会加密保存在你的电脑上。
+在初始设置或**应用设置**中选择使用你的 [ChatGPT 套餐](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)或你自己的 API 密钥。密钥会加密保存在你的电脑上。
 
 ### [聊天](https://docs.animama.ai/zh-hans/#setup)
 
-推荐的模型成本很低，几美元的 API 用量就能用很久。
+| 服务商 | 连接方式 | 模型 |
+| --- | --- | --- |
+| OpenAI | ChatGPT 套餐 | 你的套餐包含的模型 |
+| OpenAI | API 密钥 | GPT-6 Luna（推荐） |
+| Anthropic | API 密钥 | Claude Haiku 5.5（推荐） |
+| OpenRouter 或其他兼容 OpenAI 的接口 | API 密钥 | 任选 |
 
-| 服务商 | 模型 |
-| --- | --- |
-| OpenAI | GPT-6 Luna（推荐） |
-| Anthropic | Claude Haiku 5.5（推荐） |
-| OpenRouter 或其他兼容 OpenAI 的接口 | 任选 |
+要使用 ChatGPT 套餐，请选择**使用 ChatGPT 继续**并在 OpenAI 登录。无需 API 密钥，用量计入你的套餐额度。自托管时，请在运行 Animama 的电脑上的浏览器中登录。当前的安装包尚未包含此功能，从源码自托管即可使用。
+
+推荐的 API 模型成本很低，几美元的 API 用量就能用很久。
 
 #### 本地模型
 
@@ -132,7 +135,7 @@ pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:win:installer
 ```
 
-安装包会生成在 `src/frontend/desktop/release/`。
+安装包会生成在 `src/frontend/desktop/release/`。它可以安装在 Windows 10 22H2 和 Windows 11 上。
 
 </details>
 

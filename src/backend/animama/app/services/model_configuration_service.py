@@ -344,6 +344,11 @@ class ModelConfigurationService:
 
     async def add_model(self, connection_id: str, draft: OwnerModelDraft) -> ModelProvider:
         connection = await self.get_connection(connection_id)
+        if connection.is_builtin_chatgpt_plan:
+            # Its models are the signed-in account's, listed by OpenAI (D4).
+            raise ModelConfigurationError(
+                "The ChatGPT plan's models come from the signed-in account", code="connection_read_only"
+            )
         model = draft.model.strip()
         if not model or len(model) > _MAX_MODEL_LENGTH:
             raise ModelConfigurationError("A model id of up to 256 characters is required", code="invalid_model")

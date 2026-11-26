@@ -284,11 +284,12 @@ async def db_ready(db_url: str) -> AsyncIterator[str]:
 
                 await conn.run_sync(_create_all)
                 # Every catalog row belongs to a connection; the release seed
-                # normally creates the built-in OpenAI and Anthropic connections.
+                # normally creates the built-in OpenAI, Anthropic and ChatGPT plan connections.
                 await conn.exec_driver_sql(
                     "INSERT INTO model_connections (id, source, name, preset, compatibility, active) "
                     "VALUES ('openai', 'builtin', 'OpenAI', 'openai', '{}'::jsonb, TRUE), "
-                    "('anthropic', 'builtin', 'Anthropic', 'anthropic', '{}'::jsonb, TRUE)"
+                    "('anthropic', 'builtin', 'Anthropic', 'anthropic', '{}'::jsonb, TRUE), "
+                    "('chatgpt_plan', 'builtin', 'ChatGPT plan', 'chatgpt_plan', '{}'::jsonb, TRUE)"
                 )
 
             def _get_engine_patched(url: str | None = None):

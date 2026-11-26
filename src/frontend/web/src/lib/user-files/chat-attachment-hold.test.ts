@@ -82,6 +82,25 @@ describe("resolveChatAttachmentHold", () => {
     ).toBe("blocked");
   });
 
+  it("waits for a saved image's ready row even while processing is off", () => {
+    const image = { ...trayFile("uploaded"), name: "cat.png" };
+    expect(
+      resolveChatAttachmentHold({ files: [image], processingEnabled: false }),
+    ).toBe("waiting");
+    expect(
+      resolveChatAttachmentHold({
+        files: [image],
+        backendFiles: [
+          row("ready", {
+            original_filename: "cat.png",
+            normalized_extension: ".png",
+          }),
+        ],
+        processingEnabled: false,
+      }),
+    ).toBe("none");
+  });
+
   it("waits while the backend row is still processing", () => {
     expect(
       resolveChatAttachmentHold({

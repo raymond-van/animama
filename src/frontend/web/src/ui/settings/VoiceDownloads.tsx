@@ -14,8 +14,13 @@ import {
   modelDownloadsEndedNote,
   operatorManagedModelsNote,
 } from "./operator-managed-models";
+import { SavedVoiceClones } from "./SavedVoiceClones";
 
-/** Reuse the Anima voice-cloning form without tying creation to a selected Anima. */
+/**
+ * Reuse the Anima voice-cloning form without tying creation to a selected
+ * Anima, then list the saved clones so a new one stays visible and can be
+ * given to the current Anima.
+ */
 export function VoiceCloneSettings() {
   const [cloning, setCloning] = useState(false);
   return (
@@ -28,6 +33,7 @@ export function VoiceCloneSettings() {
         onDeleteClose={() => {}}
         onBusyChange={setCloning}
       />
+      <SavedVoiceClones busy={cloning} />
     </div>
   );
 }

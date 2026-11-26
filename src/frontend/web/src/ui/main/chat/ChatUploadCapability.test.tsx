@@ -19,6 +19,10 @@ vi.mock("@/query/hooks/useAnima", () => ({ useAnima: () => ({}) }));
 vi.mock("@/query/hooks/useModelProviders", () => ({
   useModelProviders: () => ({}),
 }));
+// Whether the Anima's model has a key is covered by its own tests.
+vi.mock("./useAnimaModelKeyState", () => ({
+  useAnimaModelKeyState: () => null,
+}));
 vi.mock("@/platform/RuntimePlatformProvider", () => ({
   useRuntimePlatform: () => ({}),
 }));

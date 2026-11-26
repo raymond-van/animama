@@ -24,6 +24,7 @@ from animama.app.model_catalog import (
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy, ModelProviderCatalogService
 from animama.app.services.model_role_resolver import ROLE_EMBEDDINGS, ROLE_PREFERENCE_PATHS
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
+from animama.domain.model_connection import BUILTIN_CHATGPT_PLAN_CONNECTION_ID
 from animama.orm import ORMAnimaChatProfile, ORMChatMessage, ORMModelProvider
 from animama.orm.base import Base
 
@@ -236,12 +237,14 @@ def _render_seed_sql() -> str:
             # owner may change.
             insert_only=frozenset({"connection_id", "source", "hidden", "early_compaction"}),
         )
-        + "\n-- Retire built-in rows that the current release no longer ships.\n"
+        + "\n-- Retire built-in rows that the current release no longer ships. The ChatGPT plan\n"
+        + "-- connection's rows are listed from the signed-in account at run time, not shipped.\n"
         + "UPDATE model_providers SET\n"
         + "    active = FALSE,\n"
         + "    deprecated_at = COALESCE(deprecated_at, CURRENT_TIMESTAMP),\n"
         + "    updated_at = CURRENT_TIMESTAMP\n"
-        + f"WHERE source = 'builtin' AND active AND id NOT IN ({builtin_ids});\n"
+        + f"WHERE source = 'builtin' AND active AND connection_id <> '{BUILTIN_CHATGPT_PLAN_CONNECTION_ID}'\n"
+        + f"    AND id NOT IN ({builtin_ids});\n"
         + _render_retired_builtin_remap()
     )
 
@@ -792,6 +795,16 @@ async def test_seed_rerun_keeps_owner_rows_and_hidden_flags_and_retires_missing_
         **{**common, "source": "builtin"},
     )
     async_session.add(retired)
+    # Listed from the signed-in ChatGPT account at run time; the seed must not retire it.
+    async_session.add(
+        ORMModelProvider(
+            id="ChatGPTPlanResponsesHTTPAgent:gpt-6-luna",
+            model="gpt-6-luna",
+            model_label="GPT-6-Luna",
+            connection_id=BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
+            **{**common, "provider_type": "ChatGPTPlanResponsesHTTPAgent", "source": "builtin"},
+        )
+    )
     hidden = await async_session.get(ORMModelProvider, "OpenAIResponsesHTTPAgent:gpt-6-luna")
     assert hidden is not None
     hidden.hidden = True
@@ -815,6 +828,8 @@ async def test_seed_rerun_keeps_owner_rows_and_hidden_flags_and_retires_missing_
     assert retired_row is not None and retired_row.active is False and retired_row.deprecated_at is not None
     builtin_luna = await async_session.get(ORMModelProvider, "OpenAIHTTPAgent:gpt-6-luna")
     assert builtin_luna is not None and builtin_luna.active is True
+    plan_row = await async_session.get(ORMModelProvider, "ChatGPTPlanResponsesHTTPAgent:gpt-6-luna")
+    assert plan_row is not None and plan_row.active is True and plan_row.deprecated_at is None
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from "react";
+import { act, createRef } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +10,10 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 
 import type { ChatFeatureChoice } from "@/lib/chat/chat-request-options";
-import { ChatInputModelSelector } from "./chat-input";
+import {
+  ChatInputModelSelector,
+  type ChatModelSelectorControl,
+} from "./chat-input";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -122,6 +125,7 @@ vi.mock("@/ui/components/tooltip", () => {
 const EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"];
 const LUNA = "OpenAIResponsesHTTPAgent:gpt-6-luna";
 const HAIKU = "AnthropicMessagesHTTPAgent:claude-haiku-5-5";
+const PLAN = "ChatGPTPlanResponsesHTTPAgent:gpt-5.6-luna";
 
 const catalogRow = (
   id: string,
@@ -158,6 +162,15 @@ const haiku = catalogRow(HAIKU, {
   logo_provider: "anthropic",
   api_standard: "anthropic_messages",
   default_reasoning_effort: "medium",
+});
+
+const planLuna = catalogRow(PLAN, {
+  model_provider: "ChatGPTPlanResponsesHTTPAgent",
+  connection_id: "chatgpt_plan",
+  connection_name: "ChatGPT plan",
+  logo_provider: "openai",
+  api_standard: "responses",
+  default_reasoning_effort: null,
 });
 
 let root: Root | null = null;
@@ -287,6 +300,42 @@ beforeEach(() => {
 });
 
 afterEach(unmountPicker);
+
+describe("ChatGPT plan models in the picker", () => {
+  const headings = () =>
+    [...popover().querySelectorAll("[cmdk-group-heading]")].map(
+      (heading) => heading.textContent,
+    );
+
+  it("ends the open picker with the plan notice while a plan model is selected", async () => {
+    fixture.catalog = [{ ...luna, connection_id: "openai" }, haiku, planLuna];
+    await renderPicker(PLAN);
+    expect(popover().textContent).toContain("Using ChatGPT plan");
+
+    await click(button("Select model"));
+    // OpenAI's two ways sit side by side, plan first, and each row says which.
+    expect(headings()).toEqual([
+      "OpenAI · ChatGPT plan",
+      "OpenAI · API key",
+      "Anthropic",
+    ]);
+    expect(row("gpt-6-luna").textContent).toContain("API key");
+    expect(popover().textContent).toContain("Using ChatGPT plan");
+
+    await click(button("Back to model and reasoning"));
+    await click(button("Chat features"));
+    expect(popover().textContent).not.toContain("Using ChatGPT plan");
+  });
+
+  it("shows no notice and one OpenAI group without plan models", async () => {
+    fixture.catalog = [{ ...luna, connection_id: "openai" }, haiku];
+    await renderPicker(LUNA);
+    expect(popover().textContent).not.toContain("Using ChatGPT plan");
+    await click(button("Select model"));
+    expect(headings()).toEqual(["OpenAI", "Anthropic"]);
+    expect(popover().textContent).not.toContain("API key");
+  });
+});
 
 describe("chat model picker settings", () => {
   it("keeps the composer logo-only and removes fast and reset controls", async () => {
@@ -468,6 +517,48 @@ describe("chat model picker settings", () => {
     expect(onIncompatibleModelSelect).toHaveBeenCalledWith(haiku);
     expect(fixture.save).not.toHaveBeenCalled();
     expect(popover().getAttribute("aria-label")).toBe("Select model");
+  });
+
+  it("marks the button, still without a label, when the model has no key", async () => {
+    await renderPicker(LUNA, { keyMissing: true }, false);
+
+    expect(trigger().getAttribute("aria-label")).toBe(
+      "Model and reasoning: OpenAI: gpt-6-luna has no API key",
+    );
+    expect(trigger().textContent).toBe("");
+    expect(trigger().querySelector(".lucide-triangle-alert")).not.toBeNull();
+    expect(
+      trigger().querySelector('[aria-label="openai provider"]'),
+    ).toBeNull();
+  });
+
+  it("lets the composer open the model list and switch as the list does", async () => {
+    const control = createRef<ChatModelSelectorControl>();
+    const onIncompatibleModelSelect = vi.fn();
+    await renderPicker(LUNA, { controlRef: control }, false);
+
+    await act(async () => control.current!.openModels());
+    expect(popover().getAttribute("aria-label")).toBe("Select model");
+    expect(row("claude-haiku-5-5")).not.toBeNull();
+
+    await act(async () => control.current!.select(haiku));
+    expect(modelSaves()).toEqual([HAIKU]);
+
+    // An open chat on another API still asks first, as choosing in the list does.
+    unmountPicker();
+    fixture.save.mockClear();
+    await renderPicker(
+      LUNA,
+      {
+        controlRef: control,
+        activeChat: { id: "chat-1", api_standard: "responses" },
+        onIncompatibleModelSelect,
+      },
+      false,
+    );
+    await act(async () => control.current!.select(haiku));
+    expect(onIncompatibleModelSelect).toHaveBeenCalledWith(haiku);
+    expect(fixture.save).not.toHaveBeenCalled();
   });
 
   it("explains unavailable web search and omits a slider for fixed models", async () => {

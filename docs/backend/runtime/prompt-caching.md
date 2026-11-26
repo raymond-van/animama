@@ -91,8 +91,10 @@ The guardrails appear once per turn, at the end of the stable instructions
 | OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context, when there is any), user item |
 | Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context, when there is any) |
 
-On Responses the chain lives in OpenAI server state (`previous_response_id`,
-`store: true`). With a cursor, a request sends only the new items. Each turn's
+On Responses with an API key the chain lives in OpenAI server state
+(`previous_response_id`, `store: true`). With a cursor, a request sends only the
+new items. A ChatGPT plan model stores nothing, so every request replays the
+history in the same order, with `prompt_cache_key` still sent. Each turn's
 context item stays in the stored chain until native compaction runs at
 `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default 90,000).
 Requests without a cursor send history before the new items. These are the
@@ -170,6 +172,18 @@ is escaped as `&lt;`, in any case and with any spacing around the slash. This
 covers the user's text, replayed user messages, memory-map descriptions and
 attachment names, descriptions and outlines. Nothing can open, close or forge
 the block.
+
+### Images
+
+A user message with images carries its image parts before its text. On
+Responses without a cursor its breakpoint goes on the last part, whatever its
+type; on Anthropic the history marker follows the image blocks. Which earlier
+images are sent changes only when history is trimmed or more than 20 images
+are in the fitted history (the newest are kept, older ones become `[Image:
+name]` placeholders), so the cached prefix holds from turn to turn. A
+placeholder escapes `<` in the file name, so a name cannot open a tag. A
+Responses conversation that OpenAI stores for the cursor holds the images it
+received.
 
 ## What changes, and how often
 

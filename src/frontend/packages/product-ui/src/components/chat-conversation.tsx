@@ -27,6 +27,7 @@ export function ChatConversation({
   layout = "chat-only",
   messageComponent: Message = DefaultMessage,
   renderAssistantAccessory,
+  renderUserAttachments,
 }: {
   messages: readonly ChatMessage[];
   isStreaming?: boolean;
@@ -43,6 +44,12 @@ export function ChatConversation({
    * the host; return `null` for messages without an accessory.
    */
   renderAssistantAccessory?: (message: ChatMessage) => ReactNode;
+  /**
+   * Host content shown just above a user bubble, such as the images sent with
+   * it; the package does not load files. Return `null` for messages without
+   * attachments.
+   */
+  renderUserAttachments?: (message: ChatMessage) => ReactNode;
 }) {
   const { t } = useProductTranslation();
   // Markdown renders its final response directly; only plain text has a queue to drain.
@@ -62,12 +69,23 @@ export function ChatConversation({
           message.role === "assistant" && !message.isPending
             ? renderAssistantAccessory?.(message)
             : null;
+        const attachments =
+          message.role === "user" ? renderUserAttachments?.(message) : null;
+        const bubbleSpacing =
+          [accessory ? "pb-1" : "", attachments ? "pt-1" : ""]
+            .filter(Boolean)
+            .join(" ") || undefined;
         return (
           <Fragment key={message.id}>
+            {attachments ? (
+              <Message from="user" messageLayout={layout} className="pb-0">
+                {attachments}
+              </Message>
+            ) : null}
             <Message
               from={message.role}
               messageLayout={layout}
-              className={accessory ? "pb-1" : undefined}
+              className={bubbleSpacing}
             >
               <MessageContent
                 animateOnEnter={message.animateOnEnter}

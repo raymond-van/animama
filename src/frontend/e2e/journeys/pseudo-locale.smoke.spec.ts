@@ -89,6 +89,25 @@ test("pseudo-locale first-run setup @pseudo-locale @read-only", async ({
     await page
       .getByRole("button", { name: pseudoLocalize("Continue"), exact: true })
       .click();
+    // A stack without a provider key has no model that can reply, so
+    // Continue asks first; with a key it goes straight to Voice.
+    const noModel = page.getByRole("dialog", {
+      name: pseudoLocalize("Continue without a chat model?"),
+    });
+    const voice = page.getByRole("heading", {
+      level: 1,
+      name: pseudoLocalize("Set up voice"),
+    });
+    await expect(noModel.or(voice)).toBeVisible();
+    if (await noModel.isVisible()) {
+      await audit.check("Setup › AI › No chat model");
+      await page
+        .getByRole("button", {
+          name: pseudoLocalize("Continue without a model"),
+          exact: true,
+        })
+        .click();
+    }
     await expect(heading).toHaveText(pseudoLocalize("Set up voice"));
     await audit.check("Setup › Voice");
   });

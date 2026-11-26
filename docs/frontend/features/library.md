@@ -88,7 +88,8 @@ same rows as Anima settings, so a change applies wherever the Avatar is used,
 the preview dock included (see
 [Avatar settings](anima-management.md#avatar-settings)), and **Open
 diagnostics** for that item. Materials needs to know whether the file has
-lilToon materials; the backend keeps no file facts, so the dialog reads the
+lilToon materials or only materials that ignore light; the backend keeps no
+file facts, so the dialog reads the
 file once per session when no surface has loaded it. The hosted app keeps no
 Avatar settings, so there the dialog offers Diagnostics only. Entries without model files are omitted; reference-safe seed reconciliation
 preserves records needed by Animas.

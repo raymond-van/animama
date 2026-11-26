@@ -15,6 +15,31 @@
         "guidance": "Animama が完了を確認する前に接続が切れました。接続を確認してから、もう一度送信してください。",
         "title": "返信が中断されました。"
       },
+      "chatgpt_plan_not_eligible": {
+        "guidance": "ChatGPT でプランの利用量を確認するか、別のモデルを選んでください。",
+        "title": "お使いの ChatGPT プランではこの機能を利用できません。"
+      },
+      "chatgpt_plan_sign_in_required": {
+        "guidance": "ChatGPT プランのセッションが終了しました。「$t(chatFailure.settingsPath)」でもう一度サインインしてください。",
+        "title": "ChatGPT にもう一度サインインしてください。"
+      },
+      "chatgpt_plan_unavailable": {
+        "guidance": "しばらくしてからもう一度試すか、別のモデルを選んでください。",
+        "title": "現在 ChatGPT プランを利用できません。"
+      },
+      "chatgpt_plan_unsupported_request": {
+        "guidance": "このチャットには別のモデルを選んでください。",
+        "guidanceDetail": "OpenAI からの説明：「{{detail}}」このチャットには別のモデルを選んでください。",
+        "title": "ChatGPT プランはこのリクエストを受け付けませんでした。"
+      },
+      "chatgpt_plan_usage_limit": {
+        "guidance": "OpenAI が上限をリセットした後にもう一度送信するか、別のモデルを選んでください。利用量は OpenAI のページで確認できます。",
+        "title": "ChatGPT プランの利用上限に達しました。"
+      },
+      "chatgpt_plan_use_not_granted": {
+        "guidance": "「$t(chatFailure.settingsPath)」でプランの使用を有効にするか、別のモデルを選んでください。",
+        "title": "ChatGPT プランの使用がオフになっています。"
+      },
       "connection_base_url_missing": {
         "guidance": "「$t(chatFailure.settingsPath)」でベース URL を設定してから、メッセージをもう一度送信してください。",
         "title": "{{name}}にサーバーアドレスが設定されていません。"
@@ -78,6 +103,18 @@
         "guidance": "接続を確認し、準備ができたらもう一度お試しください。",
         "guidanceLocal": "モデルがまだ読み込み中の可能性があります。もう一度試すか、「$t(chatFailure.settingsPath)」で接続のタイムアウトを延ばしてください。",
         "title": "{{name}}の応答に時間がかかりすぎました。"
+      },
+      "too_many_images": {
+        "title": "このメッセージには画像が多すぎます。",
+        "guidance": "4 枚以下になるよう減らしてから、もう一度送信してください。"
+      },
+      "attached_image_unavailable": {
+        "title": "添付した画像が利用できなくなりました。",
+        "guidance": "削除するか添付し直してから送信してください。"
+      },
+      "model_does_not_accept_images": {
+        "title": "このモデルは画像を見られません。",
+        "guidance": "画像に対応したモデルを選ぶか、画像を外してもう一度送信してください。"
       }
     },
     "defaultConnection": "モデルサーバー",
@@ -112,6 +149,7 @@
         "title": "Animama のお試し期間が終了しました。"
       }
     },
+    "manageUsage": "利用量を管理",
     "network": {
       "guidance": "接続と、インストールが起動しているかを確認してから、もう一度お試しください。",
       "title": "Animama がサービスに接続できませんでした。"

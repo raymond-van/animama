@@ -15,6 +15,7 @@ Notes
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
@@ -29,7 +30,9 @@ from animama.domain.model_connection import (
     MODEL_KIND_CHAT,
     MODEL_KIND_EMBEDDING,
     MODEL_SOURCE_BUILTIN,
+    REASONING_MODE_OPENAI_EFFORT,
     ModelConnection,
+    ModelConnectionCompatibility,
 )
 from animama.domain.types import Modality
 from animama.utils.type_helpers import coerce_modalities, coerce_provider_type
@@ -65,6 +68,11 @@ The Anthropic adapter applies it to chat requests that carry no effort, and the
 public catalog reports it as ``default_reasoning_effort`` so the chat picker
 preselects it (D26). At ``low``, Haiku 5.5 often skipped needed memory-tool
 calls in live tests."""
+CHAT_COMPLETIONS_FUNCTION_TOOL_EFFORT = "none"
+"""The only effort OpenAI Chat Completions accepts with function tools on GPT-5.4 and later."""
+_FIRST_GPT_VERSION_WITHOUT_TOOL_REASONING = (5, 4)
+# OpenAI model IDs start with the GPT version: gpt-5-nano, gpt-5.4-mini, gpt-6-luna.
+_OPENAI_GPT_VERSION = re.compile(r"gpt-(\d+)(?:\.(\d+))?(?:-|$)")
 PRICE_TIERS = ("standard", "batch", "flex", "priority")
 GPT_6_PRICING_SOURCE_CHECKED_AT = "2026-09-28"
 
@@ -330,12 +338,14 @@ PROVIDER_LABELS: dict[str, str] = {
     "OpenAIHTTPAgent": "OpenAI HTTP",
     "OpenAIResponsesHTTPAgent": "OpenAI Responses HTTP",
     "AnthropicMessagesHTTPAgent": "Anthropic",
+    "ChatGPTPlanResponsesHTTPAgent": "ChatGPT plan",
 }
 
 PROVIDER_LOGOS: dict[str, str] = {
     "OpenAIHTTPAgent": "openai",
     "OpenAIResponsesHTTPAgent": "openai",
     "AnthropicMessagesHTTPAgent": "anthropic",
+    "ChatGPTPlanResponsesHTTPAgent": "openai",
 }
 
 
@@ -374,6 +384,39 @@ def default_chat_reasoning_effort(provider_type: str, supported_efforts: Iterabl
     if provider_type != ANTHROPIC_MESSAGES_PROVIDER_TYPE:
         return None
     return offered_effort(DEFAULT_ANTHROPIC_CHAT_EFFORT, supported_efforts)
+
+
+def chat_completions_tools_require_no_reasoning(model: str) -> bool:
+    """Return whether Chat Completions accepts function tools for ``model`` only at effort ``none``.
+
+    OpenAI documents this from GPT-5.4 on: a request with function tools fails
+    with HTTP 400 for any other ``reasoning_effort``, and also when the field is
+    omitted, because the model's default effort applies (``medium`` on
+    ``gpt-6-luna``). Only OpenAI's own model IDs match; a router's
+    ``openai/gpt-6-luna`` does not.
+    """
+
+    match = _OPENAI_GPT_VERSION.match(model.strip())
+    if match is None:
+        return False
+    version = (int(match.group(1)), int(match.group(2) or 0))
+    return version >= _FIRST_GPT_VERSION_WITHOUT_TOOL_REASONING
+
+
+def chat_completions_function_tool_effort(model: str, compatibility: ModelConnectionCompatibility) -> str | None:
+    """Return the effort a Chat Completions request with function tools sends when none was chosen.
+
+    Models covered by :func:`chat_completions_tools_require_no_reasoning` get
+    ``none``, since leaving the field out selects an effort OpenAI refuses with
+    tools. Other models, and connections whose reasoning mode does not send
+    OpenAI efforts, send no effort.
+    """
+
+    if compatibility.reasoning_mode != REASONING_MODE_OPENAI_EFFORT or not chat_completions_tools_require_no_reasoning(
+        model
+    ):
+        return None
+    return CHAT_COMPLETIONS_FUNCTION_TOOL_EFFORT
 
 
 def builtin_hidden_by_default(provider_type: str, model_kind: str) -> bool:
@@ -666,6 +709,7 @@ def serialize_builtin_model_connections() -> list[dict[str, Any]]:
 
 __all__ = [
     "ANTHROPIC_REASONING_EFFORTS",
+    "CHAT_COMPLETIONS_FUNCTION_TOOL_EFFORT",
     "DEFAULT_ANTHROPIC_CHAT_EFFORT",
     "MAIN_STRUCTURED_RESPONSE_KIND",
     "MAIN_STRUCTURED_RESPONSE_KINDS",
@@ -674,6 +718,8 @@ __all__ = [
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT",
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA",
     "builtin_hidden_by_default",
+    "chat_completions_function_tool_effort",
+    "chat_completions_tools_require_no_reasoning",
     "default_chat_reasoning_effort",
     "early_compaction_available",
     "offered_effort",

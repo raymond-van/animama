@@ -191,6 +191,7 @@
       "file_unreadable": "아바타 파일이 읽을 수 있는 glTF 또는 VRM 파일이 아닙니다.",
       "humanoid_bones_remapped_other": "휴머노이드 본 {{count}}개가 모델의 어떤 부분도 움직이지 않는 본을 가리키고 있어, 메시가 따르는 옆의 본을 대신 사용합니다.",
       "humanoid_bones_unweighted_other": "휴머노이드 본 {{count}}개가 모델의 어떤 부분도 움직이지 않고 대신 사용할 수 있는, 메시가 따르는 옆의 본도 없어 해당 본의 움직임은 보이지 않습니다.",
+      "materials_unlit": "이 파일의 모든 머티리얼은 빛을 받지 않아 그대로는 평면적으로 보입니다. 아바타의 머티리얼 설정이 단순이 아니면 Animama가 툰 음영과 윤곽선을 더합니다.",
       "landmarks_anchor_missing": "얼굴 랜드마크를 고정할 머리를 찾지 못했습니다.",
       "landmarks_eyes_missing": "얼굴에서 눈을 찾지 못해 눈 효과를 사용할 수 없습니다.",
       "landmarks_face_bounds_failed": "얼굴 피부의 크기를 측정할 수 없습니다.",
@@ -566,6 +567,7 @@
     "cloning": {
       "change": "샘플 변경",
       "checking": "음성 복제를 확인하는 중…",
+      "chooseHint": "각 Anima의 음성은 해당 Anima 페이지의 음성에서 선택합니다.",
       "clone": "음성 복제",
       "cloningVoice": "음성을 복제하는 중…",
       "delete": {
@@ -611,6 +613,9 @@
       "sectionLabel": "음성 복제",
       "title": "음성 복제",
       "upload": "음성 샘플 업로드",
+      "usedBy": "{{anima}}의 음성",
+      "usedFor": "{{voice}}을(를) {{anima}}의 음성으로 설정했습니다. 다음에 채팅을 열 때부터 적용됩니다.",
+      "useFor": "{{anima}}에 사용",
       "downloadsEnded": "음성 복제에는 더 이상 다운로드할 수 없는 모델이 필요합니다. 저장된 복제 음성은 계속 작동합니다."
     },
     "elevenLabs": {

@@ -274,7 +274,12 @@ Rules:
   - offline startup/transcription errors surface instead of silently switching
     providers
 - desktop shell detection disables Web Speech availability; without the routed
-  engine's installed capability, desktop dictation and Voice Mode stay disabled
+  engine's installed capability, desktop dictation and Voice Mode cannot start.
+  Where the owner installs this installation's models, the composer's Dictate
+  and Voice Mode controls then say that speech recognition needs a model and
+  open App Settings at Speech-to-Text, where the downloads are. They stay
+  disabled in Quick Chat, which has no App Settings, and where the operator
+  provides the models
 - `switchMode("voice")` is used by `ChatInterface` to hand off from active plain dictation into voice mode
 
 Provider helpers:
@@ -1288,8 +1293,11 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   (built-in)", ElevenLabs, Gemini and the browser where offered); selecting one
   switches the provider, the provider in use is tagged "Selected", and its tab
   holds that provider's settings: the PocketTTS tab reuses the Anima cloning
-  form with the encoder's state under a "Voice Clone" heading, the ElevenLabs
-  tab its key, the Gemini tab its key and model. There is no chunk-streaming
+  form with the encoder's state under a "Voice Clone" heading and lists the
+  saved clones (`SavedVoiceClones`), each with **Use for** the Anima the
+  settings were opened from when that Anima speaks with PocketTTS (the choice
+  applies from the next chat mount, like any loadout change); the ElevenLabs
+  tab holds its key, the Gemini tab its key and model. There is no chunk-streaming
   switch: ElevenLabs always streams. Setup offers
   Speech-to-Text and Text-to-Speech choices but no voice cloning.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs

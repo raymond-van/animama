@@ -4,6 +4,8 @@ import type {
   FeaturePacksBridge,
   LocaleBridge,
   LoginItemBridge,
+  MenuBridge,
+  MenuCommand,
   MenuEntryBridge,
   RuntimeBridge,
   RuntimeStatus,
@@ -67,6 +69,49 @@ export function createUpdatesBridge(): UpdatesBridge {
       ipcRenderer.on("animama:updates:status-changed", listener);
       return () =>
         ipcRenderer.removeListener("animama:updates:status-changed", listener);
+    },
+  };
+}
+/** How long a command taken for a subscriber that left waits for the next. */
+const MENU_COMMAND_HANDOVER_MS = 5_000;
+
+/**
+ * Main announces a chosen command without naming it; the app takes it then,
+ * and once on subscribing, for a command chosen while its window was closed
+ * or loading. Only the two known commands reach the web app, and only its
+ * one subscriber: a command that arrives after that subscriber left (React's
+ * development double mount unsubscribes while the first take is in flight)
+ * goes to the next one.
+ */
+export function createMenuBridge(): MenuBridge {
+  const known: readonly MenuCommand[] = ["check-for-updates", "import-anima"];
+  let deliver: ((command: MenuCommand) => void) | null = null;
+  let held: { command: MenuCommand; at: number } | null = null;
+  const take = () => {
+    void ipcRenderer
+      .invoke("animama:menu:take")
+      .then((command: unknown) => {
+        const match = known.find((item) => item === command);
+        if (!match) return;
+        if (deliver) deliver(match);
+        else held = { command: match, at: Date.now() };
+      })
+      // Another window role, or main shutting down: nothing to run.
+      .catch(() => undefined);
+  };
+  return {
+    onCommand: (callback) => {
+      deliver = callback;
+      ipcRenderer.on("animama:menu:command", take);
+      const waiting = held;
+      held = null;
+      if (waiting && Date.now() - waiting.at <= MENU_COMMAND_HANDOVER_MS)
+        callback(waiting.command);
+      else take();
+      return () => {
+        if (deliver === callback) deliver = null;
+        ipcRenderer.removeListener("animama:menu:command", take);
+      };
     },
   };
 }

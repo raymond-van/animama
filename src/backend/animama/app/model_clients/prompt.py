@@ -16,6 +16,7 @@ from openai.types.chat import (
 from openai.types.shared.reasoning_effort import ReasoningEffort as ChatCompletionReasoningEffort
 
 from .frozen import frozen_mapping
+from .image_parts import message_text
 
 ChatCompletionResponseFormat = completion_create_params.ResponseFormat
 
@@ -166,10 +167,7 @@ def _message_role(message: Mapping[str, Any]) -> str:
 
 
 def _message_content_text(message: Mapping[str, Any]) -> str | None:
-    content = message.get("content")
-    if isinstance(content, str) and content:
-        return content
-    return None
+    return message_text(message.get("content")) or None
 
 
 __all__ = [

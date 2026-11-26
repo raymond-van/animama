@@ -1,12 +1,14 @@
 {
   "menu": {
     "about": "關於 {{name}}",
+    "checkForUpdates": "檢查更新…",
     "services": "服務",
     "hide": "隱藏 {{name}}",
     "hideOthers": "隱藏其他",
     "showAll": "顯示全部",
     "quitApp": "結束 {{name}}",
     "file": "檔案",
+    "importAnima": "匯入 Anima…",
     "closeWindow": "關閉視窗",
     "close": "關閉",
     "exit": "結束",

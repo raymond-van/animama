@@ -54,12 +54,12 @@ All paths below are relative to `~/Library/Application Support/Animama`:
 | Path                     | Responsibility                                                                                 |
 | ------------------------ | ---------------------------------------------------------------------------------------------- |
 | `postgres/16/data`       | Private PostgreSQL cluster; database commands verify `SHOW data_directory`.                    |
-| `secrets/vault.bin`      | OS-encrypted database password, provider keys and model-connection keys; requires matching secure storage. |
+| `secrets/vault.bin`      | OS-encrypted database password, provider keys, model-connection keys and the ChatGPT plan session key; requires matching secure storage. |
 | `runtime/state.json`     | Stable application port, stored as `{version:1,gatewayPort}`; `gatewayPort` is the application port.          |
 | `runtime/processes.json` | Owned-process evidence, never authority to kill a discovered process.                          |
 | `runtime/logs`           | Redacted main and child diagnostics in `main.log`, rotated at 10 MiB with three older files; review before sharing. |
 | `content/local`          | Writable typed library.                                                                        |
-| `data`                   | Private uploads, downloaded model assets (`internal/model-assets`), staging and other non-portable application data. |
+| `data`                   | Private uploads, downloaded model assets (`internal/model-assets`), the encrypted ChatGPT plan session (`internal/chatgpt-plan/session.bin`), staging and other non-portable application data. |
 | `packs`, `downloads`     | Verified optional pack versions and bounded resumable pack downloads.                          |
 | `ui-locale.json`         | Last UI Locale the app applied, so the startup page and menu follow it before the backend runs. |
 | `pip-placement.json`     | Where the PiP window was last left on this machine's displays, and its size scale.             |
@@ -79,6 +79,17 @@ vaults open unchanged. When decryption reports that a key was rotated, main rewr
 vault with the current key. A Keychain that is locked or refused reports
 `secure_storage_unavailable` and leaves the vault untouched; Electron keeps
 that answer until the app restarts.
+
+The vault also holds a generated 32-byte key for the backend's
+[ChatGPT plan session](development.md#chatgpt-plan-session), created on first
+need. The backend renews the session's tokens by itself and writes them only to
+`data/internal/chatgpt-plan/session.bin`, encrypted with that key, so nothing
+flows back to main. Main passes the key only to FastAPI, as
+`ANIMAMA_CHATGPT_PLAN_STORE_KEY`, and adds it to log redaction; it is never
+status, a provider key or part of another child's environment. If the vault
+cannot create the key, main logs `chatgpt_plan_store_key_unavailable` and
+FastAPI starts without it: ChatGPT sign-in then reports
+`secure_storage_unavailable`, and no session file is read or written.
 
 The control token and renderer capability are generated in main memory for
 each app launch; they are not persisted in the vault. The principal persists in
@@ -120,6 +131,7 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Exact saved loopback origin and packaged React build root. |
 | `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` | Per-launch renderer admission cookie; never a private-control credential. |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `GEMINI_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI, which moves them into its runtime store and removes them from its environment; withheld from the cleanup worker, `database` commands and upload parse children; redacted from logs. |
+| `ANIMAMA_CHATGPT_PLAN_STORE_KEY` | The vault's ChatGPT plan session key (64 lower-case hex characters), for FastAPI only. FastAPI takes it out of its environment when it builds its app, so no child inherits it; a malformed value is logged without its value and ignored. Without it, ChatGPT sign-in is unavailable. |
 | `ANIMAMA_PROCESS_START_TOKEN` | Fresh owned-child UUID returned with its PID in private readiness. |
 | `ANIMAMA_PARAKEET_SOURCE` | `asset-store`: FastAPI installs and serves the speech-to-text sets (Parakeet and SenseVoice) from its own model-asset store, without a restart. |
 | `ANIMAMA_DESKTOP_CONTROL_TOKEN`, `ANIMAMA_DESKTOP_BUILD_ID`                                                       | Separate private readiness credential and expected build.                                                |

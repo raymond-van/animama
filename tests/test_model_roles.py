@@ -25,6 +25,7 @@ from animama.app.services.model_role_resolver import (
     ROLE_CHAT,
     ROLE_EMBEDDINGS,
     ROLE_MEMORY_MANAGER,
+    ROLE_PREFERENCE_PATHS,
     ROLE_SOURCE_DEFAULT,
     ROLE_SOURCE_INHERITED,
     ROLE_SOURCE_OFF,
@@ -32,6 +33,7 @@ from animama.app.services.model_role_resolver import (
     ROLE_UTILITY,
     ModelRoleDefaults,
     ModelRoleResolver,
+    usable_for_role,
 )
 from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.model_connection import MODEL_KIND_CHAT, MODEL_KIND_EMBEDDING
@@ -180,6 +182,63 @@ async def test_unusable_assignments_fall_back_and_report_the_lost_choice(role, a
     assert resolved.source == expected_source
     assert resolved.requested_id == assigned.id
     assert resolved.assignment_available is False
+
+
+PLAN = "ChatGPTPlanResponsesHTTPAgent:gpt-6-luna"
+
+
+def _plan_row(*, active: bool) -> ModelProvider:
+    return ModelProvider(
+        id=PLAN,
+        provider_type="ChatGPTPlanResponsesHTTPAgent",
+        model="gpt-6-luna",
+        model_label="GPT-6 Luna",
+        provider_label="ChatGPT plan",
+        connection_id="chatgpt_plan",
+        source="builtin",
+        active=active,
+        context_window_tokens=272_000,
+        capabilities=ModelProviderCapabilities(supports_tools=True, supports_streaming=True),
+        connection=ModelConnection(id="chatgpt_plan", name="ChatGPT plan", preset="chatgpt_plan", source="builtin"),
+    )
+
+
+@pytest.mark.parametrize("role", [ROLE_CHAT, ROLE_UTILITY, ROLE_MEMORY_MANAGER])
+async def test_a_plan_model_no_longer_available_waits_rather_than_moving_to_another_connection(role):
+    """Signing out, or OpenAI no longer listing the model, retires the row; the job waits (spec R5.2, D6)."""
+
+    section, key = ROLE_PREFERENCE_PATHS[role]
+    resolver = _resolver(_row(CHAT), _plan_row(active=False), preferences={section: {key: PLAN}})
+
+    resolved = await resolver.resolve("owner", role)
+
+    assert (resolved.model_provider, resolved.source) == (None, ROLE_SOURCE_OFF)
+    assert (resolved.requested_id, resolved.assignment_available) == (PLAN, False)
+
+
+@pytest.mark.parametrize(
+    ("role", "suits"),
+    [(ROLE_CHAT, True), (ROLE_UTILITY, True), (ROLE_MEMORY_MANAGER, True), (ROLE_EMBEDDINGS, False)],
+)
+def test_a_plan_model_suits_every_role_but_embeddings(role, suits):
+    """Spec #919 R3.2."""
+
+    assert usable_for_role(role, _plan_row(active=True)) is suits
+
+
+async def test_roles_inheriting_a_waiting_plan_chat_model_wait_too():
+    resolver = _resolver(_row(CHAT), _plan_row(active=False), preferences={"chat": {"default_model_provider_id": PLAN}})
+
+    utility = await resolver.resolve("owner", ROLE_UTILITY)
+    manager = await resolver.resolve("owner", ROLE_MEMORY_MANAGER)
+
+    assert utility.model_provider is None and manager.model_provider is None
+    # Settings say they wait for the chosen model, not that no model can do the job (P5-R2-F1).
+    assert (utility.source, utility.assignment_available) == (ROLE_SOURCE_OFF, False)
+    assert (manager.source, manager.assignment_available) == (ROLE_SOURCE_OFF, False)
+    # While the plan model is listed, the roles use it.
+    usable = _resolver(_row(CHAT), _plan_row(active=True), preferences={"chat": {"default_model_provider_id": PLAN}})
+    assert (await usable.resolve("owner", ROLE_UTILITY)).model_provider.id == PLAN  # type: ignore[union-attr]
 
 
 async def test_operator_defaults_apply_before_inheritance_and_unusable_ones_are_skipped():

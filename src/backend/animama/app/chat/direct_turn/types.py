@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from pydantic import BaseModel
 
@@ -10,6 +10,7 @@ from animama.app.chat.conversation_language import ConversationLanguage
 from animama.app.chat.memory_context import DirectChatMemoryContext
 from animama.app.chat.options import DirectChatOptions
 from animama.app.model_clients import ModelClientError, ModelClientRequest
+from animama.app.model_clients.image_parts import ModelClientImage
 from animama.domain.chat import Chat
 from animama.domain.user_file_processing import UserFileOutlineItem
 
@@ -22,6 +23,30 @@ class ModelClientNotFoundError(LookupError):
 
 class DirectChatTurnSetupError(RuntimeError):
     """Raised before a direct turn starts when required setup cannot be resolved."""
+
+
+class DirectChatTurnImagesUnsupportedError(DirectChatTurnSetupError):
+    """Raised when a turn carries images and the selected model does not accept them."""
+
+    code = "model_does_not_accept_images"
+
+
+@dataclass(frozen=True, slots=True)
+class DirectChatAttachedImage:
+    """One ready chat image attached to a turn, by reference; its bytes load per request."""
+
+    file_id: str
+    name: str
+    width: int
+    height: int
+
+
+class ChatImageLoader(Protocol):
+    """Loads the owner's stored chat images for one request."""
+
+    async def load(self, file_ids: Sequence[str]) -> Mapping[str, ModelClientImage]:
+        """Return the bytes of each ready image among ``file_ids``; others are left out."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +81,7 @@ class DirectChatTurnRequest:
     model_provider_id: str | None = None
     attached_file_ids: tuple[str, ...] = ()
     attached_files: tuple[DirectChatAttachmentContext, ...] = ()
+    attached_images: tuple[DirectChatAttachedImage, ...] = ()
     request_options: DirectChatOptions | Mapping[str, Any] = field(default_factory=DirectChatOptions)
     emotional_state: Mapping[str, Any] | None = None
     runtime_revision: str | None = None
@@ -126,7 +152,10 @@ class DirectChatTurnStreamError(RuntimeError):
 __all__ = [
     "PreSendCompactionRequest",
     "PreSendCompactor",
+    "ChatImageLoader",
+    "DirectChatAttachedImage",
     "DirectChatAttachmentContext",
+    "DirectChatTurnImagesUnsupportedError",
     "DirectChatTurnRequest",
     "DirectChatTurnSetupError",
     "DirectChatTurnStreamError",

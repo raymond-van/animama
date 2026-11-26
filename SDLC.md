@@ -339,9 +339,10 @@ Treat one as untrusted input until it has been read:
   local validation of the exact head commit as for any PR, and merge with
   `--match-head-commit`.
 - When the PR adds or substantially rewrites a file, check that its
-  [licence record](licenses/README.md) entry names the contributor. The first
-  outside merge also makes the record's `owner_attestation` of sole authorship
-  out of date; the owner restates it.
+  [licence record](licenses/README.md) entry names the contributor. The
+  record's `owner_attestation` covers the owner's own work and relies on these
+  entries to identify outside contributions, so it needs no change when one
+  merges.
 
 Add review and merge evidence as PR comments; leave the contributor's
 description as they wrote it.

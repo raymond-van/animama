@@ -22,14 +22,41 @@ function droppedFiles(event: DragEvent): File[] {
   return Array.from(event.dataTransfer?.files ?? []);
 }
 
-function addFileToUppy(uppy: UserFileUploadUppy, file: File) {
+function addFileToUppy(
+  uppy: UserFileUploadUppy,
+  file: File,
+  source = "chat-page-drop",
+) {
   uppy.addFile({
     data: file,
     isRemote: false,
     name: file.name,
-    source: "chat-page-drop",
+    source,
     type: file.type || "application/octet-stream",
   });
+}
+
+/** Errors the uploader already explained to the person, such as an image refusal. */
+function alreadyExplained(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { isUserFacing?: unknown }).isUserFacing === false
+  );
+}
+
+/** Add pasted images to the composer; refusals are shown by its own rules. */
+export function addPastedImages(
+  uppy: UserFileUploadUppy,
+  images: readonly File[],
+) {
+  for (const image of images) {
+    try {
+      addFileToUppy(uppy, image, "chat-paste");
+    } catch {
+      // Uppy reported the restriction, or the composer refused the image.
+    }
+  }
 }
 
 export function ChatFileDropOverlay({
@@ -58,6 +85,7 @@ export function ChatFileDropOverlay({
         try {
           addFileToUppy(uppy, file);
         } catch (error) {
+          if (alreadyExplained(error)) continue;
           failedCount += 1;
           firstError ??= error;
         }

@@ -20,6 +20,7 @@ from agents import (
     RunState,
     Usage as AgentsUsage,
 )
+from agents.models.chatcmpl_converter import Converter
 from agents.models.interface import Model
 from fastapi import HTTPException
 from openai import BadRequestError
@@ -3032,6 +3033,73 @@ async def test_chat_completions_manager_uses_an_approval_gated_patch_tool_withou
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("model", "effort"), [("gpt-6-luna", "none"), ("gpt-5.4-mini", "none"), ("gpt-5-nano", None)])
+async def test_chat_completions_manager_sends_effort_none_where_openai_requires_it_with_tools(
+    async_session,
+    clean_memory_manager_rows,
+    model: str,
+    effort: str | None,
+) -> None:
+    """OpenAI refuses function tools at the default effort from GPT-5.4 on (#932)."""
+
+    from agents.models.interface import ModelTracing
+    from openai.types.chat import ChatCompletion
+
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=memory_entries,
+        model_provider=_manager_model(model, provider_type="OpenAIHTTPAgent"),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=1.0,
+    )
+    run = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE)
+    connection, credential = runtime._require_model()
+    client = runtime._client(connection, credential)
+    sent: dict[str, Any] = {}
+
+    async def _create(**kwargs: Any) -> ChatCompletion:
+        sent.update(kwargs)
+        return ChatCompletion.model_validate(
+            {
+                "id": "c",
+                "object": "chat.completion",
+                "created": 1,
+                "model": model,
+                "choices": [
+                    {"index": 0, "message": {"role": "assistant", "content": "Done."}, "finish_reason": "stop"}
+                ],
+            }
+        )
+
+    try:
+        agent, _run_config = await runtime._build_agent(
+            run=run,
+            workspace=MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries),
+            client=client,
+            credential=credential,
+            editor=_approval_required_patch_editor(),
+        )
+        cast(Any, client.chat.completions).create = _create
+        await cast(Any, agent.model).get_response(
+            system_instructions=None,
+            input="Remember that my cat is Mochi.",
+            model_settings=agent.model_settings,
+            tools=agent.tools,
+            output_schema=None,
+            handoffs=[],
+            tracing=ModelTracing.DISABLED,
+        )
+    finally:
+        await client.close()
+
+    assert sent["tools"]
+    sent_effort = sent.get("reasoning_effort")
+    assert (sent_effort if isinstance(sent_effort, str) else None) == effort
+
+
+@pytest.mark.asyncio
 async def test_chat_completions_manager_replays_the_run_and_previews_function_tool_patches(
     async_session,
     clean_memory_manager_rows,
@@ -3251,6 +3319,66 @@ async def test_chat_completions_manager_uses_the_connection_timeout_and_strips_s
     # Replies may take the connection's 300 s; connecting is capped.
     assert (client.timeout.read, client.timeout.connect) == (300.0, 10.0)  # type: ignore[union-attr]
     assert sent["tools"] == [{"type": "function", "function": {"name": "apply_patch", "parameters": {}}}]
+
+
+@pytest.mark.asyncio
+async def test_chat_completions_manager_sends_a_zero_argument_tool_without_an_empty_required_list(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    """Groq's strict validator rejects ``properties: {}`` beside ``required: []`` (#902)."""
+
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    connection = ModelConnection(
+        id="conn-groq-manager",
+        name="Groq",
+        preset="custom",
+        base_url="https://api.groq.com/openai/v1",
+    )
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=memory_entries,
+        model_provider=_manager_model("openai/gpt-oss-120b", provider_type="OpenAIHTTPAgent", connection=connection),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=60.0,
+    )
+    run = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE)
+    connection, credential = runtime._require_model()
+    client = runtime._client(connection, credential)
+    sent: dict[str, Any] = {}
+
+    class _Completions:
+        async def create(self, **kwargs: Any) -> str:
+            sent.update(kwargs)
+            return "ok"
+
+    try:
+        agent, _run_config = await runtime._build_agent(
+            run=run,
+            workspace=MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries),
+            client=client,
+            credential=credential,
+            editor=_approval_required_patch_editor(),
+        )
+        list_files = next(
+            tool for tool in agent.tools if isinstance(tool, FunctionTool) and tool.name == "memory_list_files"
+        )
+        sdk_client = cast(Any, agent.model)._client
+        sdk_client._client = SimpleNamespace(chat=SimpleNamespace(completions=_Completions()))
+        # The definition exactly as the SDK builds it for a Chat Completions call.
+        await sdk_client.chat.completions.create(
+            model="openai/gpt-oss-120b", tools=[Converter.tool_to_openai(list_files)]
+        )
+    finally:
+        await client.close()
+
+    function = sent["tools"][0]["function"]
+    assert function["strict"] is True
+    assert function["parameters"]["properties"] == {}
+    assert "required" not in function["parameters"]
+    # The SDK's tool keeps the schema it built.
+    assert list_files.params_json_schema["required"] == []
 
 
 @pytest.mark.asyncio

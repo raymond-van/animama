@@ -37,6 +37,23 @@ describe("chat user-file attachments", () => {
     ]);
   });
 
+  it("offers ready images, which have no chunks, and nothing else of theirs", () => {
+    const image = (fileId: string, status: string): PyUserFileResponse => ({
+      ...userFile(fileId, status, 0),
+      original_filename: `${fileId}.png`,
+      normalized_extension: ".png",
+      metadata: { kind: "image" },
+    });
+
+    expect(
+      selectableChatUserFiles([
+        image("ready-image", "ready"),
+        image("uploaded-image", "uploaded"),
+        image("failed-image", "failed"),
+      ]).map((file) => file.file_id),
+    ).toEqual(["ready-image"]);
+  });
+
   it("merges uploaded and existing IDs without duplicate or blank values", () => {
     expect(
       mergeChatAttachedFileIds(

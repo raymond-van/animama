@@ -56,7 +56,7 @@ deleting outputs or downloading dependencies. For Windows, see
 [signed-release gates](releases.md), including explicit Apple, inventory and
 intended repository configuration. The repository may remain private for local
 signed candidates; anonymous public access is checked only at publication.
-Private pack/update URLs do not become usable in the app. `desktop:dist:windows` and `desktop:smoke:windows` run only on a Windows x64 host; the installer and app require Windows 10 version 1903 or later, and support Windows 10 22H2 and Windows 11. No command treats a shell-only package as a release.
+Private pack/update URLs do not become usable in the app. `desktop:dist:windows` and `desktop:smoke:windows` run only on the Windows 11 x64 build host; the installer and app they produce require Windows 10 version 1903 or later, and support Windows 10 22H2 and Windows 11. No command treats a shell-only package as a release.
 
 After a successful stage and audit, `pnpm desktop:mac` copies the runtime into
 `Animama.app/Contents/Resources/runtime`, outside ASAR. Its prebuild gate requires

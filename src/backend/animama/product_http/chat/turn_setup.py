@@ -17,12 +17,14 @@ from animama.app.chat import (
     DirectChatAttachmentContext,
     DirectChatMemoryContextService,
     DirectChatTurnExecutor,
+    DirectChatTurnImagesUnsupportedError,
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
     ModelClientNotFoundError,
     PreparedDirectChatTurn,
     RuntimeGestureDescriptor,
 )
+from animama.app.chat.attached_images import AttachedImageError, validate_attached_images
 from animama.app.chat.conversation_language import conversation_language, with_speech_language
 from animama.app.chat.memory_search import validate_searchable_attached_files
 from animama.app.contracts.chat import PyAnimaChatRequest
@@ -40,6 +42,7 @@ from .compaction import pre_send_compactor
 from .options import DirectChatOptions, resolve_chat_request_options
 from .safety import TurnSafety, prepare_turn_safety
 from .session_services import (
+    SessionBackedChatImageLoader,
     SessionBackedChatTurnRecorder,
     SessionBackedMemoryEpisodeRecorder,
     SessionBackedMemoryToolService,
@@ -185,10 +188,18 @@ async def prepare_direct_chat_turn(
         operator=policy.companion_safety,
         crisis_resources=ports.crisis_resources(),
     )
+    try:
+        attached = await validate_attached_images(
+            user_file_processing=repositories.user_file_processing,
+            user_id=user.id,
+            file_ids=req.attached_file_ids,
+        )
+    except AttachedImageError as exc:
+        raise HTTPException(status_code=400, detail={"code": exc.code, "message": str(exc)}) from exc
     validated_attachments = await validate_searchable_attached_files(
         user_file_processing=repositories.user_file_processing,
         user_id=user.id,
-        file_ids=req.attached_file_ids,
+        file_ids=attached.other_file_ids,
     )
     attached_files = tuple(attachment.user_file for attachment in validated_attachments)
     attached_file_ids = tuple(user_file.id for user_file in attached_files)
@@ -204,6 +215,7 @@ async def prepare_direct_chat_turn(
         anima_id=anima_id,
         requested_attached_file_count=len(req.attached_file_ids or ()),
         searchable_attached_file_count=len(attached_file_ids),
+        attached_image_count=len(attached.images),
     )
 
     # Only attached uploads are searched during the turn, so the embeddings role
@@ -253,6 +265,8 @@ async def prepare_direct_chat_turn(
         pre_send_compaction_timeout_seconds=policy.presend_compaction_timeout_seconds,
         web_search_tool=await services.web_search_tool(session),
         crisis_moderator=policy.crisis_moderator,
+        # Earlier turns' images are replayed too, so the loader is there for every turn.
+        image_loader=SessionBackedChatImageLoader(sessions),
     )
     direct_request = DirectChatTurnRequest(
         anima_id=anima_id,
@@ -263,6 +277,7 @@ async def prepare_direct_chat_turn(
         model_provider_id=req.model_provider_id,
         attached_file_ids=attached_file_ids,
         attached_files=attachment_context,
+        attached_images=attached.images,
         request_options=chat_options,
         emotional_state=target.emotional_state,
         runtime_revision=target.runtime_revision,
@@ -280,6 +295,11 @@ async def prepare_direct_chat_turn(
         raise HTTPException(status_code=404, detail="Chat not found") from exc
     except ChatApiStandardConflictError as exc:
         raise HTTPException(status_code=409, detail=exc.detail) from exc
+    except DirectChatTurnImagesUnsupportedError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": exc.code, "message": "The selected model does not accept images."},
+        ) from exc
     except DirectChatTurnSetupError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ModelClientNotFoundError as exc:

@@ -38,6 +38,7 @@ import {
   chatRunMessageId,
   mapServerMessagesForDisplay,
   sortDisplayMessagesByCreatedAt,
+  type ChatDisplayImage,
   type ChatDisplayMessage,
 } from "../lib/chat/display-message-mapping";
 import type { ChatMemoryCue } from "../lib/chat/memory-cue";
@@ -129,6 +130,17 @@ export type UseProductChatSessionArgs = {
    * says why.
    */
   getAttachmentHold?: () => ChatAttachmentHold;
+  /**
+   * Called with a turn's attachments once the turn completes (the server has
+   * saved it), so the host can clear what it sent with them. A turn that is
+   * refused, fails or is stopped keeps them in the composer.
+   */
+  onAttachmentsSubmitted?: (fileIds: string[]) => void;
+  /**
+   * The images among a turn's attachments, in order, so the sent message shows
+   * them before history confirms it. Documents are left out.
+   */
+  describeAttachedImages?: (fileIds: readonly string[]) => ChatDisplayImage[];
   openDraftChatRoute: () => void | Promise<void>;
   replaceChatRoute: (chatId: string) => void | Promise<void>;
   safety?: ChatSafetyEffects;
@@ -248,6 +260,8 @@ export function useProductChatSession({
   animaId,
   getAttachedFileIds,
   getAttachmentHold,
+  onAttachmentsSubmitted,
+  describeAttachedImages,
   openDraftChatRoute,
   routeChatId = null,
   replaceChatRoute,
@@ -925,6 +939,12 @@ export function useProductChatSession({
         // The turn sends the attachments just checked: one added while the
         // chat is being created waits for the next turn.
         const attachedFileIds = getAttachedFileIds?.() ?? [];
+        const attachedImages = attachedFileIds.length
+          ? (describeAttachedImages?.(attachedFileIds) ?? [])
+          : [];
+        const imageFields = attachedImages.length
+          ? { images: attachedImages }
+          : {};
 
         const modelGate = chatModelSendGate(activeChat, activeModelProvider);
         if (!modelGate.ok) {
@@ -992,6 +1012,7 @@ export function useProductChatSession({
             id: chatRunMessageId(runId, "user"),
             role: "user",
             text: trimmed,
+            ...imageFields,
             createdAt: submittedAt,
             animateOnEnter: true,
           }),
@@ -1380,6 +1401,11 @@ export function useProductChatSession({
             // Completion finalizes run side-effects and caches both local user
             // text and fully streamed assistant text into query state.
             const completedRunId = data.run_id ?? runId;
+            // The server saved the turn with its attachments; a refused,
+            // failed or stopped turn keeps them in the composer.
+            if (attachedFileIds.length > 0) {
+              onAttachmentsSubmitted?.(attachedFileIds);
+            }
             logger.info("Chat", "SSE run completed", {
               animaId,
               chatId: data.chat_id ?? resolvedChatId,
@@ -1427,6 +1453,22 @@ export function useProductChatSession({
                 role: "user",
                 content: trimmed,
                 created_at: userCreatedAt,
+                // The images and the person's text, as history saves them.
+                ...(attachedImages.length
+                  ? {
+                      data: {
+                        images: attachedImages.map(
+                          ({ fileId, name, width, height }) => ({
+                            file_id: fileId,
+                            name,
+                            ...(width ? { width } : {}),
+                            ...(height ? { height } : {}),
+                          }),
+                        ),
+                        user_text: trimmed,
+                      },
+                    }
+                  : {}),
               },
             ];
             if (assistantTexts.length) {
@@ -1590,6 +1632,8 @@ export function useProductChatSession({
       finalizeCompletedStream,
       getAttachedFileIds,
       getAttachmentHold,
+      onAttachmentsSubmitted,
+      describeAttachedImages,
       logger,
       noticeAttachmentHold,
       patchChatTitleCaches,

@@ -37,7 +37,10 @@ import {
   ShellLocale,
   type ShellStrings,
 } from "./main-process/locale/shell-locale.js";
-import { installApplicationMenu } from "./main-process/ui/application-menu.js";
+import {
+  installApplicationMenu,
+  PendingMenuCommand,
+} from "./main-process/ui/application-menu.js";
 import {
   RuntimeError,
   runtimeErrorCode,
@@ -68,7 +71,10 @@ import {
   installProductRequestGate,
   ProductSessionCleanup,
 } from "./main-process/runtime/product-windows.js";
-import type { RuntimeStatus } from "../../shared/desktop-runtime.js";
+import type {
+  MenuCommand,
+  RuntimeStatus,
+} from "../../shared/desktop-runtime.js";
 import { readBoundedJson } from "./main-process/feature-packs/catalog.js";
 import { DesktopUpdateController } from "./main-process/updates/controller.js";
 import {
@@ -173,6 +179,7 @@ else {
   let quitting = false;
   let updates: DesktopUpdateController | undefined;
   let updateInitialization: Promise<void> | undefined;
+  const menuCommands = new PendingMenuCommand();
 
   /** Updates are optional, packaged-only infrastructure and never delay application readiness. */
   function initializeUpdates(): Promise<void> {
@@ -201,6 +208,8 @@ else {
       });
       if (!controller) return;
       updates = controller;
+      // The menu gains Check for Updates now that this build can update.
+      applyApplicationMenu(shellLocale.strings);
       callers.broadcastUpdate(updates.status());
       updates.start();
     })().catch(() => {
@@ -509,12 +518,56 @@ else {
       if (!linuxEntries) throw new RuntimeError("feature_unavailable");
       return linuxEntries.setMenuEntry(enabled);
     },
+    takeMenuCommand: () => menuCommands.take(),
   });
+
+  /**
+   * Show the app as the Dock does: its window when the runtime is ready, else
+   * the recovery page, which says why it is not.
+   */
+  function reopenWindow(): void {
+    const task =
+      currentStatus.state === "ready"
+        ? showApplication(currentStatus.origin)
+        : currentStatus.state === "external"
+          ? showApplication()
+          : showRecovery();
+    void task.catch(() => writeLog("error", "window_reopen_failed"));
+  }
+
+  /**
+   * Menu commands act in the main window's web app, which takes the waiting
+   * command when told and when it starts. With no app window (macOS keeps
+   * running after its window closes) the window is reopened first.
+   */
+  function runMenuCommand(command: MenuCommand): void {
+    menuCommands.set(command);
+    const main =
+      mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+    if (!main) return reopenWindow();
+    if (main.isMinimized()) main.restore();
+    main.show();
+    main.focus();
+    callers.announceMenuCommand();
+  }
 
   /** A menu failure must never block startup or recovery. */
   function applyApplicationMenu(strings: ShellStrings): void {
     try {
-      installApplicationMenu(strings, app.name, app.isPackaged);
+      installApplicationMenu(strings, app.name, app.isPackaged, {
+        importAnima: () => runMenuCommand("import-anima"),
+        // Offered only once this build's updater exists; the web app shows
+        // the check's progress and result in App Settings.
+        ...(updates
+          ? {
+              checkForUpdates: () => {
+                // A check already running reports through the same status.
+                void updates?.check().catch(() => undefined);
+                runMenuCommand("check-for-updates");
+              },
+            }
+          : {}),
+      });
     } catch {
       writeLog("error", "application_menu_failed");
     }
@@ -557,15 +610,7 @@ else {
         updateStatus({ state: "error", code: runtimeErrorCode(error) });
       });
   });
-  app.on("activate", () => {
-    const task =
-      currentStatus.state === "ready"
-        ? showApplication(currentStatus.origin)
-        : currentStatus.state === "external"
-          ? showApplication()
-          : showRecovery();
-    void task.catch(() => writeLog("error", "window_reopen_failed"));
-  });
+  app.on("activate", reopenWindow);
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
   });

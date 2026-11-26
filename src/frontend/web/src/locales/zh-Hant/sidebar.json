@@ -64,6 +64,7 @@
     "account": "帳號",
     "accountUnavailable": "無法存取帳號。",
     "appSettings": "應用程式設定",
+    "checkForUpdates": "檢查更新…",
     "fallbackName": "你",
     "signOut": "登出",
     "usage": "用量與上限"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -15,9 +16,11 @@ from animama.adapters.model_clients import (
 )
 from animama.adapters.model_clients.anthropic_messages.probe import AnthropicClientFactory
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
-from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
+from animama.adapters.model_clients.openai_responses.chatgpt_plan_client import ChatGPTPlanResponsesModelClient
+from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE
 from animama.app.model_clients import StaticModelClientRegistry
 from animama.app.model_clients.credentials import ModelCredentialResolver, StoreModelCredentialResolver
+from animama.app.ports.chatgpt_plan_port import ChatGPTPlanTokenSource
 from animama.server.config import Settings, settings
 from animama.server.runtime_credentials import runtime_credentials
 
@@ -46,11 +49,14 @@ def build_model_client_registry(
     openai_client: AsyncOpenAI | None = None,
     credential_resolver: ModelCredentialResolver | None = None,
     anthropic_client_factory: AnthropicClientFactory | None = None,
+    chatgpt_plan_session: Callable[[], ChatGPTPlanTokenSource] | None = None,
 ) -> StaticModelClientRegistry:
     """Build shared model clients for app startup without request-local state.
 
     Each provider type has its own client and reads only its own connection's
     key; with ``ANIMAMA_LLM_SKIP`` every type uses the deterministic mock.
+    ChatGPT plan models get a client only when the composition supplies the
+    session (the local composition does; hosted has no plan sign-in).
     ``openai_client`` and ``anthropic_client_factory`` are test hooks.
     """
 
@@ -61,6 +67,7 @@ def build_model_client_registry(
             OPENAI_HTTP_PROVIDER_TYPE,
             OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
             ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+            CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE,
         ):
             registry.register(provider_type, mock_client)
         registry.register(MockModelClient.PROVIDER_TYPE, mock_client)
@@ -97,13 +104,25 @@ def build_model_client_registry(
             client_factory=anthropic_client_factory,
         ),
     )
+    if chatgpt_plan_session is not None:
+        registry.register(
+            CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE,
+            ChatGPTPlanResponsesModelClient(
+                session=chatgpt_plan_session, timeout=app_settings.anima_model_client_timeout_seconds
+            ),
+        )
     return registry
 
 
-async def init_model_client_registry(app: Any, *, app_settings: Settings = settings) -> StaticModelClientRegistry:
+async def init_model_client_registry(
+    app: Any,
+    *,
+    app_settings: Settings = settings,
+    chatgpt_plan_session: Callable[[], ChatGPTPlanTokenSource] | None = None,
+) -> StaticModelClientRegistry:
     """Attach the process-wide model-client registry to ``app.state``."""
 
-    registry = build_model_client_registry(app_settings=app_settings)
+    registry = build_model_client_registry(app_settings=app_settings, chatgpt_plan_session=chatgpt_plan_session)
     setattr(app.state, _STATE_ATTR, registry)
     return registry
 

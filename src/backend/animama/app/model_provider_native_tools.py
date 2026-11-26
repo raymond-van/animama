@@ -6,6 +6,7 @@ from collections.abc import Iterable
 
 OPENAI_RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent"
 ANTHROPIC_MESSAGES_PROVIDER_TYPE = "AnthropicMessagesHTTPAgent"
+CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE = "ChatGPTPlanResponsesHTTPAgent"
 
 # This allowlist describes tools callers may explicitly select through
 # ``dispatch_options.native_tools``. Backend-owned tools such as apply_patch
@@ -15,6 +16,8 @@ REQUESTABLE_NATIVE_TOOL_SUPPORT_BY_PROVIDER: dict[str, frozenset[str]] = {
     OPENAI_RESPONSES_PROVIDER_TYPE: frozenset({"web_search"}),
     # Anthropic's ``web_search`` server tool; Anthropic bills searches to the owner.
     ANTHROPIC_MESSAGES_PROVIDER_TYPE: frozenset({"web_search"}),
+    # OpenAI's hosted search, on plan models whose account listing supports it (D8).
+    CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE: frozenset({"web_search"}),
 }
 
 

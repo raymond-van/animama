@@ -170,7 +170,8 @@ def test_both_built_in_connections_are_seeded_and_anthropic_is_not_owner_selecta
     connections = {row["id"]: row for row in serialize_builtin_model_connections()}
     preset = MODEL_CONNECTION_PRESETS[PRESET_ANTHROPIC]
 
-    assert set(connections) == {BUILTIN_OPENAI_CONNECTION_ID, BUILTIN_ANTHROPIC_CONNECTION_ID}
+    # The ChatGPT plan's connection is built in too; its credential is a sign-in (spec #919).
+    assert set(connections) == {BUILTIN_OPENAI_CONNECTION_ID, BUILTIN_ANTHROPIC_CONNECTION_ID, "chatgpt_plan"}
     anthropic = connections[BUILTIN_ANTHROPIC_CONNECTION_ID]
     assert anthropic["source"] == "builtin"
     assert anthropic["name"] == "Anthropic"

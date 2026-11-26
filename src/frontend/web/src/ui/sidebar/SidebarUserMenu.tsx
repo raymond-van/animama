@@ -1,9 +1,15 @@
-import { Settings } from "lucide-react";
-import { useState } from "react";
+import { RefreshCw, Settings } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { cn } from "@/lib/utils";
 import { useUserProfile } from "@/query/hooks/useUserProfile";
+import {
+  clearAppSettingsRequest,
+  requestAppSettings,
+  useAppSettingsHost,
+} from "@/stores/app-settings-request-store";
 import { Avatar, AvatarFallback } from "@/ui/components/avatar";
 import {
   DropdownMenu,
@@ -24,6 +30,9 @@ import {
 } from "@/app/runtime/RuntimeAdmissionProvider";
 import { AccountUsage } from "./AccountUsage";
 
+/** Update states in which the updater refuses to start a check. */
+const UPDATE_BUSY_STATES = new Set(["checking", "downloading", "restarting"]);
+
 function initials(name: string): string {
   return name
     .trim()
@@ -35,7 +44,12 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-/** Show admitted personalization and composition-provided account controls. */
+/**
+ * Show admitted personalization and composition-provided account controls.
+ * A desktop build that can update also offers **Check for updates…**, the
+ * same action as the macOS application menu item; the Windows window has no
+ * menu bar, so this is where its owners find the check.
+ */
 export function SidebarUserMenu() {
   const { t } = useTranslation("sidebar");
   const { open } = useSidebar();
@@ -43,6 +57,14 @@ export function SidebarUserMenu() {
   const profile = useUserProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [applicationSettingsOpen, setApplicationSettingsOpen] = useState(false);
+  // Other surfaces (a composer hint, the desktop menu) open App Settings here.
+  const settingsRequest = useAppSettingsHost();
+  useEffect(() => {
+    if (settingsRequest) setApplicationSettingsOpen(true);
+  }, [settingsRequest]);
+  // "unavailable" covers the web, unpackaged runs, Linux and sealed builds.
+  const updates = useDesktopUpdates();
+  const canCheckForUpdates = updates.status.state !== "unavailable";
   const [usageOpen, setUsageOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const controller = useOptionalRuntimeController();
@@ -113,6 +135,25 @@ export function SidebarUserMenu() {
             <Settings className="h-4 w-4" />
             {t("user.appSettings")}
           </DropdownMenuItem>
+          {canCheckForUpdates ? (
+            <DropdownMenuItem
+              className="gap-2"
+              onSelect={(event) => {
+                event.preventDefault();
+                setMenuOpen(false);
+                closeMobileSidebar();
+                // The update panel shows the check's progress and result; a
+                // check, download or restart already running reports there
+                // instead, so it is not asked to start another.
+                if (!UPDATE_BUSY_STATES.has(updates.status.state))
+                  void updates.run("check");
+                requestAppSettings("updates");
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {t("user.checkForUpdates")}
+            </DropdownMenuItem>
+          ) : null}
           {account ? (
             <>
               {canOpenAccount ? (
@@ -161,7 +202,14 @@ export function SidebarUserMenu() {
       </DropdownMenu>
       <ApplicationSettingsModal
         open={applicationSettingsOpen}
-        onOpenChange={setApplicationSettingsOpen}
+        onOpenChange={(next) => {
+          setApplicationSettingsOpen(next);
+          // Closing before the setting could be shown withdraws the request.
+          if (!next && settingsRequest)
+            clearAppSettingsRequest(settingsRequest);
+        }}
+        reveal={settingsRequest}
+        onRevealed={clearAppSettingsRequest}
       />
       {account ? (
         <AccountUsage

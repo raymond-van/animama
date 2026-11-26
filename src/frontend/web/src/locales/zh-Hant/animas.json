@@ -191,6 +191,7 @@
       "file_unreadable": "虛擬形象檔案不是可讀取的 glTF 或 VRM 檔案。",
       "humanoid_bones_remapped_other": "有 {{count}} 個人形骨骼指向不移動模型任何部分的骨骼，因此改用旁邊網格所跟隨的骨骼。",
       "humanoid_bones_unweighted_other": "有 {{count}} 個人形骨骼不移動模型的任何部分，旁邊也沒有可替代的、網格所跟隨的骨骼，因此這些骨骼上的動作不會顯示。",
+      "materials_unlit": "此檔案的所有材質都不受光照影響，因此原樣看起來很平面。除非虛擬形象的材質設定為簡單，Animama 會加上卡通陰影和輪廓線。",
       "landmarks_anchor_missing": "找不到用來固定臉部特徵點的頭部。",
       "landmarks_eyes_missing": "臉部找不到眼睛，因此眼部特效無法使用。",
       "landmarks_face_bounds_failed": "無法測量臉部皮膚。",
@@ -566,6 +567,7 @@
     "cloning": {
       "change": "更換樣本",
       "checking": "正在檢查語音複製…",
+      "chooseHint": "每個 Anima 都在其頁面的「語音」中選擇自己的語音。",
       "clone": "複製語音",
       "cloningVoice": "正在複製語音…",
       "delete": {
@@ -611,6 +613,9 @@
       "sectionLabel": "語音複製",
       "title": "語音複製",
       "upload": "上傳語音樣本",
+      "usedBy": "{{anima}} 的語音",
+      "usedFor": "已將 {{voice}} 設為 {{anima}} 的語音。下次開啟聊天時生效。",
+      "useFor": "用於 {{anima}}",
       "downloadsEnded": "語音複製所需的模型已無法下載。已儲存的複製語音仍可繼續使用。"
     },
     "elevenLabs": {

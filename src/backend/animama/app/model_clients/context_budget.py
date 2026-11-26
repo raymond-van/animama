@@ -15,6 +15,7 @@ from typing import Any
 
 from animama.domain import ModelProvider
 
+from .image_parts import image_tokens_in
 from .prompt import DirectChatPrompt, prompt_messages
 
 _ASCII_CHARACTERS_PER_TOKEN = 4
@@ -87,12 +88,16 @@ def estimate_text_tokens(text: str) -> int:
 
 
 def estimate_prompt_tokens(prompt: DirectChatPrompt) -> int:
-    """Return a conservative estimate of a request's prompt: messages, tools and response format."""
+    """Return a conservative estimate of a request's prompt: messages, tools and response format.
 
-    return estimate_text_tokens(
+    An image counts what a provider charges for it, not the few bytes of its reference.
+    """
+
+    messages = prompt_messages(prompt)
+    return image_tokens_in(messages) + estimate_text_tokens(
         json.dumps(
             {
-                "messages": prompt_messages(prompt),
+                "messages": messages,
                 "tools": list(prompt.tools),
                 "response_format": prompt.response_format,
             },
@@ -102,10 +107,15 @@ def estimate_prompt_tokens(prompt: DirectChatPrompt) -> int:
     )
 
 
-def estimate_value_tokens(value: Any) -> int:
-    """Return a conservative estimate for one prompt message or item."""
+def estimate_value_tokens(value: Any, *, count_images: bool = True) -> int:
+    """Return a conservative estimate for one prompt message or item.
 
-    return estimate_text_tokens(json.dumps(value, default=_json_default, ensure_ascii=False))
+    Images count what a provider charges for them unless ``count_images`` is
+    false, for a model that receives their placeholders instead.
+    """
+
+    text_tokens = estimate_text_tokens(json.dumps(value, default=_json_default, ensure_ascii=False))
+    return text_tokens + (image_tokens_in(value) if count_images else 0)
 
 
 def _json_default(value: Any) -> Any:

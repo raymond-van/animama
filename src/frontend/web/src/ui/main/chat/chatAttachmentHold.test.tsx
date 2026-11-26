@@ -41,6 +41,7 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let hold: ChatAttachmentHold = "none";
 let attached: string[] = [];
+let submitted: string[][] = [];
 let recorded: RecordedRequest[] = [];
 let view: { session: Session | null } = { session: null };
 
@@ -67,6 +68,11 @@ function mount() {
       effects: textOnlyChatEffects,
       getAttachedFileIds: () => attached,
       getAttachmentHold: () => hold,
+      onAttachmentsSubmitted: (fileIds) => submitted.push(fileIds),
+      describeAttachedImages: (fileIds) =>
+        fileIds
+          .filter((fileId) => fileId.startsWith("image"))
+          .map((fileId) => ({ fileId, name: `${fileId}.png` })),
       openDraftChatRoute: () => {},
       replaceChatRoute: () => {},
     });
@@ -165,9 +171,23 @@ async function pressEnter() {
   await settle();
 }
 
+/** Send the typed turn into a new chat and return its pending `chat:sse` request. */
+async function openTurn(): Promise<RecordedRequest> {
+  await pressEnter();
+  await act(async () => {
+    recorded[0].respond(
+      Response.json({ id: "chat-new", anima_id: "anima-1", title: null }),
+    );
+  });
+  return settleUntil(() =>
+    recorded.find(({ path }) => path.endsWith("/chat:sse")),
+  );
+}
+
 beforeEach(() => {
   hold = "none";
   attached = [];
+  submitted = [];
   recorded = [];
   view = mount();
   act(() => session().setInput(QUESTION));
@@ -253,5 +273,148 @@ describe("a send held by its attachments", () => {
     );
 
     expect(turn.body).toMatchObject({ attached_file_ids: ["file-ready"] });
+  });
+
+  it("tells the host which attachments a turn carried once the turn completes", async () => {
+    attached = ["image-1", "file-doc"];
+    const turn = await openTurn();
+    expect(session().input).toBe("");
+    const runId = (turn.body as { run_id: string }).run_id;
+    const stream = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = stream.writable.getWriter();
+    const send = (data: unknown) =>
+      writer.write(
+        new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`),
+      );
+    await act(async () => {
+      turn.respond(
+        new Response(stream.readable, {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+      await send({ text: "A red square.", run_id: runId });
+    });
+    await settleUntil(() =>
+      session().displayMessages.some((message) => message.role === "assistant")
+        ? true
+        : undefined,
+    );
+    // The reply has started, but the turn is not saved yet.
+    expect(submitted).toEqual([]);
+
+    await act(async () => {
+      await send({ chat_id: "chat-new", run_id: runId });
+      await writer.close();
+    });
+    await settleUntil(() => (submitted.length > 0 ? true : undefined));
+
+    expect(submitted).toEqual([["image-1", "file-doc"]]);
+  });
+
+  it("keeps the attachments of a turn that fails after its reply starts", async () => {
+    attached = ["image-1"];
+    const turn = await openTurn();
+    const runId = (turn.body as { run_id: string }).run_id;
+
+    await act(async () => {
+      turn.respond(
+        new Response(
+          [
+            `data: ${JSON.stringify({ text: "A red", run_id: runId })}`,
+            `data: ${JSON.stringify({ error: "upstream failed", code: "provider_error", run_id: runId })}`,
+            "",
+            "",
+          ].join("\n\n"),
+          { headers: { "Content-Type": "text/event-stream" } },
+        ),
+      );
+    });
+    await settleUntil(() =>
+      session().displayMessages.some((message) => message.failure)
+        ? true
+        : undefined,
+    );
+
+    expect(submitted).toEqual([]);
+  });
+
+  it("keeps the attachments of a turn the server refuses", async () => {
+    attached = ["image-1"];
+    const turn = await openTurn();
+
+    await act(async () => {
+      turn.respond(
+        Response.json(
+          {
+            detail: {
+              code: "model_does_not_accept_images",
+              message: "This model does not accept images.",
+            },
+          },
+          { status: 400 },
+        ),
+      );
+    });
+    await settleUntil(() =>
+      session().displayMessages.some((message) => message.failure)
+        ? true
+        : undefined,
+    );
+
+    expect(submitted).toEqual([]);
+  });
+
+  it("tells the host nothing for a held turn", async () => {
+    attached = ["image-1"];
+    hold = "waiting";
+    await pressEnter();
+
+    expect(session().input).toBe(QUESTION);
+    expect(submitted).toEqual([]);
+  });
+});
+
+describe("images sent with a turn", () => {
+  const sentMessage = () =>
+    session().displayMessages.find(
+      (message) => message.role === "user" && message.text === QUESTION,
+    );
+
+  it("shows the turn's images with its message before and after history confirms it", async () => {
+    attached = ["image-1", "file-doc"];
+    const turn = await openTurn();
+    expect(sentMessage()?.images).toEqual([
+      { fileId: "image-1", name: "image-1.png" },
+    ]);
+
+    const runId = (turn.body as { run_id: string }).run_id;
+    await act(async () => {
+      turn.respond(
+        new Response(
+          [
+            `data: ${JSON.stringify({ text: "A red square.", run_id: runId })}`,
+            `data: ${JSON.stringify({ chat_id: "chat-new", run_id: runId })}`,
+            "",
+            "",
+          ].join("\n\n"),
+          { headers: { "Content-Type": "text/event-stream" } },
+        ),
+      );
+    });
+    await settleUntil(() => (session().isStreaming ? undefined : true));
+    act(() => session().handleStreamingAnimationComplete());
+    await settle();
+
+    expect(sentMessage()?.images).toEqual([
+      { fileId: "image-1", name: "image-1.png" },
+    ]);
+  });
+
+  it("shows no image list for a turn with documents only", async () => {
+    attached = ["file-doc"];
+    await openTurn();
+
+    expect(sentMessage()).toBeDefined();
+    expect(sentMessage()?.images).toBeUndefined();
   });
 });

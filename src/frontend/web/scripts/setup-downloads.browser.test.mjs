@@ -895,6 +895,65 @@ test("an unsaved key prompts before leaving: keep editing, save and continue, or
   }
 });
 
+test("Continue with no model that can reply asks first; a usable model and Skip do not", async () => {
+  const { page, bodies } = await mount();
+  try {
+    await welcome(page);
+    const dialog = page.getByRole("dialog", {
+      name: "Continue without a chat model?",
+    });
+
+    // An untouched provider form: nothing is connected, so nothing can reply.
+    await providerTab(page, "DeepSeek").click();
+    await button(page, "Continue").click();
+    await dialog.waitFor();
+    await dialog.getByText(/App Settings → Models/u).waitFor();
+    await button(page, "Keep setting up").click();
+    await dialog.waitFor({ state: "hidden" });
+    assert.equal(await heading(page, "Choose your AI").count(), 1);
+
+    // A provider that needs a key cannot be connected without one.
+    const connect = providerPanel(page, "DeepSeek").getByRole("button", {
+      name: "Connect",
+      exact: true,
+    });
+    assert.equal(await connect.isDisabled(), true);
+
+    // Skip is already an explicit choice.
+    await button(page, "Skip for now").click();
+    await heading(page, "Set up voice").waitFor();
+    await button(page, "Back").click();
+    await heading(page, "Choose your AI").waitFor();
+
+    // With a key saved, the default model can reply and Continue moves on.
+    await providerTab(page, "OpenAI").click();
+    await openAiKey(page).fill("fixture-key");
+    await button(page, "Save").click();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    await button(page, "Continue").click();
+    await heading(page, "Set up voice").waitFor();
+    assert.equal(await dialog.count(), 0);
+
+    // Confirming continues without a model, as Skip does.
+    const other = await mount();
+    try {
+      await welcome(other.page);
+      await button(other.page, "Continue").click();
+      await button(other.page, "Continue without a model").click();
+      await heading(other.page, "Set up voice").waitFor();
+      await button(other.page, "Finish").click();
+      await button(other.page, "I am 18 or older and agree").click();
+      await other.page.getByText("Setup complete", { exact: true }).waitFor();
+      assert.equal("chat_model_provider_id" in other.bodies.onboarding, false);
+    } finally {
+      await other.page.close();
+    }
+    assert.equal(bodies.onboarding, undefined);
+  } finally {
+    await page.close();
+  }
+});
+
 test("a key typed into another provider's connect form prompts before leaving", async () => {
   const { page, operations, requests } = await mount();
   try {
@@ -1299,6 +1358,8 @@ test("a speech download keeps running after Finish and survives renderer recreat
     );
     await button(page, "Continue").click();
     await button(page, "Continue").click();
+    // No key is set, so Continue asks before leaving without a chat model.
+    await button(page, "Continue without a model").click();
     await button(page, "Finish").click();
     await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();

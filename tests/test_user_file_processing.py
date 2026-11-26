@@ -12,8 +12,8 @@ from typing import Any, cast
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.content_store.private_file_store import (
     PrivateFileNotFoundError,
@@ -27,6 +27,7 @@ from animama.adapters.parsers.text_user_file_parser import parse_text_user_file
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import record_document_heartbeat
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
+from animama.adapters.repositories.sqlalchemy.user_file_repo import SQLAlchemyUserFileRepository
 from animama.app.ports.private_file_storage import PrivateFileStorage
 from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
@@ -240,6 +241,17 @@ class _StaticParser:
 class _UnexpectedParser:
     async def parse(self, *, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
         pytest.fail("duplicate content should not be parsed")
+
+
+class _RouterFileService:
+    """The process route reads the file first: an image has no processing job."""
+
+    async def get_user_file(self, *, user_id: str, file_id: str):
+        if file_id == "missing":
+            from animama.app.services.user_file_service import UserFileNotFoundError
+
+            raise UserFileNotFoundError("File not found")
+        return SimpleNamespace(id=file_id, user_id=user_id, metadata={})
 
 
 class _RouterProcessingService:
@@ -456,6 +468,7 @@ async def test_processing_enqueue_reuses_active_job_and_force_creates_new(
 
 @pytest.mark.asyncio
 async def test_process_endpoint_returns_accepted_response(monkeypatch) -> None:
+    monkeypatch.setattr(user_files_router, "_service", lambda _session: _RouterFileService())
     monkeypatch.setattr(
         user_files_router, "_processing_service", lambda _session, **_policy: _RouterProcessingService()
     )
@@ -476,6 +489,7 @@ async def test_process_endpoint_returns_accepted_response(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_process_endpoint_enforces_current_user_not_found(monkeypatch) -> None:
+    monkeypatch.setattr(user_files_router, "_service", lambda _session: _RouterFileService())
     monkeypatch.setattr(
         user_files_router, "_processing_service", lambda _session, **_policy: _RouterProcessingService()
     )
@@ -1518,3 +1532,24 @@ async def test_semantic_search_compares_only_the_embedder_model_and_requires_emb
 
     assert repo.semantic_model_ids == ["test:embedding"]
     assert response.results[0].chunk_id == "chunk-b"
+
+
+@pytest.mark.asyncio
+async def test_locked_file_read_sees_a_change_another_session_committed(async_session, clean_user_file_tables) -> None:
+    await _insert_file(async_session)
+    await async_session.commit()
+    # Keep the row alive in this session, as a request that read it earlier would.
+    held = await async_session.get(ORMUserFile, "file-1")
+    assert held is not None and held.status == STATUS_UPLOADED
+    await async_session.commit()
+    async with async_sessionmaker(async_session.bind, expire_on_commit=False)() as other:
+        await other.execute(update(ORMUserFile).where(ORMUserFile.id == "file-1").values(status=STATUS_READY))
+        await other.commit()
+
+    locked = await SQLAlchemyUserFileRepository(async_session).get_user_file_for_update(
+        user_id="user-1", file_id="file-1"
+    )
+    await async_session.rollback()
+
+    assert locked is not None
+    assert locked.status == STATUS_READY

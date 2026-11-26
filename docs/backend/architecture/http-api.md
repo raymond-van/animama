@@ -50,6 +50,10 @@ Local setup and host/key administration schemas remain in the server composition
   the capability probe (Anthropic's Models API on the built-in Anthropic
   connection). Only `create_local_app` mounts it, outside the shared `/v1`
   aggregate, because it sends requests to owner-supplied URLs.
+- `server/routers/chatgpt_plan.py`: the [ChatGPT plan](#chatgpt-plan) sign-in,
+  its status and preferences, the plan's model list, and the sign-in return
+  `GET /auth/callback`. Only `create_local_app` mounts it, because the session
+  is kept on this machine and the return must reach it on loopback.
 - `server/routers/web_search.py`: owner application web search settings and
   Test. Only `create_local_app` mounts it, because a SearXNG URL is
   owner-supplied and Test sends a query to the configured backend.
@@ -179,7 +183,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 23.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 25.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -199,6 +203,8 @@ request none. The Library's Preview action and Avatar portraits do not depend on
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
 local-only [model configuration routes](#model-configuration) exist only then.
+`chatgpt_plan` (absent means false) is true only in the local composition,
+which mounts the [ChatGPT plan routes](#chatgpt-plan).
 The shared `GET /v1/model-roles` report is served by every composition. Every
 local composition [processes uploads in its server](../features/user-files.md#in-server-processing):
 `user_file_processing.enabled` follows `ANIMAMA_USER_FILE_PROCESSING_ENABLED`
@@ -250,8 +256,12 @@ Local composition only (`automatic_episode_processing` capability). See
 
 - `GET /v1/memory/automatic-processing`: `{threshold, state, pending_count,
   runs_today, last_error, next_attempt_at, batch_size, started_at}`. `state` is
-  `off`, `memory_off`, `needs_model`, `running`, `paused`, `backing_off`,
+  `off`, `memory_off`, `needs_model`, `needs_plan_sign_in`,
+  `needs_plan_agreement`, `plan_paused`, `running`, `paused`, `backing_off`,
   `waiting` or `ready`; `batch_size` and `started_at` are set while `running`.
+  The `needs_plan_*` and `plan_paused` states mean the Memory Manager's model
+  is a ChatGPT plan model that may not run automatic work yet: its sign-in or
+  plan use needs the owner, the owner has not agreed, or a usage limit paused it.
 - `PUT /v1/memory/automatic-processing`: `{threshold}`, 0 (Off) or 5–50; other
   values fail validation (422). A changed value lifts a failure pause. Returns the
   status and starts a check at once.
@@ -1033,6 +1043,8 @@ and capabilities.
 `memory_manager`, `embeddings`), the effective row, its label and connection
 name, its `source` (`owner`, `default`, `inherited` or `off`), the owner's
 requested row and `assignment_available` (false when that request fell back).
+A role waiting on an unavailable ChatGPT plan model, directly or by inheriting
+the chat role, reports no row, `source` `off` and `assignment_available` false.
 `embeddings_refresh` reports `state` (`off`, `current`, `re_embedding` or
 `retrying`), the `pending` row count and the last failure's `error_category`,
 as the composition's embedding refresh status reports them.
@@ -1068,7 +1080,10 @@ carry a key value.
   `structured_outputs` or `response_format`). An upstream failure returns
   `502 openrouter_models_unavailable`.
 - `GET /v1/model-connections`: active connections, including the built-in
-  `openai` and `anthropic` connections, each with its active models. A model's
+  `openai`, `anthropic` and `chatgpt_plan` connections, each with its active
+  models. The `chatgpt_plan` connection's `credential_state` comes from the
+  sign-in session: `configured` while an account is signed in with plan use,
+  otherwise `missing`. A model's
   `early_compaction` is its **Compact early** setting, or null when the model
   has no long-context price step.
 - `POST /v1/model-connections` (`201`): create a connection from `name`,
@@ -1132,6 +1147,12 @@ carry a key value.
 - `DELETE /v1/model-providers/{model_provider_id}?confirm=`: retire an owner
   row. Built-in rows can only be hidden (`400 model_read_only`).
 
+The built-in `chatgpt_plan` connection's models are the signed-in account's
+([model catalog](../model-catalog.md#chatgpt-plan-connection)): adding a model
+to it, listing its available models and probing it return
+`400 connection_read_only`, and its rows accept only `hidden`. Its list is
+read again through [`POST /v1/chatgpt-plan/models:refresh`](#chatgpt-plan).
+
 A connection's `credential` takes one of three modes:
 
 - `{"mode": "none"}`: no key and no `Authorization` header;
@@ -1177,6 +1198,53 @@ without a `/models` endpoint), `credential_rejected`, `timeout` or
 `unexpected_response`. Unknown or removed connections and models return `404`
 (`connection_not_found`, `model_not_found`). Connection changes, model edits
 and removals wake re-embedding.
+
+## ChatGPT Plan
+
+Local composition only (`chatgpt_plan` capability). These routes manage the
+owner's Sign in with ChatGPT session
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)) with the
+admitted installation principal. No response carries a token or an
+authorization code; only starting a sign-in returns the authorization URL.
+
+- `GET /v1/chatgpt-plan`: `{sign_in_available, unavailable_reason, state,
+  email, plan_use_granted, sign_in_pending, confirmation_due,
+  background_agreed, paused, failure}`. `state` is `signed_out`, `signed_in` or
+  `sign_in_required` (OpenAI rejected the tokens, which were removed).
+  `unavailable_reason` is `remote_origin` when the installation's origin is not
+  a loopback `http` origin the sign-in return can reach, or
+  `secure_storage_unavailable` on a desktop without its vault key. `failure` is
+  the code of the last sign-in that did not complete, such as `access_denied`.
+  `paused` is true after a usage limit until one of the owner's own plan
+  requests succeeds.
+- `POST /v1/chatgpt-plan/sign-in`: `{enable_plan_use, ui_locale}` returns
+  `{authorize_url}` (`no-store`), OpenAI's page for the client to open in the
+  system browser. One attempt is pending at a time, for at most ten minutes.
+  Where sign-in is unavailable it returns
+  `409 chatgpt_plan_sign_in_unavailable` with `reason`.
+- `DELETE /v1/chatgpt-plan/sign-in` (`204`): cancel the pending attempt.
+- `POST /v1/chatgpt-plan:sign-out`: revoke the session at OpenAI, remove the
+  tokens and retire the plan's models. Returns `{was_signed_in, confirmed}`;
+  `confirmed` is false when OpenAI could not confirm the revocation.
+- `PUT /v1/chatgpt-plan/preferences`: `{confirmed, background_agreed}` records
+  the one-time confirmation and whether automatic episode processing may use
+  the plan, for the signed-in account. Returns the status.
+- `POST /v1/chatgpt-plan/models:refresh`: list the account's models again and
+  store them ([model catalog](../model-catalog.md#chatgpt-plan-connection)).
+  Returns `{model_provider_ids}`, the active rows.
+- `GET /auth/callback`: OpenAI's return to
+  `http://127.0.0.1:<port>/auth/callback`, outside the public schema, admitted
+  by [its own rule](../operations/local-http-components.md#request-admission).
+  It completes the pending attempt only when its `state` matches, stores the
+  account's models before the sign-in reads as finished, and answers with a
+  fixed `no-store` page in the language sent with the sign-in start: signed in
+  (`200`), or declined, expired or failed (`400`). Its query is never logged,
+  traced or shown.
+
+Request bodies with unknown fields fail validation (`422`). A session that
+cannot be used returns `503 chatgpt_plan_temporarily_unavailable` while its
+storage or OpenAI is unavailable, and otherwise `409 chatgpt_plan_<code>`, for
+example `chatgpt_plan_not_signed_in` from a model refresh while signed out.
 
 ## Memory
 
@@ -1464,7 +1532,11 @@ back to the role's default when the row is removed, of the wrong kind or lacks
 a needed capability: the operator default (`ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`
 for chat, `ANIMAMA_DEFAULT_{UTILITY,MEMORY_MANAGER,EMBEDDING}_MODEL_PROVIDER_ID`
 for the others), then the chat role for utility and the Memory Manager, while
-embeddings stay off.
+embeddings stay off. A row of the ChatGPT plan connection that is unavailable
+(retired at sign-out, or no longer listed for the account) does not fall back:
+the role resolves to no model and waits, so its work never moves to another
+connection, and utility and the Memory Manager wait too when they inherit such
+a waiting chat role. Other unavailable assignments still fall back.
 `GET /v1/model-roles` shows the result. Role resolution applies these
 preferences only when the composition's catalog policy enables owner models.
 Writing user settings wakes re-embedding.
@@ -1537,8 +1609,8 @@ profile/background selection plus crop/focal configuration.
 
 ## User Files
 
-The user-files router manages installation-owned document uploads, processing jobs,
-and backend debug search. It exposes:
+The user-files router manages installation-owned document and chat-image
+uploads, processing jobs, and backend debug search. It exposes:
 
 - `POST /v1/files/uploads`: validate filename, allowlisted extension, and
   declared size; create a pending `user_file` row; return a private
@@ -1548,12 +1620,15 @@ and backend debug search. It exposes:
   bytes to `data/user-files/<user-id>/<file-id>/original`.
 - `POST /v1/files/{file_id}:finalize`: verify the current user's pending row,
   opaque local locator, file existence, and exact size; mark the row
-  `uploaded`.
+  `uploaded`. A chat image (PNG, JPEG, WebP or GIF) is then replaced by its
+  canonical copy and marked `ready`, or marked `failed` with a reason and its
+  bytes deleted.
 - `POST /v1/files/{file_id}:process`: enqueue or reuse a durable processing job
   for the current user's finalized file and wake the server's processing
   runner. The request only enqueues; the runner parses the file afterwards in
   a bounded child process. Returns `409` `file_processing_unavailable` while
-  processing is turned off.
+  processing is turned off. A chat image has no job: the route returns its
+  state, first storing the canonical copy of one left `uploaded`.
 - `POST /v1/files/debug/search`: search current-user processed chunks in
   `keyword`, `semantic`, or `hybrid` mode. Keyword search uses PostgreSQL
   full-text search. Semantic search embeds the query with the Embeddings role
@@ -1567,6 +1642,13 @@ and backend debug search. It exposes:
   Responses include cheap processing summaries: chunk count and latest job
   summary when available.
 - `GET /v1/files/{file_id}`: return one current-user file record or `404`.
+- `GET /v1/files/{file_id}/content`: return the stored copy (PNG or JPEG) of a
+  current-user chat image that is `ready`, revalidated by its digest `ETag`;
+  `?variant=thumbnail` returns a WebP copy at most 128 px on its long edge and
+  `?variant=preview` one at most 320 px (the chat transcript's size), or the
+  stored copy when it is already that small. Other files are `404`; stored
+  bytes that are missing or no longer match the record are `409`
+  `user_file_content_changed`, and a storage read failure is `503`.
 - `DELETE /v1/files/{file_id}`: best-effort delete the local original and mark the row
   `deleted` or `delete_pending`; stored chunks are removed from debug search.
 - `DELETE /v1/files/uploads/{file_id}`: abort a non-finalized upload and

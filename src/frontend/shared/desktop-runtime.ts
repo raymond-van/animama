@@ -192,6 +192,12 @@ export type MenuEntryBridge = {
   status(): Promise<MenuEntryStatus>;
   setEnabled(enabled: boolean): Promise<MenuEntryStatus>;
 };
+/** Application-menu items that act in the main window's web app. */
+export type MenuCommand = "check-for-updates" | "import-anima";
+/** Commands chosen from the application menu; main sends them to the main window only. */
+export type MenuBridge = {
+  onCommand(callback: (command: MenuCommand) => void): () => void;
+};
 export type UpdatesBridge = {
   status(): Promise<UpdateStatus>;
   check(): Promise<UpdateStatus>;

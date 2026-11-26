@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx2
 import pytest
-from openai import APIStatusError
+from openai import APIError, APIStatusError
 from openai._models import construct_type
 from openai.types.chat import ChatCompletionChunk, ChatCompletionFunctionToolParam, ChatCompletionToolUnionParam
 from openai.types.responses import (
@@ -39,6 +39,7 @@ from animama.adapters.model_clients.openai_chat_completions.connection_sdk impor
 from animama.adapters.model_clients.openai_errors import (
     OPENAI_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
     classify_openai_exception,
+    classify_openai_response_event,
     is_previous_response_unresolvable,
 )
 from animama.app.model_catalog import (
@@ -352,6 +353,13 @@ def _api_status_error(
     return APIStatusError("OpenAI Responses request failed", response=response, body=body)
 
 
+def _stream_error(body: object, *, url: str = "https://api.openai.example/v1/responses") -> APIError:
+    """The bare `APIError` the SDK raises for an `error` event inside a stream."""
+
+    message = body.get("message") if isinstance(body, dict) else None
+    return APIError(str(message or "An error occurred during streaming"), httpx2.Request("POST", url), body=body)
+
+
 def _response_message_item(
     *,
     item_id: str = "msg_1",
@@ -619,6 +627,135 @@ def test_openai_error_classifier_maps_status_and_sanitizes_body() -> None:
     assert info.metadata["provider_error_message"] == "Incorrect API key provided: [redacted]."
     assert "body" not in info.metadata
     assert "message" not in info.metadata
+
+
+@pytest.mark.parametrize(
+    ("body", "code"),
+    [
+        (
+            {
+                "message": "You have no credits remaining. Add credits at https://platform.openai.com/settings/organization/billing/.",
+                "type": "insufficient_quota",
+                "code": "credit_balance_exhausted",
+            },
+            "openai_quota_exceeded",
+        ),
+        (
+            {"message": "Rate limit reached.", "type": "rate_limit_error", "code": "rate_limit_exceeded"},
+            "openai_rate_limit",
+        ),
+        (
+            {"message": "The server had an error.", "type": "server_error", "code": "server_error"},
+            "openai_server_error",
+        ),
+        ({"message": "Invalid image.", "type": "invalid_request_error", "code": "invalid_image"}, "openai_bad_request"),
+    ],
+)
+def test_openai_error_classifier_reads_a_mid_stream_error_event(body: dict[str, Any], code: str) -> None:
+    info = classify_openai_exception(
+        _stream_error(body),
+        api="responses",
+        provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+        model="gpt-test",
+    )
+
+    assert info.code == code
+    # The provider's stream had begun, so its errors are never retried.
+    assert info.retryable is False
+    assert info.metadata["provider_error_type"] == body["type"]
+    assert info.metadata["provider_error_code"] == body["code"]
+    assert info.metadata["provider_error_message"] == body["message"]
+    assert info.metadata["exception_type"] == "APIError"
+
+
+def test_openai_error_classifier_reads_an_exhausted_credit_balance_from_its_code_alone() -> None:
+    info = classify_openai_exception(
+        _stream_error({"message": "Stopped.", "code": "credit_balance_exhausted"}),
+        api="chat_completions",
+        provider_type=OPENAI_HTTP_PROVIDER_TYPE,
+        model="gpt-test",
+    )
+
+    assert info.code == "openai_quota_exceeded"
+
+
+def _failed_event(**error: str) -> dict[str, Any]:
+    """`event_metadata` for a Responses `response.failed` event, as the adapter builds it."""
+
+    return {
+        "type": "response.failed",
+        "response": {"id": "resp_1", "status": "failed", "error": dict(error), "incomplete_details": None},
+    }
+
+
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        ({"code": "insufficient_quota", "message": "x"}, "openai_quota_exceeded"),
+        ({"code": "billing_hard_limit_reached", "message": "x"}, "openai_quota_exceeded"),
+        ({"type": "insufficient_quota", "code": "unknown_code", "message": "x"}, "openai_quota_exceeded"),
+        ({"code": "rate_limit_exceeded", "message": "slow down"}, "openai_rate_limit"),
+        ({"code": "image_too_large", "message": "x"}, "openai_bad_request"),
+        ({"code": "invalid_base64_image", "message": "x"}, "openai_bad_request"),
+        ({"code": "vector_store_timeout", "message": "x"}, "openai_stream_error"),
+    ],
+)
+def test_a_failed_responses_event_is_classified_by_its_nested_error(error: dict[str, str], code: str) -> None:
+    info = classify_openai_response_event(
+        _failed_event(**error),
+        provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+        model="gpt-test",
+    )
+
+    assert info.code == code
+    assert info.retryable is False
+
+
+def test_a_responses_event_name_never_picks_the_error_class() -> None:
+    info = classify_openai_response_event(
+        {"type": "response.image_generation_call.failed", "response": {"error": None}},
+        provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+        model="gpt-test",
+    )
+
+    assert info.code == "openai_stream_error"
+
+
+def test_a_mid_stream_error_naming_an_unknown_previous_response_is_unresolvable() -> None:
+    info = classify_openai_exception(
+        _stream_error({"message": "Previous response not found.", "code": "previous_response_not_found"}),
+        api="responses",
+        provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+        model="gpt-test",
+        previous_response_id="resp_old",
+    )
+
+    assert info.code == "openai_previous_response_unresolvable"
+
+
+def test_openai_error_classifier_keeps_an_unreadable_mid_stream_error_generic() -> None:
+    for body in (None, "connection reset", {"message": "Something went wrong."}):
+        info = classify_openai_exception(
+            _stream_error(body),
+            api="chat_completions",
+            provider_type=OPENAI_HTTP_PROVIDER_TYPE,
+            model="gpt-test",
+        )
+
+        assert info.code == "openai_request_failed"
+        assert info.retryable is False
+
+
+def test_openai_error_classifier_redacts_secrets_in_a_mid_stream_error() -> None:
+    info = classify_openai_exception(
+        _stream_error({"message": "Bad key sk-secret123 used.", "type": "invalid_request_error"}),
+        api="responses",
+        provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+        model="gpt-test",
+    )
+
+    assert info.metadata["provider_error_message"] == "Bad key [redacted] used."
+    assert "body" not in info.metadata
 
 
 @pytest.mark.asyncio
@@ -2147,7 +2284,7 @@ async def test_openai_responses_client_maps_failed_and_error_events_to_provider_
                             response_id="resp_failed",
                             output=[],
                             status="failed",
-                            extra={"error": {"code": "server_error", "message": "failed"}},
+                            extra={"error": {"code": "server_error", "type": "server_error", "message": "failed"}},
                         ),
                     }
                 )
@@ -2185,10 +2322,14 @@ async def test_openai_responses_client_maps_failed_and_error_events_to_provider_
             )
         )
 
-    assert failed_exc.value.code == "openai_stream_error"
+    # Stream events keep the provider's classification, and are never retried.
+    assert failed_exc.value.code == "openai_server_error"
     assert failed_exc.value.raw_metadata["provider_error_code"] == "server_error"
-    assert error_exc.value.code == "openai_stream_error"
+    assert failed_exc.value.raw_metadata["provider_error_type"] == "server_error"
+    assert failed_exc.value.raw_metadata["retryable"] is False
+    assert error_exc.value.code == "openai_rate_limit"
     assert error_exc.value.raw_metadata["provider_error_code"] == "rate_limit_exceeded"
+    assert error_exc.value.raw_metadata["retryable"] is False
     assert "message" not in error_exc.value.raw_metadata
 
 

@@ -1,12 +1,14 @@
 {
   "menu": {
     "about": "About {{name}}",
+    "checkForUpdates": "Check for Updates…",
     "services": "Services",
     "hide": "Hide {{name}}",
     "hideOthers": "Hide Others",
     "showAll": "Show All",
     "quitApp": "Quit {{name}}",
     "file": "File",
+    "importAnima": "Import Anima…",
     "closeWindow": "Close Window",
     "close": "Close",
     "exit": "Exit",

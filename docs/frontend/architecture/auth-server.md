@@ -5,8 +5,9 @@ application origin. There is no frontend Node server in a desktop or built
 self-host installation. Electron still uses Node for its main process.
 
 Compose development publishes Vite with hot reload. Its closed proxy forwards
-application API, health, telemetry and log-WebSocket traffic to private FastAPI
-without changing Host, Origin or Fetch Metadata into trusted identity. Vite
+application API, health, telemetry, log-WebSocket and ChatGPT sign-in return
+(`/auth/callback`) traffic to private FastAPI without changing Host, Origin or
+Fetch Metadata into trusted identity. Other `/auth` paths are fenced. Vite
 serves development assets and HMR; FastAPI authorizes application requests.
 
 ## Composition and ports
@@ -28,7 +29,11 @@ Optional `dev-tools` publishes only loopback pgAdmin and Dozzle separately.
 ## Request policy and ownership
 
 The local ASGI boundary checks exact configured Host and Origin, Fetch Metadata,
-and `X-Animama-CSRF: 1` for application mutations. The only product WebSocket is
+and `X-Animama-CSRF: 1` for application mutations. One exception: the system
+browser's return from OpenAI's ChatGPT sign-in, an exact `GET /auth/callback`
+with no body or `Origin`, navigation Fetch Metadata and `Host`
+`127.0.0.1:<port>`, admitted only when the installation's origin is loopback
+`http` on that port. Anything else falls through to the normal checks. The only product WebSocket is
 `/v1/logs`; it requires the configured Origin. The boundary writes successful
 admission into server-owned request state. The installation principal resolver
 uses that state only after completed bootstrap. Client headers cannot choose
@@ -102,8 +107,8 @@ document's. It allows:
 
 The exact Pocket TTS worker, `/tts/workers/inference-worker.js`, also allows
 `'unsafe-eval'`, because its pinned SentencePiece binding builds call wrappers at
-runtime (#698). Stored bytes (registered content files, previews, runtime members
-and package exports) carry `sandbox; default-src 'none'`, so they never run as a
+runtime (#698). Stored bytes (registered content files, previews, chat images, runtime
+members and package exports) carry `sandbox; default-src 'none'`, so they never run as a
 document in the application origin; images, media, models and fetches that load
 them are unaffected.
 

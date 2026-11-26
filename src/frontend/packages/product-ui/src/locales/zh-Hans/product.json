@@ -15,6 +15,31 @@
         "guidance": "在 Animama 确认完成之前，连接已断开。请检查网络连接后再重新发送。",
         "title": "回复已中断。"
       },
+      "chatgpt_plan_not_eligible": {
+        "guidance": "请在 ChatGPT 中查看套餐用量，或选择其他模型。",
+        "title": "你的 ChatGPT 套餐不包含此用途。"
+      },
+      "chatgpt_plan_sign_in_required": {
+        "guidance": "ChatGPT 套餐的会话已结束。请在“$t(chatFailure.settingsPath)”中重新登录。",
+        "title": "请重新登录 ChatGPT。"
+      },
+      "chatgpt_plan_unavailable": {
+        "guidance": "请稍后再试，或选择其他模型。",
+        "title": "ChatGPT 套餐暂时无法使用。"
+      },
+      "chatgpt_plan_unsupported_request": {
+        "guidance": "请为此聊天选择其他模型。",
+        "guidanceDetail": "OpenAI 的说明：“{{detail}}”请为此聊天选择其他模型。",
+        "title": "ChatGPT 套餐无法处理此请求。"
+      },
+      "chatgpt_plan_usage_limit": {
+        "guidance": "请在 OpenAI 重置限额后重新发送，或选择其他模型。你可以在 OpenAI 的页面查看用量。",
+        "title": "你已达到 ChatGPT 套餐的用量限额。"
+      },
+      "chatgpt_plan_use_not_granted": {
+        "guidance": "请在“$t(chatFailure.settingsPath)”中启用套餐使用，或选择其他模型。",
+        "title": "ChatGPT 套餐使用已关闭。"
+      },
       "connection_base_url_missing": {
         "guidance": "请在“$t(chatFailure.settingsPath)”中设置其基础 URL，然后重新发送消息。",
         "title": "{{name}}没有服务器地址。"
@@ -78,6 +103,18 @@
         "guidance": "请检查网络连接，准备好后再试。",
         "guidanceLocal": "模型可能仍在加载。请重试，或在“$t(chatFailure.settingsPath)”中延长该连接的超时时间。",
         "title": "{{name}}响应超时。"
+      },
+      "too_many_images": {
+        "title": "此消息的图片太多。",
+        "guidance": "请移除部分图片，使其不超过四张，然后重新发送。"
+      },
+      "attached_image_unavailable": {
+        "title": "附加的图片已不可用。",
+        "guidance": "请将其移除或重新附加，然后发送。"
+      },
+      "model_does_not_accept_images": {
+        "title": "此模型无法查看图片。",
+        "guidance": "请选择支持图片的模型，或移除图片后重新发送。"
       }
     },
     "defaultConnection": "模型服务器",
@@ -112,6 +149,7 @@
         "title": "你的 Animama 试用已结束。"
       }
     },
+    "manageUsage": "管理用量",
     "network": {
       "guidance": "请检查网络连接以及安装是否正在运行，然后再试。",
       "title": "Animama 无法连接到其服务。"

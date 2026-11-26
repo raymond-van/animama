@@ -5,7 +5,7 @@ provider-shaped tool-call and tool-result items.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from animama.app.chat.memory_cue import MESSAGE_DATA_MEMORY_KEY
@@ -19,6 +19,7 @@ from animama.app.model_clients import (
     ModelClientToolResult,
 )
 from animama.app.model_clients.event_summary import DEFAULT_STREAM_EVENT_SUMMARY_METADATA_KEY
+from animama.app.model_clients.image_parts import image_part, image_placeholder
 from animama.app.util.json_values import json_safe_copy, safe_json_loads
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
@@ -28,10 +29,53 @@ from .constants import ANTHROPIC_MESSAGES_PROVIDER, OPENAI_RESPONSES_PROVIDER
 from .types import DirectChatTurnRequest
 
 
-def user_provider_message(content: str) -> dict[str, Any]:
-    """Build the persisted provider-shaped user message."""
+def user_provider_message(content: str, *, images: Sequence[Mapping[str, Any]] = ()) -> dict[str, Any]:
+    """Build the persisted provider-shaped user message.
 
-    return {"role": "user", "content": content}
+    A message with images keeps their references before its text, as the prompt
+    does, so later turns replay them.
+    """
+
+    if not images:
+        return {"role": "user", "content": content}
+    return {"role": "user", "content": [*images, {"type": "text", "text": content}]}
+
+
+def attached_image_parts(request: DirectChatTurnRequest) -> list[dict[str, Any]]:
+    """The image parts of the turn's own message, in the order they were attached."""
+
+    return [
+        image_part(file_id=image.file_id, name=image.name, width=image.width, height=image.height)
+        for image in request.attached_images
+    ]
+
+
+def user_message_text(request: DirectChatTurnRequest) -> str:
+    """The saved text of the user's message, with a placeholder line per image.
+
+    Compaction, memory and search read this column, so each image
+    is named there.
+    """
+
+    if not request.attached_images:
+        return request.user_message
+    placeholders = "\n".join(image_placeholder(image.name) for image in request.attached_images)
+    return f"{request.user_message}\n\n{placeholders}"
+
+
+def user_message_data(request: DirectChatTurnRequest) -> dict[str, Any] | None:
+    """The saved data of the user's message: its attachments, and for images the person's own text."""
+
+    data: dict[str, Any] = {}
+    if request.attached_file_ids:
+        data["attached_file_ids"] = list(request.attached_file_ids)
+    if request.attached_images:
+        data["images"] = [
+            {key: value for key, value in part.items() if key != "type"} for part in attached_image_parts(request)
+        ]
+        # The chat shows this text beside the images instead of the placeholder lines.
+        data["user_text"] = request.user_message
+    return data or None
 
 
 def assistant_tool_call_prompt_message(
@@ -386,11 +430,14 @@ __all__ = [
     "assistant_messages_for_persistence",
     "assistant_replay_message",
     "assistant_tool_call_prompt_message",
+    "attached_image_parts",
     "chat_metadata_patch_from_prompt",
     "internal_tool_call_message",
     "internal_tool_result_message",
     "model_client_tool_call_prompt_item",
     "model_client_tool_result_prompt_item",
     "tool_result_prompt_message",
+    "user_message_data",
+    "user_message_text",
     "user_provider_message",
 ]

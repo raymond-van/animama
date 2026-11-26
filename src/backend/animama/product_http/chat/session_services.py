@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
@@ -14,12 +14,19 @@ from sqlalchemy.exc import DBAPIError
 from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner
 from animama.app.chat import DirectChatMemoryToolService, memory_tool_specs
 from animama.app.chat.memory_tools import MEMORY_TOOL_BUSY_RESULT
+from animama.app.model_clients.image_parts import ModelClientImage
+from animama.app.ports.private_file_storage import PrivateFileStorage, PrivateFileUnavailableError
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_episode_service import MemoryEpisodeService
+from animama.app.services.user_file_service import is_image_user_file
 from animama.domain.settings import preferred_time_zone
+from animama.domain.user_file import STATUS_READY, UserFile
+from animama.logging import get_logger
 from animama.product_http.ports import ProductRepositories
 
 from .setup_helpers import TurnSessions, chat_manager, with_short_lived_session
+
+_log = get_logger("product_http.chat.session_services")
 
 
 class SessionBackedChatTurnRecorder:
@@ -209,7 +216,61 @@ class SessionBackedMemoryToolService:
                 return MEMORY_TOOL_BUSY_RESULT
 
 
+class SessionBackedChatImageLoader:
+    """Loads the owner's ready chat images for a turn's requests (``ChatImageLoader``).
+
+    Each load opens a short read session, so it also serves requests made after
+    the setup session closed. Only the owner's ready images are read, and only
+    when the stored bytes still match their record; anything else is left out
+    and goes to the model as its placeholder.
+    """
+
+    def __init__(self, sessions: TurnSessions) -> None:
+        self._sessions = sessions
+
+    async def load(self, file_ids: Sequence[str]) -> dict[str, ModelClientImage]:
+        user_id = self._sessions.principal.id
+        async with self._sessions.read() as session:
+            user_files = self._sessions.repositories(session).user_file_processing
+            rows = [await user_files.get_user_file(user_id=user_id, file_id=file_id) for file_id in file_ids]
+        images = [row for row in rows if row is not None and _servable_image(row)]
+        if not images:
+            return {}
+        storage = self._sessions.ports.uploads(self._sessions.principal).private_files
+        loaded: dict[str, ModelClientImage] = {}
+        for row in images:
+            try:
+                content = await asyncio.to_thread(_read_image, storage, row)
+            except Exception as exc:
+                _log.warning("Chat image could not be read", file_id=row.id, user_id=user_id, error=str(exc))
+                continue
+            loaded[row.id] = ModelClientImage(media_type=row.detected_content_type or "", content=content)
+        return loaded
+
+
+def _servable_image(row: UserFile) -> bool:
+    return (
+        is_image_user_file(row)
+        and row.status == STATUS_READY
+        and bool(row.stored_size_bytes)
+        and bool(row.sha256)
+        and row.detected_content_type in {"image/png", "image/jpeg"}
+    )
+
+
+def _read_image(storage: PrivateFileStorage, row: UserFile) -> bytes:
+    """Read a stored image and check it is still the recorded copy (blocking)."""
+
+    with storage.open_bounded(row.storage_locator, expected_size_bytes=row.stored_size_bytes or 0) as stored:
+        content = stored.stream.read()
+        digest = stored.sha256
+    if digest != row.sha256:
+        raise PrivateFileUnavailableError("Stored image no longer matches its record")
+    return content
+
+
 __all__ = [
+    "SessionBackedChatImageLoader",
     "SessionBackedChatTurnRecorder",
     "SessionBackedMemoryEpisodeRecorder",
     "SessionBackedMemoryToolService",

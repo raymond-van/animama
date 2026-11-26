@@ -666,6 +666,51 @@ describe("runtime supervision", () => {
     expect(existsSync(current.options.paths.vault)).toBe(true);
   });
 
+  it("starts without the ChatGPT plan key when the vault cannot save one, and delivers it later", async () => {
+    const first = create();
+    await first.runtime.start();
+    await first.runtime.stop();
+    // A vault an earlier release saved: no ChatGPT plan key yet. The
+    // fixture's encryption is the plain text behind a `v11` prefix.
+    const saved = JSON.parse(
+      readFileSync(first.options.paths.vault, "utf8").slice("v11".length),
+    );
+    delete saved.chatgptPlanStoreKey;
+    writeFileSync(first.options.paths.vault, `v11${JSON.stringify(saved)}`, {
+      mode: 0o600,
+    });
+    const vault = readFileSync(first.options.paths.vault);
+    const launches = fixture.launches.length;
+    const current = create(first.options.paths);
+    const { encryptStringAsync } = current.options.encryption;
+    // Only writing the vault fails. On Linux the encryptor is first asked
+    // what would protect a value, and a failure there stops in recovery.
+    current.options.encryption.encryptStringAsync = async (value) => {
+      if (value.startsWith("{"))
+        throw new Error("Error while encrypting the text");
+      return encryptStringAsync(value);
+    };
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("ready");
+    const backend = fixture.launches
+      .slice(launches)
+      .find((child) => child.name === "fastapi")!;
+    expect(backend.env.ANIMAMA_CHATGPT_PLAN_STORE_KEY).toBeUndefined();
+    expect(readFileSync(current.options.paths.vault)).toEqual(vault);
+    await current.runtime.stop();
+
+    const later = create(first.options.paths);
+    later.options.encryption.encryptStringAsync = encryptStringAsync;
+    const before = fixture.launches.length;
+    await later.runtime.start();
+    const restarted = fixture.launches
+      .slice(before)
+      .find((child) => child.name === "fastapi")!;
+    expect(restarted.env.ANIMAMA_CHATGPT_PLAN_STORE_KEY).toMatch(
+      /^[a-f0-9]{64}$/u,
+    );
+  });
+
   it("reports a refused Keychain as unavailable secure storage and starts nothing until a later start", async () => {
     const first = create();
     await first.runtime.start();
@@ -835,8 +880,8 @@ describe("runtime supervision", () => {
       expect(current.runtime.credentialStorage()).toEqual({
         protection: "system",
       });
-      // One write of the new vault; no protection probe.
-      expect(encrypt).toHaveBeenCalledTimes(1);
+      // The new vault, then its ChatGPT plan key; no protection probe.
+      expect(encrypt).toHaveBeenCalledTimes(2);
     },
   );
 
@@ -1623,11 +1668,16 @@ describe("runtime supervision", () => {
       Object.keys(env).filter((name) => name.startsWith("ANIMAMA_PARAKEET_"));
     expect(backend.env.ANIMAMA_PARAKEET_SOURCE).toBe("asset-store");
     expect(parakeet(backend.env)).toEqual(["ANIMAMA_PARAKEET_SOURCE"]);
+    // The ChatGPT plan session file's key reaches only the HTTP child (D2).
+    expect(backend.env.ANIMAMA_CHATGPT_PLAN_STORE_KEY).toMatch(
+      /^[a-f0-9]{64}$/u,
+    );
     for (const worker of fixture.launches.filter(
       (child) => child.name !== "fastapi",
     )) {
       expect(worker.env.ANIMAMA_DESKTOP_CONTROL_TOKEN).toBeUndefined();
       expect(worker.env.ANIMAMA_DESKTOP_RENDERER_CAPABILITY).toBeUndefined();
+      expect(worker.env.ANIMAMA_CHATGPT_PLAN_STORE_KEY).toBeUndefined();
       expect(parakeet(worker.env)).toEqual([]);
     }
   });

@@ -16,18 +16,28 @@ from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
 from animama.product_http.ports import ProductPorts, install_product_ports, model_role_resolver
+from animama.server.chatgpt_plan import (
+    chatgpt_plan_session_for,
+    close_chatgpt_plan_session,
+    install_chatgpt_plan_store_key,
+)
 from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
 from animama.server.embedding_refresh import start_embedding_refresh, stop_embedding_refresh
-from animama.server.episode_processing import start_automatic_episode_processing, stop_automatic_episode_processing
+from animama.server.episode_processing import (
+    ModelReadiness,
+    start_automatic_episode_processing,
+    stop_automatic_episode_processing,
+)
 from animama.server.local_http import local_assets, local_http_config, local_telemetry
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.memory_manager import local_memory_manager_model_usable
+from animama.server.memory_manager import local_memory_manager_model_readiness
 from animama.server.model_assets import close_model_asset_service, model_asset_service_for
 from animama.server.product_ports import LocalProductPorts
 from animama.server.routers import router
+from animama.server.routers.chatgpt_plan import router as chatgpt_plan_router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.routers.memory_automation import router as memory_automation_router
 from animama.server.routers.model_configuration import router as model_configuration_router
@@ -52,9 +62,11 @@ def _start_automatic_episode_processing(application: FastAPI, *, owner_id: str) 
     async def memory_manager(session: AsyncSession, user_id: str) -> MemoryManagerService:
         return await ports.memory_manager(session, RequestPrincipal(id=user_id))
 
-    async def model_usable(session: AsyncSession, user_id: str) -> bool:
+    async def model_usable(session: AsyncSession, user_id: str) -> ModelReadiness:
         roles = model_role_resolver(ports, ports.repositories(session))
-        return await local_memory_manager_model_usable(user_id, roles=roles)
+        return await local_memory_manager_model_readiness(
+            user_id, roles=roles, chatgpt_plan_session=lambda: chatgpt_plan_session_for(application)
+        )
 
     start_automatic_episode_processing(
         application,
@@ -80,6 +92,8 @@ def create_local_app(
     http_config = local_http_config(local_settings)
     application = FastAPI(title="Animama Local Server", version="0.1.0")
     application.state.runtime_settings = local_settings
+    application.state.local_http_config = http_config
+    install_chatgpt_plan_store_key(application)
     database = LocalDatabase(local_settings) if session_factory is None else None
     application.state.session_factory = session_factory
     if database is not None:
@@ -98,6 +112,9 @@ def create_local_app(
     # Anthropic built-ins are local-only as well (spec constraint "Local only").
     application.state.model_catalog_policy = ModelCatalogPolicy.local()
     application.include_router(model_configuration_router)
+    # Signing in with a ChatGPT plan stores tokens on this machine and needs a return
+    # address on loopback, so only this composition mounts it (spec #919).
+    application.include_router(chatgpt_plan_router)
     # Application web search sends queries to an owner-configured backend
     # (a SearXNG URL may be a loopback or LAN host), so only this composition
     # enables it and mounts its settings routes.
@@ -182,6 +199,7 @@ def create_local_app(
         await stop_automatic_episode_processing(application)
         await stop_embedding_refresh(application)
         await close_model_asset_service(application)
+        await close_chatgpt_plan_session(application)
         await stop_content_runtime(application)
         if database is not None:
             await database.close()
@@ -204,7 +222,9 @@ def create_local_app(
         try:
             from animama.server.model_clients import init_model_client_registry
 
-            await init_model_client_registry(application)
+            await init_model_client_registry(
+                application, chatgpt_plan_session=lambda: chatgpt_plan_session_for(application)
+            )
         except Exception:
             logger.warning("Model client registry failed to start; model calls are unavailable", exc_info=True)
             application.state.model_client_registry = None

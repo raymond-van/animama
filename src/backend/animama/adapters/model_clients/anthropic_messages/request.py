@@ -40,6 +40,7 @@ Requests never carry sampling parameters or an assistant prefill.
 
 from __future__ import annotations
 
+import base64
 import copy
 import json
 from collections.abc import Mapping, Sequence
@@ -54,6 +55,7 @@ from animama.app.model_clients import (
     ModelClientContinuation,
     ModelClientRequest,
 )
+from animama.app.model_clients.image_parts import ModelClientImage, is_image_part, resolved_parts
 from animama.app.model_clients.prompt import prompt_messages, prompt_tools
 from animama.domain import ModelProvider
 
@@ -100,7 +102,7 @@ def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
     params: dict[str, Any] = {
         "model": spec.model_provider.model,
         "max_tokens": request_max_tokens(spec.model_provider),
-        "messages": _request_messages(layout, continuation_rounds(spec.continuation)),
+        "messages": _request_messages(layout, continuation_rounds(spec.continuation), spec.images),
     }
     limits = spec.limits
     if limits is not None:
@@ -350,10 +352,15 @@ class _Conversation:
             self.add("user", [_text_block(text)])
 
 
-def _request_messages(layout: _PromptLayout, rounds: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+def _request_messages(
+    layout: _PromptLayout,
+    rounds: list[list[dict[str, Any]]],
+    images: Mapping[str, ModelClientImage] | None = None,
+) -> list[dict[str, Any]]:
+    images = images or {}
     conversation = _Conversation()
     for message in layout.history:
-        mapped = _history_blocks(message)
+        mapped = _history_blocks(message, images)
         if mapped is not None:
             conversation.add(*mapped)
     _drop_orphan_prefix(conversation.messages)
@@ -366,7 +373,7 @@ def _request_messages(layout: _PromptLayout, rounds: list[list[dict[str, Any]]])
         # its own last history block, which this request reads.
         conversation.messages[-1]["content"][-1]["cache_control"] = dict(CACHE_CONTROL)
     if layout.turn_user is not None:
-        conversation.add("user", _content_blocks(layout.turn_user.get("content")))
+        conversation.add("user", _content_blocks(layout.turn_user.get("content"), images))
     if layout.turn_context:
         conversation.messages.append({"role": "system", "content": layout.turn_context})
     pending: list[Mapping[str, Any]] = []
@@ -385,7 +392,7 @@ def _request_messages(layout: _PromptLayout, rounds: list[list[dict[str, Any]]])
             if text:
                 conversation.add_instruction(text)
         elif _is_plain(message, "user"):
-            conversation.add("user", _content_blocks(message.get("content")))
+            conversation.add("user", _content_blocks(message.get("content"), images))
     _flush_tool_uses(conversation, pending, rounds)
     return conversation.messages
 
@@ -408,7 +415,9 @@ def _flush_tool_uses(
     conversation.add("assistant", [_tool_use_block(item) for item in items])
 
 
-def _history_blocks(message: Mapping[str, Any]) -> tuple[str, list[dict[str, Any]]] | None:
+def _history_blocks(
+    message: Mapping[str, Any], images: Mapping[str, ModelClientImage]
+) -> tuple[str, list[dict[str, Any]]] | None:
     """Map one replayed history message; other providers' items never reach an Anthropic chat."""
 
     item_type = message.get("type")
@@ -421,7 +430,7 @@ def _history_blocks(message: Mapping[str, Any]) -> tuple[str, list[dict[str, Any
     role = _role(message)
     if role not in {"user", "assistant"}:
         return None
-    return role, _content_blocks(message.get("content"))
+    return role, _content_blocks(message.get("content"), images if role == "user" else {})
 
 
 def _drop_orphan_prefix(messages: list[dict[str, Any]]) -> None:
@@ -444,8 +453,12 @@ def _drop_orphan_prefix(messages: list[dict[str, Any]]) -> None:
         messages.pop(0)
 
 
-def _content_blocks(content: Any) -> list[dict[str, Any]]:
-    """Return text or stored content blocks, never thinking (D8)."""
+def _content_blocks(content: Any, images: Mapping[str, ModelClientImage] | None = None) -> list[dict[str, Any]]:
+    """Return text or stored content blocks, never thinking (D8).
+
+    A chat image becomes a base64 ``image`` block, or its placeholder text when
+    the request does not carry its bytes.
+    """
 
     if isinstance(content, str):
         return [_text_block(content)] if content else []
@@ -453,6 +466,10 @@ def _content_blocks(content: Any) -> list[dict[str, Any]]:
         return []
     blocks: list[dict[str, Any]] = []
     for block in content:
+        if is_image_part(block):
+            for part in resolved_parts([block], images or {}):
+                blocks.append(_text_block(part) if isinstance(part, str) else _image_block(part))
+            continue
         if not isinstance(block, Mapping) or block.get("type") in _THINKING_BLOCK_TYPES:
             continue
         copied = jsonable(block)
@@ -460,6 +477,17 @@ def _content_blocks(content: Any) -> list[dict[str, Any]]:
             copied.pop("cache_control", None)
             blocks.append(copied)
     return blocks
+
+
+def _image_block(image: ModelClientImage) -> dict[str, Any]:
+    return {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": image.media_type,
+            "data": base64.b64encode(image.content).decode("ascii"),
+        },
+    }
 
 
 def _tool_use_block(item: Mapping[str, Any]) -> dict[str, Any]:

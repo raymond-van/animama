@@ -13,6 +13,58 @@
     "testing": "테스트하는 중…",
     "undo": "실행 취소"
   },
+  "chatgptPlan": {
+    "background": {
+      "description": "Animama는 에피소드 메모를 스스로 기억으로 정리합니다. 켜면 이 작업도 플랜 사용량에 포함됩니다.",
+      "label": "자동 기억 업데이트에도 플랜 사용"
+    },
+    "beginFailed": "로그인을 시작하지 못했습니다. 다시 시도하세요.",
+    "confirmation": {
+      "background": "자동 기억 업데이트에도 플랜 사용",
+      "backgroundHint": "나중에 앱 설정 → 모델에서 바꿀 수 있습니다.",
+      "description": "이제 Animama의 해당 AI 요청에 ChatGPT 플랜이 사용됩니다. 플랜 모델과의 채팅, 채팅 제목과 요약, 직접 시작한 기억 업데이트가 해당됩니다. 이 사용량은 ChatGPT 설정에서 확인하고 제한할 수 있습니다.",
+      "gotIt": "확인",
+      "title": "ChatGPT 플랜을 사용하고 있습니다"
+    },
+    "continue": "ChatGPT로 계속하기",
+    "description": "API 키 없이 ChatGPT 플랜에 포함된 사용량으로 Animama의 해당 AI 요청을 처리합니다. Animama에서는 요금이 부과되지 않습니다.",
+    "enablePlanUse": "플랜 사용 켜기",
+    "failure": {
+      "declined": "OpenAI에서 로그인이 취소되었습니다. 다시 시도하거나 다른 모델 연결을 사용할 수 있습니다.",
+      "other": "로그인을 완료하지 못했습니다. 다시 시도하세요."
+    },
+    "loadFailed": "ChatGPT 플랜 상태를 불러오지 못했습니다.",
+    "manageUsage": "사용량 관리",
+    "models": {
+      "description": "플랜에 포함된 모델은 OpenAI가 목록으로 제공합니다. 어떤 모델이든 숨길 수 있고, 플랜이 바뀌면 목록을 새로 고칠 수 있습니다.",
+      "none": "지금은 OpenAI가 이 플랜에 제공하는 모델이 없습니다.",
+      "refresh": "목록 새로 고침",
+      "refreshFailed": "모델 목록을 새로 고치지 못했습니다. 다시 시도하세요.",
+      "refreshed": "모델 목록을 업데이트했습니다.",
+      "refreshing": "새로 고치는 중…",
+      "title": "플랜의 모델"
+    },
+    "notSignedIn": "로그인하지 않음",
+    "openAgain": "로그인 페이지 다시 열기",
+    "opensInBrowser": "(브라우저에서 열림)",
+    "paused": "사용 한도에 도달해 일시 중지되었습니다. 자동 기억 업데이트는 직접 보낸 요청이 성공할 때까지 기다립니다.",
+    "planUseOff": "이 계정은 로그인되어 있지만 플랜 사용이 꺼져 있습니다. 거절했거나 계정의 플랜에 포함되어 있지 않습니다. 켜거나 다른 모델 연결을 사용할 수 있습니다.",
+    "planUseOn": "해당 요청은 ChatGPT 플랜을 사용합니다.",
+    "preferencesFailed": "선택을 저장하지 못했습니다. 다시 시도하세요.",
+    "signInRequired": "OpenAI가 이 세션을 종료했습니다. 플랜을 계속 사용하려면 다시 로그인하세요.",
+    "signOut": "로그아웃",
+    "signOutFailed": "로그아웃하지 못했습니다. 다시 시도하세요.",
+    "signOutUnconfirmed": "Animama에서는 로그아웃되었지만 OpenAI가 세션 종료를 확인하지 않았습니다. ChatGPT 설정에서 Animama 연결을 해제할 수 있습니다.",
+    "signedIn": "로그인됨",
+    "signedInAs": "{{email}}(으)로 로그인됨",
+    "signedOut": "ChatGPT에서 로그아웃했습니다",
+    "title": "ChatGPT 플랜 사용",
+    "unavailable": {
+      "remoteOrigin": "Animama를 실행 중인 컴퓨터의 브라우저에서 로그인하세요. OpenAI는 그 컴퓨터로만 돌아올 수 있습니다.",
+      "secureStorage": "보안 저장소를 사용할 수 없어 Animama가 ChatGPT 로그인을 유지할 수 없습니다. Animama를 다시 시작한 뒤 다시 시도하세요."
+    },
+    "waiting": "브라우저에서 로그인을 마치세요. 이 페이지는 자동으로 계속됩니다."
+  },
   "chips": {
     "appSearch": {
       "description": "이 앱의 검색 서비스로 웹을 검색합니다",
@@ -86,6 +138,10 @@
     "added": "연결을 추가했습니다.",
     "addModel": "모델 추가",
     "addModelTo": "{{name}}에 모델 추가",
+    "apiKey": {
+      "description": "내 API 키로 요청마다 OpenAI에 비용을 지불합니다.",
+      "title": "API 키 사용"
+    },
     "connect": "연결",
     "connecting": "연결하는 중…",
     "detail": "{{host}} · {{status}}",
@@ -167,7 +223,8 @@
     },
     "saveFailed": "{{role}} 모델을 저장할 수 없습니다.",
     "unavailable": "선택한 모델을 사용할 수 없어 기본값을 사용합니다.",
-    "unavailableChoice": "{{model}} (사용할 수 없음)"
+    "unavailableChoice": "{{model}} (사용할 수 없음)",
+    "unavailableWaiting": "선택한 모델을 사용할 수 없어 다시 사용할 수 있을 때까지 기다립니다."
   },
   "embeddings": {
     "current": "저장된 파일과 아카이브가 이 모델로 임베딩되어 있습니다.",
@@ -268,6 +325,11 @@
       "description": "프롬프트가 더 높은 장문 컨텍스트 요금에 도달하기 전에({{model}}에서는 {{early, number}}토큰) 이전 대화를 요약합니다. 끄면 {{late, number}}토큰까지 기다려 더 많은 내용을 원문 그대로 유지하지만 더 높은 요금이 적용됩니다."
     }
   },
+  "picker": {
+    "apiKey": "API 키",
+    "openaiKey": "OpenAI · API 키",
+    "openaiPlan": "OpenAI · ChatGPT 플랜"
+  },
   "probe": {
     "contextWindow": "서버가 보고한 컨텍스트 창은 {{tokens, number}}토큰입니다.",
     "dimensions": "벡터는 {{dimensions, number}}차원입니다.",
@@ -286,6 +348,7 @@
     }
   },
   "providers": {
+    "chatgptPlan": "ChatGPT 플랜",
     "connected": " (연결됨)",
     "custom": "사용자 지정",
     "purpose": {
@@ -297,6 +360,7 @@
       "lmstudio": "이 컴퓨터의 LM Studio가 제공하는 모델과 채팅합니다.",
       "ollama": "이 컴퓨터의 Ollama에서 실행 중인 모델과 채팅합니다.",
       "openai": "API 키로 OpenAI 모델과 채팅합니다.",
+      "openaiWithPlan": "ChatGPT 플랜이나 API 키로 OpenAI 모델을 사용합니다.",
       "openrouter": "OpenRouter 키 하나로 여러 제공자의 모델과 채팅합니다.",
       "vllm": "이 컴퓨터의 vLLM이 제공하는 모델과 채팅합니다.",
       "anthropic": "API 키로 Anthropic의 Claude 모델과 채팅합니다."

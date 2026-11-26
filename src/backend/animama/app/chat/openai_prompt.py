@@ -125,6 +125,7 @@ class DirectChatPromptAssembler:
         *,
         user_message: str,
         anima_identity: str,
+        user_images: Sequence[Mapping[str, Any]] = (),
         anima_name: str | None = None,
         anima_memories: str | None = None,
         anima_memories_writable: bool = False,
@@ -201,10 +202,10 @@ class DirectChatPromptAssembler:
         if supports_developer_role:
             system_text = "\n\n".join((*stable_sections, guardrails))
             turn_messages = [_text_message("developer", "\n\n".join(turn_context))] if turn_context else []
-            turn_messages.append(_text_message("user", user_message))
+            turn_messages.append(_user_message(user_message, user_images))
         else:
             system_text = "\n\n".join((*stable_sections, TURN_CONTEXT_DESCRIPTION, *folded_developer_text, guardrails))
-            turn_messages = [_text_message("user", _user_message_with_turn_context(turn_context, user_message))]
+            turn_messages = [_user_message(_user_message_with_turn_context(turn_context, user_message), user_images)]
         messages = [_text_message("system", system_text), *history, *turn_messages]
         return DirectChatPrompt(
             messages=tuple(messages),
@@ -256,12 +257,29 @@ def _with_escaped_turn_context_tags(message: ChatCompletionMessageParam) -> Chat
     """Return a replayed user message whose text cannot forge a turn-context block."""
 
     content = message.get("content")
-    if not isinstance(content, str):
+    if isinstance(content, str):
+        escaped: object = _escape_turn_context_tags(content)
+    elif isinstance(content, list):
+        # A message with images keeps its words in text parts.
+        escaped = [
+            {**part, "text": _escape_turn_context_tags(part["text"])}
+            if isinstance(part, Mapping) and part.get("type") == "text" and isinstance(part.get("text"), str)
+            else part
+            for part in content
+        ]
+    else:
         return message
-    escaped = _escape_turn_context_tags(content)
     if escaped == content:
         return message
     return cast(ChatCompletionMessageParam, {**message, "content": escaped})
+
+
+def _user_message(text: str, images: Sequence[Mapping[str, Any]]) -> ChatCompletionMessageParam:
+    """Return the turn's user message: its text, after its images when it has any."""
+
+    if not images:
+        return _text_message("user", text)
+    return cast(ChatCompletionMessageParam, {"role": "user", "content": [*images, {"type": "text", "text": text}]})
 
 
 def _stable_instruction_sections(

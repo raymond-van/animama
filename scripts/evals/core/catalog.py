@@ -15,7 +15,7 @@ from sqlalchemy.engine import URL
 from animama.app.model_clients import StaticModelClientRegistry
 from animama.app.ports import ModelProviderRepository
 from animama.domain import ModelProvider
-from animama.domain.model_connection import MODEL_KIND_CHAT
+from animama.domain.model_connection import BUILTIN_CHATGPT_PLAN_CONNECTION_ID, MODEL_KIND_CHAT
 
 __all__ = [
     "application_database_url",
@@ -54,10 +54,18 @@ def application_database_url() -> URL:
 
 
 async def chat_model_rows(model_providers: ModelProviderRepository) -> Sequence[ModelProvider]:
-    """Return the catalog's active chat rows."""
+    """Return the catalog's active chat rows, except a signed-in ChatGPT plan's.
+
+    The plan serves Animama's own features through the app (spec #919); these
+    tools build their registry without the app's session, so its rows are left out.
+    """
 
     rows = await model_providers.list_active()
-    return [row for row in rows if row.model_kind == MODEL_KIND_CHAT]
+    return [
+        row
+        for row in rows
+        if row.model_kind == MODEL_KIND_CHAT and row.connection_id != BUILTIN_CHATGPT_PLAN_CONNECTION_ID
+    ]
 
 
 def build_model_client_registry() -> StaticModelClientRegistry:

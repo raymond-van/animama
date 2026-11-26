@@ -415,6 +415,7 @@
     "filteredCount": "{{shown}} of {{total}}",
     "genericKind": "FILE",
     "heading": "Chat Uploads",
+    "imageRefused": "This image can't be used.",
     "keywordOnly": "Only keyword search is available for this file.",
     "live": {
       "empty": "No Chat Uploads yet.",

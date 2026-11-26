@@ -7,6 +7,13 @@ import { ChatInterfaceView } from "@/ui/main/chat/ChatInterface";
 
 const fixture = vi.hoisted(() => ({
   capabilities: {} as Record<string, unknown>,
+  /** This window hosts App Settings (the main window does; Quick Chat does not). */
+  settingsHost: false,
+}));
+
+// Static rendering reads a store's initial state, so the opener is supplied.
+vi.mock("@/stores/app-settings-request-store", () => ({
+  useAppSettingsOpener: () => (fixture.settingsHost ? () => undefined : null),
 }));
 
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
@@ -15,6 +22,10 @@ vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
 vi.mock("@/query/hooks/useAnima", () => ({ useAnima: () => ({}) }));
 vi.mock("@/query/hooks/useModelProviders", () => ({
   useModelProviders: () => ({}),
+}));
+// Whether the Anima's model has a key is covered by its own tests.
+vi.mock("./useAnimaModelKeyState", () => ({
+  useAnimaModelKeyState: () => null,
 }));
 vi.mock("@/platform/RuntimePlatformProvider", () => ({
   useRuntimePlatform: () => ({}),
@@ -45,17 +56,37 @@ vi.mock("@/ui/components/chat-input", () => ({
   ChatInput: ({
     actions,
     children,
+    voiceAvailable,
+    voiceModeDetails,
   }: {
     actions?: ReactNode;
     children?: ReactNode;
+    voiceAvailable?: boolean;
+    voiceModeDetails?: readonly string[] | null;
   }) => (
     <>
+      <div>
+        {voiceAvailable ? "Voice Mode enabled" : "Voice Mode disabled"}
+        {voiceModeDetails?.join(" ")}
+      </div>
       {actions}
       {children}
     </>
   ),
-  ChatInputDictation: ({ disabled }: { disabled?: boolean }) => (
-    <div>{disabled ? "Dictation disabled" : "Dictation enabled"}</div>
+  ChatInputDictation: ({
+    disabled,
+    onSetUp,
+  }: {
+    disabled?: boolean;
+    onSetUp?: (() => void) | null;
+  }) => (
+    <div>
+      {disabled
+        ? "Dictation disabled"
+        : onSetUp
+          ? "Dictation set-up"
+          : "Dictation enabled"}
+    </div>
   ),
   ChatInputFileUploadButton: () => null,
   ChatInputFileUploadUnavailable: () => null,
@@ -64,9 +95,10 @@ vi.mock("@/ui/components/chat-input", () => ({
   ChatInputTextArea: () => null,
 }));
 
-function render() {
+function render(quickChatSurface = false) {
   return renderToStaticMarkup(
     <ChatInterfaceView
+      quickChatSurface={quickChatSurface}
       animaId="annie"
       animaName="Annie"
       activeChat={null}
@@ -93,6 +125,7 @@ function render() {
 describe("speech recognition availability in the composer", () => {
   beforeEach(() => {
     fixture.capabilities = {};
+    fixture.settingsHost = false;
   });
   afterEach(async () => {
     await getI18n().changeLanguage("en");
@@ -106,6 +139,43 @@ describe("speech recognition availability in the composer", () => {
     const html = render();
     expect(html).toContain("Dictation disabled");
     expect(html).not.toMatch(/offline speech recognition/i);
+  });
+
+  it("leads to Speech-to-Text settings where the owner can install a model", () => {
+    fixture.capabilities = {
+      offline_speech_enabled: false,
+      local_filesystem_administration: true,
+    };
+    fixture.settingsHost = true;
+    const html = render();
+    expect(html).toContain("Dictation set-up");
+    expect(html).toContain("Voice Mode enabled");
+    expect(html).toContain(
+      "Speech recognition needs a model. Select to open App Settings → Voice.",
+    );
+    // Quick Chat has no App Settings to open, so its controls stay disabled.
+    const quickChat = render(true);
+    expect(quickChat).toContain("Dictation disabled");
+    expect(quickChat).toContain("Voice Mode disabled");
+  });
+
+  it("stays disabled where the operator provides the speech models", () => {
+    fixture.capabilities = { offline_speech_enabled: false };
+    fixture.settingsHost = true;
+    const html = render();
+    expect(html).toContain("Dictation disabled");
+    expect(html).toContain("Voice Mode disabled");
+  });
+
+  it("starts speech as before once a model is installed", () => {
+    fixture.capabilities = {
+      offline_speech_enabled: true,
+      local_filesystem_administration: true,
+    };
+    fixture.settingsHost = true;
+    const html = render();
+    expect(html).toContain("Dictation enabled");
+    expect(html).not.toContain("Speech recognition needs a model");
   });
 
   it("follows the UI Locale's offline engine", async () => {

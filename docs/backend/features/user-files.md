@@ -1,7 +1,7 @@
 # User Files
 
-User files are installation-owned uploaded documents. They are stored separately from
-anima archives and the memory filesystem. The upload API supports
+User files are installation-owned uploaded documents and chat images. They are
+stored separately from anima archives and the memory filesystem. The upload API supports
 upload, processing, listing, deletion, and debug retrieval validation. Uploaded
 files can be attached to direct chat turns by backend file ID after upload
 initialization. Processed attached chunks are available to direct chat through
@@ -27,6 +27,7 @@ Backend API:
 - `POST /v1/memory/debug/search-memory-files`
 - `GET /v1/files`
 - `GET /v1/files/{file_id}`
+- `GET /v1/files/{file_id}/content` (a ready chat image's stored copy; `?variant=thumbnail` for a 128 px copy, `?variant=preview` for a 320 px one)
 - `DELETE /v1/files/{file_id}`
 - `DELETE /v1/files/uploads/{file_id}`
 - `GET /v1/runtime-capabilities`
@@ -35,7 +36,7 @@ Frontend UI:
 
 - Chat composer paperclip button opens an attachment popover with **Upload from
   computer** first and a searchable list of the current user's existing
-  `ready`/`ready_keyword_only` files below it. New-upload IDs and selected
+  `ready`/`ready_keyword_only` documents and ready images below it. New-upload IDs and selected
   existing IDs are merged into `attached_file_ids` for the next `chat:sse`
   request.
 - `/library?section=chat-uploads` shows private upload status,
@@ -61,7 +62,8 @@ Each composition runs one server process and so one runner. Several processes
 would still claim jobs safely (`SKIP LOCKED`), but they would share one
 liveness row.
 
-The server never parses upload bytes itself. For each file the runner starts a
+The server never parses a document's bytes itself (it does decode chat images,
+with Pillow, when they are finalized). For each file the runner starts a
 child of the same runtime (`parse-upload`, implemented in
 `adapters/parsers/parse_child.py`) and sends it the bytes on standard input:
 
@@ -118,7 +120,9 @@ Allowed extensions:
 - tabular text: `.csv`, `.tsv`
 - rich documents: `.pdf`, `.docx`, `.pptx`, `.xlsx`
 
-The upload API rejects extensions outside the allowlist. Macro-enabled Office
+Chat images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, up to 20 MiB) are also
+accepted; see [Chat Images](#chat-images). The upload API rejects every other
+extension. Macro-enabled Office
 files such as `.docm`, `.xlsm`, and `.pptm` remain blocked, along with
 executables, scripts, installers, and archive formats.
 
@@ -169,9 +173,42 @@ Uploads are untrusted, and every refusal names its reason:
 - XML that declares any entity, in a `.xml` file or inside an Office package,
   is refused, and no external content is loaded.
 
+## Chat Images
+
+PNG, JPEG, WebP and GIF files (by extension, then by content) upload as chat
+images, up to 20 MiB (`MAX_USER_IMAGE_UPLOAD_BYTES`). HEIC and HEIF are
+refused at init with a message that names the format. `metadata.kind` is
+`"image"` from init, so every reader can tell an image from a document
+(`is_image_user_file`).
+
+An image is never processed. `:finalize` decodes it in the server
+(`app/services/content_image.py`), through the bounded reader content images
+use: at most 40 megapixels and 16,384 px a side, and only the PNG, JPEG, WebP
+and GIF decoders, at most two images at a time. It stores a canonical copy in
+place of the upload at the same locator: orientation applied, metadata such as
+EXIF and GPS removed, a GIF's first frame, long edge at most 2,000 px. The copy
+is PNG when the source is PNG or GIF and the copy fits 3.5 MiB, otherwise JPEG
+(quality 90, stepping down to 50) with transparency flattened onto white. The
+row becomes `ready` with `metadata.image` (`width`, `height`, `media_type`),
+with no processing job, chunks or embeddings, and `search_uploaded_files` never
+returns it. An unreadable or damaged image, one with too many pixels, or one too
+detailed to fit 3.5 MiB even at JPEG quality 50 becomes `failed` with its reason
+in `last_error`, and its bytes are deleted. The storage write or delete runs
+under the row lock, so a delete during decoding wins. If `:finalize` stops after
+the upload was saved, `:process` stores the canonical copy for an image still at
+`uploaded`; for any other image it returns its state without a job, and the
+processing switch does not apply to images.
+
+`GET /v1/files/{file_id}/content` serves the canonical copy, or a smaller
+copy, only to its owner ([HTTP API](../architecture/http-api.md)). A chat turn
+carries at most four images; how it refuses others and saves references
+instead of bytes is in [direct chat](../runtime/chat.md#chat-images) and
+[ADR 0038](../../adr/0038-chat-images-saved-as-references.md).
+
 ## Step-By-Step Upload And Processing Walkthrough
 
-Chat and Library use the same upload lifecycle:
+Chat and Library use the same upload lifecycle. A chat image stops at step 3,
+where it becomes `ready` or `failed` ([Chat Images](#chat-images)):
 
 1. Uppy checks the browser allowlist and size, then calls
    `POST /v1/files/uploads` with filename, content type, and declared size.
@@ -246,7 +283,8 @@ File statuses:
 - `pending_upload`: metadata row exists but its local file is not finalized.
 - `uploaded`: the promoted local file exists and passed finalize checks.
 - `processing`: at least one processing job has been enqueued.
-- `ready`: chunks are available, with vectors when embeddings are on.
+- `ready`: chunks are available, with vectors when embeddings are on; a chat
+  image is `ready` once stored and has none.
 - `ready_keyword_only`: chunks are available, but embedding failed. Re-embedding
   marks the file `ready` once every chunk has a vector.
 - `failed`: upload finalization or processing failed.
@@ -459,7 +497,8 @@ Processing loop:
 
 ## Data Model And Ownership
 
-`ORMUserFile` stores the original upload metadata. It is scoped by the generated
+`ORMUserFile` stores the upload's metadata (for a chat image, that of its
+canonical copy, which replaced the upload). It is scoped by the generated
 installation principal in `user_id` and uses backend-generated object keys. `ORMUserFileProcessingJob`
 stores durable processing work and lease metadata. `ORMUserFileChunk` stores
 searchable extracted chunks and denormalizes `user_id` for ownership filters.
@@ -483,6 +522,11 @@ search. The API attempts to delete the local file, tombstones the row as
 cleanup fails,
 and deletes stored chunks so debug search no longer returns them.
 
+Deleting a chat deletes the images its user messages reference unless a
+message in another chat references them too (an image can be attached again
+from the Library). Each image is deleted and committed on its own, like a file
+the person removed. Deleting an Anima leaves its chats' images in place.
+
 Pending uploads can be aborted with `DELETE /v1/files/uploads/{file_id}`. If the
 browser PUT fails, the pending row remains until abort or expiry cleanup is
 added later.
@@ -503,6 +547,7 @@ expire. Reprocessing with `force=true` replaces chunks idempotently.
 
 ## Non-Goals
 
-The API does not expose original download URLs or let agents read original
-bytes. OCR, encrypted or password-protected documents and macro-enabled Office
-files are unsupported.
+The API serves no document bytes, and a chat image's canonical copy only to its
+owner; agent tools never read file bytes, and a model sees an image only inside
+a chat request. OCR, encrypted or password-protected documents and macro-enabled
+Office files are unsupported.

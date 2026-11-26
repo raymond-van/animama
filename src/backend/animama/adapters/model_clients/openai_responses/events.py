@@ -410,6 +410,7 @@ def event_metadata(event: Any) -> dict[str, Any]:
         if response.error is not None:
             response_metadata["error"] = {
                 "code": response.error.code,
+                "type": get_value(response.error, "type"),
                 "message": response.error.message,
             }
         if response.incomplete_details is not None:

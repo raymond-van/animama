@@ -43,6 +43,7 @@ from animama.app.services.model_configuration_service import (
 from animama.domain import ModelProvider
 from animama.domain.model_connection import MODEL_KIND_EMBEDDING, ModelConnection, ModelConnectionCompatibility
 from animama.domain.request_principal import RequestPrincipal
+from animama.server.chatgpt_plan import chatgpt_plan_credential_state
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.embedding_refresh import (
@@ -239,6 +240,7 @@ async def list_openrouter_models(
 
 @router.get("/v1/model-connections", response_model=list[PyModelConnection])
 async def list_model_connections(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     _principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
     credentials: Annotated[ModelCredentialResolver, Depends(get_model_credential_resolver)],
@@ -247,7 +249,11 @@ async def list_model_connections(
     views: list[PyModelConnection] = []
     for connection in await service.list_connections():
         models = await service.list_models(connection.id)
-        views.append(_connection_view(connection, credentials, models))
+        view = _connection_view(connection, credentials, models)
+        if connection.is_builtin_chatgpt_plan:
+            # A sign-in, not a key: its state comes from the session (spec #919).
+            view.credential_state = await chatgpt_plan_credential_state(request.app)
+        views.append(view)
     return views
 
 
@@ -327,7 +333,7 @@ async def list_available_models(
     probe: Annotated[ModelConnectionProbe, Depends(get_model_connection_probe)],
     anthropic_probe: Annotated[ModelConnectionProbe, Depends(get_anthropic_connection_probe)],
 ) -> PyAvailableModels:
-    connection = await _connection_or_404(session, connection_id)
+    connection = await _probeable_connection_or_404(session, connection_id)
     try:
         return PyAvailableModels(models=await _probe_for(connection, probe, anthropic_probe).list_models(connection))
     except ModelConnectionProbeError as exc:
@@ -349,7 +355,7 @@ async def probe_model(
     connection reports what Anthropic's Models API publishes for the model.
     """
 
-    connection = await _connection_or_404(session, connection_id)
+    connection = await _probeable_connection_or_404(session, connection_id)
     try:
         if connection.is_builtin_anthropic:
             if body.kind == MODEL_KIND_EMBEDDING:
@@ -450,6 +456,19 @@ async def _connection_or_404(session: AsyncSession, connection_id: str) -> Model
         return await _service(session).get_connection(connection_id)
     except ModelConfigurationError as exc:
         raise _http_error(exc) from exc
+
+
+async def _probeable_connection_or_404(session: AsyncSession, connection_id: str) -> ModelConnection:
+    """A connection whose server may be asked for models: not the ChatGPT plan, whose list is the account's."""
+
+    connection = await _connection_or_404(session, connection_id)
+    if connection.is_builtin_chatgpt_plan:
+        raise _http_error(
+            ModelConfigurationError(
+                "The ChatGPT plan's models come from the signed-in account", code="connection_read_only"
+            )
+        )
+    return connection
 
 
 def _connection_draft(body: PyModelConnectionRequest) -> ModelConnectionDraft:

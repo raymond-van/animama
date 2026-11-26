@@ -81,7 +81,11 @@
       "loadFailed": "无法加载已上传的文件。",
       "loading": "正在加载已上传的文件…",
       "search": "搜索已上传的文件…",
-      "uploading": "正在上传 {{percent}}"
+      "uploading": "正在上传 {{percent}}",
+      "imageDetails": "{{size}} · {{status}}"
+    },
+    "chatgptPlan": {
+      "using": "正在使用 ChatGPT 套餐"
     },
     "dictation": {
       "failed": "听写失败",
@@ -112,6 +116,7 @@
       "empty": "未找到模型。",
       "fallbackLabel": "模型",
       "features": "聊天功能",
+      "keyMissing": "{{model}} 没有 API 密钥",
       "needsWindow": "请在“应用设置 → 模型”中设置其上下文窗口",
       "noFeatures": "此模型没有可选功能。",
       "noProfile": "没有聊天配置",
@@ -146,11 +151,29 @@
       "unavailableShort": "模型不可用",
       "webSearch": "网络搜索"
     },
+    "modelKey": {
+      "choose": "选择模型",
+      "notice": "{{anima}} 使用 {{model}}，但 {{provider}} 还没有 API 密钥。",
+      "settings": "模型设置",
+      "use": "使用 {{model}}"
+    },
     "speechEngines": {
       "offline": "{{engine}} {{variant}}",
       "stt": "STT：{{stt}}",
       "tts": "TTS：{{tts}}",
       "ttsOff": "关闭"
+    },
+    "speechSetup": {
+      "detail": "语音识别需要模型。选择后将打开应用设置 → 语音。",
+      "title": "设置语音识别"
+    },
+    "images": {
+      "unsupportedFormat": "Animama 无法读取 {{name}} 的格式。请将其转换为 JPEG 或 PNG 后重试。",
+      "tooLarge": "{{name}} 超过 {{size}}。请选择较小的图片。",
+      "tooMany_other": "一条消息最多可附带 {{count}} 张图片。",
+      "modelUnsupported": "此模型无法查看图片。要附加图片，请选择支持图片的模型。",
+      "noImagesNote": "此模型无法查看图片。请移除图片，或选择支持图片的模型。",
+      "rejected": "未添加图片"
     }
   },
   "header": {
@@ -166,6 +189,14 @@
       "failed": "下载失败；选择即可重试",
       "whenSelected": "选择后即会下载"
     }
+  },
+  "images": {
+    "listLabel": "随此消息发送的图片",
+    "loadFailed": "无法加载图片",
+    "open": "打开 {{name}}",
+    "placeholderLabel": "{{name}}：{{reason}}",
+    "unavailable": "图片已不可用",
+    "unnamed": "图片"
   },
   "loadingStatus": {
     "avatar": "正在加载虚拟形象",

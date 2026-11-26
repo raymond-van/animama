@@ -53,6 +53,12 @@
       "searching": "正在搜索…",
       "setUpLater": "稍后设置"
     },
+    "noModelPrompt": {
+      "continue": "不设置模型继续",
+      "description": "目前还没有可以回复的模型，因此你的 Anima 无法聊天。请在此连接提供商并添加模型，或稍后在应用设置 → 模型中添加。",
+      "stay": "继续设置",
+      "title": "不设置聊天模型就继续？"
+    },
     "builtin": {
       "serverKey": "使用此服务器上配置的 {{name}} 密钥。",
       "serverKeyMissing": "要使用 {{name}}，请在服务器上设置 {{env}}。"

@@ -534,6 +534,7 @@ export function createHostedComposition(
       capabilities.local_filesystem_administration ||
       capabilities.native_features ||
       capabilities.automatic_episode_processing ||
+      capabilities.chatgpt_plan ||
       capabilities.web_search?.configuration
     ) {
       if (session)

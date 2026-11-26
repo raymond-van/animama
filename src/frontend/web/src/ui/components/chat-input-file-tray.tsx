@@ -4,7 +4,10 @@ import {
   resolveUserFileUploadCardStatus,
   type UserFileUploadCardStatus,
 } from "@/lib/user-files/upload-card-status";
+import { isUserImageFile } from "@/lib/user-files/chat-images";
+import { isUserImageFileName } from "@/lib/user-files/uploads";
 import { cn } from "@/lib/utils";
+import { UserFileThumbnail } from "@/ui/components/user-file-thumbnail";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { Button } from "@/ui/components/button";
 import {
@@ -21,7 +24,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
@@ -29,6 +32,8 @@ type ChatInputFileTrayProps = {
   className?: string;
   /** Shown under the attached files, e.g. when the model cannot search them. */
   note?: string | null;
+  /** Shown while an image is attached, e.g. when the model cannot see images. */
+  imageNote?: string | null;
   existingFiles?: readonly PyUserFileResponse[];
   onRemoveExistingFile?: (fileId: string) => void;
   uppy: UserFileUploadUppy;
@@ -123,9 +128,13 @@ function ExistingFileCard({
         status: statusLabel,
       })}
     >
-      <div className="bg-success/10 text-success flex size-7 shrink-0 items-center justify-center rounded-md">
-        <CheckCircle2 className="size-3.5" aria-hidden="true" />
-      </div>
+      {isUserImageFile(file) ? (
+        <UserFileThumbnail fileId={file.file_id} className="size-7" />
+      ) : (
+        <div className="bg-success/10 text-success flex size-7 shrink-0 items-center justify-center rounded-md">
+          <CheckCircle2 className="size-3.5" aria-hidden="true" />
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="text-foreground truncate text-xs font-medium">
           {file.original_filename}
@@ -167,9 +176,31 @@ function ExistingFileCard({
   );
 }
 
+/** A small preview of an image the person is attaching, read from the local file. */
+function LocalImagePreview({ data }: { data: Blob }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(data);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [data]);
+  // The box keeps its size while the preview is being read.
+  return url ? (
+    <img
+      src={url}
+      alt=""
+      className="size-7 shrink-0 rounded-md object-cover"
+      draggable={false}
+    />
+  ) : (
+    <span className="bg-muted size-7 shrink-0 rounded-md" aria-hidden="true" />
+  );
+}
+
 export function ChatInputFileTray({
   className,
   note,
+  imageNote,
   existingFiles = [],
   onRemoveExistingFile,
   uppy,
@@ -207,6 +238,9 @@ export function ChatInputFileTray({
   if (files.length === 0 && existingFiles.length === 0) {
     return null;
   }
+  const hasImage =
+    files.some((file) => isUserImageFileName(file.name)) ||
+    existingFiles.some((file) => isUserImageFile(file));
 
   return (
     <div className={cn("w-full space-y-2", className)}>
@@ -236,14 +270,22 @@ export function ChatInputFileTray({
                 status: status.label,
               })}
             >
-              <div
-                className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-md",
-                  statusIconClassName[status.tone],
-                )}
-              >
-                <StatusGlyph status={status} />
-              </div>
+              {/* A ready image shows itself; other states keep the status glyph. */}
+              {isUserImageFileName(file.name) &&
+              file.data instanceof Blob &&
+              !status.active &&
+              status.id !== "failed" ? (
+                <LocalImagePreview data={file.data} />
+              ) : (
+                <div
+                  className={cn(
+                    "flex size-7 shrink-0 items-center justify-center rounded-md",
+                    statusIconClassName[status.tone],
+                  )}
+                >
+                  <StatusGlyph status={status} />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="text-foreground truncate text-xs font-medium">
                   {file.name}
@@ -318,6 +360,11 @@ export function ChatInputFileTray({
       {note ? (
         <p className="text-muted-foreground text-xs" role="status">
           {note}
+        </p>
+      ) : null}
+      {imageNote && hasImage ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {imageNote}
         </p>
       ) : null}
     </div>

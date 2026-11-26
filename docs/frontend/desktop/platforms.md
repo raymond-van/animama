@@ -167,7 +167,7 @@ during an upgrade, never ask and never delete data.
 
 The installer, the app's startup check and the staged runtime manifest share
 one floor: Windows 10 version 1903 (build 18362), the oldest build a shipped
-component needs. Windows 10 22H2 and Windows 11 are the supported versions;
+component is known to need. Windows 10 22H2 and Windows 11 are the supported versions;
 builds between 1903 and 22H2 are not blocked and are untested.
 `tests/windows-native.test.mjs` fails if the installer, the Windows lock, the
 source manifest, the app and the release target name different floors.

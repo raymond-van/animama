@@ -1,17 +1,18 @@
-"""Library-sized previews of registered content images.
+"""Small previews of registered content images and chat images.
 
 Effect art is often a large flipbook sheet or texture, while the Library shows it
 in a 40-pixel tile. ``thumbnail_file`` re-encodes a raster image as WebP no larger
-than ``THUMBNAIL_EDGE`` on either side, so a Library page downloads kilobytes per
-card instead of the full art. Decoding uses the bounded image reader shared with
-saved images, so an over-budget canvas is refused from its header. A source is
-shrunk before it is oriented, a JPEG decodes at a reduced scale, and a source that
-would decode to more than ``THUMBNAIL_MAX_DECODED_PIXELS`` (a PNG or WebP larger
-than any canonical image) is refused, so one preview holds a bounded amount of
-memory; the Library then shows the item's icon. At most ``THUMBNAIL_DECODE_SLOTS``
-sources decode at once in a process. Thumbnails are cached in process by
-the source's SHA-256, so the cache is content-addressed and is consulted only after
-the caller has authorized and verified the source file.
+than ``THUMBNAIL_EDGE`` on either side (or ``PREVIEW_EDGE`` for a chat image in
+the transcript), so a page downloads kilobytes per image instead of the full art.
+Decoding uses the bounded image reader shared with saved images, so an over-budget
+canvas is refused from its header. A source is shrunk before it is oriented, a
+JPEG decodes at a reduced scale, and a source that would decode to more than
+``THUMBNAIL_MAX_DECODED_PIXELS`` (a PNG or WebP larger than any canonical image) is
+refused, so one preview holds a bounded amount of memory; the Library then shows
+the item's icon. At most ``THUMBNAIL_DECODE_SLOTS`` sources decode at once in a
+process. Thumbnails are cached in process by the source's SHA-256 (and size, for
+previews), so the cache is content-addressed and is consulted only after the
+caller has authorized and verified the source file.
 """
 
 from __future__ import annotations
@@ -29,11 +30,14 @@ from animama.domain.content_catalog import VerifiedContentFile
 # an Included image's thumbnail for a year under its digest URL (ADR 0033), so a
 # change to the size or encoding that must reach them needs a new variant name.
 THUMBNAIL_EDGE = 128
+# Chat transcript previews of chat images: twice a 160 px wide preview tile.
+PREVIEW_EDGE = 320
 THUMBNAIL_MEDIA_TYPE = "image/webp"
 _RASTER_EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
 # Vector art is already small and scales without loss.
 _PASSTHROUGH_TYPES = frozenset({"image/svg+xml"})
-# Roughly 1,500 thumbnails.
+# Roughly 1,500 thumbnails, or about 500 chat previews; both share it, so many
+# chat images can evict Library thumbnails, which then decode again.
 _CACHE_MAX_BYTES = 8 * 1024 * 1024
 # Every canonical image (at most 4096 px a side) previews; a larger PNG or WebP (an
 # Appearance image up to 40 megapixels, or a pack or Scene Effect raster that saving
@@ -80,10 +84,11 @@ class _ThumbnailCache:
 _cache = _ThumbnailCache(_CACHE_MAX_BYTES)
 
 
-def thumbnail_file(file: VerifiedContentFile) -> VerifiedContentFile:
-    """Return ``file`` as a Library-sized image, taking ownership of its handle.
+def thumbnail_file(file: VerifiedContentFile, *, edge: int = THUMBNAIL_EDGE) -> VerifiedContentFile:
+    """Return ``file`` as an image at most ``edge`` px a side, taking ownership of its handle.
 
-    Vector images and rasters already within ``THUMBNAIL_EDGE`` come back unchanged;
+    ``edge`` is ``THUMBNAIL_EDGE`` for Library tiles or ``PREVIEW_EDGE`` for chat
+    previews. Vector images and rasters already within ``edge`` come back unchanged;
     larger rasters come back as an in-memory WebP (first frame, EXIF orientation
     applied) whose digest is its ETag. Blocks on image decoding, so callers run it
     in a worker thread.
@@ -95,29 +100,30 @@ def thumbnail_file(file: VerifiedContentFile) -> VerifiedContentFile:
     if extension is None:
         file.handle.close()
         raise ContentThumbnailError(f"{file.media_type} has no thumbnail")
-    data = _cache.get(file.sha256)
+    cache_key = file.sha256 if edge == THUMBNAIL_EDGE else f"{edge}:{file.sha256}"
+    data = _cache.get(cache_key)
     if data is None:
         with _DECODE_SLOTS:
             # Another request may have decoded the same source while this one waited.
-            data = _cache.get(file.sha256)
+            data = _cache.get(cache_key)
             if data is None:
                 try:
                     derived = derive_image_thumbnail(
                         extension=extension,
                         content=file.handle,
-                        max_dimension=THUMBNAIL_EDGE,
+                        max_dimension=edge,
                         first_frame=True,
                         max_decoded_pixels=THUMBNAIL_MAX_DECODED_PIXELS,
                     )
                 except ContentFileInvalidError as exc:
                     file.handle.close()
                     raise ContentThumbnailError("registered image cannot be previewed") from exc
-                if derived.source_width <= THUMBNAIL_EDGE and derived.source_height <= THUMBNAIL_EDGE:
+                if derived.source_width <= edge and derived.source_height <= edge:
                     # Small sources are cheap to re-check and are not worth a cache entry.
                     file.handle.seek(0)
                     return file
                 data = derived.content
-                _cache.put(file.sha256, data)
+                _cache.put(cache_key, data)
     file.handle.close()
     return VerifiedContentFile(
         handle=BytesIO(data),
@@ -127,4 +133,4 @@ def thumbnail_file(file: VerifiedContentFile) -> VerifiedContentFile:
     )
 
 
-__all__ = ["THUMBNAIL_EDGE", "THUMBNAIL_MAX_DECODED_PIXELS", "ContentThumbnailError", "thumbnail_file"]
+__all__ = ["PREVIEW_EDGE", "THUMBNAIL_EDGE", "THUMBNAIL_MAX_DECODED_PIXELS", "ContentThumbnailError", "thumbnail_file"]

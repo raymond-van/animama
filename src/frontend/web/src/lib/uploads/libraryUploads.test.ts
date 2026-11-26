@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import {
+  canProcessLibraryUpload,
   filterLibraryUploads,
   hasActiveLibraryUpload,
   libraryUploadRefetchInterval,
@@ -53,6 +54,74 @@ describe("Library Chat Uploads", () => {
       statusTone: "active",
       active: true,
     });
+  });
+
+  it("shows a ready image with its thumbnail and a plain ready status", () => {
+    const image = presentLibraryUpload(
+      upload({
+        file_id: "image-1",
+        original_filename: "cat.png",
+        normalized_extension: ".png",
+        chunk_count: 0,
+        metadata: { kind: "image", image: { width: 40, height: 20 } },
+      }),
+    );
+    expect(image).toMatchObject({
+      imageFileId: "image-1",
+      statusLabel: "Ready",
+      statusTone: "success",
+      active: false,
+    });
+
+    expect(
+      presentLibraryUpload(
+        upload({
+          status: "failed",
+          normalized_extension: ".png",
+          metadata: { kind: "image" },
+        }),
+      ).imageFileId,
+    ).toBeNull();
+    expect(presentLibraryUpload(upload()).imageFileId).toBeNull();
+  });
+
+  it("offers processing for documents, and for an image only to finish its upload", () => {
+    const image = (status: string) =>
+      upload({
+        status,
+        normalized_extension: ".png",
+        metadata: { kind: "image" },
+      });
+    const enabled = { processingEnabled: true };
+
+    expect(canProcessLibraryUpload(upload({ status: "ready" }), enabled)).toBe(
+      true,
+    );
+    expect(
+      canProcessLibraryUpload(upload({ status: "uploaded" }), {
+        processingEnabled: false,
+      }),
+    ).toBe(false);
+    expect(
+      canProcessLibraryUpload(
+        upload({
+          status: "processing",
+          latest_processing_job: {
+            attempts: 1,
+            job_id: "job-1",
+            max_attempts: 3,
+            status: "running",
+          },
+        }),
+        enabled,
+      ),
+    ).toBe(false);
+    // An interrupted image is completed by :process whatever the processing switch says.
+    expect(
+      canProcessLibraryUpload(image("uploaded"), { processingEnabled: false }),
+    ).toBe(true);
+    expect(canProcessLibraryUpload(image("ready"), enabled)).toBe(false);
+    expect(canProcessLibraryUpload(image("failed"), enabled)).toBe(false);
   });
 
   it("filters the complete list by filename, extension, type, and status", () => {
@@ -171,6 +240,25 @@ describe("Library Chat Uploads", () => {
           upload({ status: "failed", last_error: "Embeddings unavailable." }),
         ).error,
       ).toBe(detail(t("uploads.processingFailed")));
+    });
+
+    it("words a refused image as refused, not as failed processing", async () => {
+      await getI18n().changeLanguage("ja");
+      const t = getI18n().getFixedT(null, "library");
+      expect(
+        presentLibraryUpload(
+          upload({
+            status: "failed",
+            last_error: "This image has too many pixels.",
+            metadata: { kind: "image" },
+          }),
+        ).error,
+      ).toBe(
+        getI18n().t("errors:generic.withDetail", {
+          message: t("uploads.imageRefused"),
+          detail: "This image has too many pixels.",
+        }),
+      );
     });
   });
 });

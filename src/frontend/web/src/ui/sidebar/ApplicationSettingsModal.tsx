@@ -62,6 +62,7 @@ import {
 import { useDesktopLoginItem } from "@/hooks/useDesktopLoginItem";
 import { useDesktopMenuEntry } from "@/hooks/useDesktopMenuEntry";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
+import type { AppSettingsRequest } from "@/stores/app-settings-request-store";
 import { APPEARANCE_COLOR_TOKENS } from "@/lib/theme/appearance-overrides";
 import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
 import {
@@ -177,6 +178,13 @@ import { cn } from "@/lib/utils";
 type ApplicationSettingsModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * A setting to open at, requested from outside the dialog. It is revealed
+   * like a search selection once the setting is offered, then reported
+   * through `onRevealed`.
+   */
+  reveal?: AppSettingsRequest | null;
+  onRevealed?: (request: AppSettingsRequest) => void;
 };
 
 type ShortcutRecorderProps = {
@@ -565,6 +573,8 @@ const shortcutRows: Array<{
 export function ApplicationSettingsModal({
   open,
   onOpenChange,
+  reveal = null,
+  onRevealed,
 }: ApplicationSettingsModalProps) {
   const apiClient = useProductApiClient();
   const { t, i18n } = useTranslation("settings");
@@ -1953,6 +1963,25 @@ export function ApplicationSettingsModal({
     setActiveSection(entry.section);
     setRevealRequest({ id: entry.id, nonce: Date.now() });
   };
+
+  // A request from outside the dialog opens at its setting once that setting
+  // is offered (an entry can stay hidden until its state loads).
+  const requestedEntry = reveal
+    ? visibleEntries.find((entry) => entry.id === reveal.target)
+    : undefined;
+  const requestReady = open && Boolean(requestedEntry);
+  useEffect(() => {
+    if (!requestReady || !reveal || !requestedEntry) return;
+    // On a fresh open the dialog's content mounts, and takes focus, after
+    // this effect. Waiting a frame lets the reveal find its row and keep the
+    // focus it gives the setting.
+    const frame = window.requestAnimationFrame(() => {
+      handleSearchSelectEntry(requestedEntry);
+      onRevealed?.(reveal);
+    });
+    return () => window.cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per request, when its entry is offered
+  }, [requestReady, reveal?.nonce]);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>

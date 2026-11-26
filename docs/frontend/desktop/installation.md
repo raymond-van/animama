@@ -18,9 +18,10 @@ Developers building from source should use [Platform builds](platforms.md).
 | Windows x64: Windows 10 22H2 or Windows 11   | Signed per-user installer published; 0.1.6 is the first stable release, accepted by installing it over signed 0.1.5. The published 0.1.6 installs only on Windows 11 (build 22000 or later); later releases and builds from current source also install on Windows 10. Clean-machine and Windows 10 22H2 testing remain open. |
 | Intel Mac, universal Mac, Windows ARM, Linux | No supported self-contained release.                                                              |
 
-On Windows, the installer and the app accept Windows 10 from version 1903
-(build 18362), but only Windows 10 22H2 and Windows 11 are supported; earlier
-Windows 10 versions are untested. Microsoft ended support for Windows 10 on
+On Windows, the installer and app built from current source, and releases after
+0.1.6, accept Windows 10 from version 1903 (build 18362), but only Windows 10
+22H2 and Windows 11 are supported; earlier Windows 10 versions are untested.
+Microsoft ended support for Windows 10 on
 14 October 2025, so it no longer receives free security updates. PCs limited to
 Windows 10 often have older graphics hardware, where Avatar rendering can be
 slow; performance there is best effort.
@@ -61,6 +62,8 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    you set up last (saving the OpenAI key, saving the Anthropic key for Claude
    Haiku 5.5, or adding a model) becomes the default Chat model, and the
    starter Animas switch to it. **Skip for now** keeps the default.
+   **Continue** asks first when no model can reply yet, which is the case
+   until a provider is connected with its key and a model.
 6. **Voice** chooses speech recognition by engine, then CPU or GPU: the
    engine for the app's language comes first and is recommended (SenseVoice
    for Japanese, Korean and Chinese, Parakeet for English), and each version
@@ -80,8 +83,8 @@ existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech
 
-Setup asks for the OpenAI or Anthropic key in its AI step and the ElevenLabs
-key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
+Setup asks for the OpenAI or Anthropic key, or offers signing in with a ChatGPT
+plan, in its AI step, and asks for the ElevenLabs key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
 cards in App Settings → Models, and the ElevenLabs key is in App Settings →
 Voice. The Gemini key for [Gemini voices](../runtime/gemini-tts.md), which setup
 does not ask for, is in App Settings → Voice when Gemini is chosen. All four are
@@ -143,9 +146,12 @@ can be imported. Complete starter animation acquisition remains a release gate. 
 
 ## Updates, backup and removal
 
-A configured release checks for updates without blocking startup, and
-Settings → General offers **Check for updates**. The final release never checks
-and offers none; after downloads end, older builds' checks fail quietly. The
+A configured release checks for updates without blocking startup and shows a
+notice when one is available. **Check for updates** in App Settings → About
+checks on request, as do **Check for updates…** in the sidebar's user menu
+(click your name or avatar) and, on macOS, **Check for Updates…** in the Animama menu.
+The final release never checks and offers none of them; after downloads end,
+older builds' checks fail quietly. The
 preview builds 0.1.0 to 0.1.2 also send your system language and a random ID
 that stays the same for each installation; the
 [safety and crisis protocol](../../safety/crisis-protocol.md#your-data) lists

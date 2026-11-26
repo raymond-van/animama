@@ -10,14 +10,20 @@ initialization succeeds.
 - Chat composer: the paperclip button opens an attachment popover. Its first
   row, **Upload from computer**, opens the browser file picker. Below that row,
   users can search and select installation uploads that are already `ready` or
-  `ready_keyword_only` and have chunks. New uploads and selected existing files
-  appear as compact cards above the text row. Their backend `file_id` values are
+  `ready_keyword_only` and have chunks, and ready images (which have none).
+  New uploads and selected existing files appear as compact cards above the
+  text row; an image card shows its thumbnail. Their backend `file_id` values are
   merged and sent as `attached_file_ids` with the next `chat:sse` request.
   On main chat routes, users can also drag files anywhere over the page and
   drop them to add those files to the same composer upload tray.
 - `/library?section=chat-uploads`: lists uploaded files, shows file and
   processing status, supports upload, selected deletion, process/reprocess
-  actions, and debug search.
+  actions, and debug search. A ready image's row shows its thumbnail.
+- Chat transcript: a user message shows the images sent with it above its
+  bubble (`ui/main/chat/ChatMessageImages.tsx`), read from the message's
+  `data.images` and, before history confirms the turn, from the composer
+  (`describeAttachedImages`). Each opens larger in a dialog; a deleted image
+  leaves a placeholder.
 
 The chat composer offers the attach button, drop overlay and upload tray, and
 the Library its Chat Uploads section, only when the admitted runtime
@@ -39,8 +45,13 @@ existing backend ID directly.
 
 ## Upload Flow
 
-1. The user selects files with Uppy or drops files onto the main chat page.
-2. Uppy applies browser-side restrictions from
+1. The user selects files with Uppy, drops files onto the main chat page, or
+   pastes images into the composer's text area. A paste that also carries
+   text pastes the text instead.
+2. The chat composer applies its image rules first
+   (`src/frontend/web/src/lib/user-files/chat-images.ts`: format, 20 MiB,
+   four images a message counting Library picks, and the active model). Uppy
+   then applies browser-side restrictions from
    `src/frontend/web/src/lib/user-files/uploads.ts`.
 3. Uppy's existing generic PUT transport callback calls
    `POST /v1/files/uploads` through `useInitUserFileUpload`.
@@ -50,15 +61,21 @@ existing backend ID directly.
    private storage.
 6. On `upload-success`, `useUserFileUpload` calls
    `POST /v1/files/{file_id}:finalize`.
-7. The hook reads fresh `GET /v1/runtime-capabilities` metadata. It calls
+7. An image is ready (or refused with its reason) when finalize returns, and
+   is never processed. If its finalize request fails, the hook calls
+   `:process` once, which completes an image the server already saved.
+8. For a document, the hook reads fresh `GET /v1/runtime-capabilities`
+   metadata. It calls
    `POST /v1/files/{file_id}:process` unless processing is turned off (an
    unreadable capability response still requests it; the server decides). If
    that request fails, the original stays saved and its card shows the failure.
-8. The hook invalidates user-file queries through the finalize/process
+9. The hook invalidates user-file queries through the finalize/process
    mutations and shows toast feedback.
 
-The chat composer keeps new-upload and existing-file cards visible until the
-user removes them locally or leaves the chat surface. Removing a new upload
+The chat composer keeps document cards visible until the user removes them
+locally or leaves the chat surface. An image goes with one message: once a
+turn completes (the server has saved it), the composer removes the images that
+turn carried; a refused, failed or stopped turn keeps them. Removing a new upload
 card removes it from local Uppy state; removing a previously uploaded card
 removes its ID from local composer selection state. Neither action deletes the
 installation-owned backend file. Cards combine transient Uppy metadata for
@@ -68,9 +85,10 @@ backend file row is known.
 Sending waits until the Anima can read every new upload in the tray
 (`lib/user-files/chat-attachment-hold.ts`). While one is uploading, queued or
 processing, the send control shows that it is waiting for files. A failed
-card, or a saved original while processing is turned off, makes it ask for that
-file's removal instead. While Voice Mode is on, the control keeps offering to
-stop Voice Mode, so the notice each held turn shows is the sign of the hold.
+card, or a saved document while processing is turned off, makes it ask for
+that file's removal instead; a saved image waits for its ready row either way.
+While Voice Mode is on, the control keeps offering to stop Voice Mode, so the
+notice each held turn shows is the sign of the hold.
 The session checks the same hold (`getAttachmentHold`) on every send path: the
 button, Enter, Voice Mode and prompt suggestions. Desktop Quick Chat mirrors
 the hold from the main window and checks it before sending its draft. A held
@@ -115,7 +133,12 @@ A saved original without processing stays `uploaded` and does not poll forever.
   `search_uploaded_files` only for current-user processed uploads with chunks.
 - Removing a chat composer card is local UI cleanup, not a delete request.
 - The frontend never receives or sends private filesystem paths or storage
-  locators.
+  locators. Image bytes are fetched from `GET /v1/files/{file_id}/content`
+  (`?variant=thumbnail` for small tiles, `?variant=preview` for the
+  transcript, no variant for the larger view) through the same-origin owner
+  boundary and shown as Blob URLs (`query/hooks/useUserFileImageUrl.ts`),
+  cached apart from the file list; deleting a file invalidates its cached
+  bytes.
 - The SDK exported by `@animama/runtime-contracts/sdk` is the API source for
   file requests; generated sources live in `packages/runtime-contracts/src/generated`.
   Do not hand-edit generated files.

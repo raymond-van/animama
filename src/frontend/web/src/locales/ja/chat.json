@@ -81,7 +81,11 @@
       "loadFailed": "アップロード済みファイルを読み込めませんでした。",
       "loading": "アップロード済みファイルを読み込み中…",
       "search": "アップロード済みファイルを検索…",
-      "uploading": "アップロード中 {{percent}}"
+      "uploading": "アップロード中 {{percent}}",
+      "imageDetails": "{{size}} · {{status}}"
+    },
+    "chatgptPlan": {
+      "using": "ChatGPT プランを使用中"
     },
     "dictation": {
       "failed": "音声入力に失敗しました",
@@ -112,6 +116,7 @@
       "empty": "モデルが見つかりません。",
       "fallbackLabel": "モデル",
       "features": "チャット機能",
+      "keyMissing": "{{model}} の API キーがありません",
       "needsWindow": "「アプリ設定 → モデル」でコンテキストウィンドウを設定してください",
       "noFeatures": "このモデルに選択できる機能はありません。",
       "noProfile": "チャットプロファイルがありません",
@@ -146,11 +151,29 @@
       "unavailableShort": "モデルを利用できません",
       "webSearch": "ウェブ検索"
     },
+    "modelKey": {
+      "choose": "モデルを選択",
+      "notice": "{{anima}} は {{model}} を使いますが、{{provider}} の API キーがまだありません。",
+      "settings": "モデルの設定",
+      "use": "{{model}} を使う"
+    },
     "speechEngines": {
       "offline": "{{engine}} {{variant}}",
       "stt": "STT: {{stt}}",
       "tts": "TTS: {{tts}}",
       "ttsOff": "オフ"
+    },
+    "speechSetup": {
+      "detail": "音声認識にはモデルが必要です。選択するとアプリ設定 → 音声が開きます。",
+      "title": "音声認識を設定"
+    },
+    "images": {
+      "unsupportedFormat": "{{name}} は Animama が読み込めない形式です。JPEG か PNG に変換してからもう一度お試しください。",
+      "tooLarge": "{{name}} は {{size}} を超えています。小さい画像を選んでください。",
+      "tooMany_other": "1 件のメッセージに添付できる画像は {{count}} 枚までです。",
+      "modelUnsupported": "このモデルは画像を見られません。画像を添付するには、画像に対応したモデルを選んでください。",
+      "noImagesNote": "このモデルは画像を見られません。画像を外すか、画像に対応したモデルを選んでください。",
+      "rejected": "画像を追加できませんでした"
     }
   },
   "header": {
@@ -166,6 +189,14 @@
       "failed": "ダウンロードに失敗しました。選択すると再試行します",
       "whenSelected": "選択するとダウンロードされます"
     }
+  },
+  "images": {
+    "listLabel": "このメッセージで送った画像",
+    "loadFailed": "画像を読み込めませんでした",
+    "open": "{{name}} を開く",
+    "placeholderLabel": "{{name}}：{{reason}}",
+    "unavailable": "画像はもうありません",
+    "unnamed": "画像"
   },
   "loadingStatus": {
     "avatar": "アバターを読み込み中",

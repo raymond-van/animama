@@ -92,9 +92,10 @@ type LeaveAction = "back" | "continue" | "skip" | "finish";
 /**
  * Three-step first run: **Welcome** (private name) → **AI** → **Voice**. The draft holds the step and
  * nonsecret choices; keys save in place through the key panels, and leaving
- * a step with an unsaved key asks to save or discard it first. Downloads are
- * backend-owned, so they keep running after Finish. Age confirmation follows
- * the wizard, before opening the first Anima.
+ * a step with an unsaved key asks to save or discard it first. Continuing from
+ * AI while no chat model can reply asks first too; Skip does not. Downloads
+ * are backend-owned, so they keep running after Finish. Age confirmation
+ * follows the wizard, before opening the first Anima.
  */
 function LocalSetupForm({ ownerId }: { ownerId: string }) {
   const { t, i18n } = useTranslation("setup");
@@ -146,6 +147,9 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
   const [keyBusy, setKeyBusy] = useState(false);
   const [prompt, setPrompt] = useState<LeaveAction | null>(null);
   const [promptSaving, setPromptSaving] = useState(false);
+  // The AI step's report: the model Animas will chat with can reply.
+  const [chatReady, setChatReady] = useState(true);
+  const [confirmNoModel, setConfirmNoModel] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<SetupFailure | null>(null);
 
@@ -160,6 +164,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     // The previous step's key panel unmounts with its (saved or discarded) edits.
     setKeyPending(0);
     setKeyBusy(false);
+    setChatReady(true);
     setError(null);
     navigated.current = true;
     updateDraft({ step: next });
@@ -209,10 +214,16 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     }
     void finish(action === "finish");
   };
-  /** Leave the step, first asking about unsaved key edits. */
+  /**
+   * Leave the step, first asking about unsaved key edits. Continue from AI
+   * with no model that can reply asks too; the key prompt's own choices
+   * (save or discard, then continue) already answer it.
+   */
   const leave = (action: LeaveAction) => {
     if (keyBusy || submitting) return;
     if (keyPending > 0) setPrompt(action);
+    else if (step === "ai" && action === "continue" && !chatReady)
+      setConfirmNoModel(true);
     else perform(action);
   };
 
@@ -300,6 +311,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
                 }
                 chatModelId={draft.chatModelId}
                 onChatModelChange={onChatModelChange}
+                onChatReadyChange={setChatReady}
                 onSetUpLater={() => leave("skip")}
                 {...keyCallbacks}
               />
@@ -397,6 +409,36 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
               {promptSaving
                 ? t("keys.unsavedPrompt.saving")
                 : t("keys.unsavedPrompt.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={confirmNoModel} onOpenChange={setConfirmNoModel}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>{t("ai.noModelPrompt.title")}</DialogTitle>
+            <DialogDescription>
+              {t("ai.noModelPrompt.description")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setConfirmNoModel(false);
+                perform("continue");
+              }}
+            >
+              {t("ai.noModelPrompt.continue")}
+            </Button>
+            {/* Focus starts on staying, so Enter does not skip the model. */}
+            <Button
+              type="button"
+              autoFocus
+              onClick={() => setConfirmNoModel(false)}
+            >
+              {t("ai.noModelPrompt.stay")}
             </Button>
           </DialogFooter>
         </DialogContent>

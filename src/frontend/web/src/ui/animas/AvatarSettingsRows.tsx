@@ -6,7 +6,8 @@ import {
   AVATAR_MATERIAL_MODES,
   AVATAR_SPRING_MODES,
   WIND_STRENGTH_PERCENT,
-  useAvatarFileUsesLilToon,
+  materialModesFor,
+  useAvatarFileMaterials,
   type AvatarMaterialMode,
   type AvatarSpringMode,
 } from "@/lib/avatar/avatarSettings";
@@ -138,7 +139,7 @@ function WindStrengthRow({
 type AvatarSettingsRowsProps = {
   /** The Avatar catalog item the settings are kept for. */
   itemId: string | null;
-  /** The sha256 of the item's VRM file, to know whether it has lilToon materials. */
+  /** The sha256 of the item's VRM file, to know which materials it has. */
   vrmSha256: string | null;
 };
 
@@ -156,7 +157,7 @@ export function AvatarSettingsRows({
 }: AvatarSettingsRowsProps) {
   const { t } = useTranslation("settings");
   const { available } = useAvatarSettingsAvailable();
-  const usesLilToon = useAvatarFileUsesLilToon(vrmSha256);
+  const fileMaterials = useAvatarFileMaterials(vrmSha256);
   const settings = useAvatarSettings(itemId);
   const save = useSaveAvatarSettings(itemId);
   if (!available || !itemId) return null;
@@ -164,8 +165,16 @@ export function AvatarSettingsRows({
   const busy = settings.isLoading || save.isPending;
   const springMode = settings.data?.spring_mode ?? "automatic";
   const materialMode = settings.data?.material_mode ?? "automatic";
+  // A stored choice the file does not offer (lilToon on an unlit file) stays
+  // selectable, so the select can show it.
+  const offeredModes = materialModesFor(fileMaterials);
+  const materialModes = offeredModes.includes(materialMode)
+    ? offeredModes
+    : AVATAR_MATERIAL_MODES;
   const showMaterials =
-    usesLilToon === true || settings.data?.material_mode_source === "stored";
+    fileMaterials === "liltoon" ||
+    fileMaterials === "unlit" ||
+    settings.data?.material_mode_source === "stored";
   const saveFailed = () => toast(t("animaSettings.updateFailed.avatar"));
   return (
     <>
@@ -205,9 +214,13 @@ export function AvatarSettingsRows({
       {showMaterials ? (
         <AvatarSettingRow<AvatarMaterialMode>
           label={t("animaSettings.avatar.materials.label")}
-          description={t("animaSettings.avatar.materials.description")}
+          description={
+            fileMaterials === "unlit"
+              ? t("animaSettings.avatar.materials.unlitDescription")
+              : t("animaSettings.avatar.materials.description")
+          }
           value={materialMode}
-          modes={AVATAR_MATERIAL_MODES}
+          modes={materialModes}
           modeLabel={(mode) => materialModeLabel(t, mode)}
           disabled={busy}
           onChange={(mode) =>

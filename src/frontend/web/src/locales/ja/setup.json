@@ -53,6 +53,12 @@
       "searching": "検索しています…",
       "setUpLater": "後で設定"
     },
+    "noModelPrompt": {
+      "continue": "モデルなしで続ける",
+      "description": "返信できるモデルがまだないため、Anima とチャットできません。ここでプロバイダーに接続してモデルを追加するか、後でアプリ設定 → モデルで追加してください。",
+      "stay": "設定を続ける",
+      "title": "チャットモデルなしで続けますか？"
+    },
     "builtin": {
       "serverKey": "このサーバーに設定された {{name}} キーを使用します。",
       "serverKeyMissing": "{{name}} を使うには、サーバーで {{env}} を設定してください。"

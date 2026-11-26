@@ -154,6 +154,7 @@ const report = buildAvatarDiagnosticsReport({
     humanoidBones: { remapped: 0, unweighted: 0 },
     materialCount: 12,
     materialKinds: { mtoon: 10, liltoon: 2, unlit: 0, pbr: 0 },
+    unlitOnly: false,
     textures: [
       { mimeType: "image/png", byteLength: 4096, width: 2048, height: 1024 },
     ],

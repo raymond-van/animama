@@ -89,6 +89,8 @@ _CONTENT_TYPES = {
 }
 _PRIVATE_PREFIXES = ("/api", "/v1", "/_desktop", "/docs", "/redoc", "/openapi.json")
 _NO_FALLBACK_PREFIXES = _PRIVATE_PREFIXES + (
+    # The ChatGPT sign-in return is a route; no /auth path is an app page.
+    "/auth",
     "/onnx",
     "/tts",
     "/basis",

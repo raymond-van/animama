@@ -20,6 +20,7 @@ from animama.app.chat.direct_turn.context_fit import fit_history
 from animama.app.chat.direct_turn.types import PreSendCompactionRequest
 from animama.app.model_clients import ModelClientError, ModelClientFinal, ModelClientToolCall
 from animama.app.model_clients.context_budget import context_budget_for_model, estimate_prompt_tokens
+from animama.app.model_clients.image_parts import image_file_ids, image_part
 from animama.app.model_clients.prompt import prompt_messages
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
@@ -29,12 +30,14 @@ from tests.test_direct_chat_turn_executor import (
     _collect,
     _executor,
     _FakeChatManager,
+    _FakeImageLoader,
     _FakeMemoryToolService,
     _history_message,
     _provider,
     _request,
     _ScriptedModelClient,
     _structured_response,
+    _vision_provider,
 )
 
 _MAX_OUTPUT = 500
@@ -589,3 +592,38 @@ async def test_finals_and_repairs_after_unfittable_tool_results_never_exceed_the
 
     assert all(estimate_prompt_tokens(spec.prompt) <= _available(provider) for spec in client.seen_specs)
     assert len([event for event in events if event.type == EventType.ERROR]) <= 1
+
+
+@pytest.mark.asyncio
+async def test_a_trimmed_history_sends_only_the_kept_turns_images() -> None:
+    base = _vision_provider()
+    fixed = await _fixed_prompt_tokens(base)
+    provider = replace(base, context_window_tokens=fixed + 1200 + _MAX_OUTPUT, max_output_tokens=_MAX_OUTPUT)
+    history = []
+    for turn in range(12):
+        # 280 px square: 100 estimated tokens per image.
+        part = image_part(file_id=f"file-{turn}", name=f"file-{turn}.png", width=280, height=280)
+        history.append(
+            _history_message(
+                f"Look\n\n[Image: file-{turn}.png]",
+                role=MessageRole.USER,
+                turn=turn + 1,
+                raw_provider_message={"role": "user", "content": [part, {"type": "text", "text": "Look"}]},
+            )
+        )
+        history.append(_history_message("A picture.", turn=turn + 1))
+    client = _ScriptedModelClient([_final()])
+    loader = _FakeImageLoader([f"file-{turn}" for turn in range(12)])
+    executor, _chats = _executor(
+        client=client, provider=provider, chat_manager=_FakeChatManager(history=history), image_loader=loader
+    )
+
+    await _collect(executor.stream_turn(_request(user_message="Which was first?", request_options={"incognito": True})))
+
+    spec = client.seen_specs[0]
+    sent = image_file_ids(spec.prompt.messages)
+    assert estimate_prompt_tokens(spec.prompt) <= _available(provider)
+    assert 0 < len(sent) < 12
+    assert sent == [f"file-{turn}" for turn in range(12 - len(sent), 12)]
+    assert set(spec.images) == set(sent)
+    assert loader.calls == [sent]

@@ -101,7 +101,14 @@ class SQLAlchemyUserFileRepository(UserFileRepository):
         file_id: str,
         include_deleted: bool = False,
     ) -> UserFile | None:
-        stmt = select(ORMUserFile).where(ORMUserFile.id == file_id, ORMUserFile.user_id == user_id).with_for_update()
+        # ``populate_existing``: a row loaded earlier in this session must not answer
+        # a locked read with the state it had before another request changed it.
+        stmt = (
+            select(ORMUserFile)
+            .where(ORMUserFile.id == file_id, ORMUserFile.user_id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if not include_deleted:
             stmt = stmt.where(ORMUserFile.status != STATUS_DELETED)
         result = await self._s.execute(stmt)

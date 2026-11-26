@@ -125,6 +125,13 @@ export function automaticProcessingDescription(
       return t("behavior.automaticProcessing.memoryOff");
     case "needs_model":
       return t("behavior.automaticProcessing.needsModel");
+    // A ChatGPT plan model runs automatic work only with the owner's agreement (spec #919).
+    case "needs_plan_agreement":
+      return t("behavior.automaticProcessing.needsPlanAgreement");
+    case "needs_plan_sign_in":
+      return t("behavior.automaticProcessing.needsPlanSignIn");
+    case "plan_paused":
+      return t("behavior.automaticProcessing.planPaused");
     case "running":
       return t("behavior.automaticProcessing.running", {
         count: status.batch_size ?? 0,

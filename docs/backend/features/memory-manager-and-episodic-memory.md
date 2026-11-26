@@ -453,7 +453,10 @@ reported state):
 | `running` | An automatic run is open; its batch size and start time are reported. A run in flight finishes and stays visible even after processing is turned off. |
 | `off` | The threshold is Off (0). |
 | `memory_off` | App Settings memory or memory updates are off (`preferences.memory.disable_influence` or `disable_updates`). |
-| `needs_model` | The Memory Manager role has no tool-capable model, or its connection's key is missing. The deterministic runtime (`ANIMAMA_LLM_SKIP`) needs neither. |
+| `needs_model` | The Memory Manager role resolves no tool-capable model, or its connection's key is missing. A role waiting on a ChatGPT plan model that sign-out or OpenAI's list retired resolves no model. The deterministic runtime (`ANIMAMA_LLM_SKIP`) needs nothing. |
+| `needs_plan_sign_in` | The role's model is a ChatGPT plan model, but the session is signed out or needs a new sign-in, or plan use is off. |
+| `needs_plan_agreement` | The role's model is a ChatGPT plan model, and the owner has not let automatic memory updates use the plan. |
+| `plan_paused` | The role's model is a ChatGPT plan model, and a usage limit paused background use of the plan until one of the owner's own plan requests succeeds or the backend restarts. |
 | `paused` | The last three automatic runs failed, counting back to the last completed automatic run, a processed owner-started batch or the last threshold change. Interrupted runs are skipped. |
 | `backing_off` | After a failure, until 1 hour (doubling per further failure, at most 24 hours) after it; or after 10 automatic runs today, until the owner's local midnight, with no `last_error`. |
 | `waiting` | Fewer notes are pending than the threshold. |
@@ -465,6 +468,13 @@ not in user preferences, which a settings save replaces wholesale. A database cr
 before the table reads as the default and keeps running. Changing the threshold
 records `reset_at`, which lifts a pause. Timestamps in the status are UTC. Read and change it through
 [`/v1/memory/automatic-processing`](../architecture/http-api.md#automatic-episode-processing).
+`local_memory_manager_model_readiness` (`server/memory_manager.py`) decides
+the model states. A ChatGPT plan model runs automatic work only with the
+owner's agreement and while no usage limit pauses it; otherwise processing
+waits and never moves to another model
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)). The
+session enforces the same rule on every `background` token, so a run stops
+between rounds when a pause begins or agreement is withdrawn.
 Each automatic run spends the owner's Memory Manager model within the per-step request
 budget and the eight-approval bound above.
 
@@ -480,23 +490,35 @@ OpenAI Agents runtime.
 
 ### Live OpenAI Agents Runtime
 
-`OpenAIAgentsMemoryManagerRuntime` runs OpenAI Responses and Chat Completions
-rows (it refuses Anthropic rows) and uses the OpenAI Agents SDK with
+`OpenAIAgentsMemoryManagerRuntime` runs OpenAI Responses rows on a key,
+ChatGPT plan rows and Chat Completions rows (it refuses Anthropic rows) and
+uses the OpenAI Agents SDK with
 `Agent`, `function_tool` read tools and resumable run state for human approval
 interruptions. The patch tool and continuity depend on the row's API:
 
-- OpenAI Responses rows use `OpenAIResponsesModel` and the hosted
+- OpenAI Responses rows on the built-in OpenAI connection use
+  `OpenAIResponsesModel` and the hosted
   `ApplyPatchTool(editor=..., needs_approval=True)`, with server-managed
   continuation (below).
 - Chat Completions rows, on any connection, use `OpenAIChatCompletionsModel`
   and an `apply_patch` function tool with `needs_approval=True` that feeds the
   same approval editor. These servers keep no conversation state, so each turn
-  replays the run's stored user and assistant messages.
+  replays the run's stored user and assistant messages. Every request carries
+  function tools, so on OpenAI GPT-5.4 and later (such as `gpt-6-luna`), which
+  accept them on Chat Completions only at effort `none`, the manager sends
+  `reasoning_effort: "none"` on connections whose `reasoning_mode` is
+  `openai_effort`. Other models keep their server's default effort.
+- ChatGPT plan rows use `OpenAIResponsesModel` in
+  [plan mode](#chatgpt-plan-mode): the same `apply_patch` function tool, and a
+  replay of the run's stored messages each turn, because the plan stores
+  nothing.
 
 The client reaches the row's connection with only that connection's key and
-timeout (connecting is capped at 10 seconds), honors its
-`strip_function_strict` option, sends `store` only on Responses, and sends
-`prompt_cache_key` on Responses or when the connection's
+timeout (connecting is capped at 10 seconds), gives Chat Completions function
+tools the form direct chat sends on that connection (its
+`strip_function_strict` option, and no empty `required` list), sends `store`
+only on Responses (`false` on the ChatGPT plan), and sends `prompt_cache_key`
+on Responses, on the ChatGPT plan or when the connection's
 `send_openai_extensions` option is on. Agents SDK tracing, which exports to
 OpenAI, is disabled unless the row is on the built-in OpenAI connection; the
 desktop app disables it for every row
@@ -509,7 +531,10 @@ decision resumes on the pinned row, the one that proposed the change, even
 after the Memory Manager role changes. If that row was removed, hidden, can no
 longer call tools or has no key, approving returns `409` and changes nothing,
 so the owner can restore the model and approve again; rejecting records the
-rejection and ends the review without resuming.
+rejection and ends the review without resuming. On a ChatGPT plan row,
+approving also returns `409` and applies nothing when the session cannot serve
+the run (for example signed out, plan use off, or, for an automatic run, no
+agreement or a usage-limit pause); the error names the plan's reason.
 
 OpenAI Agents SDK documentation describes `needs_approval=True` tools as
 interrupting a run for human approval. A caller can persist run state, approve
@@ -527,15 +552,57 @@ the cursor can be resolved. OpenAI stores response objects for 30 days by
 default, so this chain is not indefinite durable history. If a cursor expires or
 cannot be resolved, Animama marks the run failed with
 `memory_manager_previous_response_unresolvable` metadata and directs the user to
-start a new manager run rather than silently dropping or replaying context. A
+start a new manager run rather than silently dropping or replaying context.
+
+The cursor is kept only after a step on stored OpenAI Responses. After a step on
+any other row (Chat Completions, the ChatGPT plan or Anthropic) the stored
+chain no longer covers the run, so the service drops the cursor: the runtime
+result's `keeps_conversation_state` is false
+(`app/ports/memory_manager_runtime.py`). A blocked or failed step keeps it. A
 Responses turn on a run that has messages but no cursor, for example after the
-Memory Manager role moved from a Chat Completions model, replays the run's
-stored messages instead.
+Memory Manager role moved from a Chat Completions or plan model, replays the
+run's stored messages instead.
 
 Approval resume uses only the serialized Agents SDK `RunState`, which already
 contains its continuation settings. The run-row cursor is not passed as a
 second input during resume; the cursor is advanced from the resumed result.
 These two persisted fields therefore solve different recovery problems.
+
+#### ChatGPT plan mode
+
+The Agents SDK asks for unstreamed, stored responses, sends output limits and
+replays items with their ids, all of which the
+[plan's route](../runtime/model-client-providers.md#chatgpt-plan-responses)
+refuses. On a ChatGPT plan row the runtime therefore gives `OpenAIResponsesModel`
+a `ChatGPTPlanAgentsClient` (`adapters/memory_manager/chatgpt_plan_agents.py`)
+in place of the SDK's OpenAI client:
+
+- **Requests.** Every `responses.create` goes out streamed and unstored,
+  without the fields the route refuses (`previous_response_id`, output limits,
+  `moderation`, `context_management`, `include` and others). The stream is
+  assembled into the finished `Response` the SDK expects, taking the items
+  from the done events when the terminal event lists none.
+- **Replay.** Replayed items lose their ids, reasoning items and item
+  references are dropped, and a system-role item is sent as a developer item.
+- **Tools.** The runtime declares its tools, `apply_patch` in its function
+  form included, in one `animama` namespace with the SDK's `tool_namespace`,
+  so the SDK matches each namespaced call to its tool. Memory edits still stop
+  for approval.
+- **Client.** The SDK client is the plan's: the fixed
+  `https://api.openai.com/v1`, no SDK retries, no redirects and the header
+  allowlist. Tracing is off, as for every row off the built-in OpenAI
+  connection.
+- **Tokens.** Each request asks the session for a token with the run's
+  purpose: `background` for a run that started by itself
+  (`metadata.origin = "automatic"`), `interactive` for every other run,
+  Reflections included; an approval resume keeps its run's purpose. A refused
+  token is renewed once per request, a temporary failure gets the plan's
+  bounded backoff, a usage limit pauses background use, and an interactive
+  success clears the pause.
+- **Errors.** A step that fails because of the plan says why in the run's
+  error: sign in again, plan use is off, automatic updates are not allowed,
+  the plan is paused, the usage limit was reached, or the plan does not
+  include this use. A request the route refused quotes its sanitized reason.
 
 Every request that sends a prompt-cache key uses a private SHA-256 key derived
 from the manager run ID and model. Reusing one stable key within the run helps
@@ -1062,12 +1129,16 @@ Environment and settings:
 - `ANIMAMA_LLM_SKIP=1`: use the deterministic runtime instead of the live runtimes.
 - Memory Manager model role: `models.memory_manager_model_provider_id` in App
   Settings, else `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`, else the
-  default chat model when it supports tools. The row's connection supplies the
+  default chat model when it supports tools; an unavailable ChatGPT plan model,
+  chosen or inherited from the chat role, waits instead of falling back. The
+  row's connection supplies the
   base URL and key (`OPENAI_API_KEY` and `OPENAI_BASE_URL` for built-in OpenAI
-  rows, `ANTHROPIC_API_KEY` for Anthropic rows). Responses rows use OpenAI's
+  rows, `ANTHROPIC_API_KEY` for Anthropic rows). Responses rows on a key use OpenAI's
   hosted `apply_patch` tool and `previous_response_id` continuity; Chat
   Completions rows use an approval-gated `apply_patch` function tool and replay
-  the run's stored messages each turn; Anthropic rows use the memory tool and
+  the run's stored messages each turn; ChatGPT plan rows use the signed-in
+  session instead of a key, with the same function tool and replay
+  ([plan mode](#chatgpt-plan-mode)); Anthropic rows use the memory tool and
   store each paused step's conversation. Tracing is disabled for rows not on
   the built-in OpenAI connection, and on desktop for every row.
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`: request timeout, default `60.0`, for
@@ -1242,7 +1313,8 @@ updates through `mark_items_processed(...)` should refresh all affected days.
 
 Live manager mode needs a tool-capable Memory Manager model whose connection is
 reachable and, when it expects one, has its key (`OPENAI_API_KEY` for built-in
-OpenAI rows, `ANTHROPIC_API_KEY` for Anthropic rows). Check `GET /v1/model-roles`. For local no-model development, set
+OpenAI rows, `ANTHROPIC_API_KEY` for Anthropic rows). Check `GET /v1/model-roles`. On a ChatGPT plan row the run's error
+names what the plan needs instead; fix it in App Settings → Models. For local no-model development, set
 `ANIMAMA_LLM_SKIP=1` before starting the backend.
 
 ### Approval is stuck pending
@@ -1299,6 +1371,8 @@ Runtime adapters:
 - `src/backend/animama/adapters/memory_manager/runtime_selector.py`: runtime by
   row provider type
 - `src/backend/animama/adapters/memory_manager/openai_agents_runtime.py`
+- `src/backend/animama/adapters/memory_manager/chatgpt_plan_agents.py`: the
+  OpenAI client the Agents SDK uses on ChatGPT plan rows
 - `src/backend/animama/adapters/memory_manager/anthropic_runtime.py` and
   `anthropic_memory_tool.py`: the Anthropic runtime and its memory tool
 - `src/backend/animama/adapters/memory_manager/fake_runtime.py`
@@ -1328,6 +1402,8 @@ Tests:
 - `tests/test_memory_manager_identities.py`
 - `tests/test_memory_manager_reflection.py`
 - `tests/test_anthropic_memory_manager.py` and `tests/test_anthropic_memory_tool.py`
+- `tests/test_chatgpt_plan_background.py`: plan-mode requests, purposes,
+  agreement, the usage-limit pause and approvals on the ChatGPT plan
 - `tests/live/test_anthropic_memory_manager.py` (opt-in, paid): a preference
   recorded, its outdated predecessor corrected, approved after a fresh service
   build and resumed on Claude Haiku 5.5

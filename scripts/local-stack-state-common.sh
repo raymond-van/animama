@@ -334,7 +334,8 @@ animama_state_replace_data_root() {
     mv -- "${root}/internal/model-assets" "$kept"
   fi
   find "$root" -mindepth 1 -maxdepth 1 ! -name .restore-model-assets -exec rm -rf -- {} +
-  tar -xzf "$archive" -C "$root"
+  # A restore never brings back sign-in tokens, so the restored installation is signed out of ChatGPT.
+  tar -xzf "$archive" -C "$root" --exclude='./internal/chatgpt-plan'
   if [ -d "$kept" ]; then
     mkdir -p "${root}/internal"
     rm -rf -- "${root}/internal/model-assets"

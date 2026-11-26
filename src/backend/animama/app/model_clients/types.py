@@ -15,6 +15,7 @@ from animama.domain.usage import Usage
 
 from .event_types import MCEvent
 from .frozen import frozen_mapping
+from .image_parts import ModelClientImage
 from .limits import ModelCallLimits
 
 if TYPE_CHECKING:
@@ -316,6 +317,12 @@ class ModelClientRequest:
     provider_options: ModelClientProviderOptions = field(default_factory=ModelClientProviderOptions)
     continuation: ModelClientContinuation | None = None
     limits: ModelCallLimits | None = None
+    images: Mapping[str, ModelClientImage] = field(default_factory=dict)
+    """Bytes of the chat images the prompt's image parts name, keyed by file id.
+
+    Filled just before dispatch; an image part without bytes here is sent as its
+    placeholder text.
+    """
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provider_options", ModelClientProviderOptions.from_value(self.provider_options))

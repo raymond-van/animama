@@ -5,9 +5,10 @@ from typing import Any
 
 import httpx2
 
-from animama.adapters.model_clients._common import jsonable, openai_cache_breakpoint_text_part
-from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
+from animama.adapters.model_clients._common import image_data_url, jsonable, openai_cache_breakpoint_text_part
+from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT, chat_completions_function_tool_effort
 from animama.app.model_clients import ModelClientProviderError, ModelClientRequest
+from animama.app.model_clients.image_parts import ModelClientImage, resolved_parts
 from animama.app.model_clients.prompt import prompt_messages
 from animama.app.model_connection_presets import DEEPSEEK_REASONING_EFFORTS
 from animama.domain import ModelProvider
@@ -70,7 +71,7 @@ def _compatibility(spec: ModelClientRequest) -> ModelConnectionCompatibility:
 
 
 def _messages_for_spec(spec: ModelClientRequest) -> list[dict[str, Any]]:
-    messages = prompt_messages(spec.prompt)
+    messages = [_with_image_content(message, spec.images) for message in prompt_messages(spec.prompt)]
     if not spec.model_provider.accepts_developer_role:
         # The turn context already travels in the user message; only
         # within-turn instructions (forced final, repair) remain to fold.
@@ -78,6 +79,31 @@ def _messages_for_spec(spec: ModelClientRequest) -> list[dict[str, Any]]:
     if spec.model_provider.connection_id == BUILTIN_OPENAI_CONNECTION_ID:
         return _messages_with_cache_breakpoints(messages)
     return messages
+
+
+def _with_image_content(message: dict[str, Any], images: Mapping[str, ModelClientImage]) -> dict[str, Any]:
+    """Write a user message's images as ``image_url`` parts.
+
+    An image whose bytes the request does not carry becomes its placeholder
+    text. A message left with text only is sent as one string, which every
+    OpenAI-compatible server accepts.
+    """
+
+    content = message.get("content")
+    if message.get("role") != "user" or not isinstance(content, list | tuple):
+        return message
+    parts = list(resolved_parts(content, images))
+    if all(isinstance(part, str) for part in parts):
+        return {**message, "content": "\n".join(str(part) for part in parts)}
+    return {
+        **message,
+        "content": [
+            {"type": "text", "text": part}
+            if isinstance(part, str)
+            else {"type": "image_url", "image_url": {"url": image_data_url(part)}}
+            for part in parts
+        ],
+    }
 
 
 def _messages_with_cache_breakpoints(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -118,10 +144,42 @@ def _with_cache_breakpoint(message: dict[str, Any]) -> dict[str, Any]:
 
 
 def _tools_for_spec(spec: ModelClientRequest, *, compatibility: ModelConnectionCompatibility) -> Any:
-    tools = jsonable(spec.prompt.tools)
+    return function_tools_for_connection(jsonable(spec.prompt.tools), compatibility=compatibility)
+
+
+def function_tools_for_connection(tools: Any, *, compatibility: ModelConnectionCompatibility) -> Any:
+    """Shape Chat Completions function tools for the connection's server.
+
+    Direct chat and the Memory Manager's Agents SDK client both send their
+    tools through here, so a server sees one form of tool definition. The
+    caller's definitions are left as they are.
+    """
+
+    if isinstance(tools, list):
+        tools = [_without_empty_required(tool) for tool in tools]
     if compatibility.strip_function_strict:
         return tools_without_function_strict(tools)
     return tools
+
+
+def _without_empty_required(tool: Any) -> Any:
+    """Return ``tool`` without an empty ``required`` list on its parameter schema.
+
+    A strict zero-argument tool is ``properties: {}`` beside ``required: []``.
+    Groq's validator rejects that pair as "'required' present but 'properties'
+    is missing" (#902). An absent ``required`` means the same as an empty one.
+    Only the parameter object itself is checked: no tool nests an object
+    without properties.
+    """
+
+    function = tool.get("function") if isinstance(tool, dict) else None
+    if not isinstance(function, dict):
+        return tool
+    parameters = function.get("parameters")
+    if not isinstance(parameters, dict) or parameters.get("required") != []:
+        return tool
+    shaped_parameters = {key: value for key, value in parameters.items() if key != "required"}
+    return {**tool, "function": {**function, "parameters": shaped_parameters}}
 
 
 def tools_without_function_strict(tools: Any) -> Any:
@@ -210,6 +268,10 @@ def _reasoning_effort_for_spec(
         return None
     if compatibility.reasoning_mode == REASONING_MODE_DEEPSEEK_THINKING:
         return _deepseek_reasoning_effort(spec.model_provider, effort)
+    if effort is None and spec.prompt.tools:
+        # Without a chosen effort the model's default applies, which some
+        # OpenAI models refuse alongside function tools.
+        return chat_completions_function_tool_effort(spec.model_provider.model, compatibility)
     return effort
 
 
@@ -241,4 +303,4 @@ def _deepseek_thinking_config(spec: ModelClientRequest, *, reasoning_effort: str
     return {"type": "enabled"}
 
 
-__all__ = ["create_chat_completion_kwargs"]
+__all__ = ["create_chat_completion_kwargs", "function_tools_for_connection"]

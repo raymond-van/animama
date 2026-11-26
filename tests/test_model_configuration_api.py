@@ -15,6 +15,7 @@ from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients.probe import ModelConnectionProbeError, ModelProbeReport, ModelProbeStep
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy, ModelProviderCatalogService
+from animama.domain.chatgpt_plan import ChatGPTPlanUnavailableError
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAnimaChatProfile, ORMModelProvider
 from animama.orm.settings import ORMUserSettings
@@ -699,3 +700,59 @@ async def test_runtime_capabilities_report_model_configuration_from_the_composit
 
     assert local_view["model_configuration"] is True
     assert hosted_view["model_configuration"] is False
+
+
+class _PlanStatus:
+    """The ChatGPT plan session's status, as the connection list reads it."""
+
+    def __init__(self, state: str, plan_use_granted: bool) -> None:
+        self.state, self.plan_use_granted = state, plan_use_granted
+
+    async def status(self) -> _PlanStatus:
+        return self
+
+
+@pytest.mark.parametrize(
+    ("state", "granted", "expected"),
+    [("signed_in", True, "configured"), ("signed_in", False, "missing"), ("signed_out", False, "missing")],
+)
+async def test_the_chatgpt_plan_connection_reports_its_sign_in_as_its_credential(
+    async_session, tmp_path, owner_id, state: str, granted: bool, expected: str
+):
+    app = _app(async_session, tmp_path, owner_id)
+    app.state.local_runtime_paths = SimpleNamespace(data_internal_root=tmp_path / "internal")
+    app.state.chatgpt_plan_session = _PlanStatus(state, granted)
+    async with local_client(app) as client:
+        listed = (await client.get("/v1/model-connections")).json()
+
+    plan = next(connection for connection in listed if connection["id"] == "chatgpt_plan")
+    assert (plan["source"], plan["preset"], plan["credential_state"]) == ("builtin", "chatgpt_plan", expected)
+
+
+class _UnreadablePlanSession:
+    async def status(self) -> None:
+        raise ChatGPTPlanUnavailableError("temporarily_unavailable")
+
+
+async def test_an_unreadable_plan_session_reads_as_missing_and_keeps_the_list(async_session, tmp_path, owner_id):
+    app = _app(async_session, tmp_path, owner_id)
+    app.state.local_runtime_paths = SimpleNamespace(data_internal_root=tmp_path / "internal")
+    app.state.chatgpt_plan_session = _UnreadablePlanSession()
+    async with local_client(app) as client:
+        response = await client.get("/v1/model-connections")
+
+    assert response.status_code == 200
+    plan = next(connection for connection in response.json() if connection["id"] == "chatgpt_plan")
+    assert plan["credential_state"] == "missing"
+
+
+async def test_owners_cannot_add_or_probe_models_on_the_chatgpt_plan_connection(async_session, tmp_path, owner_id):
+    app = _app(async_session, tmp_path, owner_id)
+    async with local_client(app) as client:
+        added = await client.post("/v1/model-connections/chatgpt_plan/models", json=_local_model_body())
+        listed = await client.get("/v1/model-connections/chatgpt_plan/available-models")
+        probed = await client.post("/v1/model-connections/chatgpt_plan/probe", json={"model": "gpt-6-luna"})
+
+    for response in (added, listed, probed):
+        assert response.status_code in {400, 403, 409}, response.text
+        assert response.json()["detail"]["code"] == "connection_read_only"

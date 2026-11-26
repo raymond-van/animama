@@ -24,6 +24,7 @@ import {
   useModelConnections,
   useModelRoles,
 } from "@/query/hooks/useModelConfiguration";
+import { useChatGPTPlanAvailable } from "@/query/hooks/useChatGPTPlan";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
@@ -40,6 +41,7 @@ import {
 import { ModelConnectionForm } from "@/ui/settings/models/ModelConnectionDialog";
 import { OwnerModelDialog } from "@/ui/settings/models/OwnerModelDialog";
 import { ModelLocationTabsList } from "@/ui/settings/models/ModelLocationTabsList";
+import { ChatGPTPlanCard } from "@/ui/settings/models/ChatGPTPlanCard";
 import { ModelProviderTabsList } from "@/ui/settings/models/ModelProviderTabsList";
 import {
   baseUrlHost,
@@ -64,10 +66,12 @@ import {
   detectedModelsToAdd,
   ownerModelChoices,
   setupBuiltins,
-  type SetupBuiltin,
+  setupChatGPTPlan,
+  setupChatModelReady,
   type SetupBuiltinProvider,
   type SetupModelChoice,
 } from "./setup-state";
+import { useChooseWhenReady } from "./useChooseWhenReady";
 
 /** A model being added in the add-model dialog, optionally prefilled. */
 type ModelAdder = { connection: PyModelConnection; initialModelId?: string };
@@ -88,14 +92,16 @@ function canChat(model: PyConfiguredModel): boolean {
  * for that server at its default address and adds one of its models. The
  * model new Animas chat with is whichever was set up last (saving the OpenAI
  * or Anthropic key, or adding a chat model); with none, the system default
- * applies. A runtime that does not let the owner configure models shows no
- * choice.
+ * applies. The step reports whether that model can reply, so setup can ask
+ * before continuing without one. A runtime that does not let the owner
+ * configure models shows no choice.
  */
 export function SetupAiStep({
   location,
   onLocationChange,
   chatModelId,
   onChatModelChange,
+  onChatReadyChange,
   credentialsController,
   onKeyPendingChange,
   onKeyBusyChange,
@@ -105,6 +111,11 @@ export function SetupAiStep({
   onLocationChange: (location: SetupModelLocation) => void;
   chatModelId: string | null;
   onChatModelChange: (id: string | null) => void;
+  /**
+   * Whether the model Animas will chat with (the choice, else the system
+   * default) can reply; true while that is not yet known.
+   */
+  onChatReadyChange: (ready: boolean) => void;
   credentialsController: Ref<DesktopCredentialsController>;
   onKeyPendingChange: (count: number) => void;
   onKeyBusyChange: (busy: boolean) => void;
@@ -184,6 +195,7 @@ export function SetupAiStep({
       onLocationChange={onLocationChange}
       chatModelId={chatModelId}
       onChatModelChange={onChatModelChange}
+      onChatReadyChange={onChatReadyChange}
       managedKeys={managedKeys}
       keyField={keyField}
       connectFormKeys={forms.keysFor}
@@ -206,25 +218,6 @@ function useKeyPanel(): KeyPanel {
   const [pending, setPending] = useState(0);
   const [busy, setBusy] = useState(false);
   return { ref, pending, setPending, busy, setBusy };
-}
-
-/**
- * Saving a built-in provider's key here chooses the model it offers,
- * replacing an earlier choice: the model set up last wins. A key that was
- * already set chooses nothing, so only explicit actions in this setup pick
- * the default.
- */
-function useChooseWhenKeySaved(
-  loaded: boolean,
-  { ready, modelId }: SetupBuiltin,
-  onChatModelChange: (id: string | null) => void,
-) {
-  const wasReady = useRef<boolean | null>(null);
-  useEffect(() => {
-    if (!loaded) return;
-    if (wasReady.current === false && modelId) onChatModelChange(modelId);
-    wasReady.current = ready;
-  }, [loaded, modelId, onChatModelChange, ready]);
 }
 
 /** How an inline connect form reports its typed key to the step. */
@@ -301,6 +294,7 @@ function ModelChooser({
   onLocationChange,
   chatModelId,
   onChatModelChange,
+  onChatReadyChange,
   managedKeys,
   keyField,
   connectFormKeys,
@@ -310,6 +304,7 @@ function ModelChooser({
   onLocationChange: (location: SetupModelLocation) => void;
   chatModelId: string | null;
   onChatModelChange: (id: string | null) => void;
+  onChatReadyChange: (ready: boolean) => void;
   managedKeys: boolean;
   /** A built-in provider's desktop key field (null on web). */
   keyField: (provider: SetupBuiltinProvider) => ReactNode;
@@ -317,6 +312,7 @@ function ModelChooser({
   onSetUpLater: () => void;
 }) {
   const { t } = useTranslation("setup");
+  const { t: tModels } = useTranslation("models");
   const headingPrefix = useId();
   const connections = useModelConnections(true);
   const providers = useModelProviders();
@@ -356,20 +352,21 @@ function ModelChooser({
       (model) => model.source === "builtin" && model.model_kind === "chat",
     );
 
-  useChooseWhenKeySaved(
-    connections.isSuccess,
-    builtins.openai,
-    onChatModelChange,
-  );
-  useChooseWhenKeySaved(
+  useChooseWhenReady(connections.isSuccess, builtins.openai, onChatModelChange);
+  useChooseWhenReady(
     connections.isSuccess,
     builtins.anthropic,
     onChatModelChange,
   );
+  // Signing in with a ChatGPT plan here chooses one of its models the same way,
+  // once the catalog lists them.
+  const plan = setupChatGPTPlan(items, allConnections, systemDefaultId);
+  useChooseWhenReady(connections.isSuccess, plan, onChatModelChange);
 
   // A choice that is no longer offered (removed, or its key removed) is dropped.
   const offered =
     chatModelId === null ||
+    plan.modelId === chatModelId ||
     Object.values(builtins).some(
       (builtin) => builtin.modelId === chatModelId,
     ) ||
@@ -380,12 +377,28 @@ function ModelChooser({
     if (settled && !offered) onChatModelChange(null);
   }, [offered, onChatModelChange, settled]);
 
+  // Like a choice, readiness is judged only from settled lists; until then,
+  // and when the default model could not be read, setup has nothing to warn
+  // about.
+  const chatReady =
+    !settled ||
+    !roles.isSuccess ||
+    setupChatModelReady(items, allConnections, chatModelId ?? systemDefaultId);
+  useEffect(() => onChatReadyChange(chatReady), [chatReady, onChatReadyChange]);
+
   const presetById = (id: string) =>
     presets.data?.find((preset) => preset.id === id);
   const openAdder = (next: ModelAdder) => setAdder(next);
 
+  // Setup offers the ChatGPT plan sign-in as one of its choices (spec P8).
+  const chatgptPlan = useChatGPTPlanAvailable();
   const groups = {
-    cloud: locationProviderGroups(allConnections, "cloud"),
+    cloud: locationProviderGroups(
+      allConnections,
+      "cloud",
+      undefined,
+      chatgptPlan,
+    ),
     local: locationProviderGroups(allConnections, "local"),
   };
   const activeProvider = (where: SetupModelLocation) =>
@@ -430,17 +443,27 @@ function ModelChooser({
       const env =
         builtinConnectionKey({ source: "builtin", preset: builtin.provider })
           ?.env ?? "";
-      return (
+      // OpenAI's tab offers both ways to use its models: the ChatGPT plan's
+      // sign-in card, then the API key under its own heading.
+      const offersPlan = entry.id === "openai" && chatgptPlan;
+      const keySection = (
         <section
           aria-labelledby={headingId}
           className="border-border/60 space-y-2 rounded-xl border p-4"
         >
           <h3 id={headingId} className="text-sm font-semibold">
-            {name}
+            {offersPlan ? tModels("connections.apiKey.title") : name}
           </h3>
-          <p className="text-muted-foreground text-xs">
-            {modelProviderPurpose(entry)}
-          </p>
+          {offersPlan ? (
+            // The size of the plan card's description beside it.
+            <p className="text-muted-foreground text-sm">
+              {tModels("connections.apiKey.description")}
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              {modelProviderPurpose(entry)}
+            </p>
+          )}
           {managedKeys ? (
             keyField(builtin.provider)
           ) : (
@@ -451,6 +474,16 @@ function ModelChooser({
             </p>
           )}
         </section>
+      );
+      if (!offersPlan) return keySection;
+      return (
+        <>
+          <p className="text-muted-foreground text-xs">
+            {modelProviderPurpose(entry, true)}
+          </p>
+          <ChatGPTPlanCard headingLevel={3} />
+          {keySection}
+        </>
       );
     }
     if (where === "local" && entry.presetId !== "custom")

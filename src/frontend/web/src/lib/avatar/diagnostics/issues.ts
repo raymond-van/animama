@@ -22,6 +22,10 @@ export const AVATAR_ISSUE_CODES = [
   // read from the file, before any load.
   "humanoid_bones_remapped",
   "humanoid_bones_unweighted",
+  // Every material ignores light, so the file looks flat as authored; the
+  // loader adds toon shading unless the Materials setting is Simple
+  // (`unlitToonShading.ts`); read from the file, before any load.
+  "materials_unlit",
   "avatar_load_failed",
   // The live scene's primitives could not be listed.
   "scene_bindings_unavailable",

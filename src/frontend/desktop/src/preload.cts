@@ -10,6 +10,7 @@ import {
   createFeaturePacksBridge,
   createLocaleBridge,
   createLoginItemBridge,
+  createMenuBridge,
   createMenuEntryBridge,
   createRuntimeBridge,
   createUpdatesBridge,
@@ -39,5 +40,6 @@ contextBridge.exposeInMainWorld("animamaDesktop", {
   updates: createUpdatesBridge(),
   locale: createLocaleBridge(),
   loginItem: createLoginItemBridge(),
+  menu: createMenuBridge(),
   menuEntry: createMenuEntryBridge(),
 });

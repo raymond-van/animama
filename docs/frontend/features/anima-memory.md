@@ -223,7 +223,9 @@ On or Off; turning memory off also stops memory updates. Where the runtime repor
 notes automatically": Off, or a pending-note count from 5 to 50 (default 10) that
 starts a backend Memory Manager run. Its description shows what the backend reports
 from `/v1/memory/automatic-processing`: running, paused after failures, retrying,
-the daily limit, a missing model, or memory turned off. The value is stored by the
+the daily limit, a missing model, memory turned off, or a ChatGPT plan model that
+waits for the owner's agreement, a new sign-in or the end of a usage-limit pause
+([ChatGPT plan](model-settings.md#chatgpt-plan)). The value is stored by the
 backend, not in preferences, so Reset app settings does not change it. Versions an
 automatic run writes are labelled "Automatic update from episode notes" in a file's
 version history. The Memory Manager's

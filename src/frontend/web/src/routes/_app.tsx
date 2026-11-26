@@ -17,6 +17,7 @@ import { AppShell } from "@/ui/app/AppShell";
 import { ContentPreviewDockProvider } from "@/ui/content-preview/ContentPreviewDockProvider";
 import { SettingsGate } from "@/ui/settings/SettingsGate";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
+import { DesktopMenuCommands } from "@/ui/app/DesktopMenuCommands";
 import { ModelDownloadToasts } from "@/ui/app/ModelDownloads";
 import { SidebarShell } from "@/ui/sidebar";
 
@@ -56,6 +57,8 @@ function ApplicationAreaLayout() {
               <Outlet />
             )}
             {!admission.onboardingRequired && <DesktopUpdatesPanel notice />}
+            {/* Like the update notice, menu commands wait for first run. */}
+            {!admission.onboardingRequired && <DesktopMenuCommands />}
             <ModelDownloadToasts />
           </ContentPreviewDockProvider>
         </AppShell>

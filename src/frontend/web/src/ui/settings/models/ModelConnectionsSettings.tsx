@@ -1,5 +1,5 @@
-import { useId, useState } from "react";
-import { Info, Plus } from "lucide-react";
+import { type ReactNode, useId, useState } from "react";
+import { Info, Plus, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -18,6 +18,8 @@ import {
   useModelConnectionPresets,
   useModelConnections,
 } from "@/query/hooks/useModelConfiguration";
+import { useChatGPTPlanAvailable } from "@/query/hooks/useChatGPTPlan";
+import { useRefreshChatGPTPlanModels } from "@/query/mutations/useChatGPTPlan";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
   useRemoveModel,
@@ -40,6 +42,7 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 
 import {
+  CHATGPT_PLAN_PRESET,
   baseUrlHost,
   builtinConnectionKey,
   connectionLocation,
@@ -70,6 +73,7 @@ import {
 } from "./ModelConnectionDialog";
 import { ModelInfoDialog } from "./ModelInfoDialog";
 import { ModelLocationTabsList } from "./ModelLocationTabsList";
+import { ChatGPTPlanCard } from "./ChatGPTPlanCard";
 import { ModelProviderTabsList } from "./ModelProviderTabsList";
 import { OwnerModelDialog, ShowModelButton } from "./OwnerModelDialog";
 
@@ -115,6 +119,7 @@ export function ModelConnectionsSettings({
     capabilities.data,
   );
   const search = capabilities.data?.web_search;
+  const chatgptPlan = useChatGPTPlanAvailable();
   const presets = useModelConnectionPresets(enabled);
   const connections = useModelConnections(enabled);
   const removeConnection = useRemoveModelConnection();
@@ -263,8 +268,35 @@ export function ModelConnectionsSettings({
 
   const providerPanel = (
     location: ModelLocation,
-    { entry, connections: items }: ModelProviderGroup<PyModelConnection>,
+    { entry, connections: group }: ModelProviderGroup<PyModelConnection>,
   ) => {
+    // OpenAI's tab holds both ways to use its models. Signing in with a
+    // ChatGPT plan takes no key or address, so it has its own card, followed by
+    // the models OpenAI lists while the plan is usable; the API key card follows.
+    const offersPlan = entry.id === "openai" && chatgptPlan;
+    const plan = group.find(
+      (connection) =>
+        connection.preset === CHATGPT_PLAN_PRESET &&
+        connection.credential_state === "configured",
+    );
+    const items = group.filter(
+      (connection) => connection.preset !== CHATGPT_PLAN_PRESET,
+    );
+    const planSection = offersPlan ? (
+      <>
+        <ChatGPTPlanCard disabled={disabled} />
+        {plan ? (
+          <ChatGPTPlanModels
+            connection={plan}
+            search={search}
+            disabled={disabled}
+            onInfo={(model) =>
+              setInfo({ connectionId: plan.id, modelId: model.id })
+            }
+          />
+        ) : null}
+      </>
+    ) : null;
     const custom = entry.presetId === "custom";
     const preset = presetById(entry.presetId);
     const form = (onCancel?: () => void) =>
@@ -300,13 +332,19 @@ export function ModelConnectionsSettings({
     return (
       <>
         <p className="text-muted-foreground text-xs">
-          {modelProviderPurpose(entry)}
+          {modelProviderPurpose(entry, offersPlan)}
         </p>
+        {planSection}
         {items.map((connection) => (
           <ConnectionCard
             key={connection.id}
             connection={connection}
             entry={entry}
+            // Beside the plan, the key card says which way it is.
+            title={offersPlan ? t("connections.apiKey.title") : undefined}
+            description={
+              offersPlan ? t("connections.apiKey.description") : undefined
+            }
             location={location}
             active={shownTab === location}
             logo={
@@ -351,7 +389,12 @@ export function ModelConnectionsSettings({
   };
 
   const tabContent = (location: ModelLocation) => {
-    const groups = locationProviderGroups(all, location);
+    const groups = locationProviderGroups(
+      all,
+      location,
+      undefined,
+      chatgptPlan,
+    );
     const active = defaultLocationProvider(groups, providerTab[location]);
     return (
       <Tabs
@@ -505,6 +548,8 @@ function reachabilityOf(query: {
 function ConnectionCard({
   connection,
   entry,
+  title,
+  description,
   location,
   active,
   logo,
@@ -519,6 +564,9 @@ function ConnectionCard({
 }: {
   connection: PyModelConnection;
   entry: ModelProviderEntry;
+  /** A heading in place of the connection's name, and a line under it. */
+  title?: string;
+  description?: string;
   location: ModelLocation;
   /** Its location tab is showing; Local cards check reachability only then. */
   active: boolean;
@@ -538,11 +586,6 @@ function ConnectionCard({
     connection.id,
     location === "local" && active,
   );
-  const [showHidden, setShowHidden] = useState(false);
-  const models = connection.models ?? [];
-  const hiddenCount = models.filter((model) => model.hidden).length;
-  const listed = showHidden ? models : models.filter((model) => !model.hidden);
-  const alternates = alternateModelIds(listed);
   const builtin = connection.source === "builtin";
   const builtinKey = builtinConnectionKey(connection);
   const status = connectionStatusText(
@@ -571,7 +614,7 @@ function ConnectionCard({
               id={headingId}
               className="flex flex-wrap items-center gap-2 text-sm font-semibold"
             >
-              {connection.name}
+              {title ?? connection.name}
               {entry.recommended ? (
                 <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
                   {t("providers.recommended")}
@@ -612,6 +655,9 @@ function ConnectionCard({
           </div>
         )}
       </div>
+      {description ? (
+        <p className="text-muted-foreground text-sm">{description}</p>
+      ) : null}
       {builtinKey ? (
         <BuiltinKey
           name={connection.name}
@@ -619,6 +665,57 @@ function ConnectionCard({
           managedKeys={managedKeys}
         />
       ) : null}
+      <ConnectionModels
+        connection={connection}
+        search={search}
+        disabled={disabled}
+        onInfo={onInfo}
+        action={
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            aria-label={t("connections.addModelTo", { name: connection.name })}
+            onClick={onAddModel}
+          >
+            <Plus className="size-4" aria-hidden />
+            {t("connections.addModel")}
+          </Button>
+        }
+      />
+    </section>
+  );
+}
+
+/**
+ * A connection's models with the hidden-models toggle, and one action beside
+ * it (adding a model, or refreshing the plan's list).
+ */
+function ConnectionModels({
+  connection,
+  search,
+  disabled,
+  onInfo,
+  action,
+  emptyText,
+}: {
+  connection: PyModelConnection;
+  search: WebSearchCapability | null | undefined;
+  disabled: boolean;
+  onInfo: (model: PyConfiguredModel) => void;
+  action: ReactNode;
+  /** Shown when the connection has no models; defaults to the add-a-model hint. */
+  emptyText?: string;
+}) {
+  const { t } = useTranslation("models");
+  const [showHidden, setShowHidden] = useState(false);
+  const models = connection.models ?? [];
+  const hiddenCount = models.filter((model) => model.hidden).length;
+  const listed = showHidden ? models : models.filter((model) => !model.hidden);
+  const alternates = alternateModelIds(listed);
+  return (
+    <>
       <ul
         aria-label={t("connections.modelsOf", { name: connection.name })}
         className="divide-border/60 divide-y"
@@ -635,7 +732,7 @@ function ConnectionCard({
         ))}
         {models.length === 0 ? (
           <li className="text-muted-foreground py-2 text-xs">
-            {t("connections.noModels")}
+            {emptyText ?? t("connections.noModels")}
           </li>
         ) : null}
       </ul>
@@ -656,18 +753,73 @@ function ConnectionCard({
         ) : (
           <span />
         )}
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={disabled}
-          aria-label={t("connections.addModelTo", { name: connection.name })}
-          onClick={onAddModel}
-        >
-          <Plus className="size-4" aria-hidden />
-          {t("connections.addModel")}
-        </Button>
+        {action}
       </div>
+    </>
+  );
+}
+
+/**
+ * The models the signed-in account's plan includes, as OpenAI lists them.
+ * They cannot be added or removed here; each can be hidden, and the list can
+ * be read again.
+ */
+function ChatGPTPlanModels({
+  connection,
+  search,
+  disabled,
+  onInfo,
+}: {
+  connection: PyModelConnection;
+  search: WebSearchCapability | null | undefined;
+  disabled: boolean;
+  onInfo: (model: PyConfiguredModel) => void;
+}) {
+  const { t } = useTranslation("models");
+  const headingId = useId();
+  const refresh = useRefreshChatGPTPlanModels();
+  const run = async () => {
+    try {
+      await refresh.mutateAsync();
+      toast.success(t("chatgptPlan.models.refreshed"));
+    } catch {
+      toast.error(t("chatgptPlan.models.refreshFailed"));
+    }
+  };
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="border-border/60 space-y-3 rounded-xl border p-4"
+    >
+      <div>
+        <h4 id={headingId} className="text-sm font-semibold">
+          {t("chatgptPlan.models.title")}
+        </h4>
+        <p className="text-muted-foreground text-xs">
+          {t("chatgptPlan.models.description")}
+        </p>
+      </div>
+      <ConnectionModels
+        connection={connection}
+        search={search}
+        disabled={disabled}
+        onInfo={onInfo}
+        emptyText={t("chatgptPlan.models.none")}
+        action={
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled || refresh.isPending}
+            onClick={() => void run()}
+          >
+            <RefreshCw className="size-4" aria-hidden />
+            {refresh.isPending
+              ? t("chatgptPlan.models.refreshing")
+              : t("chatgptPlan.models.refresh")}
+          </Button>
+        }
+      />
     </section>
   );
 }

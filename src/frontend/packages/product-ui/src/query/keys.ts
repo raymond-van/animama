@@ -202,6 +202,9 @@ export const queryKeys = {
         ...queryKeys.modelConfiguration.all(userId),
         "openrouter-models",
       ] as const,
+    /** The installation's ChatGPT plan sign-in status (local composition). */
+    chatgptPlan: (userId: string) =>
+      [...queryKeys.modelConfiguration.all(userId), "chatgpt-plan"] as const,
   },
   /**
    * Desktop provider key availability and saved status (status only, never
@@ -224,6 +227,19 @@ export const queryKeys = {
     all: (userId: string) => ["user-files", userId] as const,
     list: (userId: string) =>
       [...queryKeys.userFiles.all(userId), "list"] as const,
+  },
+  /**
+   * The bytes of one chat image, kept apart from `userFiles` so an upload's
+   * list refresh does not refetch every image.
+   */
+  userFileImages: {
+    file: (userId: string, fileId: string) =>
+      ["user-file-images", userId, fileId] as const,
+    variant: (
+      userId: string,
+      fileId: string,
+      variant: "thumbnail" | "preview" | "original",
+    ) => [...queryKeys.userFileImages.file(userId, fileId), variant] as const,
   },
   content: {
     sharingInventory: (owner: string) =>

@@ -3,11 +3,16 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from io import BytesIO
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint
 
+from animama.adapters.content_store.private_file_store import FilesystemPrivateFileStorage
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
@@ -15,12 +20,26 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services import ModelProviderCatalogService
 from animama.domain.chat import Chat, MessageRole
 from animama.domain.request_principal import RequestPrincipal
+from animama.domain.user_file import STATUS_DELETE_PENDING, STATUS_DELETED, STATUS_READY
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMMemoryEpisodeItem
 from animama.orm.base import Base
+from animama.orm.user_file import ORMUserFile
 from animama.product_http.routes import chats as chats_router
+from animama.server.config import Settings
+from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers import router as api_router
 from animama.server.schemas.chat_history import PyChatCreate, PyChatSearchRequest, PyChatUpdate
 from tests.route_support import served_routes
+
+
+class _NoUploads:
+    """Product ports for a chat without images: deleting it touches no stored file."""
+
+    def uploads(self, _principal: RequestPrincipal) -> Any:
+        raise AssertionError("a chat without images reads no uploads")
+
+
+_NO_UPLOADS: Any = _NoUploads()
 
 
 def _user(user_id: str) -> RequestPrincipal:
@@ -344,12 +363,18 @@ async def test_get_update_delete_enforce_chat_ownership(async_session) -> None:
 
     with pytest.raises(HTTPException) as foreign_delete:
         await chats_router.delete_chat(
-            other_chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+            other_chat_id,
+            user=_user(owner_id),
+            repositories=SQLAlchemyProductRepositories(async_session),
+            ports=_NO_UPLOADS,
         )
     assert foreign_delete.value.status_code == 404
 
     deleted = await chats_router.delete_chat(
-        owner_chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+        owner_chat_id,
+        user=_user(owner_id),
+        repositories=SQLAlchemyProductRepositories(async_session),
+        ports=_NO_UPLOADS,
     )
     assert deleted.status_code == 204
 
@@ -845,3 +870,145 @@ async def test_search_chat_messages_uses_chat_limit_offset_and_has_more(async_se
     assert len(second_page.results) == 1
     assert second_page.has_more is False
     assert first_page.results[0].chat_id != second_page.results[0].chat_id
+
+
+async def _attach_image(session, storage: FilesystemPrivateFileStorage, *, chat_id: str, user_id: str, file_id: str):
+    locator = f"user-files/{user_id}/{file_id}/original"
+    assert storage.put_stream(locator, BytesIO(b"png"), content_length=3)
+    if await session.get(ORMUserFile, file_id) is None:
+        session.add(
+            ORMUserFile(
+                id=file_id,
+                user_id=user_id,
+                storage_locator=locator,
+                original_filename=f"{file_id}.png",
+                normalized_extension=".png",
+                declared_size_bytes=3,
+                stored_size_bytes=3,
+                status=STATUS_READY,
+                upload_expires_at=datetime.now(UTC) + timedelta(minutes=10),
+                metadata_={"kind": "image", "image": {"width": 1, "height": 1, "media_type": "image/png"}},
+            )
+        )
+    session.add(
+        ORMChatMessage(
+            chat_id=chat_id,
+            run_id=f"run-{file_id}",
+            role=MessageRole.USER.value,
+            content=f"Look\n\n[Image: {file_id}.png]",
+            message_data={"images": [{"file_id": file_id, "name": f"{file_id}.png", "width": 1, "height": 1}]},
+        )
+    )
+    await session.commit()
+    return locator
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_chat_deletes_the_images_only_it_uses(async_session, tmp_path: Path) -> None:
+    owner_id = f"user-{uuid.uuid4()}"
+    anima_id = f"anima-{uuid.uuid4()}"
+    deleted_chat, kept_chat = f"chat-{uuid.uuid4()}", f"chat-{uuid.uuid4()}"
+    only_here, shared = f"file-{uuid.uuid4()}", f"file-{uuid.uuid4()}"
+    await _create_anima(async_session, anima_id=anima_id, user_id=owner_id)
+    await _create_chat(async_session, chat_id=deleted_chat, anima_id=anima_id, user_id=owner_id)
+    await _create_chat(async_session, chat_id=kept_chat, anima_id=anima_id, user_id=owner_id)
+    storage = FilesystemPrivateFileStorage(
+        initialize_local_runtime(
+            Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
+        )
+    )
+    only_here_locator = await _attach_image(
+        async_session, storage, chat_id=deleted_chat, user_id=owner_id, file_id=only_here
+    )
+    shared_locator = await _attach_image(async_session, storage, chat_id=deleted_chat, user_id=owner_id, file_id=shared)
+    await _attach_image(async_session, storage, chat_id=kept_chat, user_id=owner_id, file_id=shared)
+    ports: Any = SimpleNamespace(uploads=lambda _principal: SimpleNamespace(private_files=storage))
+
+    response = await chats_router.delete_chat(
+        deleted_chat, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session), ports=ports
+    )
+
+    assert response.status_code == 204
+    async_session.expire_all()
+    removed = await async_session.get(ORMUserFile, only_here)
+    kept = await async_session.get(ORMUserFile, shared)
+    assert removed is not None and removed.status == STATUS_DELETED
+    assert kept is not None and kept.status == STATUS_READY
+    assert storage.head(only_here_locator) is None
+    assert storage.head(shared_locator) == {"ContentLength": 3}
+
+
+async def chat_router_delete(chat_id: str, owner_id: str, session, ports: Any):
+    return await chats_router.delete_chat(
+        chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(session), ports=ports
+    )
+
+
+class _UnreliableStorage:
+    """Real storage whose deletes can report failure or raise, per locator."""
+
+    def __init__(self, storage: FilesystemPrivateFileStorage, *, fails: str = "", raises: str = "") -> None:
+        self._storage = storage
+        self._fails = fails
+        self._raises = raises
+
+    def delete(self, locator: str) -> bool:
+        if self._raises and self._raises in locator:
+            raise OSError("disk detached")
+        if self._fails and self._fails in locator:
+            return False
+        return self._storage.delete(locator)
+
+
+async def _two_image_chat(async_session, tmp_path: Path):
+    owner_id = f"user-{uuid.uuid4()}"
+    anima_id = f"anima-{uuid.uuid4()}"
+    chat_id = f"chat-{uuid.uuid4()}"
+    first, second = f"file-a-{uuid.uuid4()}", f"file-b-{uuid.uuid4()}"
+    await _create_anima(async_session, anima_id=anima_id, user_id=owner_id)
+    await _create_chat(async_session, chat_id=chat_id, anima_id=anima_id, user_id=owner_id)
+    storage = FilesystemPrivateFileStorage(
+        initialize_local_runtime(
+            Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
+        )
+    )
+    await _attach_image(async_session, storage, chat_id=chat_id, user_id=owner_id, file_id=first)
+    await _attach_image(async_session, storage, chat_id=chat_id, user_id=owner_id, file_id=second)
+    return owner_id, chat_id, first, second, storage
+
+
+@pytest.mark.asyncio
+async def test_an_image_whose_bytes_cannot_be_deleted_stays_pending(async_session, tmp_path: Path) -> None:
+    owner_id, chat_id, first, second, storage = await _two_image_chat(async_session, tmp_path)
+    unreliable = _UnreliableStorage(storage, fails=second)
+    ports: Any = SimpleNamespace(uploads=lambda _principal: SimpleNamespace(private_files=unreliable))
+
+    await chats_router.delete_chat(
+        chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session), ports=ports
+    )
+
+    async_session.expire_all()
+    deleted = await async_session.get(ORMUserFile, first)
+    pending = await async_session.get(ORMUserFile, second)
+    assert deleted is not None and deleted.status == STATUS_DELETED
+    assert pending is not None and pending.status == STATUS_DELETE_PENDING
+    assert pending.last_error == "Delete cleanup will retry"
+
+
+@pytest.mark.asyncio
+async def test_a_cleanup_failure_keeps_the_images_already_deleted(async_session, tmp_path: Path) -> None:
+    owner_id, chat_id, first, second, storage = await _two_image_chat(async_session, tmp_path)
+    unreliable = _UnreliableStorage(storage, raises=second)
+    ports: Any = SimpleNamespace(uploads=lambda _principal: SimpleNamespace(private_files=unreliable))
+
+    response = await chat_router_delete(chat_id, owner_id, async_session, ports)
+
+    assert response.status_code == 204
+    # The request's session ends without a commit after the failure; only what
+    # was committed before it remains.
+    await async_session.rollback()
+    async_session.expire_all()
+    deleted = await async_session.get(ORMUserFile, first)
+    untouched = await async_session.get(ORMUserFile, second)
+    assert deleted is not None and deleted.status == STATUS_DELETED
+    assert untouched is not None and untouched.status == STATUS_READY

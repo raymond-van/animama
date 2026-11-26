@@ -13,6 +13,58 @@
     "testing": "正在測試…",
     "undo": "復原"
   },
+  "chatgptPlan": {
+    "background": {
+      "description": "Animama 會自動把經歷筆記整理成記憶。開啟後，這項工作也會計入你的方案用量。",
+      "label": "也讓自動記憶更新使用我的方案"
+    },
+    "beginFailed": "無法開始登入。請再試一次。",
+    "confirmation": {
+      "background": "也讓自動記憶更新使用我的方案",
+      "backgroundHint": "之後可以在「應用程式設定 → 模型」中變更。",
+      "description": "Animama 中符合條件的 AI 請求現在會使用你的 ChatGPT 方案：與方案模型的聊天、聊天標題與摘要，以及你啟動的記憶更新。你可以在 ChatGPT 設定中查看並限制這些用量。",
+      "gotIt": "知道了",
+      "title": "你正在使用 ChatGPT 方案"
+    },
+    "continue": "使用 ChatGPT 繼續",
+    "description": "不需 API 金鑰，用你的 ChatGPT 方案所含用量完成 Animama 中符合條件的 AI 請求。Animama 不會為此收費。",
+    "enablePlanUse": "啟用方案使用",
+    "failure": {
+      "declined": "已在 OpenAI 取消登入。你可以再試一次，或使用其他模型連線。",
+      "other": "登入未完成。請再試一次。"
+    },
+    "loadFailed": "無法載入 ChatGPT 方案狀態。",
+    "manageUsage": "管理用量",
+    "models": {
+      "description": "你的方案包含哪些模型由 OpenAI 列出。你可以隱藏其中任何一個，方案變更後可以重新整理列表。",
+      "none": "OpenAI 目前沒有為此方案列出任何模型。",
+      "refresh": "重新整理列表",
+      "refreshFailed": "無法重新整理模型列表。請再試一次。",
+      "refreshed": "模型列表已更新。",
+      "refreshing": "正在重新整理…",
+      "title": "方案中的模型"
+    },
+    "notSignedIn": "未登入",
+    "openAgain": "再次開啟登入頁面",
+    "opensInBrowser": "（在瀏覽器中開啟）",
+    "paused": "因達到用量上限而暫停：自動記憶更新會等到你自己的請求成功後再繼續。",
+    "planUseOff": "此帳號已登入，但方案使用已關閉：你拒絕了，或帳號的方案不包含它。你可以啟用，或使用其他模型連線。",
+    "planUseOn": "符合條件的請求會使用你的 ChatGPT 方案。",
+    "preferencesFailed": "無法儲存這個選擇。請再試一次。",
+    "signInRequired": "OpenAI 已結束此工作階段。請重新登入以繼續使用你的方案。",
+    "signOut": "登出",
+    "signOutFailed": "無法登出。請再試一次。",
+    "signOutUnconfirmed": "你已在 Animama 中登出，但 OpenAI 未確認工作階段已結束。你可以在 ChatGPT 設定中中斷 Animama 的連線。",
+    "signedIn": "已登入",
+    "signedInAs": "已以 {{email}} 登入",
+    "signedOut": "已登出 ChatGPT",
+    "title": "使用你的 ChatGPT 方案",
+    "unavailable": {
+      "remoteOrigin": "請在執行 Animama 的電腦上用瀏覽器登入：OpenAI 只能把你送回那台電腦。",
+      "secureStorage": "無法使用安全儲存空間，Animama 無法保留 ChatGPT 登入。請重新啟動 Animama 後再試一次。"
+    },
+    "waiting": "請在瀏覽器中完成登入。此頁面會自動繼續。"
+  },
   "chips": {
     "appSearch": {
       "description": "使用此應用程式的搜尋服務搜尋網頁",
@@ -86,6 +138,10 @@
     "added": "已新增連線。",
     "addModel": "新增模型",
     "addModelTo": "為 {{name}} 新增模型",
+    "apiKey": {
+      "description": "用你自己的 API 金鑰，按請求向 OpenAI 付費。",
+      "title": "使用 API 金鑰"
+    },
     "connect": "連線",
     "connecting": "正在連線…",
     "detail": "{{host}} · {{status}}",
@@ -167,7 +223,8 @@
     },
     "saveFailed": "無法儲存{{role}}模型。",
     "unavailable": "所選模型無法使用，因此使用預設模型。",
-    "unavailableChoice": "{{model}}（無法使用）"
+    "unavailableChoice": "{{model}}（無法使用）",
+    "unavailableWaiting": "所選模型無法使用，因此會等到它再次可用。"
   },
   "embeddings": {
     "current": "已儲存的檔案和封存已使用此模型嵌入。",
@@ -268,6 +325,11 @@
       "description": "在提示達到更高的長上下文價格之前（{{model}} 為 {{early, number}} 個 token）摘要之前的對話。關閉後會等到 {{late, number}} 個 token，以更高的價格逐字保留更多內容。"
     }
   },
+  "picker": {
+    "apiKey": "API 金鑰",
+    "openaiKey": "OpenAI · API 金鑰",
+    "openaiPlan": "OpenAI · ChatGPT 方案"
+  },
   "probe": {
     "contextWindow": "伺服器回報的上下文視窗為 {{tokens, number}} 個 token。",
     "dimensions": "向量有 {{dimensions, number}} 個維度。",
@@ -286,6 +348,7 @@
     }
   },
   "providers": {
+    "chatgptPlan": "ChatGPT 方案",
     "connected": "（已連線）",
     "custom": "自訂",
     "purpose": {
@@ -297,6 +360,7 @@
       "lmstudio": "與這台電腦上 LM Studio 提供的模型聊天。",
       "ollama": "與這台電腦上 Ollama 中執行的模型聊天。",
       "openai": "使用你的 API 金鑰與 OpenAI 的模型聊天。",
+      "openaiWithPlan": "透過你的 ChatGPT 方案或 API 金鑰使用 OpenAI 的模型。",
       "openrouter": "透過一組 OpenRouter 金鑰與眾多供應商的模型聊天。",
       "vllm": "與這台電腦上 vLLM 提供的模型聊天。",
       "anthropic": "使用你的 API 金鑰與 Anthropic 的 Claude 模型聊天。"

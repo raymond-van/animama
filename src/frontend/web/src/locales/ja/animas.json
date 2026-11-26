@@ -191,6 +191,7 @@
       "file_unreadable": "アバターのファイルは読み取り可能な glTF または VRM ファイルではありません。",
       "humanoid_bones_remapped_other": "{{count}} 個のヒューマノイドのボーンがモデルのどこも動かさないボーンを指していたため、メッシュが従う隣のボーンを代わりに使います。",
       "humanoid_bones_unweighted_other": "{{count}} 個のヒューマノイドのボーンはモデルのどこも動かさず、代わりに使えるメッシュが従う隣のボーンもないため、それらの動きは表示されません。",
+      "materials_unlit": "このファイルのマテリアルはすべて光を受けないため、そのままでは平面的に見えます。アバターのマテリアル設定がシンプルでない限り、Animama がトゥーンの陰影と輪郭線を加えます。",
       "landmarks_anchor_missing": "顔のランドマークを固定する頭が見つかりませんでした。",
       "landmarks_eyes_missing": "顔に目が見つからないため、目のエフェクトは利用できません。",
       "landmarks_face_bounds_failed": "顔の肌の大きさを測れませんでした。",
@@ -566,6 +567,7 @@
     "cloning": {
       "change": "サンプルを変更",
       "checking": "音声クローンを確認しています…",
+      "chooseHint": "各 Anima の音声は、その Anima のページの「音声」で選びます。",
       "clone": "音声をクローン",
       "cloningVoice": "音声をクローンしています…",
       "delete": {
@@ -611,6 +613,9 @@
       "sectionLabel": "音声クローン",
       "title": "音声クローン",
       "upload": "音声サンプルをアップロード",
+      "usedBy": "{{anima}} の音声",
+      "usedFor": "{{voice}} を {{anima}} の音声にしました。次にチャットを開いたときから反映されます。",
+      "useFor": "{{anima}} に使う",
       "downloadsEnded": "音声クローンには、ダウンロードできなくなったモデルが必要です。保存したクローンは引き続き使えます。"
     },
     "elevenLabs": {

@@ -1,6 +1,7 @@
 import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
 import { LibraryBig } from "lucide-react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { hostedExclusionReasons } from "@/app/runtime/route-admission";
@@ -10,6 +11,10 @@ import {
   type LibraryContentType,
 } from "@/lib/content/librarySearch";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
+import {
+  takeLibraryImportRequest,
+  useLibraryImportRequestStore,
+} from "@/stores/library-import-request-store";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -103,6 +108,15 @@ export function LibraryPage({
     }
   };
   const sharing = useLibrarySharingFlow();
+  // The desktop menu's Import Anima lands here and opens the same dialog.
+  const importRequestedAt = useLibraryImportRequestStore(
+    (state) => state.requestedAt,
+  );
+  useEffect(() => {
+    if (importRequestedAt !== null && takeLibraryImportRequest())
+      sharing.chooseImport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one open per request
+  }, [importRequestedAt]);
   const uploadsEnabled = useRuntimeFeatureEnabled("chat_file_uploads");
   const uploadsUnavailable =
     useRuntimeFeatureUnavailableReason("chat_file_uploads");

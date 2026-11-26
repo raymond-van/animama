@@ -27,7 +27,9 @@ Main web renderer
 
 The main renderer remains the runtime owner. The Quick Chat renderer is a
 mirrored control surface: it displays snapshots from the main renderer and sends
-commands back to it.
+commands back to it. Mirrored messages keep the images sent with them; Quick
+Chat loads their previews and opens them larger through its own query cache,
+and has no uploader of its own.
 
 ## Shortcut
 

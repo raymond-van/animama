@@ -315,6 +315,17 @@ def _setup_ws_metrics(app: FastAPI) -> None:
     _ws_metrics_initialized = True
 
 
+def fastapi_excluded_urls() -> str:
+    """The operator's excluded URLs plus the ChatGPT sign-in return.
+
+    The return's query carries a one-time code and the attempt's state, so it is
+    never traced. Passing a list replaces the environment's, so both are kept.
+    """
+
+    configured = os.getenv("OTEL_PYTHON_FASTAPI_EXCLUDED_URLS") or os.getenv("OTEL_PYTHON_EXCLUDED_URLS") or ""
+    return ",".join(part for part in (configured.strip(), "auth/callback") if part)
+
+
 def _instrument_fastapi(app: FastAPI) -> None:
     if _is_disabled("fastapi", extra_aliases=("asgi",)):
         return
@@ -323,7 +334,7 @@ def _instrument_fastapi(app: FastAPI) -> None:
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-        FastAPIInstrumentor.instrument_app(app)
+        FastAPIInstrumentor.instrument_app(app, excluded_urls=fastapi_excluded_urls())
         _instrumented.add("fastapi")
     except Exception as exc:
         _log.warning("FastAPI instrumentation failed: %s", exc)

@@ -72,14 +72,19 @@ const labConnection = {
 let root: Root | null = null;
 let container: HTMLElement;
 
-function renderForm(connection: PyModelConnection, managedKeys: boolean) {
+/** Renders the form for a saved connection, or for a new one from `from`. */
+function renderForm(
+  connection: PyModelConnection | undefined,
+  managedKeys: boolean,
+  from: PyModelConnectionPreset = preset,
+) {
   container = document.createElement("div");
   document.body.append(container);
   act(() => {
     root = createRoot(container);
     root.render(
       <ModelConnectionForm
-        presets={[preset]}
+        presets={[from]}
         connection={connection}
         managedKeys={managedKeys}
         onSaved={() => undefined}
@@ -125,6 +130,53 @@ afterEach(() => {
   act(() => root?.unmount());
   root = null;
   container.remove();
+});
+
+describe("a new connection to a provider that needs a key", () => {
+  const cloudPreset: PyModelConnectionPreset = {
+    ...preset,
+    id: "openrouter",
+    label: "OpenRouter",
+    default_base_url: "https://openrouter.ai/api/v1",
+  };
+
+  it("cannot be saved on desktop until its key is typed", () => {
+    renderForm(undefined, true, cloudPreset);
+
+    expect(saveButton().disabled).toBe(true);
+
+    typeInto(input('input[type="password"]'), "sk-or-new");
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it("cannot be saved on self-hosted web until its key variable is named", () => {
+    fixture.desktop = false;
+    renderForm(undefined, false, cloudPreset);
+
+    expect(saveButton().disabled).toBe(true);
+
+    typeInto(input("input[autocapitalize]"), "OPENROUTER_API_KEY");
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it("saves without a key when the provider needs none", () => {
+    renderForm(undefined, true, { ...cloudPreset, expects_key: false });
+
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it("leaves editing a saved connection without a key as it was", () => {
+    renderForm(
+      {
+        ...labConnection,
+        credential_env: null,
+        credential_state: "missing",
+      } as PyModelConnection,
+      true,
+    );
+
+    expect(saveButton().disabled).toBe(false);
+  });
 });
 
 describe("connection keys and their address", () => {

@@ -4,13 +4,13 @@ import asyncio
 import base64
 import hashlib
 import json
-from collections.abc import AsyncGenerator, Callable, Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, TypedDict, cast
+from typing import Any, Literal, TypedDict, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -35,6 +35,7 @@ from animama.app.model_clients import (
     StaticModelClientRegistry,
 )
 from animama.app.model_clients.credential_store import GEMINI_CREDENTIAL_ENV
+from animama.app.model_clients.image_parts import ModelClientImage
 from animama.app.model_clients.prompt import prompt_last_user_message
 from animama.app.safety.ai_notice import AiNoticeState
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
@@ -47,7 +48,7 @@ from animama.domain.events import EmotionUpdatePayload
 from animama.domain.model_provider import ModelProvider, ModelProviderCapabilities
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
-from animama.domain.user_file import STATUS_READY, STATUS_UPLOADED
+from animama.domain.user_file import STATUS_DELETED, STATUS_FAILED, STATUS_READY, STATUS_UPLOADED
 from animama.orm import (
     ORMAnimaChatProfile,
     ORMChat,
@@ -772,6 +773,7 @@ async def _seed_chat_model_provider(
     supported_reasoning_efforts: list[str] | None = None,
     supports_tools: bool = True,
     native_tool_support: list[str] | None = None,
+    accepts: list[str] | None = None,
 ) -> None:
     existing = await async_session.get(ORMModelProvider, model_provider_id)
     values = {
@@ -783,7 +785,7 @@ async def _seed_chat_model_provider(
         "source": source,
         "context_window_tokens": context_window_tokens,
         "active": active,
-        "accepts": ["text"],
+        "accepts": accepts if accepts is not None else ["text"],
         "produces": ["text"],
         "supports_tools": supports_tools,
         "supports_streaming": supports_streaming,
@@ -4943,8 +4945,8 @@ async def test_a_failing_automatic_processing_task_leaves_the_chat_turn_unchange
         attempts += 1
         raise RuntimeError("automatic processing is broken")
 
-    async def usable(session: Any, user_id: str) -> bool:
-        return True
+    async def usable(session: Any, user_id: str) -> Literal["usable"]:
+        return "usable"
 
     worker = AutomaticEpisodeProcessingWorker(
         async_session_factory,
@@ -4970,3 +4972,199 @@ async def test_a_failing_automatic_processing_task_leaves_the_chat_turn_unchange
     assert not any("event: error" in chunk for chunk in chunks)
     assert _event_count(chunks, "run.completed") == 1
     assert attempts >= 1
+
+
+class _RecordingImageLoader:
+    """Replaces the session-backed loader; the route still decides which images a turn carries."""
+
+    loads: list[list[str]] = []
+
+    def __init__(self, _sessions: Any) -> None:
+        pass
+
+    async def load(self, file_ids: Sequence[str]) -> dict[str, ModelClientImage]:
+        type(self).loads.append(list(file_ids))
+        return {file_id: ModelClientImage(media_type="image/png", content=b"png bytes") for file_id in file_ids}
+
+
+async def _seed_chat_image(
+    async_session,
+    *,
+    file_id: str,
+    user_id: str = "user-1",
+    status: str = STATUS_READY,
+    name: str | None = None,
+) -> None:
+    async_session.add(
+        ORMUserFile(
+            id=file_id,
+            user_id=user_id,
+            storage_locator=f"user-files/{user_id}/{file_id}/original",
+            original_filename=name or f"{file_id}.png",
+            normalized_extension=".png",
+            declared_content_type="image/png",
+            detected_content_type="image/png",
+            declared_size_bytes=9,
+            stored_size_bytes=9,
+            sha256="0" * 64,
+            status=status,
+            upload_expires_at=datetime.now(UTC) + timedelta(minutes=10),
+            metadata_={"kind": "image", "image": {"width": 40, "height": 20, "media_type": "image/png"}},
+        )
+    )
+    await async_session.commit()
+
+
+async def _image_route_setup(
+    monkeypatch, async_session, async_session_factory, *, tag: str, accepts: list[str]
+) -> _RouteModelClient:
+    """Seed an Anima and a model for one image test; the database is shared, so ids carry ``tag``."""
+
+    async_session.add(ORMAnima(id=f"anima-{tag}", user_id="user-1"))
+    await _seed_chat_model_provider(
+        async_session,
+        "OpenAIHTTPAgent:gpt-6-luna",
+        provider_type="OpenAIHTTPAgent",
+        model="gpt-6-luna",
+        accepts=accepts,
+    )
+    await _seed_anima_identity_file(async_session, anima_id=f"anima-{tag}")
+    model_client = _RouteModelClient()
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+    _RecordingImageLoader.loads = []
+    monkeypatch.setattr(chat_turn_setup, "SessionBackedChatImageLoader", _RecordingImageLoader)
+    return model_client
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_sends_an_attached_image_beside_documents_and_saves_its_reference(
+    monkeypatch, async_session, async_session_factory
+) -> None:
+    model_client = await _image_route_setup(
+        monkeypatch, async_session, async_session_factory, tag="sent", accepts=["text", "image"]
+    )
+    await _seed_chat_image(async_session, file_id="sent-image", name="cat.png")
+    await _seed_uploaded_file_chunk(async_session, file_id="sent-doc", text="Notes about cats.")
+    await async_session.commit()
+
+    response = await chat_anima_direct_sse(
+        "anima-sent",
+        _chat_request(
+            message="What is this?",
+            run_id="run-sent",
+            chat_id="chat-sent",
+            attached_file_ids=["sent-image", "sent-doc"],
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    spec = model_client.seen_specs[0]
+    assert set(spec.images) == {"sent-image"}
+    assert "search_uploaded_files" in [_function_tool(tool)["function"]["name"] for tool in spec.prompt.tools]
+    persisted = (
+        await async_session.execute(
+            select(ORMChatMessage).where(ORMChatMessage.chat_id == "chat-sent").order_by(ORMChatMessage.turn)
+        )
+    ).scalars()
+    user_row = list(persisted)[0]
+    assert user_row.content == "What is this?\n\n[Image: cat.png]"
+    assert user_row.message_data == {
+        "attached_file_ids": ["sent-doc"],
+        "images": [{"file_id": "sent-image", "name": "cat.png", "width": 40, "height": 20}],
+        "user_text": "What is this?",
+    }
+    assert "png bytes" not in json.dumps(user_row.raw_provider_message)
+    # The request carried the bytes; no stream event does, raw or encoded.
+    assert spec.images["sent-image"].content == b"png bytes"
+    body = "".join(chunks)
+    assert "png bytes" not in body
+    assert base64.b64encode(b"png bytes").decode() not in body
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tag", "statuses", "code"),
+    [
+        ("five-images", [STATUS_READY] * 5, "too_many_images"),
+        ("failed-image", [STATUS_FAILED], "attached_image_unavailable"),
+        ("deleted-image", [STATUS_DELETED], "attached_image_unavailable"),
+        ("uploaded-image", [STATUS_UPLOADED], "attached_image_unavailable"),
+    ],
+)
+async def test_chat_sse_refuses_images_it_cannot_send(
+    monkeypatch, async_session, async_session_factory, tag: str, statuses: list[str], code: str
+) -> None:
+    model_client = await _image_route_setup(
+        monkeypatch, async_session, async_session_factory, tag=tag, accepts=["text", "image"]
+    )
+    for index, status in enumerate(statuses):
+        await _seed_chat_image(async_session, file_id=f"{tag}-{index}", status=status)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await chat_anima_direct_sse(
+            f"anima-{tag}",
+            _chat_request(
+                message="Look",
+                run_id=f"run-{tag}",
+                chat_id=f"chat-{tag}",
+                attached_file_ids=[f"{tag}-{index}" for index in range(len(statuses))],
+            ),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc_info.value.status_code == 400
+    detail: Any = exc_info.value.detail
+    assert detail["code"] == code
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_refuses_an_image_for_a_model_without_image_input(
+    monkeypatch, async_session, async_session_factory
+) -> None:
+    model_client = await _image_route_setup(
+        monkeypatch, async_session, async_session_factory, tag="text-only", accepts=["text"]
+    )
+    await _seed_chat_image(async_session, file_id="text-only-image")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await chat_anima_direct_sse(
+            "anima-text-only",
+            _chat_request(
+                message="Look", run_id="run-text-only", chat_id="chat-text-only", attached_file_ids=["text-only-image"]
+            ),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc_info.value.status_code == 400
+    detail: Any = exc_info.value.detail
+    assert detail["code"] == "model_does_not_accept_images"
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_treats_another_owners_image_like_an_unknown_file(
+    monkeypatch, async_session, async_session_factory
+) -> None:
+    model_client = await _image_route_setup(
+        monkeypatch, async_session, async_session_factory, tag="foreign", accepts=["text", "image"]
+    )
+    await _seed_chat_image(async_session, file_id="foreign-image", user_id="user-2")
+
+    response = await chat_anima_direct_sse(
+        "anima-foreign",
+        _chat_request(
+            message="Look", run_id="run-foreign", chat_id="chat-foreign", attached_file_ids=["foreign-image"]
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    await _collect_chunks(response)
+
+    assert model_client.seen_specs[0].images == {}
+    assert _RecordingImageLoader.loads == []

@@ -1,4 +1,4 @@
-# 0038: The Windows update feed's minimum system version is frozen
+# 0040: The Windows update feed's minimum system version is frozen
 
 - Status: accepted (owner, 2026-11-24)
 - Recorded: 2026-11-24

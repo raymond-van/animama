@@ -26,10 +26,14 @@ export function useDeleteUserFile() {
         throwOnError: true,
       });
     },
-    onSettled: () => {
+    onSettled: (_data, _error, { fileId }) => {
       if (!userId) return;
       queryClient.invalidateQueries({
         queryKey: queryKeys.userFiles.all(userKey),
+      });
+      // A deleted image's chat thumbnails become placeholders.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.userFileImages.file(userKey, fileId),
       });
     },
   });
