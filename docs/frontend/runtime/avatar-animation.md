@@ -1796,7 +1796,8 @@ adapts colour and UV expression binds to those materials.
   in `avatarGltfLoader.ts`), so the glTF fallback materials load and
   three-liltoon is not imported. lilToon always loads lilToon at the full
   frame rate; Automatic loads lilToon at the frame rate the GPU check below
-  allows, or Simple. `Avatar.lilToonMaterials` reports `rendered`, `fallback`
+  allows, or Simple. The same setting keeps an unlit-only file unlit
+  ([Unlit materials](#unlit-materials)). `Avatar.lilToonMaterials` reports `rendered`, `fallback`
   or `none`, and `Avatar.automaticMaterials` what Automatic chose (materials
   and frame cap) and why.
 - **GPU check for Automatic** (`lilToonGpuCheck.ts`): the main Avatar canvas
@@ -1910,6 +1911,50 @@ adapts colour and UV expression binds to those materials.
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given
 `--rendering classic`.
+
+#### Unlit materials
+
+A VRM 1.0 file whose materials are all `KHR_materials_unlit` (no MToon,
+lilToon or standard material) would draw flat: three builds unlit materials as
+`MeshBasicMaterial`, which no light reaches, so neither look above can shade
+it. Such files usually come from MikuMikuDance (PMX) models converted with a
+tool built on three's `GLTFExporter`, which cannot write MMD's toon material
+and drops its shading and outlines. A file that mixes unlit with other
+materials keeps them as authored. VRM 0.x files are out of scope and still
+look flat: three-vrm draws their `VRM/Unlit*` shaders as MToon whose shade
+equals the lit colour, without outlines, and their glTF unlit materials as
+unlit.
+
+`withUnlitToonShading` (`src/lib/avatar/unlitToonShading.ts`) gives these
+files MToon in the glTF after the VRM 0.x conversion, before any material is
+built, unless the Avatar's Materials setting is Simple:
+
+- **Face:** face parts are the primitives of the meshes the VRM expressions
+  bind (every mesh with morph targets when none is bound) whose drawn
+  vertices one of their morph targets moves. A converted MMD model is usually
+  one mesh, so pupil shapes that no expression binds count too, while
+  clothing shape keys on separate meshes do not. The largest textured face
+  part is the face skin and gets a mostly lit look with a warm shade and a
+  brown outline. The other face parts (eyes, lashes, mouth) stay unlit.
+- **Body:** every other textured material that is not blended gets a cool
+  shade, rim light and a thin dark screen-space outline. The shade reuses the
+  base texture (`shadeMultiplyTexture`), so painted effects paint both sides.
+- **Unchanged:** blended (transparent) and untextured materials stay unlit.
+- **Brightness:** the lit colour is raised by 1.25 (`LIT_GAIN`), so lit areas
+  under the enhanced chat lights stay within a few percent of the unlit
+  texture; classic lighting leaves them about a tenth darker.
+- **Limits:** the look is Animama's, not the author's: a converter that keeps
+  the model's own toon materials does better. Any shape key on a face mesh
+  makes the parts it moves face parts, so on a one-mesh model a body, bust or
+  skirt shape leaves that part unlit, and if it is larger than the face, it
+  takes the face look while the face stays unlit. Eye whites or teeth that no
+  shape moves get the body look and its outline. Physics and look-at that a
+  converter dropped stay missing.
+
+The step runs after the enhanced MToon retune, so the retune sees only a
+file's own MToon. Automatic's GPU check never turns it off: it weighs
+lilToon's cost, and a file has either lilToon or only unlit materials.
+Diagnostics names such files from their file facts (`materials_unlit`).
 
 ### Actor setup
 

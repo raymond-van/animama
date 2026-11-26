@@ -79,12 +79,16 @@ export function modelDefaultCopy(
 }
 
 /** Where the role's model comes from when the owner has not chosen one. */
-function effectiveNote(
+export function effectiveNote(
   t: TFunction<"models">,
   assignment: PyModelRoleAssignment | undefined,
 ): string | null {
   if (!assignment) return null;
-  if (!assignment.assignment_available) return t("defaults.unavailable");
+  // An unavailable ChatGPT plan model does not fall back: the role waits for it.
+  if (!assignment.assignment_available)
+    return assignment.source === "off"
+      ? t("defaults.unavailableWaiting")
+      : t("defaults.unavailable");
   if (assignment.source === "off")
     return assignment.role === "embeddings"
       ? null

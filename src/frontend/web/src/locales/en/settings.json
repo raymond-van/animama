@@ -57,7 +57,8 @@
           "automatic": "Automatic",
           "liltoon": "lilToon",
           "simple": "Simple"
-        }
+        },
+        "unlitDescription": "Automatic adds toon shading and outlines, because this Avatar's materials ignore light; Simple draws them flat, as the file has them. Applies wherever the Avatar is used, and reloads it."
       },
       "wind": {
         "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",
@@ -221,10 +222,13 @@
       "label": "Process episode notes automatically",
       "memoryOff": "Turn on Memory and Memory updates to process notes automatically.",
       "needsModel": "Needs a Memory Manager model that supports tools. Choose one in the Models settings.",
+      "needsPlanAgreement": "The Memory Manager model uses your ChatGPT plan. To process notes automatically, let automatic memory updates use it in the Models settings.",
+      "needsPlanSignIn": "The Memory Manager model uses your ChatGPT plan. Sign in with ChatGPT again, or turn plan use on, in the Models settings.",
       "notes_one": "After {{count}} note",
       "notes_other": "After {{count}} notes",
       "off": "Off",
       "paused": "Paused after repeated failures. Change this setting to try again. Last error: {{error}}",
+      "planPaused": "Paused after a ChatGPT plan usage limit. It continues once one of your own requests on the plan succeeds.",
       "retrying": "Retrying later after a failure. Last error: {{error}}",
       "running_one": "Crystallizing {{count}} note into memory…",
       "running_other": "Crystallizing {{count}} notes into memory…",

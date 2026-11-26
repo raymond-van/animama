@@ -37,6 +37,7 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.humanoid_bones_remapped", { count }),
     humanoid_bones_unweighted: () =>
       t("avatarDiagnostics.issues.humanoid_bones_unweighted", { count }),
+    materials_unlit: () => t("avatarDiagnostics.issues.materials_unlit"),
     avatar_load_failed: () => t("avatarDiagnostics.issues.avatar_load_failed"),
     scene_bindings_unavailable: () =>
       t("avatarDiagnostics.issues.scene_bindings_unavailable"),

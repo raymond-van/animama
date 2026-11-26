@@ -51,7 +51,7 @@ const prepared = new WeakMap<GLTFParser, Promise<void>>();
  * `beforeRoot`; a plugin that reads buffers in its own `beforeRoot` awaits
  * this first.
  */
-function prepareAvatarFile(parser: GLTFParser): Promise<void> {
+export function prepareAvatarFile(parser: GLTFParser): Promise<void> {
   let preparation = prepared.get(parser);
   if (!preparation) {
     preparation = (async () => {

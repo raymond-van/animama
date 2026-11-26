@@ -38,9 +38,9 @@ const PUBLICATION = {
     acceptance: "ANIMAMA_WINDOWS_ACCEPTANCE",
     artifact: (version) => `Animama-${version}-x64-setup.exe`,
     previewBody:
-      "Public testing preview for Windows 11 x64. Native acceptance is NOT complete; this is not a stable update. Back up test data and see the attached notices and size reports.",
+      "Public testing preview for Windows x64 (Windows 10 22H2 or later). Native acceptance is NOT complete; this is not a stable update. Back up test data and see the attached notices and size reports.",
     stableBody:
-      "Self-contained Windows 11 x64 application with a per-user installer. See the attached notices, checksums, size, and acceptance reports. Local data stays on your computer.",
+      "Self-contained Windows x64 application (Windows 10 22H2 or later) with a per-user installer. See the attached notices, checksums, size, and acceptance reports. Local data stays on your computer.",
   },
 };
 

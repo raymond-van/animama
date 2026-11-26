@@ -2,6 +2,7 @@ import type { Plugin, ProxyOptions } from "vite";
 
 const API_ROUTE = /^\/v1(?:\/|$)/;
 const TELEMETRY_ROUTE = /^\/api\/telemetry\/(?:traces|metrics|logs)$/;
+const SIGN_IN_RETURN_ROUTE = "/auth/callback";
 
 /** Read server-owned origins once; a request can never choose a proxy target. */
 export function localDevelopmentOrigins(
@@ -44,6 +45,8 @@ export function localAPIProxy(apiTarget: string): Record<string, ProxyOptions> {
     "^/v1(?:/|\\?|$)": { ...http, ws: false },
     "^/health(?:\\?|$)": { ...http, ws: false },
     "^/api/telemetry/(?:traces|metrics|logs)(?:\\?|$)": { ...http, ws: false },
+    // The browser's return from OpenAI's ChatGPT sign-in; FastAPI admits it by its own rule.
+    "^/auth/callback(?:\\?|$)": { ...http, ws: false },
   };
 }
 
@@ -70,10 +73,12 @@ export function localDevelopmentRouteFence(): Plugin {
           /^\/(?:_desktop|internal|docs|redoc|openapi\.json)(?:\/|$)/.test(
             path,
           );
+        const unknownAuth =
+          /^\/auth(?:\/|$)/.test(path) && rawPath !== SIGN_IN_RETURN_ROUTE;
         const unknownAPI =
           /^\/api(?:\/|$)/.test(path) && !TELEMETRY_ROUTE.test(rawPath);
         const encodedAPI = API_ROUTE.test(path) && !API_ROUTE.test(rawPath);
-        if (privatePath || unknownAPI || encodedAPI) {
+        if (privatePath || unknownAuth || unknownAPI || encodedAPI) {
           response.writeHead(404, { "cache-control": "no-store" });
           response.end();
           return;

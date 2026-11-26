@@ -191,6 +191,7 @@
       "file_unreadable": "虚拟形象文件不是可读取的 glTF 或 VRM 文件。",
       "humanoid_bones_remapped_other": "有 {{count}} 个人形骨骼指向不移动模型任何部分的骨骼，因此改用旁边网格所跟随的骨骼。",
       "humanoid_bones_unweighted_other": "有 {{count}} 个人形骨骼不移动模型的任何部分，旁边也没有可替代的、网格所跟随的骨骼，因此这些骨骼上的动作不会显示。",
+      "materials_unlit": "此文件的所有材质都不受光照影响，因此原样看起来很平面。除非虚拟形象的材质设置为简单，Animama 会添加卡通阴影和轮廓线。",
       "landmarks_anchor_missing": "未找到用于固定面部特征点的头部。",
       "landmarks_eyes_missing": "面部未找到眼睛，因此眼部特效不可用。",
       "landmarks_face_bounds_failed": "无法测量面部皮肤。",

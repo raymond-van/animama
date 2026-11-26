@@ -13,7 +13,12 @@ from animama.adapters.mappers.model_provider_map import (
 )
 from animama.app.ports import ModelProviderRepository
 from animama.domain import ModelProvider
-from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_BUILTIN, MODEL_SOURCE_OWNER
+from animama.domain.model_connection import (
+    BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
+    BUILTIN_OPENAI_CONNECTION_ID,
+    MODEL_SOURCE_BUILTIN,
+    MODEL_SOURCE_OWNER,
+)
 from animama.orm import ORMModelConnection, ORMModelProvider
 from animama.utils.clock import naive_utc_now
 
@@ -136,12 +141,17 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
         return await self._with_connections(stored)
 
     async def soft_retire_missing(self, active_ids: Iterable[str]) -> int:
-        """Retire active built-in rows absent from ``active_ids``; owner rows are kept."""
+        """Retire active built-in rows absent from ``active_ids``; owner rows are kept.
+
+        The ChatGPT plan connection's rows come from the signed-in account, not
+        the catalog, so they are never retired here.
+        """
 
         active_id_set = set(active_ids)
         stmt = select(ORMModelProvider).where(
             ORMModelProvider.active.is_(True),
             ORMModelProvider.source == MODEL_SOURCE_BUILTIN,
+            ORMModelProvider.connection_id != BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
         )
         if active_id_set:
             stmt = stmt.where(ORMModelProvider.id.notin_(active_id_set))

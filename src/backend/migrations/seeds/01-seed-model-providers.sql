@@ -16,7 +16,8 @@ INSERT INTO model_connections (
     active
 ) VALUES
     ('openai', 'builtin', 'OpenAI', 'openai', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"openai_effort","send_openai_extensions":true,"send_stream_usage":true,"strip_function_strict":false}'::jsonb, NULL, TRUE),
-    ('anthropic', 'builtin', 'Anthropic', 'anthropic', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"omit","send_openai_extensions":false,"send_stream_usage":false,"strip_function_strict":false}'::jsonb, NULL, TRUE)
+    ('anthropic', 'builtin', 'Anthropic', 'anthropic', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"omit","send_openai_extensions":false,"send_stream_usage":false,"strip_function_strict":false}'::jsonb, NULL, TRUE),
+    ('chatgpt_plan', 'builtin', 'ChatGPT plan', 'chatgpt_plan', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"openai_effort","send_openai_extensions":true,"send_stream_usage":true,"strip_function_strict":false}'::jsonb, NULL, TRUE)
 ON CONFLICT (id) DO UPDATE SET
     source = EXCLUDED.source,
     name = EXCLUDED.name,
@@ -161,12 +162,14 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at = CURRENT_TIMESTAMP
 WHERE model_providers.source = 'builtin';
 
--- Retire built-in rows that the current release no longer ships.
+-- Retire built-in rows that the current release no longer ships. The ChatGPT plan
+-- connection's rows are listed from the signed-in account at run time, not shipped.
 UPDATE model_providers SET
     active = FALSE,
     deprecated_at = COALESCE(deprecated_at, CURRENT_TIMESTAMP),
     updated_at = CURRENT_TIMESTAMP
-WHERE source = 'builtin' AND active AND id NOT IN ('AnthropicMessagesHTTPAgent:claude-haiku-5-5', 'OpenAIHTTPAgent:gpt-6-luna', 'OpenAIHTTPAgent:text-embedding-3-large', 'OpenAIHTTPAgent:text-embedding-3-small', 'OpenAIResponsesHTTPAgent:gpt-6-luna');
+WHERE source = 'builtin' AND active AND connection_id <> 'chatgpt_plan'
+    AND id NOT IN ('AnthropicMessagesHTTPAgent:claude-haiku-5-5', 'OpenAIHTTPAgent:gpt-6-luna', 'OpenAIHTTPAgent:text-embedding-3-large', 'OpenAIHTTPAgent:text-embedding-3-small', 'OpenAIResponsesHTTPAgent:gpt-6-luna');
 
 -- Move Animas and the owner's chat-model roles off retired built-in rows onto the
 -- current built-in row on the same API, so existing installations keep chatting.

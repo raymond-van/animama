@@ -34,6 +34,7 @@ import {
   ANTHROPIC_DEFAULT_MODEL_ID,
   ANTHROPIC_MESSAGES_PROVIDER_TYPE,
   CHAT_COMPLETIONS_PROVIDER_TYPE,
+  CHATGPT_PLAN_PROVIDER_TYPE,
   RESPONSES_PROVIDER_TYPE,
   isChatModelRow,
   type ModelProviderType,
@@ -163,15 +164,22 @@ export type ModelProviderId =
 export type ModelProviderEntry = {
   id: ModelProviderId;
   presetId: string;
-  /** The provider's product name; `null` for the translated "Custom". */
+  /** The provider's product name; `null` when the UI Locale words it ("Custom"). */
   name: string | null;
   /** Shown with a Recommended tag (the built-in OpenAI and Anthropic connections). */
   recommended?: boolean;
+  /**
+   * Other presets whose connections share this tab: OpenAI's tab also holds
+   * the ChatGPT plan, the other way to use OpenAI's models.
+   */
+  alsoPresetIds?: readonly string[];
 };
 
 /** Presets of the release-managed connections, which the owner cannot edit or remove. */
 const OPENAI_PRESET = "openai";
 const ANTHROPIC_PRESET = "anthropic";
+/** The ChatGPT plan's built-in connection: a sign-in, not a key (spec #919). */
+export const CHATGPT_PLAN_PRESET = "chatgpt_plan";
 
 /** Providers on each tab, in display order. */
 export const MODEL_LOCATION_PROVIDERS: Record<
@@ -184,6 +192,7 @@ export const MODEL_LOCATION_PROVIDERS: Record<
       presetId: OPENAI_PRESET,
       name: "OpenAI",
       recommended: true,
+      alsoPresetIds: [CHATGPT_PLAN_PRESET],
     },
     {
       id: "anthropic",
@@ -221,12 +230,20 @@ export function modelProviderLabel(entry: ModelProviderEntry): string {
   return entry.name ?? t("providers.custom");
 }
 
-/** One line of purpose shown on a provider's tab, in the active UI Locale. */
-export function modelProviderPurpose(entry: ModelProviderEntry): string {
+/**
+ * One line of purpose shown on a provider's tab, in the active UI Locale.
+ * OpenAI's names both ways to use its models where the ChatGPT plan is offered.
+ */
+export function modelProviderPurpose(
+  entry: ModelProviderEntry,
+  chatgptPlanAvailable: boolean = false,
+): string {
   const t = getI18n().getFixedT(null, "models");
   switch (entry.id) {
     case "openai":
-      return t("providers.purpose.openai");
+      return chatgptPlanAvailable
+        ? t("providers.purpose.openaiWithPlan")
+        : t("providers.purpose.openai");
     case "anthropic":
       return t("providers.purpose.anthropic");
     case "deepseek":
@@ -354,7 +371,8 @@ export function connectionProviderEntry(
   return (
     entries.find(
       (entry) =>
-        entry.presetId === connection.preset && entry.presetId !== "custom",
+        (entry.presetId === connection.preset && entry.presetId !== "custom") ||
+        entry.alsoPresetIds?.includes(connection.preset),
     ) ?? entries[entries.length - 1]
   );
 }
@@ -370,7 +388,9 @@ export type ModelProviderGroup<C> = {
  * location. Custom collects every custom connection whose address points
  * there, and unknown presets count as Custom. A flagged provider
  * (`FLAGGED_PROVIDERS`) is left out while its flag is off and it has no
- * connection.
+ * connection. The ChatGPT plan's connection joins OpenAI's tab only when
+ * `chatgptPlanAvailable` (the runtime offers the sign-in here); pass
+ * `undefined` as the flag to keep the build's own setting.
  */
 export function locationProviderGroups<
   C extends Pick<PyModelConnection, "source" | "preset" | "base_url">,
@@ -378,6 +398,7 @@ export function locationProviderGroups<
   connections: readonly C[],
   location: ModelLocation,
   flaggedProvidersEnabled: boolean = env.enableDeepseekHuggingface,
+  chatgptPlanAvailable: boolean = false,
 ): ModelProviderGroup<C>[] {
   return MODEL_LOCATION_PROVIDERS[location]
     .map((entry) => ({
@@ -385,7 +406,8 @@ export function locationProviderGroups<
       connections: connections.filter(
         (connection) =>
           connectionLocation(connection) === location &&
-          connectionProviderEntry(connection).id === entry.id,
+          connectionProviderEntry(connection).id === entry.id &&
+          (chatgptPlanAvailable || connection.preset !== CHATGPT_PLAN_PRESET),
       ),
     }))
     .filter(
@@ -499,7 +521,11 @@ export function modelConfigurationErrorCode(error: unknown): string | null {
 export function modelApiLabel(
   model: Pick<PyConfiguredModel, "provider_type">,
 ): "Responses" | "Anthropic Messages" | "Chat Completions" {
-  if (model.provider_type === RESPONSES_PROVIDER_TYPE) return "Responses";
+  if (
+    model.provider_type === RESPONSES_PROVIDER_TYPE ||
+    model.provider_type === CHATGPT_PLAN_PROVIDER_TYPE
+  )
+    return "Responses";
   if (model.provider_type === ANTHROPIC_MESSAGES_PROVIDER_TYPE)
     return "Anthropic Messages";
   return "Chat Completions";
@@ -508,6 +534,7 @@ export function modelApiLabel(
 /** APIs whose own web search a chat request may ask for, as on the backend. */
 const HOSTED_SEARCH_PROVIDER_TYPES = new Set([
   RESPONSES_PROVIDER_TYPE,
+  CHATGPT_PLAN_PROVIDER_TYPE,
   ANTHROPIC_MESSAGES_PROVIDER_TYPE,
 ]);
 

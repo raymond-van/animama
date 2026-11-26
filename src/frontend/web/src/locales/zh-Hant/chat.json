@@ -84,6 +84,9 @@
       "uploading": "正在上傳 {{percent}}",
       "imageDetails": "{{size}} · {{status}}"
     },
+    "chatgptPlan": {
+      "using": "正在使用 ChatGPT 方案"
+    },
     "dictation": {
       "failed": "聽寫失敗",
       "mute": "將麥克風靜音",

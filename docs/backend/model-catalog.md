@@ -2,8 +2,9 @@
 
 The durable backend model catalog is stored in `model_providers`. Every row
 belongs to one model connection in `model_connections`. Built-in rows and the
-built-in `openai` and `anthropic` connections come from
-`src/backend/animama/app/model_catalog.py`;
+built-in `openai`, `anthropic` and `chatgpt_plan` connections come from
+`src/backend/animama/app/model_catalog.py`, except the ChatGPT plan's rows,
+which are [listed from the signed-in account](#chatgpt-plan-connection);
 the installation owner adds other connections and models in App Settings →
 Models ([model settings](../frontend/features/model-settings.md)). The design is
 recorded in
@@ -43,9 +44,13 @@ describes credentials, presets and compatibility options.
   API, and serves only `AnthropicMessagesHTTPAgent` rows, which no other
   connection may serve. The owner cannot edit or remove it but can add Claude
   models to it.
-- Built-in rows (`source="builtin"`) are release-managed. The owner can only
-  hide or show them and, on rows with a long-context price step, change
-  [Compact early](#compact-early).
+- The built-in `chatgpt_plan` connection's credential is the owner's ChatGPT
+  plan sign-in, not a key; see [ChatGPT plan connection](#chatgpt-plan-connection).
+  It serves only `ChatGPTPlanResponsesHTTPAgent` rows, which no other
+  connection may serve. The owner cannot edit or remove it, or add models to it.
+- Built-in rows (`source="builtin"`) are release-managed, except the ChatGPT
+  plan's account-listed rows. The owner can only hide or show them and, on rows
+  with a long-context price step, change [Compact early](#compact-early).
 - Owner rows (`source="owner"`, ids `owner:<hex>`) are added, edited and removed
   by the owner. Their capabilities come from a copied built-in template of the
   same connection, the connection probe or values the owner enters. On the
@@ -75,7 +80,49 @@ Settings model roles, and the built-in rows of every built-in connection. An
 allowlist names exact rows and replaces the connection filter. The policy
 filters the listing and role resolution only; a composition that restricts
 built-in rows must also restrict chat profiles and turn setup, which validate
-the selected row directly.
+the selected row directly. A hosted composition has no ChatGPT plan rows: it
+mounts no sign-in and registers no plan model client.
+
+### ChatGPT Plan Connection
+
+The `chatgpt_plan` connection serves the models of the owner's ChatGPT plan
+through a Sign in with ChatGPT session, in local compositions only (see the
+[glossary](../../GLOSSARY.md#chatgpt-plan-connection) and
+[ADR 0039](../adr/0039-chatgpt-plan-sign-in-and-connection.md)). Its preset
+cannot be chosen for a new connection and it names no key variable.
+`GET /v1/model-connections` reports its `credential_state` from the session:
+`configured` while an account is signed in with plan use granted, otherwise
+`missing`, including when the session cannot be read.
+
+Its rows are [account-listed](../../GLOSSARY.md#account-listed-models)
+(`app/services/chatgpt_plan_models.py`). A sign-in's return (before the
+sign-in reads as finished) and `POST /v1/chatgpt-plan/models:refresh` read the
+account's model list from `GET https://api.openai.com/v1/models`
+(`adapters/chatgpt_plan/openai_models.py`, which never logs the response) and
+store one row for each item whose `visibility` is `list`:
+
+- the id `ChatGPTPlanResponsesHTTPAgent:<slug>`, the item's `display_name` as
+  `model_label`, and `ChatGPT plan` as `provider_label` with the `openai` logo;
+- `context_window_tokens` from the item's `context_window`, else the catalog's
+  figure for the same slug, else 128,000. The plan can list a smaller window
+  than the catalog gives the same model on a key;
+- `accepts` from `input_modalities` (text and image), the listed reasoning
+  efforts that `REASONING_EFFORT_ORDER` knows, and hosted `web_search` in
+  `native_tool_support` when the item's `supports_search_tool` is true;
+- tools, streaming and `json_schema` structured output on every row, and no
+  pricing (`unpriced`).
+
+A refresh retires rows OpenAI no longer lists, signing out retires all of them,
+and a later sign-in reactivates them. One lock per application serializes
+refreshes and sign-out, so a sign-out during a refresh leaves no row active.
+Stored rows keep their `hidden` flag, the only field the owner can change; the
+owner model routes (add a model, list available models, probe) refuse this
+connection with `400 connection_read_only`. The seed upserts the connection but
+never retires its rows.
+
+The evaluation tools (`scripts/evals/core/catalog.py`, used by the model
+benchmark and Gesture selection) leave plan rows out: they run outside the app,
+without its session, and the plan serves only Animama's own features.
 
 ## Public Catalog Shape
 
@@ -238,6 +285,7 @@ the request.
 | `OpenAIHTTPAgent`            | OpenAI HTTP, or the connection name for owner rows | `openai`, or the connection preset's logo | Chat Completions adapter shared by every connection, including owner connections. Requests go to the row's connection base URL. Built-in embedding rows also use this provider type.                                                                                                                                      |
 | `OpenAIResponsesHTTPAgent`   | OpenAI Responses HTTP                              | `openai`                                  | OpenAI Python SDK Responses adapter, valid only on the built-in OpenAI connection. Turns call `/responses` directly, support typed SSE text streaming, continue chats through the chat row's `openai_previous_response_id`, and use Anima memory function tools through Responses tool/input item types.                  |
 | `AnthropicMessagesHTTPAgent` | Anthropic                                          | `anthropic`                               | Official `anthropic` Python Client SDK Messages adapter, valid only on the built-in Anthropic connection. Turns stream from the Messages API, replay application-owned history (from the newest server compaction block), and use strict memory tools, strict structured output and Anthropic's `web_search` server tool. |
+| `ChatGPTPlanResponsesHTTPAgent` | ChatGPT plan                                    | `openai`                                  | The OpenAI Responses adapter on the ChatGPT plan's route, valid only on the built-in `chatgpt_plan` connection, whose [account-listed rows](#chatgpt-plan-connection) it serves. Requests are streamed and unstored and replay history instead of continuing from a cursor; see [ChatGPT plan Responses](runtime/model-client-providers.md#chatgpt-plan-responses). |
 
 ## Built-In Provider/Model Pairs
 
@@ -322,12 +370,16 @@ first listed effort.
 owner, that offers it; the Anthropic adapter applies the same constant to chat
 requests that carry no effort. OpenAI rows report none, so for both
 `gpt-6-luna` rows, whose list starts with `none`, the picker sends `none`
-rather than OpenAI's omitted-field default of `medium`.
+rather than OpenAI's omitted-field default of `medium`. On the Chat Completions
+row `none` is also the only effort that allows memory tools and web search,
+which OpenAI accepts there only at `none`
+([function tools and reasoning](runtime/model-client-providers.md#provider-behavior)).
 
-All three provider types honor request-scoped
+All four provider types honor request-scoped
 `reasoning_effort` values when the selected effort is listed for the active
-provider/model pair. `OpenAIResponsesHTTPAgent` sends supported efforts through
-the Responses API `reasoning.effort` request field.
+provider/model pair. `OpenAIResponsesHTTPAgent` and
+`ChatGPTPlanResponsesHTTPAgent` send supported efforts through the Responses
+API `reasoning.effort` request field.
 `AnthropicMessagesHTTPAgent` turns `none` into disabled thinking and sends any
 other effort as `output_config.effort` with adaptive thinking.
 `OpenAIHTTPAgent` follows the connection's `reasoning_mode`: `openai_effort` sends the effort literally,
@@ -375,6 +427,13 @@ fence keeps them apart from OpenAI chats in both directions. These rows have no
 inline crisis moderation; only a composition's operator check can add the
 [crisis card](runtime/chat.md#companion-safety).
 
+`ChatGPTPlanResponsesHTTPAgent` rows run the owner's ChatGPT plan models
+without an API key, for chat, Utility and the Memory Manager (never
+Embeddings). They share the `responses` API standard, so a chat moves between
+key and plan Responses models in either direction by replaying history. These
+rows have no inline crisis moderation and no operator check, so plan turns
+show no moderation-triggered [crisis card](runtime/chat.md#companion-safety).
+
 DeepSeek, Hugging Face router and OpenRouter models have no built-in rows. The
 owner adds a connection from the `deepseek`, `huggingface` or `openrouter`
 preset and adds models under it. On self-hosted web the connection names the
@@ -398,9 +457,11 @@ advertised parameters and only prefill the form.
 Direct chat, chat-profile updates and model roles read the persisted row by ID.
 Missing, inactive, non-chat, or unsupported rows fail setup before a direct
 model-client call. Direct chat also requires an active connection, a context
-window on owner rows, the built-in OpenAI connection for Responses rows, and
-the built-in Anthropic connection for Anthropic Messages rows (which is the
-only kind of row that connection serves).
+window on owner rows, the built-in OpenAI connection for Responses rows, the
+built-in Anthropic connection for Anthropic Messages rows and the ChatGPT plan
+connection for plan rows (each of the last two serves only its own kind of
+row). A plan row also needs a signed-in session with plan use, which the plan's
+model client checks when it asks for a token, not at setup.
 
 This resolution is used by:
 
@@ -429,10 +490,11 @@ seed regeneration, adapter and API-standard decisions, pricing limitations,
 tests, and live verification.
 
 The generated seed `src/backend/migrations/seeds/01-seed-model-providers.sql` upserts the
-built-in `openai` and `anthropic` connections and the built-in rows. It updates
-only `source='builtin'` rows, never changes their `hidden` or
+built-in `openai`, `anthropic` and `chatgpt_plan` connections and the built-in
+rows. It updates only `source='builtin'` rows, never changes their `hidden` or
 `early_compaction` values (a newly inserted row starts with Compact early on),
-and retires built-in rows that are no longer in `MODEL_CATALOG`. A newly
+and retires built-in rows that are no longer in `MODEL_CATALOG`, except the
+ChatGPT plan connection's account-listed rows. A newly
 inserted built-in Chat Completions chat row starts hidden (`builtin_hidden_by_default`), so a fresh
 installation lists the Responses row; embedding rows stay visible. Existing
 databases keep their flags until they are reset. Owner connections and rows are never

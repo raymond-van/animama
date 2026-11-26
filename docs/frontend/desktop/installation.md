@@ -15,8 +15,16 @@ Developers building from source should use [Platform builds](platforms.md).
 | Platform                                     | Current position                                                                                  |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Apple silicon Mac, macOS 15 or later         | Signed previews published. macOS 15 and clean-machine testing are part of each release's acceptance. |
-| Windows 11 x64 (build 22000 or later)        | Signed per-user installer published; 0.1.6 is the first stable release, accepted by installing it over signed 0.1.5. Clean-machine and build-22000 testing remain open. |
+| Windows x64: Windows 10 22H2 or Windows 11   | Signed per-user installer published; 0.1.6 is the first stable release, accepted by installing it over signed 0.1.5. The published 0.1.6 installs only on Windows 11 (build 22000 or later); later releases and builds from current source also install on Windows 10. Clean-machine and Windows 10 22H2 testing remain open. |
 | Intel Mac, universal Mac, Windows ARM, Linux | No supported self-contained release.                                                              |
+
+On Windows, the installer and app built from current source, and releases after
+0.1.6, accept Windows 10 from version 1903 (build 18362), but only Windows 10
+22H2 and Windows 11 are supported; earlier Windows 10 versions are untested.
+Microsoft ended support for Windows 10 on
+14 October 2025, so it no longer receives free security updates. PCs limited to
+Windows 10 often have older graphics hardware, where Avatar rendering can be
+slow; performance there is best effort.
 
 The installed app contains its own local services and database. It does not
 require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
@@ -75,8 +83,8 @@ existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech
 
-Setup asks for the OpenAI or Anthropic key in its AI step and the ElevenLabs
-key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
+Setup asks for the OpenAI or Anthropic key, or offers signing in with a ChatGPT
+plan, in its AI step, and asks for the ElevenLabs key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
 cards in App Settings → Models, and the ElevenLabs key is in App Settings →
 Voice. The Gemini key for [Gemini voices](../runtime/gemini-tts.md), which setup
 does not ask for, is in App Settings → Voice when Gemini is chosen. All four are

@@ -202,6 +202,9 @@ export const queryKeys = {
         ...queryKeys.modelConfiguration.all(userId),
         "openrouter-models",
       ] as const,
+    /** The installation's ChatGPT plan sign-in status (local composition). */
+    chatgptPlan: (userId: string) =>
+      [...queryKeys.modelConfiguration.all(userId), "chatgpt-plan"] as const,
   },
   /**
    * Desktop provider key availability and saved status (status only, never

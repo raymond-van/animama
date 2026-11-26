@@ -11,6 +11,7 @@ from typing import Any, Literal, cast
 from openai.types.responses import (
     ApplyPatchToolParam,
     FunctionToolParam,
+    NamespaceToolParam,
     ResponseFunctionToolCallParam,
     ResponseInputItemParam,
     ResponseTextConfigParam,
@@ -37,6 +38,8 @@ from animama.app.model_clients.prompt import (
 )
 from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 
+from .reasoning import REASONING_INCLUDE, reasoning_entries, with_reasoning
+from .routes import OPENAI_API_ROUTE, ResponsesRoute
 from .support import (
     OPENAI_RESPONSES_ASSISTANT_PHASES,
     OPENAI_RESPONSES_ASSISTANT_PHASES_KEY,
@@ -46,6 +49,7 @@ from .support import (
 )
 
 DEFAULT_WEB_SEARCH_CONTEXT_SIZE = "low"
+_APPLY_PATCH_ITEM_TYPES = frozenset({"apply_patch_call", "apply_patch_call_output"})
 # Native compaction runs once a stored chain reaches this many input tokens.
 # ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS sets it for the server.
 DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS = 90_000
@@ -57,17 +61,20 @@ def create_response_kwargs(
     *,
     timeout: float | None,
     compaction_threshold_tokens: int | None = DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS,
+    route: ResponsesRoute = OPENAI_API_ROUTE,
 ) -> dict[str, Any]:
-    """Translate a provider-neutral request into Responses SDK kwargs."""
+    """Translate a provider-neutral request into Responses SDK kwargs for ``route``."""
 
-    store = spec.provider_options.store
+    if not route.chain_stored_responses:
+        previous_response_id = None
+    store = spec.provider_options.store if route.chain_stored_responses else False
     payload: ResponseCreateParamsStreaming = {
         "model": spec.model_provider.model,
-        "input": responses_input_items(spec, has_previous_response_id=previous_response_id is not None),
+        "input": responses_input_items(spec, has_previous_response_id=previous_response_id is not None, route=route),
         "stream": True,
         "store": True if store is None else store,
     }
-    if spec.limits is not None:
+    if spec.limits is not None and route.output_limits:
         payload["max_output_tokens"] = spec.limits.max_output_tokens
         if spec.limits.max_native_tool_calls is not None:
             payload["max_tool_calls"] = spec.limits.max_native_tool_calls
@@ -79,7 +86,7 @@ def create_response_kwargs(
         # so the turn context travels as a developer input item instead.
         payload["instructions"] = instructions
     moderation_model = spec.provider_options.moderation_model
-    if moderation_model is not None:
+    if moderation_model is not None and route.inline_moderation:
         # Built-in moderation scores ride on this request (report-only; no extra call).
         payload["moderation"] = {"model": moderation_model}
     cache_key = spec.prompt.prompt_cache_key
@@ -93,13 +100,18 @@ def create_response_kwargs(
     reasoning_effort = spec.prompt.reasoning_effort
     if isinstance(reasoning_effort, str) and reasoning_effort.strip():
         payload["reasoning"] = {"effort": cast(ReasoningEffort, reasoning_effort.strip())}
-    context_management = responses_context_management(compaction_threshold_tokens)
+    if route.replay_reasoning:
+        payload["include"] = [REASONING_INCLUDE]
+    context_management = responses_context_management(compaction_threshold_tokens) if route.native_compaction else []
     if context_management:
         payload["context_management"] = context_management
+    requested_tools = {str(value).strip() for value in (spec.provider_options.native_tools or ())}
     tools = responses_tools(
-        spec.provider_options.native_tools,
+        sorted(requested_tools & route.hosted_tools),
         prompt_tools(spec.prompt),
-        memory_apply_patch_enabled=spec.provider_options.memory_apply_patch_enabled,
+        memory_apply_patch_enabled=spec.provider_options.memory_apply_patch_enabled
+        and "apply_patch" in route.hosted_tools,
+        function_tool_namespace=route.function_tool_namespace,
     )
     if tools:
         payload["tools"] = tools
@@ -126,7 +138,9 @@ def responses_context_management(compaction_threshold_tokens: int | None) -> lis
     ]
 
 
-def responses_input_items(spec: ModelClientRequest, *, has_previous_response_id: bool) -> list[ResponseInputItemParam]:
+def responses_input_items(
+    spec: ModelClientRequest, *, has_previous_response_id: bool, route: ResponsesRoute = OPENAI_API_ROUTE
+) -> list[ResponseInputItemParam]:
     """Build Responses input items from the prompt messages after the leading system message.
 
     With previous_response_id the stored response already holds earlier items,
@@ -159,7 +173,26 @@ def responses_input_items(spec: ModelClientRequest, *, has_previous_response_id:
                 images=spec.images,
             )
         )
-    return items or [_easy_input_message("user", prompt_last_user_message(spec.prompt, fallback=""))]
+    if "apply_patch" not in route.hosted_tools:
+        # A chat that moved from a key model replays its native memory edits; this
+        # route refuses that tool. The edits are applied and the replies stay.
+        items = [item for item in items if cast(dict[str, Any], item).get("type") not in _APPLY_PATCH_ITEM_TYPES]
+    items = items or [_easy_input_message("user", prompt_last_user_message(spec.prompt, fallback=""))]
+    items = [_for_route(item, route) for item in items]
+    if route.replay_reasoning:
+        items = with_reasoning(items, reasoning_entries(spec.continuation, provider_type=route.provider_type))
+    return items
+
+
+def _for_route(item: ResponseInputItemParam, route: ResponsesRoute) -> ResponseInputItemParam:
+    """Adjust one input item to what ``route`` accepts: no system role, and calls named in their namespace."""
+
+    raw = cast(dict[str, Any], item)
+    if route.developer_role_for_system_items and raw.get("role") == "system":
+        return cast(ResponseInputItemParam, {**raw, "role": "developer"})
+    if route.function_tool_namespace is not None and raw.get("type") == "function_call":
+        return cast(ResponseInputItemParam, {**raw, "namespace": route.function_tool_namespace})
+    return item
 
 
 def _stable_instructions(messages: tuple[Mapping[str, object], ...]) -> str | None:
@@ -484,8 +517,14 @@ def responses_tools(
     prompt_function_tools: list[dict[str, Any]],
     *,
     memory_apply_patch_enabled: bool = False,
+    function_tool_namespace: str | None = None,
 ) -> list[ToolParam]:
-    """Build Responses hosted/native tools plus prompt function tools."""
+    """Build Responses hosted/native tools plus prompt function tools.
+
+    With ``function_tool_namespace`` the function tools are grouped in one
+    namespace tool; a call then comes back with its own name and the namespace
+    beside it.
+    """
 
     requested = {str(value).strip() for value in (raw_tools or ()) if str(value).strip()}
     tools: list[ToolParam] = []
@@ -494,10 +533,17 @@ def responses_tools(
     if memory_apply_patch_enabled:
         apply_patch_tool: ApplyPatchToolParam = {"type": "apply_patch"}
         tools.append(cast(ToolParam, apply_patch_tool))
-    for raw_tool in prompt_function_tools:
-        tool = _responses_function_tool(raw_tool)
-        if tool is not None:
-            tools.append(cast(ToolParam, tool))
+    functions = [tool for tool in map(_responses_function_tool, prompt_function_tools) if tool is not None]
+    if function_tool_namespace is None:
+        tools.extend(cast(ToolParam, tool) for tool in functions)
+    elif functions:
+        namespace: NamespaceToolParam = {
+            "type": "namespace",
+            "name": function_tool_namespace,
+            "description": "Animama's tools for this conversation.",
+            "tools": cast(Any, functions),
+        }
+        tools.append(cast(ToolParam, namespace))
     return tools
 
 

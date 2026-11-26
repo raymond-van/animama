@@ -17,7 +17,11 @@ import httpx2
 from openai import AsyncOpenAI, OpenAIError
 
 from animama.adapters.model_clients.openai_errors import classify_openai_exception
-from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT, STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
+from animama.app.model_catalog import (
+    STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT,
+    STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
+    chat_completions_function_tool_effort,
+)
 from animama.app.model_clients import ModelClientProviderError
 from animama.app.model_clients.credentials import ModelCredentialResolver
 from animama.app.model_clients.error_categories import (
@@ -320,6 +324,10 @@ class OpenAICompatibleConnectionProbe:
     ) -> ModelProbeStep:
         tool = _tool_for_connection(session.connection)
         extra: dict[str, Any] = {"tools": [tool], "tool_choice": "auto"}
+        # OpenAI refuses tools at the default effort from GPT-5.4 on; chat requests send the same effort.
+        effort = chat_completions_function_tool_effort(model, session.connection.compatibility)
+        if effort is not None:
+            extra["reasoning_effort"] = effort
         if response_format is not None:
             extra["response_format"] = dict(response_format)
         try:

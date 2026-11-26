@@ -592,11 +592,14 @@ results, including the raw provider-message shapes replayed on later turns.
 Visible chat history and chat search continue to exclude internal rows.
 
 Memory tool support is enabled for `OpenAIHTTPAgent` (Chat Completions on any
-connection), `OpenAIResponsesHTTPAgent`, `AnthropicMessagesHTTPAgent` and
-`MockModelClient` rows that support tool calling. The Responses adapter maps
-read/search and writer functions onto Responses `function` and
-`function_call_output` items, and maps native-capable writes onto SDK
-`apply_patch_call` and `apply_patch_call_output` items. The Anthropic adapter
+connection), `OpenAIResponsesHTTPAgent`, `ChatGPTPlanResponsesHTTPAgent`,
+`AnthropicMessagesHTTPAgent` and `MockModelClient` rows that support tool
+calling. The Responses adapter maps read/search and writer functions onto
+Responses `function` and `function_call_output` items, and maps native-capable
+writes onto SDK `apply_patch_call` and `apply_patch_call_output` items. A
+ChatGPT plan model writes memory through the functions only, because its route
+refuses `apply_patch`
+([model client providers](../runtime/model-client-providers.md)). The Anthropic adapter
 sends the same functions as strict tools and replays their calls as
 `tool_use`/`tool_result` blocks; chat never uses Anthropic's native memory
 tool, which only the Memory Manager offers. Other rows chat without memory

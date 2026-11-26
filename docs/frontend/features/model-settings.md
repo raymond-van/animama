@@ -27,7 +27,8 @@ where models run (`MODEL_LOCATION_TABS`, `MODEL_LOCATION_PROVIDERS` and
 `connectionLocation` in `model-configuration-state.ts`):
 
 - **Cloud:** OpenAI (built-in, tagged Recommended), Anthropic (built-in),
-  DeepSeek, Hugging Face, OpenRouter and Custom.
+  [ChatGPT plan](#chatgpt-plan) (built-in; only where the runtime reports
+  `chatgpt_plan`), DeepSeek, Hugging Face, OpenRouter and Custom.
 - **Local:** Ollama, LM Studio, llama.cpp, vLLM and Custom.
 
 Two web build flags (read at build time, or by the Vite dev server; Compose
@@ -55,14 +56,24 @@ and Tailscale 100.64.0.0/10 addresses), otherwise on Cloud.
 Under Cloud | Local, a second row of left-aligned provider tabs
 (`ModelProviderTabsList`, shared with setup's AI step) shows one provider at a
 time, with a dot on connected providers (a built-in connection counts once its
-key is set). The tabs are padded more tightly than Library tabs so all six
-Cloud providers fit the settings dialog at desktop widths; narrower windows
-scroll the strip. Setup's AI step shows the same tabs; its OpenAI and Anthropic
-tabs hold their key field (desktop) or name the server variable (web). Saving
+key is set; OpenAI's tab also counts a ChatGPT plan signed in with plan use,
+where the plan is offered). The tabs are padded
+more tightly than Library tabs so all six Cloud providers fit the settings
+dialog at desktop widths; narrower windows
+scroll the strip. The ChatGPT plan has no tab of its own: where the runtime
+offers it, OpenAI's tab holds both ways to use OpenAI's models, the plan card
+first and the API key card, titled "Use an API key", after it (the plan
+connection's preset is in the OpenAI entry's `alsoPresetIds`). Setup's AI step
+shows the same tabs; its OpenAI and Anthropic tabs hold their key field
+(desktop) or name the server variable (web), with the plan card above
+OpenAI's. Saving
 a key there chooses that provider's model for new Animas (OpenAI's default, or
-Claude Haiku 5.5 on Anthropic) unless its row is hidden; the model set up last
-wins, and a key set before setup chooses nothing (`setupBuiltins` in
-`setup-state.ts`). A location opens on its first connected provider, else its
+Claude Haiku 5.5 on Anthropic) unless its row is hidden; signing in with a
+ChatGPT plan chooses a plan model once the catalog lists them (the system
+default model when the plan lists it, else the plan's first). The model set up
+last wins, and a key or sign-in from before setup chooses nothing
+(`setupBuiltins` and `setupChatGPTPlan` in `setup-state.ts`,
+`useChooseWhenReady`). A location opens on its first connected provider, else its
 first provider (`defaultLocationProvider`). A connected provider's tab shows its
 cards; an unconnected one shows its purpose and connect form inline; Custom
 lists each custom server plus **Add a custom server**. Provider panels stay
@@ -127,6 +138,59 @@ A connection whose key would travel over plain `http` to another computer
 cannot be saved: keys go only over `https`, or plain `http` to this computer. A
 key is never sent to a host name written in non-ASCII characters; write such a
 name in its ASCII (`xn--…`) form.
+
+## ChatGPT plan
+
+The plan card on OpenAI's tab lets the owner use the models their ChatGPT plan
+includes instead of an API key
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)). It appears
+only where the runtime reports `chatgpt_plan` (desktop and self-hosted web,
+never hosted). `ChatGPTPlanCard` (`web/src/ui/settings/models/`) serves both
+App Settings and setup's AI step, with hooks in
+`web/src/query/hooks/useChatGPTPlan.ts` and mutations in
+`web/src/query/mutations/useChatGPTPlan.ts`. The card shows one of these
+states:
+
+- **Signed out.** "Use your ChatGPT plan" with **Continue with ChatGPT**, which
+  opens OpenAI's sign-in page in a new browser context (desktop hands it to the
+  system browser). Where sign-in cannot start, the card says why in place of
+  the button: open Animama in a browser on the computer that runs it (an
+  origin other than loopback `http`), or secure storage is unavailable
+  (desktop without its vault key).
+- **Waiting.** The card asks the owner to finish in the browser, offers **Open
+  the sign-in page again** and Cancel, and reads the status every second until
+  OpenAI sends the browser back. The sign-in URL stays in the card's memory
+  only.
+- **Signed in.** "Signed in as" the account's email, **Manage usage**
+  (`https://chatgpt.com/settings/usage`, ChatGPT's usage settings), a switch
+  that lets automatic memory updates use the plan, a note while a usage limit
+  pauses them, and **Sign out**. When OpenAI cannot confirm the sign-out, the
+  card says so and suggests disconnecting Animama in ChatGPT's settings.
+- **Plan use off.** An account signed in without plan use (declined, or not in
+  its plan) gets **Enable plan use**, which asks OpenAI for consent again, and
+  **Sign out**. A declined or failed sign-in, and a session OpenAI ended, are
+  explained beside the action that starts a new one.
+
+After the first sign-in with plan use, a one-time "You're using your ChatGPT
+plan" dialog says what uses the plan, links **Manage usage** and offers an
+unchecked choice to let automatic memory updates use it; **Got it** saves both
+(`PUT /v1/chatgpt-plan/preferences`). Both belong to the account, so another
+account that signs in is asked again.
+
+While the plan is usable, "Models in your plan" under the card lists the
+models OpenAI lists for the account
+([account-listed models](../../backend/model-catalog.md#chatgpt-plan-connection)).
+They are read-only: Info offers only **Show in model lists**, hidden models sit
+behind the usual toggle, and **Refresh list** reads the account's list again
+(`POST /v1/chatgpt-plan/models:refresh`) in place of **Add model**. Their Info
+shows **API: Responses**, and a plan model whose listing includes search shows
+**Built-in search**.
+
+App Settings → Memory & Emotion's "Process episode notes automatically" says
+when a plan model keeps it waiting: the owner has not allowed automatic memory
+updates to use the plan, the sign-in or plan use needs attention, or a usage
+limit paused it until one of the owner's own plan requests succeeds
+([automatic episode processing](../../backend/features/memory-manager-and-episodic-memory.md#when-automatic-runs-start-local-composition)).
 
 ## Models
 
@@ -207,6 +271,11 @@ application default stays an OpenAI model; Anthropic models are chosen here or
 per Anima.
 Compaction also writes chat titles. Each selector offers only models the server
 accepts for that job and shows which model is in effect (`GET /v1/model-roles`).
+ChatGPT plan models are offered for Chat, Memory Manager and Compaction, never
+Embeddings. A chosen plan model that becomes unavailable (after signing out, or
+once OpenAI stops listing it) does not fall back: the selector says the job
+waits until it is available again, and Memory Manager and Compaction wait too
+when they follow a Chat default that waits.
 Embeddings shows re-embedding progress, polled while the server reports work in
 flight.
 
@@ -240,8 +309,28 @@ model list when there are several, and it opens App Settings → Models. Opening
 last used by `last_model_provider_id`, falling back to the model name for older
 chats. A chat keeps the API standard of its first turn (`responses`,
 `chat_completions` or `anthropic_messages`); choosing a model of another
-standard offers a new chat ([chat runtime](../runtime/chat.md)). Attaching files to a model without tool calling shows that it cannot
-search them. Only OpenAI Responses models check messages for the crisis card,
-unless the composition adds an operator check for Anthropic turns, as Animama
-Cloud does; other models rely on the Companion Guardrails alone (see the
+standard offers a new chat ([chat runtime](../runtime/chat.md)). Key and
+ChatGPT plan Responses models share the `responses` standard, so a chat moves
+between them. Attaching files to a model without tool calling shows that it cannot
+search them. Only OpenAI Responses models on an API key check messages for the
+crisis card, unless the composition adds an operator check for Anthropic turns,
+as Animama Cloud does; other models, ChatGPT plan models included, rely on the
+Companion Guardrails alone (see the
 [safety and crisis protocol](../../safety/crisis-protocol.md)).
+
+While the picker lists plan models, it names OpenAI's two ways in its group
+headings, "OpenAI · ChatGPT plan" and "OpenAI · API key", side by side, and
+each row's second line says "ChatGPT plan" or "API key"
+(`pickerModelGroups`, `modelPickerGroupLabel` and `modelOptionDetail` in
+`lib/chat/model-catalog.ts`). Without plan models (the hosted composition, or
+before a sign-in) OpenAI's models keep one "OpenAI" group, and other
+connections always keep their names. While the chat's model is a plan model,
+the picker's main and model-list views end with "Using ChatGPT plan" and
+**Manage usage** (not Chat features), in chat and Quick Chat
+(`ui/components/chatgpt-plan-usage-note.tsx`), as OpenAI's interface
+guidelines ask near the model selector. A turn the plan could not serve ends
+with a notice from the plan's code (`product-ui` `chat/chat-failure.ts`): a
+usage limit or a plan that does not include the use links **Manage usage**, a
+required sign-in or plan use that is off points to App Settings → Models, a
+temporary outage shows OpenAI's wait when it names one, and an unsupported
+request quotes the route's reason. None moves the chat to another model.

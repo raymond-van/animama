@@ -76,6 +76,13 @@ type VaultData = {
    * hold a retired entry that must stay dropped.
    */
   restoredProviders?: Partial<Record<CredentialProvider, VaultEntry>>;
+  /**
+   * The key (32 bytes, hex) that encrypts the backend's ChatGPT plan session
+   * file, created on first need. The backend renews that session's tokens by
+   * itself, so it keeps them in its own file and the vault holds only the key
+   * (plan D2). Absent in older vaults.
+   */
+  chatgptPlanStoreKey?: string;
 };
 /** The backend variable each provider key is delivered as. */
 const providerEnvironment: Record<CredentialProvider, string> = {
@@ -238,6 +245,11 @@ function parseVault(json: string): VaultData {
     validateEntry(entry);
     if (entry.origin !== undefined) validateConnectionOrigin(entry.origin);
   }
+  if (
+    data.chatgptPlanStoreKey !== undefined &&
+    !/^[a-f0-9]{64}$/u.test(data.chatgptPlanStoreKey)
+  )
+    throw new Error();
   delete data.restoredProviders;
   return { ...data, providers, connections };
 }
@@ -384,7 +396,26 @@ export class CredentialVault {
     return [
       ...Object.values(this.data.providers),
       ...Object.values(this.data.connections ?? {}),
-    ].map((entry) => entry.value);
+    ]
+      .map((entry) => entry.value)
+      .concat(this.data.chatgptPlanStoreKey ?? []);
+  }
+  /**
+   * The ChatGPT plan session file's key, created and saved on first use. It
+   * goes only to the FastAPI child; it is never status, a provider key or part
+   * of any other child's environment.
+   */
+  async chatgptPlanStoreKey(): Promise<string> {
+    if (!this.data.chatgptPlanStoreKey)
+      await this.write((current) =>
+        current.chatgptPlanStoreKey
+          ? current
+          : {
+              ...current,
+              chatgptPlanStoreKey: randomBytes(32).toString("hex"),
+            },
+      );
+    return this.data.chatgptPlanStoreKey!;
   }
   list(): CredentialStatus[] {
     return [

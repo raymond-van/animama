@@ -16,6 +16,7 @@ import {
 import {
   ANTHROPIC_DEFAULT_MODEL_ID,
   ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+  CHATGPT_PLAN_PROVIDER_TYPE,
   RESPONSES_PROVIDER_TYPE,
   alternateModelIds,
   modelDisplayName,
@@ -115,6 +116,34 @@ export function setupBuiltins(
     ),
     anthropic: builtin("anthropic", anthropicDefaultModel(items, connections)),
   };
+}
+
+/**
+ * The ChatGPT plan as the AI step tracks it: usable once the account signed
+ * in with plan use, and then the plan model that becomes the chat model. It
+ * is chosen like saving a key: only when the plan becomes usable in setup.
+ */
+export function setupChatGPTPlan(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+  systemDefaultId: string | null | undefined,
+): Pick<SetupBuiltin, "ready" | "modelId"> {
+  const plan = connections.find(
+    (connection) =>
+      connection.source === "builtin" && connection.preset === "chatgpt_plan",
+  );
+  if (plan?.credential_state !== "configured")
+    return { ready: false, modelId: null };
+  const candidates = roleCandidates(items, "chat").filter(
+    (item) =>
+      item.connection_id === plan.id &&
+      item.model_provider === CHATGPT_PLAN_PROVIDER_TYPE,
+  );
+  // The model the system uses by default, if the plan lists it, else the plan's first.
+  const defaultModel = items.find((item) => item.id === systemDefaultId)?.model;
+  const chosen =
+    candidates.find((item) => item.model === defaultModel) ?? candidates[0];
+  return { ready: true, modelId: chosen?.id ?? null };
 }
 
 /** A chat model on one of the owner's connections, as the AI step tracks it. */

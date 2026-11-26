@@ -61,6 +61,9 @@ Registered provider families are:
 - `AnthropicMessagesHTTPAgent`: Anthropic's Messages API via the official
   `anthropic` Python SDK (`adapters/model_clients/anthropic_messages/`), on the
   built-in Anthropic connection only; see [Anthropic Messages](#anthropic-messages)
+- `ChatGPTPlanResponsesHTTPAgent`: OpenAI Responses through the owner's
+  ChatGPT plan sign-in, on the built-in `chatgpt_plan` connection only; see
+  [ChatGPT plan Responses](#chatgpt-plan-responses)
 - `MockModelClient`: deterministic local/test model client
 
 Provider type names, including their `Agent` suffixes, are durable catalog
@@ -70,8 +73,9 @@ The public model-provider catalog also reports a nullable chat compatibility
 profile for each row. `OpenAIHTTPAgent` maps to
 `model_client="openai_chat_completions"` and
 `api_standard="chat_completions"` on every connection.
-`OpenAIResponsesHTTPAgent` maps to `model_client="openai_responses"` and
-`api_standard="responses"`. `AnthropicMessagesHTTPAgent` maps to
+`OpenAIResponsesHTTPAgent` and `ChatGPTPlanResponsesHTTPAgent` map to
+`model_client="openai_responses"` and `api_standard="responses"`, so a chat
+moves between key and plan Responses models. `AnthropicMessagesHTTPAgent` maps to
 `model_client="anthropic_messages"` and `api_standard="anthropic_messages"`, so
 an Anthropic chat and an OpenAI chat never share history.
 
@@ -142,7 +146,8 @@ an image without bytes into its `[Image: name]` placeholder:
 
 - **Responses:** `input_image` parts with a `data:` URL and `"detail":
   "auto"`, then `input_text`. A cursor request sends only the new message and
-  its images.
+  its images; a request without one, which includes every ChatGPT plan
+  request, replays the history's kept images too.
 - **Chat Completions:** `image_url` parts with a `data:` URL, then `text`. A
   message left with text only (every image a placeholder) is sent as one
   string, for OpenAI-compatible servers whose templates expect string content.
@@ -228,8 +233,13 @@ from its environment, and Electron main replaces the store while it runs.
   `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` and other SDK credential
   sources are never used; the SDK still adds `ANTHROPIC_CUSTOM_HEADERS` from
   the process environment, which Animama never sets.
+- **Built-in `chatgpt_plan` connection.** Its credential is the ChatGPT plan
+  session's access token, which never enters the credential store; see
+  [ChatGPT plan Responses](#chatgpt-plan-responses).
 - **Clients.** `OpenAIHTTPAgent` caches one SDK client per connection.
-  `OpenAIResponsesHTTPAgent` owns one OpenAI-only SDK client.
+  `OpenAIResponsesHTTPAgent` owns one OpenAI-only SDK client, and
+  `ChatGPTPlanResponsesHTTPAgent` one key-free SDK client at the plan's fixed
+  address with a per-request view that carries the session's token.
   `AnthropicMessagesHTTPAgent` keeps one SDK client per credential, keyed by a
   digest, so a replaced key builds a new client on the next request.
 
@@ -423,6 +433,87 @@ JSON-shaped parameters built in `anthropic_messages/request.py`:
 - **Truncation.** A `max_tokens` stop offers no tool calls, and its text goes
   through the usual [reply recovery](#reply-validation-and-recovery).
 
+## ChatGPT Plan Responses
+
+`ChatGPTPlanResponsesModelClient` (`openai_responses/chatgpt_plan_client.py`)
+serves `ChatGPTPlanResponsesHTTPAgent` rows, the
+[account-listed models](../model-catalog.md#chatgpt-plan-connection) of the
+owner's ChatGPT plan ([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)).
+Only the local composition registers it, with its sign-in session; a hosted
+composition registers none, and `ANIMAMA_LLM_SKIP=1` maps the type to
+`MockModelClient`. It is the Responses client with another `ResponsesRoute`
+(`openai_responses/routes.py`): a profile of what one endpoint accepts, which
+`request.py` and `client.py` read instead of asking which connection they
+serve. The plan's route (`CHATGPT_PLAN_ROUTE`) differs from the API on a key
+(`OPENAI_API_ROUTE`) as follows:
+
+- **Unstored.** Every request sends `store: false` and no
+  `previous_response_id`, so a plan turn reads no chat-row cursor and every
+  request carries its whole input. A turn's tool rounds replay each earlier call
+  and its output, without item ids.
+- **Refused fields.** No inline `moderation`, no output limits
+  (`max_output_tokens`, `max_tool_calls`) and no `context_management`. The
+  client reports no native compaction, so the executor fits each prompt to the
+  row's [context window budget](#context-window-budget).
+- **Roles.** The leading system message is `instructions`, as on a key; any
+  later system-role message is sent as a `developer` item, because the route
+  refuses system-role input.
+- **Tools.** Function tools are wrapped in one `namespace` tool named
+  `animama`, and replayed `function_call` items name that namespace; a returned
+  call keeps its own `name`. The route never gets `apply_patch`: memory edits
+  use the function writers, and replayed `apply_patch_call` items and their
+  outputs (a key model's native memory edits) are left out of the request. Hosted
+  `web_search` is sent only for rows whose listing supports search; other plan
+  rows can use the [application web search](#application-web-search).
+- **Reasoning.** Requesting encrypted reasoning
+  (`include: ["reasoning.encrypted_content"]`) and replaying each reasoning item
+  before the call it led to, carried in the round's continuation, sits behind
+  the profile's `replay_reasoning` switch, which is off: whether the route
+  accepts a replayed reasoning item is unconfirmed. A round then replays its
+  calls and their outputs only.
+
+`prompt_cache_key` and `reasoning.effort` are sent as on a key.
+
+Requests go only to the fixed `https://api.openai.com/v1`, whatever
+`OPENAI_BASE_URL` says, through one key-free SDK client with no SDK retries
+and no redirects. A request hook keeps only an allowlist of headers (plus the
+SDK's `x-stainless-*` ones), so `OpenAI-Organization`, `OpenAI-Project` and
+`OPENAI_CUSTOM_HEADERS` never reach the plan, and each request sets
+`Authorization` from the session's access token. Every request this client
+serves is the owner's own (a chat turn, its compaction or its title), so it asks
+the session for an `interactive` token when the request starts; a session that
+cannot give one fails the turn before anything is sent. Before any output:
+
+- a 401 renews the token once and sends the request again;
+- a temporary failure is retried twice, after 1 and 2 seconds, or after
+  OpenAI's `Retry-After` when it asks for at most 10 seconds; a longer wait is
+  reported with the failure.
+
+Once output has streamed nothing is retried, and no plan request moves to
+another connection. When the terminal event lists no output items, as after a
+hosted search, the final takes them from the `response.output_item.done`
+events. A completed response clears the usage-limit pause that the session keeps
+for background work.
+
+The plan's error codes (`subscription_sharing_*`) and the bare
+`{"detail": "…"}` bodies its admission returns become these model-client codes
+(the event's `code`) and [categories](#provider-behavior):
+
+| Code | Category | Cause |
+| --- | --- | --- |
+| `chatgpt_plan_usage_limit` | `usage_limit` | The plan's usage limit; also pauses background use of the plan |
+| `chatgpt_plan_not_eligible` | `not_eligible` | The account's plan does not include this use |
+| `chatgpt_plan_unavailable` | `server_error` | Plan usage is temporarily unavailable, or the session could not be read or renewed for the moment |
+| `chatgpt_plan_unsupported_request` | `bad_request` | The route refused the request, including a 400 with only a `detail` body; the route's sanitized reason is the `provider_error_message` |
+| `chatgpt_plan_sign_in_required` | `sign_in_required` | No signed-in account, tokens OpenAI rejected, or a 401 after the renewal |
+| `chatgpt_plan_use_not_granted` | `sign_in_required` | The account is signed in without plan use |
+
+A refusal that names `context_length_exceeded` keeps `openai_bad_request`
+(category `context_exceeded`), so the executor's oversized-prompt handling
+still applies. Provider error text is sanitized as on every OpenAI connection,
+which also redacts JWT-shaped strings, and the plan client removes the
+request's own token from every error field.
+
 ## Context And Structured Output
 
 `DirectChatPrompt` is the app-layer model-client prompt contract: an OpenAI
@@ -481,6 +572,12 @@ the defaults: no folding, every field sent and `openai_effort`.
   `extra_body={"thinking":{"type":"disabled"}}` for `none` and enabled thinking
   with a literal `reasoning_effort` for `high` and `max` (other values fail with
   `unsupported_reasoning_effort`); `omit` never sends an effort.
+
+Whatever the options, a zero-argument function tool such as
+`memory_list_files` is sent without its empty `required` list, as
+`{"type":"object","properties":{},"additionalProperties":false}`. Groq's
+strict validator rejects `properties: {}` beside `required: []`, and an absent
+`required` means the same as an empty one.
 
 JSON-mode rows (`structured_output_transport="json_object"`) receive
 `response_format={"type":"json_object"}` whatever the connection.
@@ -615,12 +712,14 @@ moderated. The adapter parses the completed response's input moderation into a
 content-free `ModelClientFinal.input_moderation` (`status` `result` or `error`,
 flagged categories and scores). Moderation is report-only: it never blocks or
 alters the reply, and the executor only uses a self-harm signal to add a
-[crisis card](chat.md#sse-events). Chat Completions and Anthropic Messages
-rows never receive the option. Anthropic offers no moderation endpoint, so a
+[crisis card](chat.md#sse-events). Chat Completions, Anthropic Messages and
+ChatGPT plan rows never receive the option; the plan's route refuses it.
+Anthropic offers no moderation endpoint, so a
 composition may check Anthropic turns with an operator
 [crisis moderator](chat.md#companion-safety). Without one, as in the local
 composition, Anthropic and Chat Completions turns rely on the Companion
-Guardrails alone ([ADR 0023](../../adr/0023-native-anthropic-messages-provider.md)).
+Guardrails alone ([ADR 0023](../../adr/0023-native-anthropic-messages-provider.md)),
+and so do ChatGPT plan turns, which the operator check never covers.
 
 The Anthropic adapter classifies SDK errors and stream `error` events by
 Anthropic's `error.type`, then the HTTP status, into `anthropic_authentication_error`,
@@ -644,12 +743,15 @@ provider reports inside a stream (the SDK's bare `APIError` for an `error`
 event, or a Responses `response.failed` or `error` event) gets the code its
 type or code would have as an HTTP error, for example `insufficient_quota` as
 `openai_quota_exceeded` and an image error such as `image_too_large` as
-`openai_bad_request`, and the adapter never retries it; one whose type and
+`openai_bad_request`, and the adapter does not retry it (except a temporary
+ChatGPT plan code that arrives before any output, which the plan client's
+[bounded backoff](#chatgpt-plan-responses) retries); one whose type and
 code are not recognized stays `openai_request_failed` or
 `openai_stream_error`. The adapters
 retry one request-local
 time only for retryable failures before any downstream text delta has been
-yielded. Once text has streamed, the adapter surfaces the error without retry
+yielded (the ChatGPT plan client uses its own
+[bounded backoff](#chatgpt-plan-responses)). Once text has streamed, the adapter surfaces the error without retry
 so the runtime does not duplicate a partial generation. Error metadata exposed
 through model-client errors is sanitized to provider/API/model, status code,
 request ID, retryability, retry-after, provider error code/type/param, and a
@@ -671,6 +773,9 @@ connection, so clients explain failures from `details.category`:
   request whose message matches known llama.cpp, vLLM or LM Studio wording, or
   llama.cpp's HTTP 500 "input is too large";
 - `rate_limited`, `quota_exceeded`;
+- `usage_limit`, `not_eligible`, `sign_in_required`: the ChatGPT plan's limit,
+  an account whose plan does not include the use, and a sign-in or plan use
+  that needs the owner ([ChatGPT plan Responses](#chatgpt-plan-responses));
 - `provider_error` for any other code.
 
 The connection probe also reports `invalid_base_url` and `unexpected_response`
@@ -689,16 +794,33 @@ that advertise them; Chat Completions rows never advertise native web search
 and use the [application web search](#application-web-search) tool instead. The Responses
 adapter sends native web search with `search_context_size: "low"` by default. Anima
 memory tools are separate app-layer function tools, supported for
-`OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent`, `AnthropicMessagesHTTPAgent` and
-`MockModelClient` rows with tool calling. A row without tool calling runs the turn without memory tools
+`OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent`, `AnthropicMessagesHTTPAgent`,
+`ChatGPTPlanResponsesHTTPAgent` and `MockModelClient` rows with tool calling. A row without tool calling runs the turn without memory tools
 (and without attached-file search) instead of failing setup, and a row with
 `allow_memory_writes=false` gets read tools only. The Responses adapter
 converts the shared Chat Completions-style function schemas and tool-result
 messages into Responses `function` tools and `function_call_output` input
-items. For Chat Completions models whose ID starts with `gpt-5.4`, a turn that
-would attach memory function tools is rejected when `reasoning_effort` is also
-requested, because that `/v1/chat/completions` combination is not supported
-upstream.
+items.
+
+From GPT-5.4 on (OpenAI model IDs `gpt-5.4*`, `gpt-5.6*`, `gpt-6*`, such as
+`OpenAIHTTPAgent:gpt-6-luna`), OpenAI's `/v1/chat/completions` accepts function
+tools only with `reasoning_effort: "none"`. Leaving the field out does not help:
+the model's default effort (`medium` on `gpt-6-luna`) applies and the request
+fails with HTTP 400. On these Chat Completions rows:
+
+- a turn that would attach memory tools with any other effort fails setup before
+  the stream opens; application web search is left out instead
+  (`reasoning_with_function_tools`);
+- a request that carries function tools and names no effort sends `none`, on
+  connections whose `reasoning_mode` is `openai_effort`. Rounds of the same
+  turn without tools (a separate structured-reply round or a forced final)
+  still name no effort and get the model's default;
+- the [Memory Manager](../features/memory-manager-and-episodic-memory.md#live-openai-agents-runtime)
+  and the connection probe's tool step send `none`.
+
+The rule lives in `chat_completions_tools_require_no_reasoning`
+(`app/model_catalog.py`). For reasoning with tools, use the model's Responses
+row.
 
 ## Prompt-Only Maintenance Calls
 
@@ -713,7 +835,7 @@ compaction). These prompt-only calls are separate from the primary
 anima turn, do not stream to the frontend, and persist usage only where their
 service owns durable state, such as `chat_compactions`.
 
-After a successful non-incognito Chat Completions turn, the local
+After a successful non-incognito Chat Completions or ChatGPT plan turn, the local
 post-response compaction pass runs when `chats.active_context_tokens` reaches
 the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90000), 70%
 of the model's context window, and 75% of the window left after the reply
@@ -733,7 +855,8 @@ and the Anthropic Messages client report `native_context_compaction`. A turn
 that continues from a stored provider cursor (`openai_previous_response_id`)
 sends no local history, so it is not
 fitted either. Any other Responses turn without native compaction (threshold
-`0`, or a composition that omits it) is bounded like Chat Completions:
+`0`, a composition that omits it, or a ChatGPT plan row) is bounded like Chat
+Completions:
 
 - **Budget.** Available tokens are the window minus the row's
   `max_output_tokens`, or minus a quarter of the window (at most 4096) when
@@ -774,7 +897,8 @@ passes keep a user message together with its reply.
 
 `native_tools: ["web_search"]` means "search the web" for any model:
 
-- A Responses row that advertises hosted `web_search` keeps hosted search.
+- A Responses row, on a key or the ChatGPT plan, that advertises hosted
+  `web_search` keeps hosted search.
 - An Anthropic row uses only Anthropic's server tool (see
   [Anthropic Messages](#anthropic-messages)). A row without it runs the turn
   without search (`provider_without_native_web_search`).
@@ -784,8 +908,9 @@ passes keep a user message together with its reply.
   memory tool round limit.
 - Otherwise the turn runs without search and logs why (`no_backend`,
   `model_without_tools`, `provider_without_function_tools`, or
-  `reasoning_with_function_tools` for Chat Completions models that reject a
-  reasoning effort with function tools) instead of failing setup.
+  `reasoning_with_function_tools` for an effort other than `none` on Chat
+  Completions models that accept function tools only at `none`) instead of
+  failing setup.
 
 Backends are SearXNG (`GET {base_url}/search?format=json`, the instance's
 `search.formats` must include `json`) and the Brave Search API
@@ -863,8 +988,9 @@ tokens.
 For `OpenAIResponsesHTTPAgent`, assistant rows may contain compact
 `data.openai` metadata such as response IDs and request cursors. The parent
 chat's `openai_previous_response_id` advances only from Responses assistant
-turns that include a final response ID. Persisted non-Responses assistant turns
-clear the cursor during the same chat-row update that reserves turns and updates
+turns that include a final response ID. Persisted assistant turns of any other
+provider type, ChatGPT plan rows included (they store no `data.openai`), clear
+the cursor during the same chat-row update that reserves turns and updates
 usage. Incognito Responses turns send `store=false` upstream and do not advance
 the local Responses cursor.
 

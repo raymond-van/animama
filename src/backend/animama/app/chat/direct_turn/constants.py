@@ -1,6 +1,6 @@
 """Shared constants for the direct chat turn runtime."""
 
-from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
+from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE
 
 DIRECT_CHAT_NODE_ID = "direct-chat:model-client"
 
@@ -8,6 +8,8 @@ OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent"
 OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE = "openai_previous_response_unresolvable"
 OPENAI_CHAT_COMPLETIONS_PROVIDER = "OpenAIHTTPAgent"
 ANTHROPIC_MESSAGES_PROVIDER = ANTHROPIC_MESSAGES_PROVIDER_TYPE
+# Not in NATIVE_COMPACTION_PROVIDERS: the plan route was not shown to compact, so the app fits its prompts.
+CHATGPT_PLAN_PROVIDER = CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE
 MOCK_MODEL_PROVIDER = "MockModelClient"
 # Requested through `native_tools`; hosted by OpenAI Responses or Anthropic, otherwise the application tool.
 WEB_SEARCH_NATIVE_TOOL = "web_search"
@@ -22,6 +24,7 @@ DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER = frozenset(
         OPENAI_RESPONSES_PROVIDER,
         OPENAI_CHAT_COMPLETIONS_PROVIDER,
         ANTHROPIC_MESSAGES_PROVIDER,
+        CHATGPT_PLAN_PROVIDER,
         MOCK_MODEL_PROVIDER,
     }
 )

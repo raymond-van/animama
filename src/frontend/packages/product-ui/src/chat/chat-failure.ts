@@ -50,6 +50,8 @@ type FailedConnection = {
   /** Local server presets get "is it running?" guidance. */
   localServer: string | null;
   baseUrl: string | null;
+  /** The provider's own explanation; shown only where a description asks for it. */
+  detail: string | null;
 };
 
 const LOCAL_SERVER_PRESETS: Record<string, string> = {
@@ -71,6 +73,7 @@ function failedConnection(details: Record<string, unknown>): FailedConnection {
     name: text(details.connection_name, 80),
     localServer: preset ? (LOCAL_SERVER_PRESETS[preset] ?? null) : null,
     baseUrl: text(details.connection_base_url, 200),
+    detail: text(details.provider_error_message, 300),
   };
 }
 
@@ -84,6 +87,27 @@ function pair(group: string, guidanceVariant = "guidance"): Description {
     return [
       { key: `chatFailure.${group}.title`, params },
       { key: `chatFailure.${group}.${guidanceVariant}`, params },
+    ];
+  };
+}
+
+/**
+ * Copy that quotes the provider's own explanation when it gave one. Only the
+ * ChatGPT plan's refusals use it: its route says what it does not accept, and
+ * spec #919 R5.3 asks for that detail. Other providers' text is never shown.
+ */
+function withProviderDetail(group: string): Description {
+  return (connection) => {
+    const [title, guidance] = pair(
+      group,
+      connection.detail ? "guidanceDetail" : "guidance",
+    )(connection);
+    return [
+      title,
+      {
+        ...guidance,
+        params: { ...guidance.params, detail: connection.detail },
+      },
     ];
   };
 }
@@ -120,6 +144,15 @@ const baseDescriptions: Record<string, Description> = {
   chat_stream_interrupted: pair("codes.chat_stream_interrupted"),
   // A Claude model's refusal (stop_reason "refusal"); no other model is tried.
   model_refused: pair("codes.model_refused"),
+  // The ChatGPT plan (spec #919); none moves the chat to another connection.
+  chatgpt_plan_usage_limit: pair("codes.chatgpt_plan_usage_limit"),
+  chatgpt_plan_not_eligible: pair("codes.chatgpt_plan_not_eligible"),
+  chatgpt_plan_unavailable: pair("codes.chatgpt_plan_unavailable"),
+  chatgpt_plan_unsupported_request: withProviderDetail(
+    "codes.chatgpt_plan_unsupported_request",
+  ),
+  chatgpt_plan_sign_in_required: pair("codes.chatgpt_plan_sign_in_required"),
+  chatgpt_plan_use_not_granted: pair("codes.chatgpt_plan_use_not_granted"),
   // Chat images the server refuses before the turn starts.
   too_many_images: pair("codes.too_many_images"),
   attached_image_unavailable: pair("codes.attached_image_unavailable"),
@@ -161,6 +194,16 @@ const descriptions: Record<string, Description> = {
 const RETRY_AFTER_CODES = new Set([
   "openai_rate_limit",
   "anthropic_rate_limit",
+  "chatgpt_plan_unavailable",
+]);
+
+/** OpenAI's page where a person reviews their plan's usage and limits for each app. */
+export const CHATGPT_MANAGE_USAGE_URL = "https://chatgpt.com/settings/usage";
+
+/** ChatGPT plan failures whose notice links to that page. */
+const CHATGPT_PLAN_USAGE_CODES = new Set([
+  "chatgpt_plan_usage_limit",
+  "chatgpt_plan_not_eligible",
 ]);
 
 /**
@@ -366,17 +409,28 @@ export function describeChatFailure(
     { key: "chatFailure.unknown.guidance" },
   ];
   const delay = details.retry_after_seconds;
-  // A completed trial links to the desktop download only when its URL is safe.
+  // A completed trial links to the desktop download only when its URL is safe;
+  // a ChatGPT plan limit or ineligible plan links to the plan's usage page.
   const downloadUrl =
     denial?.code === "trial_complete"
       ? safeNavigationUrl(denial.field("download_url"))
       : null;
-  const linkLabel = { key: "chatFailure.hosted.trialComplete.link" };
+  const link: { label: ChatFailureCopyRef; href: string } | null = downloadUrl
+    ? {
+        label: { key: "chatFailure.hosted.trialComplete.link" },
+        href: downloadUrl,
+      }
+    : CHATGPT_PLAN_USAGE_CODES.has(code)
+      ? {
+          label: { key: "chatFailure.manageUsage" },
+          href: CHATGPT_MANAGE_USAGE_URL,
+        }
+      : null;
   const english = productEnglishT();
   return {
     title: chatFailureCopy(english, title),
     guidance: chatFailureCopy(english, guidance),
-    copy: { title, guidance, ...(downloadUrl ? { linkLabel } : {}) },
+    copy: { title, guidance, ...(link ? { linkLabel: link.label } : {}) },
     code,
     originalText,
     partialText,
@@ -386,11 +440,11 @@ export function describeChatFailure(
     delay > 0
       ? { retryAfterSeconds: Math.min(Math.ceil(delay), 86400) }
       : {}),
-    ...(downloadUrl
+    ...(link
       ? {
           link: {
-            label: chatFailureCopy(english, linkLabel),
-            href: downloadUrl,
+            label: chatFailureCopy(english, link.label),
+            href: link.href,
           },
         }
       : {}),

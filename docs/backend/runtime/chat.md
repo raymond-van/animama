@@ -69,8 +69,10 @@ is not required (rows without a schema or JSON-mode transport are asked for
 JSON by prompt), and `web_search` on a row without hosted search is the application
 tool, offered or left out at turn time (Anthropic rows never get it). Owner-added
 rows also need a context window. `OpenAIResponsesHTTPAgent` rows are valid only
-on the built-in OpenAI connection, and `AnthropicMessagesHTTPAgent` rows only
-on the built-in Anthropic connection, which serves no other rows. When it is
+on the built-in OpenAI connection, `AnthropicMessagesHTTPAgent` rows only
+on the built-in Anthropic connection, and `ChatGPTPlanResponsesHTTPAgent` rows
+only on the ChatGPT plan connection; each of the last two serves no other
+rows. When it is
 omitted, the route
 requires an explicit `anima_chat_profiles` row for the anima. Missing
 profiles fail setup before any upstream model call. Unsupported, inactive, or
@@ -318,7 +320,8 @@ user-facing contract is the [safety and crisis protocol](../../safety/crisis-pro
   continuing interaction's start and the last notice. Turns less than 30
   minutes apart continue an interaction. If the state cannot be read or
   written, the notice is shown anyway.
-- **Crisis detection.** For OpenAI Responses rows, round 0 requests
+- **Crisis detection.** For `OpenAIResponsesHTTPAgent` rows (OpenAI Responses
+  on a key), round 0 requests
   [inline moderation](model-client-providers.md#provider-behavior). For
   Anthropic Messages rows, a composition may set `ChatTurnPolicy.crisis_moderator`
   (such as `OpenAIModerationCrisisModerator`, OpenAI's moderation endpoint with
@@ -327,8 +330,12 @@ user-facing contract is the [safety and crisis protocol](../../safety/crisis-pro
   reply, then cancels a pending check. A self-harm result from either emits one
   `safety.crisis_support` card after the reply text and before `run.completed`;
   a failed, errored or late check adds no card. Other turns get no crisis card;
-  the guardrail's crisis rule still applies. Crisis resources resolve from the
-  owner's region, then the `client_context` locale, then the fallback entry.
+  the guardrail's crisis rule still applies. ChatGPT plan turns are among them:
+  the plan's route refuses inline moderation, and the operator check covers
+  Anthropic turns only
+  ([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)). Crisis
+  resources resolve from the owner's region, then the `client_context` locale,
+  then the fallback entry.
 
 Crisis turns stream, persist and update memory like any other turn. Safety
 code never logs message text or detection results (crisis frames are excluded
@@ -557,6 +564,13 @@ assistant row also stores `message_data.memory` (`updates_enabled` and the
 turn's `MEMORIES.md` change); see
 [Chat Memory Cue](../features/memory.md#chat-memory-cue).
 
+ChatGPT plan turns store nothing at OpenAI. A plan turn reads no stored cursor,
+even one a key model left, and replays local history; its reply stores no
+`message_data.openai`, so the turn clears the chat row's cursor and the next
+key-model Responses turn replays history too. Key and plan Responses models
+share the `responses` API standard, so a chat moves between them in either
+direction ([ChatGPT plan Responses](model-client-providers.md#chatgpt-plan-responses)).
+
 Normal chat persistence also reserves per-chat `chat_messages.turn` values from
 `chats.next_turn`. The value starts at `1` for each chat and increments for each
 persisted message row, including multiple rows in the same run.
@@ -579,8 +593,9 @@ Incognito turns skip title generation.
 
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
-Responses and Anthropic Messages turns skip it and rely on provider-side
-compaction; models without provider-side compaction also compact before sending
+Responses turns on a key and Anthropic Messages turns skip it and rely on
+provider-side compaction; ChatGPT plan turns have none, so they run it. Models
+without provider-side compaction also compact before sending
 when a prompt nears their window (see the
 [context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above

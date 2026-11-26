@@ -98,6 +98,7 @@ import {
   lilToonMaterialStateOf,
   type LilToonMaterialState,
 } from "./liltoon/lilToon";
+import { unlitToonStateOf } from "./unlitToonShading";
 import {
   automaticMaterialsDecision,
   type AutomaticMaterialsDecision,
@@ -127,7 +128,7 @@ import {
 } from "./poses/animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./poses/types";
 import {
-  rememberAvatarFileLilToon,
+  rememberAvatarFileMaterials,
   resolveAmbientForces,
   rendersLilToon,
   type AvatarMaterialMode,
@@ -404,8 +405,8 @@ export class Avatar {
   public emotion_label: EmotionLabel = "neutral";
   public state: AvatarAnimationState = "idle";
 
-  private static _gltfLoader: GLTFLoader | null = null;
-  private static _simpleGltfLoader: GLTFLoader | null = null;
+  /** Shared loaders, one per lilToon and unlit toon choice (`_loaderKey`). */
+  private static _gltfLoaders = new Map<string, GLTFLoader>();
   private static _vrmaCache = new Map<string, Promise<VRMAnimation | null>>();
 
   private _camera: THREE.Object3D;
@@ -599,6 +600,9 @@ export class Avatar {
       },
       spec.resourceUrls,
       this._automaticMaterials?.choice ?? this._materialMode,
+      // Only Simple keeps unlit materials flat: Automatic's GPU check weighs
+      // lilToon's cost, not the toon shading's.
+      this._materialMode !== "simple",
     );
     if (this._isDisposed) {
       releaseModelScene(vrm.scene);
@@ -613,9 +617,13 @@ export class Avatar {
     this._isVrm0 = isVrm0(vrm);
     this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
     if (this._vrmSha256) {
-      rememberAvatarFileLilToon(
+      rememberAvatarFileMaterials(
         this._vrmSha256,
-        this._lilToonMaterials !== "none",
+        this._lilToonMaterials !== "none"
+          ? "liltoon"
+          : unlitToonStateOf(gltf) !== "none"
+            ? "unlit"
+            : "other",
       );
     }
     const { faceSignals, arkitFace, eyelidClosure, restPose } =
@@ -3451,38 +3459,41 @@ export class Avatar {
   // Shared GLTF loader (VRM + VRMA)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private static _getGLTFLoader(lilToon: boolean = true): GLTFLoader {
-    const cached = lilToon ? Avatar._gltfLoader : Avatar._simpleGltfLoader;
-    if (cached) return cached;
-
-    const loader = Avatar._createGLTFLoader(undefined, lilToon);
-    if (lilToon) Avatar._gltfLoader = loader;
-    else Avatar._simpleGltfLoader = loader;
+  private static _getGLTFLoader(
+    lilToon: boolean,
+    unlitToon: boolean,
+  ): GLTFLoader {
+    const key = `${lilToon}:${unlitToon}`;
+    let loader = Avatar._gltfLoaders.get(key);
+    if (!loader) {
+      loader = createAvatarGltfLoader({ lilToon, unlitToon });
+      Avatar._gltfLoaders.set(key, loader);
+    }
     return loader;
   }
 
-  private static _createGLTFLoader(
-    manager?: THREE.LoadingManager,
-    lilToon: boolean = true,
-  ): GLTFLoader {
-    return createAvatarGltfLoader({ manager, lilToon });
-  }
-
+  /**
+   * Load a VRM file. `materialMode` is the lilToon choice (Automatic already
+   * resolved by the GPU check); `unlitToon` whether unlit-only files get toon
+   * shading.
+   */
   private static async _loadVrm(
     url: string,
     onProgress?: (loaded: number, total: number) => void,
     resourceUrls?: Readonly<Record<string, string>>,
     materialMode: AvatarMaterialMode = "automatic",
+    unlitToon: boolean = true,
   ): Promise<{ gltf: GLTF; vrm: VRM }> {
     const lilToon = rendersLilToon(materialMode);
     const loader = resourceUrls
-      ? Avatar._createGLTFLoader(
-          new THREE.LoadingManager().setURLModifier(
+      ? createAvatarGltfLoader({
+          manager: new THREE.LoadingManager().setURLModifier(
             preparedModelUrlResolver(url, resourceUrls),
           ),
           lilToon,
-        )
-      : Avatar._getGLTFLoader(lilToon);
+          unlitToon,
+        })
+      : Avatar._getGLTFLoader(lilToon, unlitToon);
 
     let gltf: GLTF;
     try {
@@ -3541,12 +3552,12 @@ export class Avatar {
         let gltf: GLTF & { userData: { vrmAnimations?: VRMAnimation[] } };
         try {
           const loader = resource.resourceUrls
-            ? Avatar._createGLTFLoader(
-                new THREE.LoadingManager().setURLModifier(
+            ? createAvatarGltfLoader({
+                manager: new THREE.LoadingManager().setURLModifier(
                   preparedModelUrlResolver(downloadUrl, resource.resourceUrls),
                 ),
-              )
-            : Avatar._getGLTFLoader();
+              })
+            : Avatar._getGLTFLoader(true, true);
           gltf = (await loader.loadAsync(downloadUrl)) as GLTF & {
             userData: { vrmAnimations?: VRMAnimation[] };
           };

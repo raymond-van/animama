@@ -49,6 +49,11 @@ import {
 } from "../scripts/runtime/smoke-policy.mjs";
 import { homeDirectoryNeedles } from "../scripts/runtime/release-scan.mjs";
 import {
+  validateUpdateCandidate,
+  windowsUpdateSupported,
+} from "../src/main-process/updates/policy.ts";
+import { validateUpdateCandidate as validateUpdateCandidateAsShippedIn016 } from "./fixtures/update-policy-0.1.6.js";
+import {
   ownedWindowsChild,
   parseProcessImages,
   windowsLaunchEnvironment,
@@ -534,7 +539,7 @@ describe("Windows release candidate", () => {
     const manifest = {
       app_version: "0.1.0",
       build_id: "a".repeat(64),
-      minimum_os: "10.0.22000",
+      minimum_os: "10.0.18362",
     };
     const r2 = {
       kind: "r2",
@@ -556,22 +561,96 @@ describe("Windows release candidate", () => {
         size: 9,
       },
     ]);
+    // Frozen for installed 0.1.6 apps; the release's real floor is Animama's own field.
     expect(feed.minimumSystemVersion).toBe("10.0.22000");
     expect(feed.animama).toMatchObject({
       platform: "win32",
       architecture: "x64",
       installed_bytes: 2000,
+      minimum_os: "10.0.18362",
     });
-    await expect(
-      updateFeed(
+    for (const minimum_os of ["15.0", "10.0.22000"])
+      await expect(
+        updateFeed(
+          root,
+          { ...manifest, minimum_os },
+          2000,
+          { entries: [] },
+          r2,
+          "win32-x64",
+        ),
+      ).rejects.toThrow("Windows runtime manifest");
+  });
+
+  /** The 0.1.7 Windows feed for each distribution, as an installed app reads it. */
+  async function generatedWindowsFeeds() {
+    const root = fixture();
+    writeFileSync(path.join(root, "Animama-0.1.7-x64-setup.exe"), "installer");
+    const manifest = {
+      app_version: "0.1.7",
+      build_id: "a".repeat(64),
+      minimum_os: "10.0.18362",
+    };
+    const feeds = [];
+    for (const distribution of [
+      { kind: "r2", base_url: "https://downloads.example.test/desktop" },
+      { kind: "github", owner: "example", repo: "releases" },
+    ]) {
+      const feed = await updateFeed(
         root,
-        { ...manifest, minimum_os: "15.0" },
+        manifest,
         2000,
         { entries: [] },
-        r2,
+        distribution,
         "win32-x64",
-      ),
-    ).rejects.toThrow("Windows 11 runtime manifest");
+      );
+      // electron-updater's GitHub provider supplies the tag an R2 feed carries.
+      feeds.push({ distribution, read: { tag: "v0.1.7", ...feed } });
+    }
+    return feeds;
+  }
+  const accepted = {
+    version: "0.1.7",
+    filename: "Animama-0.1.7-x64-setup.exe",
+    installedBytes: 2000,
+  };
+
+  it("writes a Windows feed that installed 0.1.6 apps still accept", async () => {
+    for (const { distribution, read } of await generatedWindowsFeeds())
+      expect(
+        validateUpdateCandidateAsShippedIn016(
+          read,
+          "0.1.6",
+          distribution,
+          "win32",
+        ),
+      ).toMatchObject(accepted);
+  });
+
+  it("writes a Windows feed that this app accepts and offers on Windows 10", async () => {
+    for (const { distribution, read } of await generatedWindowsFeeds()) {
+      expect(
+        validateUpdateCandidate(read, "0.1.6", distribution, "win32"),
+      ).toMatchObject(accepted);
+      // Windows 10 22H2, below the feed's frozen top-level minimum.
+      expect(windowsUpdateSupported(read, "10.0.19045")).toBe(true);
+      expect(windowsUpdateSupported(read, "10.0.18361")).toBe(false);
+    }
+  });
+
+  it("leaves the macOS feed without a Windows floor", async () => {
+    const root = fixture();
+    for (const name of ["Animama-0.1.7-arm64.zip", "Animama-0.1.7-arm64.dmg"])
+      writeFileSync(path.join(root, name), "archive");
+    const feed = await updateFeed(
+      root,
+      { app_version: "0.1.7", build_id: "a".repeat(64), minimum_os: "15.0" },
+      2000,
+      { entries: [] },
+      { kind: "r2", base_url: "https://downloads.example.test/desktop" },
+    );
+    expect(feed.minimumSystemVersion).toBe("24.0.0");
+    expect(feed.animama).not.toHaveProperty("minimum_os");
   });
 
   it("measures the unpacked app and the installer against the Windows caps", () => {

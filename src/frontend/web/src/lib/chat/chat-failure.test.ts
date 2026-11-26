@@ -427,3 +427,84 @@ describe("hosted denials", () => {
     });
   });
 });
+
+describe("ChatGPT plan failures", () => {
+  const plan = {
+    connection_name: "ChatGPT plan",
+    connection_preset: "chatgpt_plan",
+  };
+
+  it("links a usage limit and an ineligible plan to the plan's usage page", () => {
+    for (const code of [
+      "chatgpt_plan_usage_limit",
+      "chatgpt_plan_not_eligible",
+    ]) {
+      const failure = describeChatFailure(
+        { code, details: { ...plan, category: "usage_limit" } },
+        "hello",
+      );
+      expect(failure.link).toEqual({
+        label: "Manage usage",
+        href: "https://chatgpt.com/settings/usage",
+      });
+      expect(failure.copy?.linkLabel).toEqual({
+        key: "chatFailure.manageUsage",
+      });
+    }
+    expect(
+      describeChatFailure(
+        { code: "chatgpt_plan_usage_limit", details: plan },
+        "hello",
+      ).title,
+    ).toBe("You've reached your ChatGPT plan's usage limit.");
+  });
+
+  it("names App Settings → Models when the plan needs a sign-in or plan use", () => {
+    const signIn = describeChatFailure(
+      { code: "chatgpt_plan_sign_in_required", details: plan },
+      "hello",
+    );
+    const planUse = describeChatFailure(
+      { code: "chatgpt_plan_use_not_granted", details: plan },
+      "hello",
+    );
+    expect(signIn.title).toBe("Sign in with ChatGPT again.");
+    expect(signIn.guidance).toContain("App Settings → Models");
+    expect(planUse.guidance).toContain("App Settings → Models");
+    expect(signIn.link).toBeUndefined();
+  });
+
+  it("quotes the route's reason for an unsupported request, and only there", () => {
+    const refused = describeChatFailure(
+      {
+        code: "chatgpt_plan_unsupported_request",
+        details: {
+          ...plan,
+          provider_error_message: "Unsupported tool type: apply_patch",
+        },
+      },
+      "hello",
+    );
+    expect(refused.guidance).toBe(
+      "OpenAI said: “Unsupported tool type: apply_patch” Choose another model for this chat.",
+    );
+    const bare = describeChatFailure(
+      { code: "chatgpt_plan_unsupported_request", details: plan },
+      "hello",
+    );
+    expect(bare.guidance).toBe("Choose another model for this chat.");
+    const unavailable = describeChatFailure(
+      {
+        code: "chatgpt_plan_unavailable",
+        details: {
+          ...plan,
+          provider_error_message: "secret server text",
+          retry_after_seconds: 30,
+        },
+      },
+      "hello",
+    );
+    expect(JSON.stringify(unavailable)).not.toContain("secret");
+    expect(unavailable.retryAfterSeconds).toBe(30);
+  });
+});

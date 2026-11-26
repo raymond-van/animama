@@ -2,7 +2,7 @@ import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useState } from "react";
 
 import {
-  rememberAvatarFileLilToon,
+  rememberAvatarFileMaterials,
   useAvatarFileTraitsStore,
 } from "@/lib/avatar/avatarSettings";
 import { readAvatarFileFacts } from "@/lib/avatar/diagnostics/avatarFileFacts";
@@ -17,8 +17,8 @@ const logger = createLogger("AvatarItemFileTraits");
 /**
  * The sha256 of an Avatar item's VRM file while `enabled`, and, when this
  * session has not loaded that file yet, a read of its file facts so the
- * Avatar settings know whether it has lilToon materials before any surface
- * loads it. The backend keeps no file facts, so this downloads the file once
+ * Avatar settings know which materials it has (lilToon, all unlit or
+ * neither) before any surface loads it. The backend keeps no file facts, so this downloads the file once
  * per file per session; a failed read leaves the Materials row hidden.
  */
 export function useAvatarItemFileTraits(
@@ -41,7 +41,7 @@ export function useAvatarItemFileTraits(
         setVrmSha256(sha256);
         if (!sha256) return;
         if (
-          useAvatarFileTraitsStore.getState().lilToonBySha256[sha256] !==
+          useAvatarFileTraitsStore.getState().materialsBySha256[sha256] !==
           undefined
         )
           return;
@@ -55,11 +55,16 @@ export function useAvatarItemFileTraits(
         const facts = readAvatarFileFacts(await response.arrayBuffer());
         if (signal.aborted) return;
         // A file whose glTF cannot be read does not load either; remembering
-        // it as without lilToon avoids reading it again each time.
-        rememberAvatarFileLilToon(
+        // it as having neither kind avoids reading it again each time.
+        rememberAvatarFileMaterials(
           sha256,
-          facts !== null &&
-            usesLilToonMaterials({ extensionsUsed: facts.extensionsUsed }),
+          facts === null
+            ? "other"
+            : usesLilToonMaterials({ extensionsUsed: facts.extensionsUsed })
+              ? "liltoon"
+              : facts.unlitOnly
+                ? "unlit"
+                : "other",
         );
       } catch (error) {
         if (signal.aborted) return;

@@ -15,6 +15,31 @@
         "guidance": "在 Animama 確認完成之前，連線已中斷。請檢查網路連線後再重新傳送。",
         "title": "回覆已中斷。"
       },
+      "chatgpt_plan_not_eligible": {
+        "guidance": "請在 ChatGPT 中查看方案用量，或選擇其他模型。",
+        "title": "你的 ChatGPT 方案不包含此用途。"
+      },
+      "chatgpt_plan_sign_in_required": {
+        "guidance": "ChatGPT 方案的工作階段已結束。請在「$t(chatFailure.settingsPath)」中重新登入。",
+        "title": "請重新登入 ChatGPT。"
+      },
+      "chatgpt_plan_unavailable": {
+        "guidance": "請稍後再試，或選擇其他模型。",
+        "title": "ChatGPT 方案暫時無法使用。"
+      },
+      "chatgpt_plan_unsupported_request": {
+        "guidance": "請為此聊天選擇其他模型。",
+        "guidanceDetail": "OpenAI 的說明：「{{detail}}」請為此聊天選擇其他模型。",
+        "title": "ChatGPT 方案無法處理此請求。"
+      },
+      "chatgpt_plan_usage_limit": {
+        "guidance": "請在 OpenAI 重設上限後重新傳送，或選擇其他模型。你可以在 OpenAI 的頁面查看用量。",
+        "title": "你已達到 ChatGPT 方案的用量上限。"
+      },
+      "chatgpt_plan_use_not_granted": {
+        "guidance": "請在「$t(chatFailure.settingsPath)」中啟用方案使用，或選擇其他模型。",
+        "title": "ChatGPT 方案使用已關閉。"
+      },
       "connection_base_url_missing": {
         "guidance": "請在「$t(chatFailure.settingsPath)」中設定其基礎 URL，然後重新傳送訊息。",
         "title": "{{name}}沒有伺服器位址。"
@@ -124,6 +149,7 @@
         "title": "你的 Animama 試用已結束。"
       }
     },
+    "manageUsage": "管理用量",
     "network": {
       "guidance": "請檢查網路連線以及安裝是否正在執行，然後再試一次。",
       "title": "Animama 無法連線至其服務。"

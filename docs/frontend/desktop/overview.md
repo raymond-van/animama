@@ -214,6 +214,14 @@ remains; recovery Retry starts
 services with that value and clears the failure after verified readiness. These failure records stay
 in main-process memory only and contain no credential values.
 
+Signing in with a ChatGPT plan (Settings → Models) involves no key the owner
+enters. The backend keeps that session itself, encrypted in
+`data/internal/chatgpt-plan/session.bin` under a key the vault generates on
+first need. Main passes that key only to FastAPI, as
+`ANIMAMA_CHATGPT_PLAN_STORE_KEY` in its environment, and redacts it from logs;
+the renderer never sees it. Without the key, sign-in reports
+`secure_storage_unavailable` ([desktop runtime](../../backend/operations/desktop-runtime.md#roots-secrets-and-private-bytes)).
+
 On macOS the user-data root is `~/Library/Application Support/Animama`:
 
 | Relative path            | Purpose                                                                       |
@@ -221,10 +229,10 @@ On macOS the user-data root is `~/Library/Application Support/Animama`:
 | `runtime/state.json`     | Saved application port (`gatewayPort` remains the version-1 serialized field) |
 | `runtime/processes.json` | Child ownership evidence, not permission to kill stale PIDs                   |
 | `runtime/logs/main.log`  | Redacted supervisor and child logs                                            |
-| `secrets/vault.bin`      | Encrypted database password and optional provider and connection keys         |
+| `secrets/vault.bin`      | Encrypted database password, optional provider and connection keys, and the ChatGPT plan session key |
 | `postgres/16/data`       | Private PostgreSQL cluster                                                    |
 | `content/local`          | Writable typed Local library                                                  |
-| `data`                   | Private uploads, downloaded model assets and their staging                    |
+| `data`                   | Private uploads, downloaded model assets and their staging, and the encrypted ChatGPT plan session |
 | `backups/pre-migration`  | Verified custom-format upgrade dumps and migration journal                    |
 | `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes                     |
 | `packs/active.json`      | Atomic active pointers, reverified before use                                 |
@@ -505,8 +513,8 @@ on port `9229`. Packaged builds offer neither
 
 See [Platform builds](platforms.md) for packaging commands.
 
-The unsigned development package targets macOS 15+ arm64 and Windows 11 x64 and
-requires a fresh, complete audited stage. Windows has the same signed
+The unsigned development package targets macOS 15+ arm64 and Windows x64
+(Windows 10 22H2 or later), and requires a fresh, complete audited stage. Windows has the same signed
 candidate, update, smoke and publication tooling as macOS (no Windows feature
 packs yet), and Linux self-contained packaging is deferred; external-stack
 `desktop:dev` is available on Linux. Signed releases

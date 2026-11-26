@@ -91,7 +91,7 @@
       "unsupported_postgresql_major": "This database needs a supported upgrade. Your existing data has been preserved.",
       "runtime_manifest_invalid": "The runtime is missing or damaged. Reinstall a complete Animama build; your user data is separate.",
       "runtime_file_invalid": "An installed runtime file is missing or damaged. Reinstall Animama without deleting your data.",
-      "unsupported_runtime_platform": "This Animama build needs macOS 15 or later on Apple silicon, or Windows 11 on x64. Your data has not changed.",
+      "unsupported_runtime_platform": "This Animama build needs macOS 15 or later on Apple silicon, or Windows 10 version 1903 or later on x64. Your data has not changed.",
       "runtime_busy": "Animama is still finishing local work. The previous configuration is preserved; wait for recovery and retry the change.",
       "runtime_quiesce_failed": "Local work could not be stopped safely. The previous configuration is preserved. Open Logs or restart Animama before retrying.",
       "migration_failed": "The database upgrade failed. The original snapshot is preserved below. Open Logs, fix the cause, and retry this version. Do not reset, downgrade, or restore automatically: that could discard newer data.",

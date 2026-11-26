@@ -34,11 +34,13 @@ from animama.app.model_clients.key_origins import canonical_origin, is_this_comp
 from animama.app.model_connection_presets import (
     ANTHROPIC_CONNECTION_COMPATIBILITY,
     PRESET_ANTHROPIC,
+    PRESET_CHATGPT_PLAN,
     PRESET_OPENAI,
 )
 from animama.domain import ModelProvider
 from animama.domain.model_connection import (
     BUILTIN_ANTHROPIC_CONNECTION_ID,
+    BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
     BUILTIN_OPENAI_CONNECTION_ID,
     MODEL_SOURCE_BUILTIN,
     ModelConnection,
@@ -117,9 +119,25 @@ def builtin_anthropic_connection() -> ModelConnection:
     )
 
 
+def builtin_chatgpt_plan_connection() -> ModelConnection:
+    """Return the built-in ChatGPT plan connection, whose credential is the sign-in session's token.
+
+    It names no key, so the key resolver reports ``not_required``; the model
+    connection list reports its state from the session instead.
+    """
+
+    return ModelConnection(
+        id=BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
+        name="ChatGPT plan",
+        preset=PRESET_CHATGPT_PLAN,
+        source=MODEL_SOURCE_BUILTIN,
+    )
+
+
 _BUILTIN_CONNECTIONS = {
     BUILTIN_OPENAI_CONNECTION_ID: builtin_openai_connection,
     BUILTIN_ANTHROPIC_CONNECTION_ID: builtin_anthropic_connection,
+    BUILTIN_CHATGPT_PLAN_CONNECTION_ID: builtin_chatgpt_plan_connection,
 }
 
 _BUILTIN_CREDENTIAL_ENVS = {

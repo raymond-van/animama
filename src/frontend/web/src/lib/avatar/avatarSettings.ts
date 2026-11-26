@@ -15,10 +15,14 @@ import { create } from "zustand";
 export type AvatarSpringMode = "automatic" | "on" | "off" | "springs_off";
 
 /**
- * How authored lilToon materials render. Automatic is lilToon unless this
+ * How a file's own materials render, for files whose materials Animama can
+ * draw two ways. Authored lilToon materials: Automatic is lilToon unless this
  * machine's measured lilToon frame time is too slow, then Simple
  * (`liltoon/lilToonGpuCheck.ts`); Simple uses the file's glTF fallback
- * materials, which cost far less per frame.
+ * materials, which cost far less per frame. Materials that all ignore light
+ * (`unlitToonShading.ts`): Automatic adds toon shading; Simple keeps them
+ * unlit. lilToon names a choice only lilToon files offer; on other files it
+ * acts as Automatic.
  */
 export type AvatarMaterialMode = "automatic" | "liltoon" | "simple";
 
@@ -56,6 +60,25 @@ export const AVATAR_MATERIAL_MODES: readonly AvatarMaterialMode[] = [
 ];
 
 /**
+ * Which materials a file has that the Materials setting chooses between:
+ * authored lilToon, all unlit, or neither (the setting changes nothing).
+ */
+export type AvatarFileMaterials = "liltoon" | "unlit" | "other";
+
+/**
+ * The Materials choices a file offers: lilToon files all three, files whose
+ * materials all ignore light Automatic (toon shading) and Simple. Any other
+ * file offers all three, which only a stored choice shows (to undo it).
+ */
+export function materialModesFor(
+  materials: AvatarFileMaterials | undefined,
+): readonly AvatarMaterialMode[] {
+  return materials === "unlit"
+    ? AVATAR_MATERIAL_MODES.filter((mode) => mode !== "liltoon")
+    : AVATAR_MATERIAL_MODES;
+}
+
+/**
  * Whether wind and updraft apply. `automaticAmbientForces` is Automatic's
  * answer for this file (false for springs tuned without them).
  */
@@ -83,36 +106,36 @@ export function rendersLilToon(mode: AvatarMaterialMode): boolean {
 }
 
 type AvatarFileTraitsState = {
-  /** Whether a VRM file declares authored lilToon materials, by its sha256. */
-  lilToonBySha256: Readonly<Record<string, boolean>>;
+  /** Which materials a VRM file has (`AvatarFileMaterials`), by its sha256. */
+  materialsBySha256: Readonly<Record<string, AvatarFileMaterials>>;
 };
 
 /**
  * What loaded Avatar files are known to contain, so settings can offer the
- * Materials choice only for files with lilToon materials. `Avatar.load` fills
- * it; a file no surface has loaded yet is unknown.
+ * Materials choice only for files it changes. `Avatar.load` fills it; a file
+ * no surface has loaded yet is unknown.
  */
 export const useAvatarFileTraitsStore = create<AvatarFileTraitsState>(() => ({
-  lilToonBySha256: {},
+  materialsBySha256: {},
 }));
 
-/** Record a loaded file's lilToon use (`Avatar.load`). */
-export function rememberAvatarFileLilToon(
+/** Record a loaded file's materials (`Avatar.load`). */
+export function rememberAvatarFileMaterials(
   vrmSha256: string,
-  usesLilToon: boolean,
+  materials: AvatarFileMaterials,
 ): void {
-  const known = useAvatarFileTraitsStore.getState().lilToonBySha256;
-  if (known[vrmSha256] === usesLilToon) return;
+  const known = useAvatarFileTraitsStore.getState().materialsBySha256;
+  if (known[vrmSha256] === materials) return;
   useAvatarFileTraitsStore.setState({
-    lilToonBySha256: { ...known, [vrmSha256]: usesLilToon },
+    materialsBySha256: { ...known, [vrmSha256]: materials },
   });
 }
 
-/** Whether a file has lilToon materials: undefined until one has loaded. */
-export function useAvatarFileUsesLilToon(
+/** Which materials a file has: undefined until one has loaded. */
+export function useAvatarFileMaterials(
   vrmSha256: string | null,
-): boolean | undefined {
+): AvatarFileMaterials | undefined {
   return useAvatarFileTraitsStore((state) =>
-    vrmSha256 ? state.lilToonBySha256[vrmSha256] : undefined,
+    vrmSha256 ? state.materialsBySha256[vrmSha256] : undefined,
   );
 }

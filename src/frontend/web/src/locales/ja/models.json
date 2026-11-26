@@ -13,6 +13,58 @@
     "testing": "テストしています…",
     "undo": "元に戻す"
   },
+  "chatgptPlan": {
+    "background": {
+      "description": "Animama はエピソードのメモを自動で記憶にまとめます。オンにすると、その処理もプランの利用量に含まれます。",
+      "label": "自動の記憶更新にもプランを使う"
+    },
+    "beginFailed": "サインインを開始できませんでした。もう一度お試しください。",
+    "confirmation": {
+      "background": "自動の記憶更新にもプランを使う",
+      "backgroundHint": "あとで「アプリ設定 → モデル」で変更できます。",
+      "description": "Animama の対象となる AI リクエストで ChatGPT プランが使われるようになりました。プランのモデルとのチャット、チャットのタイトルと要約、自分で始めた記憶の更新が対象です。この利用量は ChatGPT の設定で確認・制限できます。",
+      "gotIt": "OK",
+      "title": "ChatGPT プランを使用しています"
+    },
+    "continue": "ChatGPT で続ける",
+    "description": "API キーなしで、ChatGPT プランに含まれる利用量を使って Animama の対象となる AI リクエストを処理します。Animama での料金はかかりません。",
+    "enablePlanUse": "プランの使用を有効にする",
+    "failure": {
+      "declined": "OpenAI でサインインがキャンセルされました。もう一度試すか、別のモデル接続を使えます。",
+      "other": "サインインを完了できませんでした。もう一度お試しください。"
+    },
+    "loadFailed": "ChatGPT プランの状態を読み込めませんでした。",
+    "manageUsage": "利用量を管理",
+    "models": {
+      "description": "プランに含まれるモデルは OpenAI が一覧にします。どのモデルも非表示にでき、プランが変わったら一覧を更新できます。",
+      "none": "現在、このプランで OpenAI が一覧にしているモデルはありません。",
+      "refresh": "一覧を更新",
+      "refreshFailed": "モデルの一覧を更新できませんでした。もう一度お試しください。",
+      "refreshed": "モデルの一覧を更新しました。",
+      "refreshing": "更新しています…",
+      "title": "プランのモデル"
+    },
+    "notSignedIn": "サインインしていません",
+    "openAgain": "サインインページをもう一度開く",
+    "opensInBrowser": "（ブラウザーで開きます）",
+    "paused": "利用上限に達したため一時停止中です。自動の記憶更新は、あなた自身のリクエストが成功するまで待機します。",
+    "planUseOff": "このアカウントはサインインしていますが、プランの使用はオフです。拒否されたか、アカウントのプランに含まれていません。有効にするか、別のモデル接続を使えます。",
+    "planUseOn": "対象となるリクエストは ChatGPT プランを使用します。",
+    "preferencesFailed": "選択を保存できませんでした。もう一度お試しください。",
+    "signInRequired": "OpenAI がこのセッションを終了しました。プランを使い続けるには、もう一度サインインしてください。",
+    "signOut": "サインアウト",
+    "signOutFailed": "サインアウトできませんでした。もう一度お試しください。",
+    "signOutUnconfirmed": "Animama ではサインアウトしましたが、OpenAI からセッション終了の確認がありませんでした。ChatGPT の設定で Animama の接続を解除できます。",
+    "signedIn": "サインイン済み",
+    "signedInAs": "{{email}} でサインイン中",
+    "signedOut": "ChatGPT からサインアウトしました",
+    "title": "ChatGPT プランを使う",
+    "unavailable": {
+      "remoteOrigin": "Animama を実行しているコンピューターのブラウザーからサインインしてください。OpenAI はそのコンピューターにしか戻れません。",
+      "secureStorage": "安全な保存領域を利用できないため、Animama は ChatGPT のサインインを保持できません。Animama を再起動してもう一度お試しください。"
+    },
+    "waiting": "ブラウザーでサインインを完了してください。このページは自動で先へ進みます。"
+  },
   "chips": {
     "appSearch": {
       "description": "このアプリの検索サービスでウェブを検索します",
@@ -86,6 +138,10 @@
     "added": "接続を追加しました。",
     "addModel": "モデルを追加",
     "addModelTo": "{{name}} にモデルを追加",
+    "apiKey": {
+      "description": "自分の API キーで、リクエストごとに OpenAI へ支払います。",
+      "title": "API キーを使う"
+    },
     "connect": "接続",
     "connecting": "接続しています…",
     "detail": "{{host}} · {{status}}",
@@ -166,7 +222,8 @@
     },
     "saveFailed": "{{role}}モデルを保存できませんでした。",
     "unavailable": "選択したモデルを利用できないため、デフォルトが使われています。",
-    "unavailableChoice": "{{model}}（利用不可）"
+    "unavailableChoice": "{{model}}（利用不可）",
+    "unavailableWaiting": "選択したモデルを利用できないため、再び利用できるようになるまで待機します。"
   },
   "embeddings": {
     "current": "保存済みのファイルとアーカイブはこのモデルで埋め込まれています。",
@@ -267,6 +324,11 @@
       "description": "プロンプトが長いコンテキスト向けの高い料金に達する前に（{{model}} では {{early, number}} トークン）、それまでの会話を要約します。オフにすると {{late, number}} トークンまで待ち、より多くの内容を原文のまま残しますが、高い料金がかかります。"
     }
   },
+  "picker": {
+    "apiKey": "API キー",
+    "openaiKey": "OpenAI · API キー",
+    "openaiPlan": "OpenAI · ChatGPT プラン"
+  },
   "probe": {
     "contextWindow": "サーバーが報告したコンテキストウィンドウは {{tokens, number}} トークンです。",
     "dimensions": "ベクトルは {{dimensions, number}} 次元です。",
@@ -285,6 +347,7 @@
     }
   },
   "providers": {
+    "chatgptPlan": "ChatGPT プラン",
     "connected": "（接続済み）",
     "custom": "カスタム",
     "purpose": {
@@ -296,6 +359,7 @@
       "lmstudio": "このコンピューターの LM Studio が提供するモデルとチャットします。",
       "ollama": "このコンピューターの Ollama で実行中のモデルとチャットします。",
       "openai": "API キーを使って OpenAI のモデルとチャットします。",
+      "openaiWithPlan": "ChatGPT プランまたは API キーで OpenAI のモデルを使います。",
       "openrouter": "1 つの OpenRouter キーで、多くのプロバイダーのモデルとチャットします。",
       "vllm": "このコンピューターの vLLM が提供するモデルとチャットします。",
       "anthropic": "API キーを使って Anthropic の Claude モデルとチャットします。"

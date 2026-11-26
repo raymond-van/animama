@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from fastapi import HTTPException
@@ -30,7 +30,11 @@ from animama.domain.memory_manager import (
 from animama.domain.request_principal import RequestPrincipal
 from animama.local.installation_repository import SQLAlchemyEpisodeProcessingSettingsRepository
 from animama.orm import ORMUserSettings
-from animama.server.episode_processing import AutomaticEpisodeProcessingWorker, EpisodeProcessingStatus
+from animama.server.episode_processing import (
+    AutomaticEpisodeProcessingWorker,
+    EpisodeProcessingStatus,
+    ModelReadiness,
+)
 from animama.server.product_ports import LocalChatTurnLease
 from animama.server.routers import memory_automation
 from animama.server.schemas.memory_automation import PyAutomaticEpisodeProcessingUpdate
@@ -55,7 +59,7 @@ class _Harness:
 def _harness(
     session_factory: async_sessionmaker[AsyncSession],
     *,
-    model_usable: bool = True,
+    model_usable: bool | str = True,
     real_clock: bool = False,
     rest_seconds: float = 300.0,
     memory_manager: Any = None,
@@ -66,8 +70,10 @@ def _harness(
     async def local_memory_manager(session: AsyncSession, user_id: str) -> MemoryManagerService:
         return await _LOCAL_PORTS.memory_manager(session, RequestPrincipal(id=user_id))
 
-    async def usable(session: AsyncSession, user_id: str) -> bool:
-        return model_usable
+    async def usable(session: AsyncSession, user_id: str) -> ModelReadiness:
+        if isinstance(model_usable, str):
+            return cast(ModelReadiness, model_usable)
+        return "usable" if model_usable else "needs_model"
 
     worker = AutomaticEpisodeProcessingWorker(
         session_factory,
@@ -196,6 +202,13 @@ async def test_off_memory_off_and_a_missing_model_start_nothing(
     await _notes(async_session, no_model.owner_id, 10)
     assert (await no_model.worker.status()).state == "needs_model"
     assert await no_model.worker.run_pass() is None
+
+    # A ChatGPT plan model without the owner's agreement, or paused by a usage limit, waits (D5, D6).
+    for readiness in ("needs_plan_agreement", "plan_paused"):
+        waiting = _harness(async_session_factory, model_usable=readiness)
+        await _notes(async_session, waiting.owner_id, 10)
+        assert (await waiting.worker.status()).state == readiness
+        assert await waiting.worker.run_pass() is None
 
 
 @pytest.mark.asyncio
@@ -574,16 +587,41 @@ async def test_the_model_check_needs_a_tool_capable_row_with_its_key(monkeypatch
         async def resolve(self, owner_id: str, role: str) -> Any:
             return SimpleNamespace(model_provider=self._model_provider)
 
-    assert await local_manager.local_memory_manager_model_usable("owner", roles=_Roles(None), llm_skip=False) is False  # type: ignore[arg-type]
+    readiness = local_manager.local_memory_manager_model_readiness
+    assert await readiness("owner", roles=_Roles(None), llm_skip=False) == "needs_model"  # type: ignore[arg-type]
     monkeypatch.setattr(local_manager, "build_model_credential_resolver", lambda: static_credential_resolver({}))
-    assert await local_manager.local_memory_manager_model_usable("owner", roles=_Roles(row), llm_skip=False) is False  # type: ignore[arg-type]
+    assert await readiness("owner", roles=_Roles(row), llm_skip=False) == "needs_model"  # type: ignore[arg-type]
     monkeypatch.setattr(
         local_manager,
         "build_model_credential_resolver",
         lambda: static_credential_resolver({"OPENAI_API_KEY": "sk-test"}),
     )
-    assert await local_manager.local_memory_manager_model_usable("owner", roles=_Roles(row), llm_skip=False) is True  # type: ignore[arg-type]
-    assert await local_manager.local_memory_manager_model_usable("owner", roles=_Roles(None), llm_skip=True) is True  # type: ignore[arg-type]
+    assert await readiness("owner", roles=_Roles(row), llm_skip=False) == "usable"  # type: ignore[arg-type]
+    assert await readiness("owner", roles=_Roles(None), llm_skip=True) == "usable"  # type: ignore[arg-type]
+
+    # A ChatGPT plan model needs a usable sign-in, the owner's agreement and no usage-limit pause (spec #919 D5).
+    plan = replace(row, id="ChatGPTPlanResponsesHTTPAgent:gpt-6-luna", provider_type="ChatGPTPlanResponsesHTTPAgent")
+    plan.connection_id = "chatgpt_plan"
+
+    def session(**status: Any) -> Any:
+        values = {"state": "signed_in", "plan_use_granted": True, "background_agreed": True, "paused": False, **status}
+
+        class _Session:
+            async def status(self) -> Any:
+                return SimpleNamespace(**values)
+
+        return _Session
+
+    def plan_readiness(**status: Any) -> Any:
+        return readiness("owner", roles=_Roles(plan), llm_skip=False, chatgpt_plan_session=session(**status))  # type: ignore[arg-type]
+
+    assert await plan_readiness() == "usable"
+    assert await plan_readiness(background_agreed=False) == "needs_plan_agreement"
+    assert await plan_readiness(paused=True) == "plan_paused"
+    assert await plan_readiness(state="sign_in_required") == "needs_plan_sign_in"
+    assert await plan_readiness(plan_use_granted=False) == "needs_plan_sign_in"
+    # Without the local composition's session (hosted), a plan row cannot run.
+    assert await readiness("owner", roles=_Roles(plan), llm_skip=False) == "needs_model"  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio

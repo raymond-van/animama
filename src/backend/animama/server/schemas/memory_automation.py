@@ -41,7 +41,19 @@ class PyAutomaticEpisodeProcessingStatus(BaseModel):
     """
 
     threshold: int
-    state: Literal["off", "memory_off", "needs_model", "running", "paused", "backing_off", "waiting", "ready"]
+    state: Literal[
+        "off",
+        "memory_off",
+        "needs_model",
+        "needs_plan_agreement",
+        "needs_plan_sign_in",
+        "plan_paused",
+        "running",
+        "paused",
+        "backing_off",
+        "waiting",
+        "ready",
+    ]
     pending_count: int
     runs_today: int
     last_error: str | None = None

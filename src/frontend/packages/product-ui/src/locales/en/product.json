@@ -19,6 +19,31 @@
         "guidance": "The connection ended before Animama confirmed completion. Check your connection before sending again.",
         "title": "The reply was interrupted."
       },
+      "chatgpt_plan_not_eligible": {
+        "guidance": "Check your plan's usage in ChatGPT, or choose another model.",
+        "title": "Your ChatGPT plan doesn't include this."
+      },
+      "chatgpt_plan_sign_in_required": {
+        "guidance": "The ChatGPT plan session ended. Sign in again in $t(chatFailure.settingsPath).",
+        "title": "Sign in with ChatGPT again."
+      },
+      "chatgpt_plan_unavailable": {
+        "guidance": "Try again in a moment, or choose another model.",
+        "title": "ChatGPT plan usage is unavailable right now."
+      },
+      "chatgpt_plan_unsupported_request": {
+        "guidance": "Choose another model for this chat.",
+        "guidanceDetail": "OpenAI said: “{{detail}}” Choose another model for this chat.",
+        "title": "The ChatGPT plan couldn't take this request."
+      },
+      "chatgpt_plan_usage_limit": {
+        "guidance": "Send again after OpenAI resets your limit, or choose another model. Review your usage on OpenAI's page.",
+        "title": "You've reached your ChatGPT plan's usage limit."
+      },
+      "chatgpt_plan_use_not_granted": {
+        "guidance": "Enable plan use in $t(chatFailure.settingsPath), or choose another model.",
+        "title": "ChatGPT plan use is off."
+      },
       "connection_base_url_missing": {
         "guidance": "Set its base URL in $t(chatFailure.settingsPath), then send your message again.",
         "title": "{{name}} has no server address."
@@ -124,6 +149,7 @@
         "title": "Your Animama trial is complete."
       }
     },
+    "manageUsage": "Manage usage",
     "network": {
       "guidance": "Check your connection and whether the installation is running, then try again.",
       "title": "Animama couldn't connect to its service."

@@ -233,6 +233,10 @@ describe("local development proxy", () => {
         "/redoc",
         "/openapi.json",
         "/api/auth/sign-in",
+        "/auth",
+        "/auth/other",
+        "/auth/callback/x",
+        "/%61uth/callback",
         "/api/unknown",
         "/api/telemetry/unknown",
         "/%76%31/chats",
@@ -245,6 +249,16 @@ describe("local development proxy", () => {
       }
       expect(stack.observed).toHaveLength(0);
       expect((await request(stack.port, "/health")).status).toBe(200);
+      // The ChatGPT sign-in return arrives at 127.0.0.1, which Vite's host check
+      // accepts. It reaches FastAPI with its Host and query untouched; the
+      // stand-in refuses that Host, while FastAPI admits it by its own rule.
+      await request(stack.port, "/auth/callback?code=c&state=s", "GET", {
+        Host: `127.0.0.1:${stack.port}`,
+      });
+      expect(stack.observed.at(-1)).toMatchObject({
+        path: "/auth/callback?code=c&state=s",
+        headers: { host: `127.0.0.1:${stack.port}` },
+      });
       expect(
         (
           await request(
@@ -262,6 +276,7 @@ describe("local development proxy", () => {
       ).toBe(200);
       expect(stack.observed.map(({ path }) => path)).toEqual([
         "/health",
+        "/auth/callback?code=c&state=s",
         "/api/telemetry/logs",
       ]);
     } finally {

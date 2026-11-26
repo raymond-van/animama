@@ -1,12 +1,13 @@
 ; Animama's additions to electron-builder's per-user NSIS installer.
 
-; Animama needs Windows 11 (build 22000) or later. A silent run exits with
+; Animama needs Windows 10 version 1903 (build 18362) or later, the same floor
+; as the app's startup check and the staged runtime. A silent run exits with
 ; ERROR_OLD_WIN_VERSION (1150) instead of showing the message.
 !macro customInit
   ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows NT\CurrentVersion" "CurrentBuildNumber"
-  ${If} $0 < 22000
+  ${If} $0 < 18362
     ${IfNot} ${Silent}
-      MessageBox MB_OK|MB_ICONSTOP "Animama requires Windows 11 or later."
+      MessageBox MB_OK|MB_ICONSTOP "Animama requires Windows 10 version 1903 or later."
     ${EndIf}
     SetErrorLevel 1150
     Quit

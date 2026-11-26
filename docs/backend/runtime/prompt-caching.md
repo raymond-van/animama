@@ -91,8 +91,10 @@ The guardrails appear once per turn, at the end of the stable instructions
 | OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context, when there is any), user item |
 | Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context, when there is any) |
 
-On Responses the chain lives in OpenAI server state (`previous_response_id`,
-`store: true`). With a cursor, a request sends only the new items. Each turn's
+On Responses with an API key the chain lives in OpenAI server state
+(`previous_response_id`, `store: true`). With a cursor, a request sends only the
+new items. A ChatGPT plan model stores nothing, so every request replays the
+history in the same order, with `prompt_cache_key` still sent. Each turn's
 context item stays in the stored chain until native compaction runs at
 `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default 90,000).
 Requests without a cursor send history before the new items. These are the

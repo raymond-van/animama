@@ -125,6 +125,7 @@ vi.mock("@/ui/components/tooltip", () => {
 const EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"];
 const LUNA = "OpenAIResponsesHTTPAgent:gpt-6-luna";
 const HAIKU = "AnthropicMessagesHTTPAgent:claude-haiku-5-5";
+const PLAN = "ChatGPTPlanResponsesHTTPAgent:gpt-5.6-luna";
 
 const catalogRow = (
   id: string,
@@ -161,6 +162,15 @@ const haiku = catalogRow(HAIKU, {
   logo_provider: "anthropic",
   api_standard: "anthropic_messages",
   default_reasoning_effort: "medium",
+});
+
+const planLuna = catalogRow(PLAN, {
+  model_provider: "ChatGPTPlanResponsesHTTPAgent",
+  connection_id: "chatgpt_plan",
+  connection_name: "ChatGPT plan",
+  logo_provider: "openai",
+  api_standard: "responses",
+  default_reasoning_effort: null,
 });
 
 let root: Root | null = null;
@@ -290,6 +300,42 @@ beforeEach(() => {
 });
 
 afterEach(unmountPicker);
+
+describe("ChatGPT plan models in the picker", () => {
+  const headings = () =>
+    [...popover().querySelectorAll("[cmdk-group-heading]")].map(
+      (heading) => heading.textContent,
+    );
+
+  it("ends the open picker with the plan notice while a plan model is selected", async () => {
+    fixture.catalog = [{ ...luna, connection_id: "openai" }, haiku, planLuna];
+    await renderPicker(PLAN);
+    expect(popover().textContent).toContain("Using ChatGPT plan");
+
+    await click(button("Select model"));
+    // OpenAI's two ways sit side by side, plan first, and each row says which.
+    expect(headings()).toEqual([
+      "OpenAI · ChatGPT plan",
+      "OpenAI · API key",
+      "Anthropic",
+    ]);
+    expect(row("gpt-6-luna").textContent).toContain("API key");
+    expect(popover().textContent).toContain("Using ChatGPT plan");
+
+    await click(button("Back to model and reasoning"));
+    await click(button("Chat features"));
+    expect(popover().textContent).not.toContain("Using ChatGPT plan");
+  });
+
+  it("shows no notice and one OpenAI group without plan models", async () => {
+    fixture.catalog = [{ ...luna, connection_id: "openai" }, haiku];
+    await renderPicker(LUNA);
+    expect(popover().textContent).not.toContain("Using ChatGPT plan");
+    await click(button("Select model"));
+    expect(headings()).toEqual(["OpenAI", "Anthropic"]);
+    expect(popover().textContent).not.toContain("API key");
+  });
+});
 
 describe("chat model picker settings", () => {
   it("keeps the composer logo-only and removes fast and reset controls", async () => {

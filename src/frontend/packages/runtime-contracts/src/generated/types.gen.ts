@@ -3690,7 +3690,7 @@ export type PyAutomaticEpisodeProcessingStatus = {
     /**
      * State
      */
-    state: 'off' | 'memory_off' | 'needs_model' | 'running' | 'paused' | 'backing_off' | 'waiting' | 'ready';
+    state: 'off' | 'memory_off' | 'needs_model' | 'needs_plan_agreement' | 'needs_plan_sign_in' | 'plan_paused' | 'running' | 'paused' | 'backing_off' | 'waiting' | 'ready';
     /**
      * Threshold
      */
@@ -4254,6 +4254,116 @@ export type PyChatCreate = {
      * Title
      */
     title?: string | null;
+};
+
+/**
+ * PyChatGPTPlanModels
+ *
+ * The plan's model rows after a refresh: their ids, active and listed by OpenAI for this account.
+ */
+export type PyChatGptPlanModels = {
+    /**
+     * Model Provider Ids
+     */
+    model_provider_ids: Array<string>;
+};
+
+/**
+ * PyChatGPTPlanPreferences
+ */
+export type PyChatGptPlanPreferences = {
+    /**
+     * Background Agreed
+     */
+    background_agreed?: boolean | null;
+    /**
+     * Confirmed
+     */
+    confirmed?: boolean;
+};
+
+/**
+ * PyChatGPTPlanSignIn
+ */
+export type PyChatGptPlanSignIn = {
+    /**
+     * Authorize Url
+     */
+    authorize_url: string;
+};
+
+/**
+ * PyChatGPTPlanSignInRequest
+ */
+export type PyChatGptPlanSignInRequest = {
+    /**
+     * Enable Plan Use
+     */
+    enable_plan_use?: boolean;
+    /**
+     * Ui Locale
+     */
+    ui_locale?: 'en' | 'ja' | 'ko' | 'zh-Hans' | 'zh-Hant' | null;
+};
+
+/**
+ * PyChatGPTPlanSignOut
+ */
+export type PyChatGptPlanSignOut = {
+    /**
+     * Confirmed
+     */
+    confirmed: boolean;
+    /**
+     * Was Signed In
+     */
+    was_signed_in: boolean;
+};
+
+/**
+ * PyChatGPTPlanStatus
+ */
+export type PyChatGptPlanStatus = {
+    /**
+     * Background Agreed
+     */
+    background_agreed: boolean;
+    /**
+     * Confirmation Due
+     */
+    confirmation_due: boolean;
+    /**
+     * Email
+     */
+    email?: string | null;
+    /**
+     * Failure
+     */
+    failure?: string | null;
+    /**
+     * Paused
+     */
+    paused: boolean;
+    /**
+     * Plan Use Granted
+     */
+    plan_use_granted: boolean;
+    /**
+     * Sign In Available
+     */
+    sign_in_available: boolean;
+    /**
+     * Sign In Pending
+     */
+    sign_in_pending: boolean;
+    /**
+     * State
+     */
+    state: 'signed_out' | 'signed_in' | 'sign_in_required';
+    /**
+     * Unavailable Reason
+     */
+    unavailable_reason?: 'remote_origin' | 'secure_storage_unavailable' | null;
 };
 
 /**
@@ -9822,6 +9932,10 @@ export type RuntimeCapabilities = {
      * Chat File Uploads
      */
     chat_file_uploads: boolean;
+    /**
+     * Chatgpt Plan
+     */
+    chatgpt_plan?: boolean;
     companion_safety: CompanionSafetyCapability;
     gemini_tts?: GeminiTtsCapability | null;
     /**
@@ -12065,6 +12179,120 @@ export type UpdateAvatarV1AvatarsAvatarIdPatchResponses = {
 };
 
 export type UpdateAvatarV1AvatarsAvatarIdPatchResponse = UpdateAvatarV1AvatarsAvatarIdPatchResponses[keyof UpdateAvatarV1AvatarsAvatarIdPatchResponses];
+
+export type GetChatgptPlanV1ChatgptPlanGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/chatgpt-plan';
+};
+
+export type GetChatgptPlanV1ChatgptPlanGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyChatGptPlanStatus;
+};
+
+export type GetChatgptPlanV1ChatgptPlanGetResponse = GetChatgptPlanV1ChatgptPlanGetResponses[keyof GetChatgptPlanV1ChatgptPlanGetResponses];
+
+export type RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/chatgpt-plan/models:refresh';
+};
+
+export type RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyChatGptPlanModels;
+};
+
+export type RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponse = RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponses[keyof RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponses];
+
+export type UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutData = {
+    body: PyChatGptPlanPreferences;
+    path?: never;
+    query?: never;
+    url: '/v1/chatgpt-plan/preferences';
+};
+
+export type UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutError = UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutErrors[keyof UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutErrors];
+
+export type UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyChatGptPlanStatus;
+};
+
+export type UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutResponse = UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutResponses[keyof UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutResponses];
+
+export type CancelChatgptPlanSignInV1ChatgptPlanSignInDeleteData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/chatgpt-plan/sign-in';
+};
+
+export type CancelChatgptPlanSignInV1ChatgptPlanSignInDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type CancelChatgptPlanSignInV1ChatgptPlanSignInDeleteResponse = CancelChatgptPlanSignInV1ChatgptPlanSignInDeleteResponses[keyof CancelChatgptPlanSignInV1ChatgptPlanSignInDeleteResponses];
+
+export type BeginChatgptPlanSignInV1ChatgptPlanSignInPostData = {
+    body: PyChatGptPlanSignInRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/chatgpt-plan/sign-in';
+};
+
+export type BeginChatgptPlanSignInV1ChatgptPlanSignInPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BeginChatgptPlanSignInV1ChatgptPlanSignInPostError = BeginChatgptPlanSignInV1ChatgptPlanSignInPostErrors[keyof BeginChatgptPlanSignInV1ChatgptPlanSignInPostErrors];
+
+export type BeginChatgptPlanSignInV1ChatgptPlanSignInPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyChatGptPlanSignIn;
+};
+
+export type BeginChatgptPlanSignInV1ChatgptPlanSignInPostResponse = BeginChatgptPlanSignInV1ChatgptPlanSignInPostResponses[keyof BeginChatgptPlanSignInV1ChatgptPlanSignInPostResponses];
+
+export type SignOutOfChatgptPlanV1ChatgptPlanSignOutPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/chatgpt-plan:sign-out';
+};
+
+export type SignOutOfChatgptPlanV1ChatgptPlanSignOutPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyChatGptPlanSignOut;
+};
+
+export type SignOutOfChatgptPlanV1ChatgptPlanSignOutPostResponse = SignOutOfChatgptPlanV1ChatgptPlanSignOutPostResponses[keyof SignOutOfChatgptPlanV1ChatgptPlanSignOutPostResponses];
 
 export type ListChatsV1ChatsGetData = {
     body?: never;

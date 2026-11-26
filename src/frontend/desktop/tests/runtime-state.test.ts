@@ -172,6 +172,45 @@ describe("private local state and vault", () => {
     ).not.toBe(password);
   });
 
+  it("keeps the ChatGPT plan session key apart from status and child environments", async () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    const vault = await CredentialVault.open(file, crypto, false);
+    const key = await vault.chatgptPlanStoreKey();
+    expect(key).toMatch(/^[a-f0-9]{64}$/u);
+    expect(await vault.chatgptPlanStoreKey()).toBe(key);
+    expect(readFileSync(file).includes(Buffer.from(key))).toBe(false);
+    expect(vault.secrets()).toContain(key);
+    expect(JSON.stringify(vault.list())).not.toContain(key);
+    expect(JSON.stringify(vault.childEnvironment())).not.toContain(key);
+    const restarted = await CredentialVault.open(file, crypto, true);
+    expect(await restarted.chatgptPlanStoreKey()).toBe(key);
+    // Two first uses at once create one key: the second write sees the first's.
+    const fresh = await CredentialVault.open(
+      path.join(fixture(), "vault.bin"),
+      crypto,
+      false,
+    );
+    const [one, two] = await Promise.all([
+      fresh.chatgptPlanStoreKey(),
+      fresh.chatgptPlanStoreKey(),
+    ]);
+    expect(one).toBe(two);
+
+    // A stored key that is not 32 bytes of hex makes the vault unreadable, not silently replaced.
+    const stored = JSON.parse(crypto.unseal(readFileSync(file)));
+    writeFileSync(
+      file,
+      crypto.seal(JSON.stringify({ ...stored, chatgptPlanStoreKey: "short" })),
+      { mode: 0o600 },
+    );
+    await expect(
+      CredentialVault.open(file, crypto, true),
+    ).rejects.toMatchObject({
+      code: "vault_unreadable",
+    });
+  });
+
   it("opens a vault in the layout Electron 44 builds saved", async () => {
     const file = path.join(fixture(), "vault.bin");
     const crypto = encryption();
@@ -1123,11 +1162,17 @@ describe("runtime platform support boundary", () => {
     expect(supportsRuntimePlatform("darwin", "x64", "24.0.0")).toBe(false);
   });
 
-  it("admits Windows 11 x64 builds only, by build number", () => {
-    // Node reports Windows as 10.0.<build>; Windows 11 starts at build 22000.
-    expect(supportsRuntimePlatform("win32", "x64", "10.0.22000")).toBe(true);
-    expect(supportsRuntimePlatform("win32", "x64", "10.0.26200")).toBe(true);
-    for (const release of ["10.0.19045", "10.0.21999", "6.3.9600", "10.0", ""])
+  it("admits Windows 10 version 1903 and newer on x64, by build number", () => {
+    // Node reports Windows 10 and 11 as 10.0.<build>; version 1903 is build
+    // 18362, 22H2 is 19045 and Windows 11 starts at 22000.
+    for (const release of [
+      "10.0.18362",
+      "10.0.19045",
+      "10.0.22000",
+      "10.0.26200",
+    ])
+      expect(supportsRuntimePlatform("win32", "x64", release)).toBe(true);
+    for (const release of ["10.0.18361", "10.0.17763", "6.3.9600", "10.0", ""])
       expect(supportsRuntimePlatform("win32", "x64", release)).toBe(false);
     expect(supportsRuntimePlatform("win32", "arm64", "10.0.26200")).toBe(false);
     expect(supportsRuntimePlatform("linux", "x64", "6.18.0")).toBe(false);
@@ -1139,13 +1184,13 @@ describe("runtime platform support boundary", () => {
       executableSuffix: "",
     });
     expect(runtimePlatform("win32")).toEqual({
-      minimumOs: "10.0.22000",
+      minimumOs: "10.0.18362",
       executableSuffix: ".exe",
     });
   });
 });
 
-// Runs on each supported host: macOS on Apple silicon and Windows 11 x64.
+// Runs on each supported host: macOS on Apple silicon and Windows x64.
 describe.skipIf(
   !supportsRuntimePlatform(process.platform, process.arch, release()),
 )("runtime manifest custody", () => {

@@ -34,6 +34,15 @@ describe("automatic episode processing setting", () => {
       /Memory Manager model/,
     );
     expect(
+      automaticProcessingDescription(t, status("needs_plan_agreement")),
+    ).toMatch(/ChatGPT plan/);
+    expect(automaticProcessingDescription(t, status("plan_paused"))).toMatch(
+      /usage limit/,
+    );
+    expect(
+      automaticProcessingDescription(t, status("needs_plan_sign_in")),
+    ).toMatch(/Sign in with ChatGPT/);
+    expect(
       automaticProcessingDescription(
         t,
         status("paused", { last_error: "Model refused." }),

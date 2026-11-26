@@ -88,6 +88,13 @@ vi.mock("@/query/hooks/useModelConfiguration", () => ({
       : { isSuccess: false, isError: false, error: null },
   useOpenRouterModels: () => ({ isSuccess: false, isError: false }),
 }));
+vi.mock("@/query/mutations/useChatGPTPlan", () => ({
+  useRefreshChatGPTPlanModels: idle,
+}));
+// The account card has its own tests; here it only marks where it sits.
+vi.mock("./ChatGPTPlanCard", () => ({
+  ChatGPTPlanCard: () => <p>Account card</p>,
+}));
 vi.mock("@/query/mutations/useModelConfiguration", () => ({
   useAddOwnerModel: idle,
   useCreateModelConnection: idle,
@@ -540,6 +547,84 @@ describe("Models connections by where models run", () => {
     expect(html).toContain('aria-label="Details for gpt-6-luna (alternate)"');
     expect(html.match(/\(alternate\)/gu)).toHaveLength(2);
     expect(text(html)).not.toMatch(/\b(Responses|Completions)\b/u);
+  });
+
+  it("lists a usable ChatGPT plan's models under its account card, read-only", () => {
+    state.capabilities = { ...state.capabilities, chatgpt_plan: true };
+    const plan = connection("chatgpt_plan", {
+      name: "ChatGPT plan",
+      preset: "chatgpt_plan",
+      source: "builtin",
+      credential_state: "configured",
+      logo_provider: "openai",
+      models: [
+        model(
+          "ChatGPTPlanResponsesHTTPAgent:gpt-6-luna",
+          {
+            connection_id: "chatgpt_plan",
+            model: "gpt-6-luna",
+            model_label: "GPT-6 Luna",
+            source: "builtin",
+            provider_type: "ChatGPTPlanResponsesHTTPAgent",
+            context_window_tokens: 272000,
+          },
+          { accepts: ["text", "image"], native_tool_support: ["web_search"] },
+        ),
+        model("ChatGPTPlanResponsesHTTPAgent:gpt-5.6-terra", {
+          connection_id: "chatgpt_plan",
+          source: "builtin",
+          provider_type: "ChatGPTPlanResponsesHTTPAgent",
+          hidden: true,
+        }),
+      ],
+    });
+    state.connections = [...state.connections, plan];
+
+    // The plan has no tab of its own: it is the other way to use OpenAI's
+    // models, so OpenAI's tab shows it above the API key.
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    expect(html).not.toContain("-content-chatgpt-plan");
+    const signedIn = panel(html, "openai");
+    expectInOrder(signedIn, [
+      "through your ChatGPT plan or with an API key",
+      "Account card",
+      "Models in your plan",
+      "GPT-6 Luna",
+      "272K",
+      "Built-in search",
+      "Show 1 hidden model",
+      "Refresh list",
+      "Use an API key",
+      "Pay OpenAI per request",
+    ]);
+    // OpenAI decides which models the plan has: no adding or removing there.
+    const planSection = signedIn.slice(0, signedIn.indexOf("Use an API key"));
+    expect(planSection).not.toContain("Add model");
+    // The plan's connection never shows as a key card of its own.
+    expect(signedIn.match(/Use an API key/gu)).toHaveLength(1);
+
+    // Where the runtime does not offer the plan, OpenAI's tab is the key alone.
+    state.capabilities = { ...state.capabilities, chatgpt_plan: false };
+    const keyOnly = panel(
+      render(<ModelConnectionsSettings disabled={false} />),
+      "openai",
+    );
+    expect(keyOnly).toContain("models using your API key.");
+    expect(keyOnly).not.toContain("Account card");
+    expect(keyOnly).not.toContain("Use an API key");
+    expect(keyOnly).not.toContain("Models in your plan");
+    state.capabilities = { ...state.capabilities, chatgpt_plan: true };
+
+    state.connections = [
+      ...state.connections.slice(0, -1),
+      { ...plan, credential_state: "missing" },
+    ];
+    const signedOut = panel(
+      render(<ModelConnectionsSettings disabled={false} />),
+      "openai",
+    );
+    expect(signedOut).toContain("Account card");
+    expect(signedOut).not.toContain("Models in your plan");
   });
 
   it("renders nothing in the hosted composition", () => {

@@ -58,6 +58,7 @@ import {
   runsElevated,
   useProcessGuard,
 } from "./processes.js";
+import { writeLog } from "../logging.js";
 import { runtimeRedactor } from "./redaction.js";
 import {
   CredentialVault,
@@ -106,6 +107,8 @@ export class RuntimeSupervisor {
   private backendOrigin?: URL;
   private renderersQuiesced = false;
   private vault?: CredentialVault;
+  /** The ChatGPT plan session file's key; undefined when the vault could not create one. */
+  private chatgptPlanStoreKey?: string;
   // Main owns these bounded status entries (providers, the vault's connection
   // keys and at most 32 unsaved connection failures); product windows can be
   // replaced.
@@ -231,6 +234,10 @@ export class RuntimeSupervisor {
       // Offline speech sets install, verify and serve through the backend's
       // own model-asset store, so a speech download never restarts the backend.
       ANIMAMA_PARAKEET_SOURCE: "asset-store",
+      // Encrypts the ChatGPT plan session file (D2); the backend removes it from its environment.
+      ...(this.chatgptPlanStoreKey
+        ? { ANIMAMA_CHATGPT_PLAN_STORE_KEY: this.chatgptPlanStoreKey }
+        : {}),
     };
   }
   private async databaseCommand(operation: string): Promise<DatabaseState> {
@@ -313,6 +320,16 @@ export class RuntimeSupervisor {
           this.options.encryption,
           hasDatabaseData(this.options.paths),
         );
+        try {
+          this.chatgptPlanStoreKey ??= await this.vault.chatgptPlanStoreKey();
+        } catch (error) {
+          // Only ChatGPT plan sign-in needs the key; the backend reports it unavailable.
+          writeLog(
+            "error",
+            `chatgpt_plan_store_key_unavailable: ${runtimeErrorCode(error)}`,
+          );
+          this.chatgptPlanStoreKey = undefined;
+        }
         runtimeRedactor.add(
           this.vault.databasePassword(),
           ...this.vault.secrets(),

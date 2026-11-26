@@ -60,7 +60,7 @@ a = Analysis(
 # Editable-install metadata is a build-machine locator, not a runtime resource.
 a.datas = [entry for entry in a.datas if Path(entry[0]).name != "direct_url.json"]
 if sys.platform == "win32":
-    # Windows 11 provides the Universal CRT; its forwarder copies add nothing.
+    # Windows 10 and later provide the Universal CRT; its forwarder copies add nothing.
     a.binaries = [
         entry
         for entry in a.binaries

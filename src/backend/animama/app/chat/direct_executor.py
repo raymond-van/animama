@@ -92,11 +92,11 @@ from .direct_turn.model_stream import DirectTurnModelStreamCollector, RunStatusO
 from .direct_turn.provider_state import (
     build_memory_tool_config,
     build_model_client_provider_options,
-    chat_completions_disallows_reasoning_with_function_tools,
     compiled_context_history,
     memory_tool_config_for_model,
     native_memory_apply_patch_enabled,
     openai_responses_continuation_from_chat,
+    reasoning_effort_blocks_function_tools,
     should_skip_context_fetch_for_responses_cursor,
     turn_memory_context_manifest,
     turn_reasoning_effort,
@@ -1059,9 +1059,7 @@ class DirectChatTurnExecutor:
             reason = "model_without_tools"
         elif model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER:
             reason = "provider_without_function_tools"
-        elif request.options.reasoning_effort and chat_completions_disallows_reasoning_with_function_tools(
-            model_provider
-        ):
+        elif reasoning_effort_blocks_function_tools(model_provider, request.options.reasoning_effort):
             reason = "reasoning_with_function_tools"
         if reason is None:
             return True

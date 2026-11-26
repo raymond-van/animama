@@ -6,6 +6,7 @@ import {
 } from "../humanoidBoneRepair";
 import { LILTOON_MATERIALS_EXTENSION } from "../liltoon/lilToon";
 import { resolveMeshTargetNames } from "../primitiveTargetNames";
+import { takesUnlitToonShading } from "../unlitToonShading";
 import { unloadableGltfExtensions } from "./avatarGltfExtensions";
 import type { AvatarIssue } from "./issues";
 
@@ -52,6 +53,12 @@ export type AvatarFileFacts = {
   humanoidBones: { remapped: number; unweighted: number } | null;
   materialCount: number;
   materialKinds: Record<AvatarMaterialKind, number>;
+  /**
+   * Whether every material ignores light and toon shading would change at
+   * least one (`takesUnlitToonShading`), so Animama toon-shades the file
+   * unless the Materials setting is Simple.
+   */
+  unlitOnly: boolean;
   textures: AvatarTextureFacts[];
 };
 
@@ -383,6 +390,7 @@ export function readAvatarFileFacts(
     humanoidBones: readHumanoidBones(json, bin),
     materialCount: asArray(json.materials).length,
     materialKinds: readMaterialKinds(json),
+    unlitOnly: takesUnlitToonShading(json),
     textures: readTextures(json, bin),
   };
 }
@@ -392,8 +400,8 @@ export function readAvatarFileFacts(
  * each glTF extension it needs that the runtime cannot load (the load then
  * fails rather than drawing the file without it), meshes whose morph
  * targets load unnamed because their per-primitive names disagree with each
- * other or with the targets, and humanoid bones that name bones moving
- * nothing, whether the loader repairs them or not.
+ * other or with the targets, humanoid bones that name bones moving nothing,
+ * whether the loader repairs them or not, and materials that all ignore light.
  */
 export function avatarFileIssues(facts: AvatarFileFacts | null): AvatarIssue[] {
   if (!facts) return [{ code: "file_unreadable" }];
@@ -418,5 +426,6 @@ export function avatarFileIssues(facts: AvatarFileFacts | null): AvatarIssue[] {
       code: "humanoid_bones_unweighted",
       params: { count: facts.humanoidBones.unweighted },
     });
+  if (facts.unlitOnly) issues.push({ code: "materials_unlit" });
   return issues;
 }

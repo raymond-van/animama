@@ -1,8 +1,9 @@
 """Model connections: the endpoint and credential boundary for model rows.
 
 A model connection names one model server: the built-in OpenAI API, the
-built-in Anthropic Messages API, or an owner-configured OpenAI-compatible Chat
-Completions endpoint such as Ollama. Every catalog row belongs to exactly one
+built-in Anthropic Messages API, OpenAI's API through a ChatGPT plan sign-in
+(the built-in ``chatgpt_plan`` connection), or an owner-configured
+OpenAI-compatible Chat Completions endpoint such as Ollama. Every catalog row belongs to exactly one
 connection, and requests for that row go only to the connection's endpoint with
 only the connection's credential.
 """
@@ -16,7 +17,11 @@ from typing import Any
 
 BUILTIN_OPENAI_CONNECTION_ID = "openai"
 BUILTIN_ANTHROPIC_CONNECTION_ID = "anthropic"
-BUILTIN_CONNECTION_IDS = frozenset({BUILTIN_OPENAI_CONNECTION_ID, BUILTIN_ANTHROPIC_CONNECTION_ID})
+BUILTIN_CHATGPT_PLAN_CONNECTION_ID = "chatgpt_plan"
+"""A ChatGPT plan sign-in (spec #919): its models are listed from the signed-in account, not the catalog."""
+BUILTIN_CONNECTION_IDS = frozenset(
+    {BUILTIN_OPENAI_CONNECTION_ID, BUILTIN_ANTHROPIC_CONNECTION_ID, BUILTIN_CHATGPT_PLAN_CONNECTION_ID}
+)
 """Release-managed connections. Owner connection ids are generated and never collide with these."""
 
 MODEL_SOURCE_BUILTIN = "builtin"
@@ -122,9 +127,14 @@ class ModelConnection:
     def is_builtin_anthropic(self) -> bool:
         return self.id == BUILTIN_ANTHROPIC_CONNECTION_ID
 
+    @property
+    def is_builtin_chatgpt_plan(self) -> bool:
+        return self.id == BUILTIN_CHATGPT_PLAN_CONNECTION_ID
+
 
 __all__ = [
     "BUILTIN_ANTHROPIC_CONNECTION_ID",
+    "BUILTIN_CHATGPT_PLAN_CONNECTION_ID",
     "BUILTIN_CONNECTION_IDS",
     "BUILTIN_OPENAI_CONNECTION_ID",
     "MODEL_KINDS",

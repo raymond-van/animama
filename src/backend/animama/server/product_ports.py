@@ -61,6 +61,7 @@ from animama.product_http.ports import (
     ProductUploads,
     model_role_resolver,
 )
+from animama.server.chatgpt_plan import chatgpt_plan_session_for
 from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.config import Settings
 from animama.server.deps import get_async_session_factory
@@ -375,4 +376,5 @@ class LocalProductPorts:
             principal.id,
             roles=model_role_resolver(self, self.repositories(session)),
             runtime_settings=runtime_settings_for(self._app),
+            chatgpt_plan_session=lambda: chatgpt_plan_session_for(self._app),
         )

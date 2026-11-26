@@ -97,7 +97,7 @@ final release turns downloads off. The developer store is a build/setup input, n
 installed application's model store.
 
 Native Windows model-store tests can be run with
-`uv run --no-project --with pytest==8.4.2 python -m pytest --noconftest -o addopts= tests/test_model_store.py -q`.
+`uv run --no-project --with pytest==9.2.0 python -m pytest --noconftest -o addopts= tests/test_model_store.py -q`.
 This tests model tooling without installing the backend dependency graph.
 The single hosted Validation job runs on Linux; native Windows execution is a
 separate validation step and is not established by that job. Native Windows

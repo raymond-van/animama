@@ -190,7 +190,7 @@ beforeEach(() => {
       files: [{ role: "model", filename: "m.vrm", sha256: "sha-7" }],
     },
   }));
-  useAvatarFileTraitsStore.setState({ lilToonBySha256: {} });
+  useAvatarFileTraitsStore.setState({ materialsBySha256: {} });
   vi.stubGlobal(
     "fetch",
     vi.fn(
@@ -225,15 +225,40 @@ describe("Library Avatar settings", () => {
       "item-7",
       expect.any(AbortSignal),
     );
-    expect(useAvatarFileTraitsStore.getState().lilToonBySha256).toEqual({
-      "sha-7": true,
+    expect(useAvatarFileTraitsStore.getState().materialsBySha256).toEqual({
+      "sha-7": "liltoon",
     });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(mocks.release).toHaveBeenCalled();
   });
 
+  it("offers Materials for a file whose materials all ignore light", async () => {
+    vi.mocked(fetch).mockImplementation(
+      async () =>
+        new Response(
+          glb({
+            asset: { version: "2.0" },
+            extensions: { VRMC_vrm: { specVersion: "1.0" } },
+            materials: [
+              {
+                pbrMetallicRoughness: { baseColorTexture: { index: 0 } },
+                extensions: { KHR_materials_unlit: {} },
+              },
+            ],
+          }),
+        ),
+    );
+    render();
+    await settle(() => select("Materials") !== null);
+    expect(useAvatarFileTraitsStore.getState().materialsBySha256).toEqual({
+      "sha-7": "unlit",
+    });
+  });
+
   it("does not read a file this session already knows", async () => {
-    useAvatarFileTraitsStore.setState({ lilToonBySha256: { "sha-7": false } });
+    useAvatarFileTraitsStore.setState({
+      materialsBySha256: { "sha-7": "other" },
+    });
     render();
     await settle(() => mocks.itemEntry.mock.calls.length > 0);
     await settle(() => select("Wind and ambient forces") !== null);

@@ -173,6 +173,26 @@ describe("avatarFileIssues", () => {
     }
   });
 
+  it("names a VRM 1.0 file whose materials all ignore light", () => {
+    const unlit = {
+      pbrMetallicRoughness: { baseColorTexture: { index: 0 } },
+      extensions: { KHR_materials_unlit: {} },
+    };
+    const vrm = { VRMC_vrm: { specVersion: "1.0" } };
+    const facts = readAvatarFileFacts(
+      glb({ extensions: vrm, materials: [unlit, unlit] }),
+    );
+    expect(facts?.unlitOnly).toBe(true);
+    expect(avatarFileIssues(facts)).toEqual([{ code: "materials_unlit" }]);
+
+    // One lit material means the unlit ones are deliberate.
+    const mixed = readAvatarFileFacts(
+      glb({ extensions: vrm, materials: [unlit, {}] }),
+    );
+    expect(mixed?.unlitOnly).toBe(false);
+    expect(avatarFileIssues(mixed)).toEqual([]);
+  });
+
   it("names a required Draco extension before any load", () => {
     const facts = readAvatarFileFacts(
       glb({

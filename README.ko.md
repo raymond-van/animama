@@ -31,9 +31,10 @@ Animama는 매력적이고 표정이 풍부한 컴패니언을 화면 한쪽에 
 
 ### 앱
 
-- **[프라이버시와 셀프 호스팅](https://docs.animama.ai/ko/self-host):** 자신의 API 키나 로컬
-  모델(Ollama, LM Studio, llama.cpp, vLLM)로 내 컴퓨터에서 실행됩니다. 셀프
-  호스팅해 브라우저에서 쓰거나 데스크톱 앱을 직접 빌드할 수 있습니다.
+- **[프라이버시와 셀프 호스팅](https://docs.animama.ai/ko/self-host):** ChatGPT 플랜, 자신의
+  API 키나 로컬 모델(Ollama, LM Studio, llama.cpp, vLLM)로 내 컴퓨터에서
+  실행됩니다. 셀프 호스팅해 브라우저에서 쓰거나 데스크톱 앱을 직접 빌드할 수
+  있습니다.
 - **[나만의 Anima로](https://docs.animama.ai/ko/animas):** Anima의 정체성, 기억, 행동을 마음에 들
   때까지 편집할 수 있습니다.
 - **[VRM 아바타](https://docs.animama.ai/ko/avatars):** VRM 0.x 또는 1.0 아바타라면 무엇이든 쓸 수
@@ -77,21 +78,26 @@ Windows에서는 Animama가 새로 나온 앱이라 SmartScreen에 "Windows의 P
 표시될 수 있습니다. **추가 정보**를 선택하고 게시자가 Raymond Van인지 확인한 뒤
 **실행**을 선택하세요.
 
-## AI 모델(BYOK)
+## AI 모델
 
-내 API 키를 쓰는 BYOK(Bring Your Own Key) 방식입니다. 처음 설정할 때나 **앱
-설정**에서 원하는 제공자의 API 키를 추가하세요. 키는 암호화되어 내 컴퓨터에
-저장됩니다.
+처음 설정할 때나 **앱 설정**에서 [ChatGPT 플랜](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)이나 내 API 키를 골라 쓰세요. 키는
+암호화되어 내 컴퓨터에 저장됩니다.
 
 ### [채팅](https://docs.animama.ai/ko/#setup)
 
-추천 모델은 비용이 낮아서 몇 달러어치 API 사용량으로도 오래 쓸 수 있습니다.
+| 제공자 | 연결 방법 | 모델 |
+| --- | --- | --- |
+| OpenAI | ChatGPT 플랜 | 플랜에 포함된 모델 |
+| OpenAI | API 키 | GPT-6 Luna(추천) |
+| Anthropic | API 키 | Claude Haiku 5.5(추천) |
+| OpenRouter 또는 기타 OpenAI 호환 엔드포인트 | API 키 | 자유롭게 선택 |
 
-| 제공자 | 모델 |
-| --- | --- |
-| OpenAI | GPT-6 Luna(추천) |
-| Anthropic | Claude Haiku 5.5(추천) |
-| OpenRouter 또는 기타 OpenAI 호환 엔드포인트 | 자유롭게 선택 |
+ChatGPT 플랜을 쓰려면 **ChatGPT로 계속하기**를 선택하고 OpenAI에서 로그인하세요.
+API 키는 필요 없고, 사용량은 플랜 한도에 포함됩니다.
+셀프 호스팅할 때는 Animama를 실행하는 컴퓨터의 브라우저에서 로그인하세요. 현재
+설치 파일에는 아직 들어 있지 않으며, 소스에서 셀프 호스팅하면 쓸 수 있습니다.
+
+추천 API 모델은 비용이 낮아서 몇 달러어치 API 사용량으로도 오래 쓸 수 있습니다.
 
 #### 로컬 모델
 
@@ -164,7 +170,8 @@ pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:win:installer
 ```
 
-설치 파일은 `src/frontend/desktop/release/`에 만들어집니다.
+설치 파일은 `src/frontend/desktop/release/`에 만들어집니다. Windows 10 22H2와
+Windows 11에 설치할 수 있습니다.
 
 </details>
 

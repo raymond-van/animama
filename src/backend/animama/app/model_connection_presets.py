@@ -32,6 +32,7 @@ DEEPSEEK_REASONING_EFFORTS = frozenset({"none", "high", "max"})
 
 PRESET_OPENAI = "openai"
 PRESET_ANTHROPIC = "anthropic"
+PRESET_CHATGPT_PLAN = "chatgpt_plan"
 PRESET_OLLAMA = "ollama"
 PRESET_LM_STUDIO = "lmstudio"
 PRESET_LLAMA_CPP = "llamacpp"
@@ -114,6 +115,17 @@ MODEL_CONNECTION_PRESETS: dict[str, ModelConnectionPreset] = {
             local=False,
             expects_key=True,
             compatibility=ANTHROPIC_CONNECTION_COMPATIBILITY,
+            timeout_seconds=CLOUD_TIMEOUT_SECONDS,
+            owner_selectable=False,
+        ),
+        # A sign-in, not a key: the session's token is the credential (spec #919).
+        ModelConnectionPreset(
+            id=PRESET_CHATGPT_PLAN,
+            label="ChatGPT plan",
+            logo_provider="openai",
+            local=False,
+            expects_key=False,
+            compatibility=ModelConnectionCompatibility(),
             timeout_seconds=CLOUD_TIMEOUT_SECONDS,
             owner_selectable=False,
         ),
@@ -236,6 +248,7 @@ __all__ = [
     "LOCAL_SERVER_TIMEOUT_SECONDS",
     "MODEL_CONNECTION_PRESETS",
     "PRESET_ANTHROPIC",
+    "PRESET_CHATGPT_PLAN",
     "PRESET_CUSTOM",
     "PRESET_DEEPSEEK",
     "PRESET_HUGGINGFACE",

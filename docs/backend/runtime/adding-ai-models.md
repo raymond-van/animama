@@ -39,7 +39,10 @@ Animama separates a selectable model row from the code that calls its provider:
 - A **model** is a provider-specific model ID such as `gpt-6-luna`.
 - A **model connection** (`model_connections`) is the endpoint and credential
   boundary a row belongs to: the built-in `openai` or `anthropic` connection,
-  or an owner connection with its own base URL, key variable, timeout and
+  the built-in `chatgpt_plan` connection (whose rows are listed from the
+  signed-in account, not added here; see
+  [ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)), or an
+  owner connection with its own base URL, key variable, timeout and
   compatibility options.
 - A **provider type** is a durable adapter-family identifier such as
   `OpenAIResponsesHTTPAgent`.

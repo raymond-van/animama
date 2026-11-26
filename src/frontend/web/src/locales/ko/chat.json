@@ -84,6 +84,9 @@
       "uploading": "업로드 중 {{percent}}",
       "imageDetails": "{{size}} · {{status}}"
     },
+    "chatgptPlan": {
+      "using": "ChatGPT 플랜 사용 중"
+    },
     "dictation": {
       "failed": "받아쓰기에 실패했습니다",
       "mute": "마이크 음소거",

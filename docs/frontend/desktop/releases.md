@@ -12,7 +12,7 @@ release will never check for updates, and
 the cut-off. Fresh matching artifacts, inventory review, minimum-OS/native
 acceptance and a real forward upgrade remain required for each release. Unit tests do not
 approve redistribution or publication.
-Windows 11 x64 has the same tooling: a signed candidate builder
+Windows x64 has the same tooling: a signed candidate builder
 ([Build a signed Windows candidate](#build-a-signed-windows-candidate)), guarded
 updates through its per-user installer, installed-artifact smoke and
 publication. Windows 0.1.6 was accepted by installing it over a used, signed
@@ -72,8 +72,9 @@ the Authenticode certificate subject and identity-validation EKU.
 - **macOS** downloads `Animama-<version>-arm64.zip`. Squirrel, Electron's
   native macOS installer, performs replacement signature verification only after
   explicit Restart and successful shutdown.
-- **Windows** downloads `Animama-<version>-x64-setup.exe` for build 22000 or
-  later. A feed asking for elevation is refused. The installer's Authenticode
+- **Windows** downloads `Animama-<version>-x64-setup.exe` when the system
+  meets the release's floor (see [the Windows feed](#the-windows-feed)). A
+  feed asking for elevation is refused. The installer's Authenticode
   signature must be `Valid` and carry the sealed subject and EKU, checked when
   the download completes and again just before it runs. After Restart stops the
   local services, the app starts the installer with `--updated` and quits; the
@@ -90,6 +91,30 @@ operations and expanded-content references. An update that would
 strand referenced expanded content is blocked. The required free space is two
 download archives, two installed app copies, twice the current PGDATA byte count,
 and a 256 MiB reserve. Existing data or packs are never assumed reclaimable.
+
+### The Windows feed
+
+`latest.yml` states a minimum system twice, and the two values differ on
+purpose:
+
+- `minimumSystemVersion` is always `10.0.22000`. Installed 0.1.6 apps reject a
+  feed that carries any other value, so it is frozen and no longer describes
+  the floor. Do not change it.
+- `animama.minimum_os` is the release's real floor, taken from the staged
+  runtime manifest: `10.0.18362` today. 0.1.6 ignores it. Later apps require
+  it and use it, in place of electron-updater's own check, to decide whether
+  an update is offered to this system.
+
+`tests/windows-release.test.mjs` passes every generated feed through 0.1.6's
+validation, kept unchanged in `tests/fixtures/update-policy-0.1.6.ts`, and
+through the current app.
+[ADR 0040](../../adr/0040-windows-update-feed-minimum-is-frozen.md) records
+the decision and its limits.
+
+The first Windows release after 0.1.6 also updates the Windows download row in
+`README.md`, `README.ja.md`, `README.ko.md` and `README.zh-Hans.md`, and the
+installation page's current-release text. Until then they describe 0.1.6,
+which requires Windows 11.
 
 ## Distribution selection
 
@@ -534,7 +559,8 @@ Test migration failure/recovery with a disposable profile, preserving its dump.
 Record the exact candidate DMG hash and an **older** signed test version in the
 acceptance receipt. Never downgrade a profile already opened by the new app.
 
-On a clean Windows 11 test machine, the Windows receipt
+On a clean Windows test machine (Windows 10 22H2 for minimum-OS acceptance),
+the Windows receipt
 (`ANIMAMA_WINDOWS_ACCEPTANCE`, from `windows-acceptance.example.json`) records:
 
 - avatar animation, PocketTTS, the microphone, PiP, quick chat, global
@@ -836,7 +862,7 @@ steps, each with its own approval:
 4. **Animama Cloud follow-ups.** Its landing download links, hosted privacy
    terms, operator dashboard download analytics and its copy of
    `included-content-attribution.txt` need the same change, and its next
-   repin admits `local-http` 24 and `runtime-contracts` 0.24.0.
+   repin admits `local-http` 25 and `runtime-contracts` 0.25.0.
 
 Before the cut-off, a revert restores updates and downloads for a new build;
 after it, reconnecting the custom domain restores service while the bucket

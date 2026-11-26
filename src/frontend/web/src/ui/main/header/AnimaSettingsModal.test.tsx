@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  rememberAvatarFileLilToon,
+  rememberAvatarFileMaterials,
   useAvatarFileTraitsStore,
 } from "@/lib/avatar/avatarSettings";
 import { AnimaSettingsModal } from "./AnimaSettingsModal";
@@ -107,6 +107,14 @@ function render() {
 const select = (label: string) =>
   container().querySelector(`[data-select="${label}"]`);
 
+/** The options of the setting whose select is labelled `label`. */
+function options(label: string): string[] {
+  const row = select(label)?.closest("div.rounded-lg");
+  return [...(row?.querySelectorAll<HTMLElement>("[data-option]") ?? [])].map(
+    (option) => option.dataset.option!,
+  );
+}
+
 /** Choose an option of the setting whose select is labelled `label`. */
 function choose(label: string, value: string) {
   const row = select(label)!.closest("div.rounded-lg")!;
@@ -120,7 +128,7 @@ beforeEach(() => {
   mocks.available = true;
   mocks.settings = undefined;
   mocks.mutate.mockReset();
-  useAvatarFileTraitsStore.setState({ lilToonBySha256: {} });
+  useAvatarFileTraitsStore.setState({ materialsBySha256: {} });
 });
 
 afterEach(() => {
@@ -151,16 +159,42 @@ describe("Anima settings: Avatar settings", () => {
     render();
     expect(select("Materials")).toBeNull();
 
-    act(() => rememberAvatarFileLilToon("sha-1", false));
+    act(() => rememberAvatarFileMaterials("sha-1", "other"));
     expect(select("Materials")).toBeNull();
 
-    act(() => rememberAvatarFileLilToon("sha-1", true));
+    act(() => rememberAvatarFileMaterials("sha-1", "liltoon"));
     expect(select("Materials")).not.toBeNull();
+    expect(options("Materials")).toEqual(["automatic", "liltoon", "simple"]);
     choose("Materials", "simple");
     expect(mocks.mutate).toHaveBeenLastCalledWith(
       { material_mode: "simple" },
       expect.anything(),
     );
+  });
+
+  it("offers Automatic and Simple for a file whose materials all ignore light", () => {
+    render();
+    act(() => rememberAvatarFileMaterials("sha-1", "unlit"));
+    expect(options("Materials")).toEqual(["automatic", "simple"]);
+    expect(container().textContent).toContain("toon shading");
+    choose("Materials", "simple");
+    expect(mocks.mutate).toHaveBeenLastCalledWith(
+      { material_mode: "simple" },
+      expect.anything(),
+    );
+  });
+
+  it("keeps a stored lilToon choice on an unlit file selectable", () => {
+    mocks.settings = {
+      item_id: "avatar-1",
+      spring_mode: "automatic",
+      spring_mode_source: "default",
+      material_mode: "liltoon",
+      material_mode_source: "stored",
+    };
+    render();
+    act(() => rememberAvatarFileMaterials("sha-1", "unlit"));
+    expect(options("Materials")).toEqual(["automatic", "liltoon", "simple"]);
   });
 
   it("keeps a stored material choice reachable before the file is known", () => {

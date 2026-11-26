@@ -19,6 +19,11 @@ OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE = "OpenAIHTTPAgent"
 OPENAI_RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent"
 ANTHROPIC_MESSAGES_PROVIDER_TYPE = "AnthropicMessagesHTTPAgent"
 """Anthropic's Messages API, served only by the built-in ``anthropic`` connection."""
+CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE = "ChatGPTPlanResponsesHTTPAgent"
+"""OpenAI's Responses API through a ChatGPT plan sign-in, served only by the ``chatgpt_plan`` connection.
+
+It shares the Responses transcript standard, so a chat moves between key and plan models (spec R3.6).
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +43,7 @@ def chat_api_standard_for_provider_type(provider_type: str) -> ChatApiStandardPr
             model_client=MODEL_CLIENT_OPENAI_CHAT_COMPLETIONS,
             api_standard=CHAT_API_STANDARD_CHAT_COMPLETIONS,
         )
-    if normalized == OPENAI_RESPONSES_PROVIDER_TYPE:
+    if normalized in (OPENAI_RESPONSES_PROVIDER_TYPE, CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE):
         return ChatApiStandardProfile(
             model_client=MODEL_CLIENT_OPENAI_RESPONSES,
             api_standard=CHAT_API_STANDARD_RESPONSES,

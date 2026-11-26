@@ -54,6 +54,8 @@ production readiness or publication rights.
 | 0036 | [Uploads are processed in the core server without Docling](0036-uploads-processed-in-core-server.md)                                               | accepted; partly supersedes 0010 and 0012                     |
 | 0037 | [Outside contributions are accepted under a contributor licence agreement](0037-outside-contributions-under-a-cla.md)                              | accepted                                                      |
 | 0038 | [Chat images are saved as references to one stored copy](0038-chat-images-saved-as-references.md)                                                  | accepted                                                      |
+| 0039 | [A ChatGPT plan sign-in is a model connection's credential](0039-chatgpt-plan-sign-in-and-connection.md)                                         | accepted                                                      |
+| 0040 | [The Windows update feed's minimum system version is frozen](0040-windows-update-feed-minimum-is-frozen.md)                                        | accepted                                                      |
 
 ## When and how to record a decision
 

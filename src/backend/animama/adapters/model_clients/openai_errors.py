@@ -24,6 +24,8 @@ _MAX_RETRY_AFTER_SECONDS = 2.0
 _MAX_PROVIDER_ERROR_MESSAGE_LENGTH = 512
 _BEARER_TOKEN_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+\-/=]+", re.IGNORECASE)
 _SECRET_TOKEN_RE = re.compile(r"\b(?:sk-[A-Za-z0-9_~+\-/=]+|hf_[A-Za-z0-9_~+\-/=]+)\b")
+# A JSON Web Token: the ChatGPT plan's access and ID tokens take this shape.
+_JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
 
 
 @dataclass(frozen=True, slots=True)
@@ -391,6 +393,10 @@ def _merge_provider_error_fields(metadata: dict[str, Any], payload: Any) -> None
                 metadata[target_key] = sanitize_provider_error_message(value)
             else:
                 metadata[target_key] = value.strip()
+        # Some routes refuse a request with only ``{"detail": "..."}`` (the ChatGPT plan's admission).
+        detail = candidate.get("detail")
+        if isinstance(detail, str) and detail.strip() and "provider_error_message" not in metadata:
+            metadata["provider_error_message"] = sanitize_provider_error_message(detail)
 
 
 def _error_field_values(metadata: Mapping[str, Any]) -> list[str]:
@@ -422,11 +428,12 @@ def _error_payload_candidates(payload: Any) -> list[Any]:
 
 
 def sanitize_provider_error_message(value: str) -> str:
-    """Trim a provider error message and redact bearer tokens and API-key shapes (OpenAI and Anthropic)."""
+    """Trim a provider error message and redact bearer tokens, API-key shapes (OpenAI and Anthropic) and JWTs."""
 
     text = value.strip()
     text = _BEARER_TOKEN_RE.sub("Bearer [redacted]", text)
     text = _SECRET_TOKEN_RE.sub("[redacted]", text)
+    text = _JWT_RE.sub("[redacted]", text)
     if len(text) > _MAX_PROVIDER_ERROR_MESSAGE_LENGTH:
         return f"{text[:_MAX_PROVIDER_ERROR_MESSAGE_LENGTH].rstrip()}..."
     return text

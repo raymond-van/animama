@@ -837,11 +837,13 @@ class MemoryManagerService:
         approval_id: str,
         status: str,
         feedback: str | None,
-    ) -> tuple[MemoryManagerApproval, MemoryManagerRun, MemoryManagerRuntime | None]:
+    ) -> tuple[
+        MemoryManagerApproval, MemoryManagerRun, MemoryManagerRuntime | MemoryManagerPinnedModelUnavailableError
+    ]:
         """Lock one pending approval and its run, commit an approved patch and record the decision.
 
-        Returns the decided approval, its run and the runtime that resumes it (None
-        when its pinned model is gone and the decision is a rejection).
+        Returns the decided approval, its run and the runtime that resumes it, or,
+        for a rejection whose pinned model cannot resume, the error that says why.
         """
 
         approval = await self._memory_manager.get_approval_for_update(user_id=user_id, approval_id=approval_id)
@@ -855,13 +857,14 @@ class MemoryManagerService:
         # Resume on the model that proposed the change. Without it, an
         # approval changes nothing (the owner can restore the model or
         # reject), and a rejection ends the review without resuming.
-        runtime: MemoryManagerRuntime | None
+        runtime: MemoryManagerRuntime | MemoryManagerPinnedModelUnavailableError
         try:
             runtime = await self._runtime.for_run(run)
         except MemoryManagerPinnedModelUnavailableError as exc:
             if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
                 raise MemoryManagerConflictError(exc.detail) from exc
-            runtime = None
+            # A rejection still ends the review; the error says why it cannot resume.
+            runtime = exc
         committed_entry_id = approval.target_entry_id
         applied_version = approval.applied_version
         if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
@@ -885,15 +888,15 @@ class MemoryManagerService:
         *,
         run: MemoryManagerRun,
         approval: MemoryManagerApproval,
-        runtime: MemoryManagerRuntime | None,
+        runtime: MemoryManagerRuntime | MemoryManagerPinnedModelUnavailableError,
         decision: str,
         feedback: str | None,
     ) -> None:
         """Resume the runtime with a recorded decision and persist its result."""
 
         try:
-            if runtime is None:
-                runtime_result = self._pinned_model_gone_result()
+            if isinstance(runtime, MemoryManagerPinnedModelUnavailableError):
+                runtime_result = self._pinned_model_gone_result(runtime.detail)
             else:
                 runtime_result = await runtime.resume_approval_decision(
                     run=run,
@@ -903,7 +906,8 @@ class MemoryManagerService:
                 )
         except MemoryManagerRuntimeError as exc:
             # The pinned row's runtime ran the resume, which may differ from the role's.
-            runtime_result = self._runtime_failure_result(exc, runtime_name=runtime.name if runtime else None)
+            runtime_name = None if isinstance(runtime, MemoryManagerPinnedModelUnavailableError) else runtime.name
+            runtime_result = self._runtime_failure_result(exc, runtime_name=runtime_name)
         await self._persist_runtime_result(
             run=run,
             result=runtime_result,
@@ -1201,8 +1205,11 @@ class MemoryManagerService:
                 model_provider_id=(
                     result_provider_id if isinstance(result_provider_id, str) else run.model_provider_id
                 ),
+                # A step that kept no conversation leaves the cursor behind it; a failed run keeps it for recovery.
                 openai_previous_response_id=(
-                    self._nonblank_string(result.openai_previous_response_id) or run.openai_previous_response_id
+                    (self._nonblank_string(result.openai_previous_response_id) or run.openai_previous_response_id)
+                    if result.keeps_conversation_state or failed
+                    else None
                 ),
                 serialized_agent_state=result.serialized_agent_state,
                 summary=result.summary or run.summary,
@@ -1557,11 +1564,19 @@ class MemoryManagerService:
             type=MEMORY_ENTRY_TYPE_FILE,
         )
 
-    def _pinned_model_gone_result(self) -> MemoryManagerRuntimeResult:
-        message = (
-            "The model that proposed this change is no longer available, so the review ended after your "
-            "rejection. Start a new run to continue."
-        )
+    def _pinned_model_gone_result(self, detail: str | None = None) -> MemoryManagerRuntimeResult:
+        """End a review after a rejection the proposing model can no longer resume.
+
+        ``detail`` is why it cannot, when the model is there but cannot serve the run now (a ChatGPT plan's state).
+        """
+
+        if detail and detail != MemoryManagerPinnedModelUnavailableError().detail:
+            message = f"The review ended after your rejection: {detail}"
+        else:
+            message = (
+                "The model that proposed this change is no longer available, so the review ended after your "
+                "rejection. Start a new run to continue."
+            )
         return MemoryManagerRuntimeResult(
             assistant_message=message,
             metadata={

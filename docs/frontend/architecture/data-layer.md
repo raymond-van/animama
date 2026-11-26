@@ -199,8 +199,8 @@ The app layout gates application content on the backend's `first_run_complete`.
 `/setup` collects a nonblank private name, then Finish opens the first Anima URL
 with a blocking 18+ modal. Explicit confirmation
 calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed: true` and
-the model set up last in the AI step (saving the OpenAI or Anthropic key, or
-adding a chat model), if any. Text-to-Speech is on by
+the model set up last in the AI step (saving the OpenAI or Anthropic key,
+signing in with a ChatGPT plan, or adding a chat model), if any. Text-to-Speech is on by
 default with built-in voices (`DEFAULT_ANIMAMA_PREFERENCES`); `/setup` sits outside
 `SettingsProvider`, so a provider chosen in the Voice step is saved with
 `useMergeUserPreferences` (fresh read, merge, write). The step and nonsecret

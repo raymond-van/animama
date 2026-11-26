@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { getI18n } from "react-i18next";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
 
 import {
   defaultReasoningEffort,
   effectiveReasoningEffort,
+  modelConnectionLabel,
+  pickerModelGroups,
   supportedReasoningEfforts,
 } from "./model-catalog";
 
@@ -86,5 +89,81 @@ describe("saved reasoning effort", () => {
     expect(
       effectiveReasoningEffort(row({ supported_reasoning_efforts: [] }), "low"),
     ).toBeNull();
+  });
+});
+
+describe("the connection a picker names", () => {
+  afterEach(async () => {
+    await getI18n().changeLanguage("en");
+  });
+
+  it("names the ChatGPT plan in the UI Locale, and other connections as saved", async () => {
+    const plan = {
+      model: "gpt-6-luna",
+      model_label: "GPT-6 Luna",
+      provider_label: "ChatGPT plan",
+      connection_name: "ChatGPT plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+    };
+    expect(modelConnectionLabel(plan)).toBe("ChatGPT plan");
+
+    await getI18n().changeLanguage("ja");
+    expect(modelConnectionLabel(plan)).toBe("ChatGPT プラン");
+    expect(
+      modelConnectionLabel({
+        ...plan,
+        model_provider: "OpenAIHTTPAgent",
+        connection_name: "Home Ollama",
+      }),
+    ).toBe("Home Ollama");
+  });
+});
+
+describe("chat picker groups", () => {
+  const plan = (id: string) =>
+    row({
+      id,
+      connection_id: "chatgpt_plan",
+      connection_name: "ChatGPT plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+    });
+  const key = (id: string) =>
+    row({ id, connection_id: "openai", connection_name: "OpenAI" });
+  const claude = (id: string) =>
+    row({
+      id,
+      connection_id: "anthropic",
+      connection_name: "Anthropic",
+      model_provider: "AnthropicMessagesHTTPAgent",
+    });
+  const groups = (items: PyModelProviderCatalogItem[]) =>
+    pickerModelGroups(items).map((group) => [
+      group.providerLabel,
+      group.models.map((item) => item.id),
+    ]);
+
+  it("names OpenAI's two ways and keeps them side by side, plan first", () => {
+    expect(
+      groups([key("gpt-6"), claude("opus"), plan("luna"), plan("terra")]),
+    ).toEqual([
+      ["OpenAI · ChatGPT plan", ["luna", "terra"]],
+      ["OpenAI · API key", ["gpt-6"]],
+      ["Anthropic", ["opus"]],
+    ]);
+  });
+
+  it("keeps one OpenAI group, as before, when no plan model is listed", () => {
+    // The hosted composition, or a local installation before signing in.
+    expect(groups([key("gpt-6"), claude("opus")])).toEqual([
+      ["OpenAI", ["gpt-6"]],
+      ["Anthropic", ["opus"]],
+    ]);
+  });
+
+  it("leaves other connections in catalog order", () => {
+    expect(groups([claude("opus"), plan("luna")])).toEqual([
+      ["Anthropic", ["opus"]],
+      ["OpenAI · ChatGPT plan", ["luna"]],
+    ]);
   });
 });

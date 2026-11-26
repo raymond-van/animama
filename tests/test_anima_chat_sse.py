@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, TypedDict, cast
+from typing import Any, Literal, TypedDict, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -4945,8 +4945,8 @@ async def test_a_failing_automatic_processing_task_leaves_the_chat_turn_unchange
         attempts += 1
         raise RuntimeError("automatic processing is broken")
 
-    async def usable(session: Any, user_id: str) -> bool:
-        return True
+    async def usable(session: Any, user_id: str) -> Literal["usable"]:
+        return "usable"
 
     worker = AutomaticEpisodeProcessingWorker(
         async_session_factory,

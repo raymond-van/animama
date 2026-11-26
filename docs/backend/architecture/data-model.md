@@ -383,10 +383,13 @@ configuration columns are:
   server's error text.
 
 The deterministic post-schema seed is generated from `MODEL_CATALOG`. It
-upserts the built-in `openai` and `anthropic` connections and built-in rows,
-never changes `hidden`, `early_compaction`, `source` or `connection_id`, never
-touches owner rows, and retires
-built-in rows missing from the catalog. Owner rows and connections are retired
+upserts the built-in `openai`, `anthropic` and `chatgpt_plan` connections and
+built-in rows, never changes `hidden`, `early_compaction`, `source` or
+`connection_id`, never touches owner rows, and retires
+built-in rows missing from the catalog, except the `chatgpt_plan` connection's
+rows: sign-in and model refresh store those from the signed-in account's model
+list, and sign-out retires them (see
+[model catalog](../model-catalog.md#chatgpt-plan-connection)). Owner rows and connections are retired
 (`active = false`), never deleted, and re-adding a model on the same connection
 reactivates its row. Public `/v1/model-providers` responses omit pricing fields
 and `structured_output_transport`.
@@ -404,9 +407,11 @@ rows belong to. Columns are `id`, `source` (`builtin` or `owner`), `name`,
 `preset`, nullable `base_url`, nullable `credential_env`, `compatibility`
 JSONB, nullable `timeout_seconds`, `active` and timestamps. The seeded
 built-in connections store no base URL or credential reference: `openai` uses
-the process `OPENAI_BASE_URL` and `OPENAI_API_KEY`, and `anthropic` uses only
+the process `OPENAI_BASE_URL` and `OPENAI_API_KEY`, `anthropic` uses only
 `ANTHROPIC_API_KEY` against Anthropic's API and serves only
-`AnthropicMessagesHTTPAgent` rows. `credential_env`
+`AnthropicMessagesHTTPAgent` rows, and `chatgpt_plan` uses the owner's ChatGPT
+plan sign-in, whose tokens live in a private session file and never in the
+database, and serves only `ChatGPTPlanResponsesHTTPAgent` rows. `credential_env`
 stores only an environment variable name, never a key. `compatibility` holds
 the request-shape options `fold_developer_role`, `send_openai_extensions`,
 `send_stream_usage`, `strip_function_strict` and `reasoning_mode`. Removing a
@@ -786,7 +791,12 @@ are catalog row IDs: `chat.default_model_provider_id` (the default for new
 Animas) and the role assignments `models.utility_model_provider_id`,
 `models.memory_manager_model_provider_id` and
 `models.embedding_model_provider_id`. They are validated when used, not when
-saved; an unusable ID falls back to the role's default.
+saved; an unusable ID falls back to the role's default. An ID naming a ChatGPT
+plan model that is unavailable (retired at sign-out, or no longer listed for
+the account) is the exception: the role resolves to no model and waits rather
+than moving its work to another connection, and Utility and the Memory Manager
+wait too when they inherit such a waiting chat role
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)).
 
 ### Avatar And Uploads
 

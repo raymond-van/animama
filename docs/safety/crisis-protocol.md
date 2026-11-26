@@ -31,9 +31,10 @@ minors. Setup asks you to confirm your age. Animama does not verify it.
   your region. The Anima cannot hide or change the card.
   - On Animama Cloud, the web demo, OpenAI's moderation service checks every
     message, whichever model the Anima uses.
-  - Elsewhere, including the desktop app, only OpenAI Responses models check
-    messages, as part of the same request. Other providers, such as Anthropic,
-    have no check and no card, so only the Anima's instructions above apply.
+  - Elsewhere, including the desktop app, only OpenAI Responses models used
+    with an API key check messages, as part of the same request. Other
+    providers, such as Anthropic, and models used through a ChatGPT plan have
+    no check and no card, so only the Anima's instructions above apply.
 - The check can miss or misread messages. Chat is never blocked because of it.
 
 ## Crisis lines

@@ -32,19 +32,28 @@ export type RuntimeManifest = {
 /** Windows runs every owned process inside this guard's kill-on-close job. */
 export const PROCESS_GUARD_PATH = "bin/animama-process-guard.exe";
 
+/**
+ * The lowest Windows build Animama accepts: Windows 10 version 1903, the
+ * oldest build a shipped component needs (PostgreSQL's UTF-8 code page). The
+ * installer (`build/installer.nsh`) and the staged runtime manifest carry the
+ * same build. The documentation claims only Windows 10 22H2 (19045) and
+ * Windows 11; builds from 1903 are accepted but not claimed.
+ */
+const WINDOWS_MINIMUM_BUILD = 18362;
+
 /** Minimum OS and executable naming for each supported runtime platform. */
 export function runtimePlatform(platform: string): {
   minimumOs: string;
   executableSuffix: string;
 } {
   return platform === "win32"
-    ? { minimumOs: "10.0.22000", executableSuffix: ".exe" }
+    ? { minimumOs: `10.0.${WINDOWS_MINIMUM_BUILD}`, executableSuffix: ".exe" }
     : { minimumOs: "15.0", executableSuffix: "" };
 }
 
 /**
  * Node reports the kernel release, not the product version: macOS 15 is
- * Darwin 24, and Windows 11 is 10.0 with build 22000 or later.
+ * Darwin 24, and Windows 10 and 11 are both 10.0 with a build number.
  */
 export function supportsRuntimePlatform(
   platform: string,
@@ -59,7 +68,7 @@ export function supportsRuntimePlatform(
   if (platform === "win32" && architecture === "x64")
     return (
       /^10\.0\.\d+$/u.test(kernelRelease) &&
-      Number(kernelRelease.split(".")[2]) >= 22000
+      Number(kernelRelease.split(".")[2]) >= WINDOWS_MINIMUM_BUILD
     );
   return false;
 }

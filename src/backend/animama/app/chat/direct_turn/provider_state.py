@@ -9,6 +9,7 @@ from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from animama.app.chat.options import DirectChatOptions
+from animama.app.model_catalog import CHAT_COMPLETIONS_FUNCTION_TOOL_EFFORT, chat_completions_tools_require_no_reasoning
 from animama.app.model_clients import (
     ModelClientContinuation,
     ModelClientError,
@@ -26,6 +27,7 @@ from animama.domain import ModelProvider
 from animama.domain.chat import Chat
 from animama.domain.model_connection import (
     BUILTIN_ANTHROPIC_CONNECTION_ID,
+    BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
     BUILTIN_OPENAI_CONNECTION_ID,
     MODEL_KIND_CHAT,
     MODEL_SOURCE_OWNER,
@@ -33,6 +35,7 @@ from animama.domain.model_connection import (
 
 from .constants import (
     ANTHROPIC_MESSAGES_PROVIDER,
+    CHATGPT_PLAN_PROVIDER,
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
     OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
@@ -123,6 +126,11 @@ def validate_model_provider_for_direct_turn(
         raise DirectChatTurnSetupError(
             f"Anthropic Messages is only available on the built-in Anthropic connection: {model_provider.id}"
         )
+    if (model_provider.provider_type == CHATGPT_PLAN_PROVIDER) != (
+        model_provider.connection_id == BUILTIN_CHATGPT_PLAN_CONNECTION_ID
+    ):
+        # Plan requests carry the ChatGPT plan's token, and the plan connection serves nothing else.
+        raise DirectChatTurnSetupError(f"The ChatGPT plan is only available on its own connection: {model_provider.id}")
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
     # Structured output is not required: rows without a schema or JSON mode
@@ -136,15 +144,13 @@ def validate_model_provider_for_direct_turn(
             raise DirectChatTurnSetupError(
                 f"Model provider does not support requested reasoning effort {effort}: {model_provider.id}"
             )
-        if memory_tools_active and chat_completions_disallows_reasoning_with_function_tools(model_provider):
-            # Some Chat Completions models reject reasoning_effort together with
-            # function tools. Reject during setup so the SSE stream does not open
-            # only to fail on the provider request.
+        if memory_tools_active and reasoning_effort_blocks_function_tools(model_provider, effort):
+            # Reject during setup so the SSE stream does not open only to fail
+            # on the provider request.
             raise DirectChatTurnSetupError(
-                "OpenAI Chat Completions does not support direct memory function tools together with "
-                f"reasoning_effort for this model: {model_provider.id}. "
-                "Omit reasoning_effort, disable memory tools for the turn, or use a Responses provider "
-                "after direct memory tool support is enabled there."
+                "OpenAI Chat Completions accepts memory function tools for this model only with "
+                f"reasoning_effort none: {model_provider.id}. Choose effort none, chat without memory "
+                "tools, or use the model's OpenAI Responses row."
             )
 
     # Web search without hosted support is the application tool, which the
@@ -176,11 +182,20 @@ def wants_application_web_search(model_provider: ModelProvider, request_options:
     )
 
 
-def chat_completions_disallows_reasoning_with_function_tools(model_provider: ModelProvider) -> bool:
-    """Return whether this Chat Completions model is known to reject this pair."""
+def reasoning_effort_blocks_function_tools(model_provider: ModelProvider, effort: str | None) -> bool:
+    """Return whether the requested effort keeps this turn from sending function tools.
 
-    return model_provider.provider_type == OPENAI_CHAT_COMPLETIONS_PROVIDER and model_provider.model.startswith(
-        "gpt-5.4"
+    OpenAI Chat Completions accepts function tools on GPT-5.4 and later only
+    at effort ``none``. A turn that names no effort is not blocked: on
+    connections that send OpenAI efforts, the request then sends ``none``
+    with its tools.
+    """
+
+    requested = effort.strip() if isinstance(effort, str) else ""
+    return (
+        requested not in {"", CHAT_COMPLETIONS_FUNCTION_TOOL_EFFORT}
+        and model_provider.provider_type == OPENAI_CHAT_COMPLETIONS_PROVIDER
+        and chat_completions_tools_require_no_reasoning(model_provider.model)
     )
 
 
@@ -424,6 +439,7 @@ __all__ = [
     "normalized_string_set",
     "openai_responses_continuation_from_chat",
     "openai_responses_continuation_from_final",
+    "reasoning_effort_blocks_function_tools",
     "should_retry_without_previous_response_id",
     "should_skip_context_fetch_for_responses_cursor",
     "turn_memory_context_manifest",

@@ -17,15 +17,17 @@ type LoadVrm = (
   onProgress: unknown,
   resourceUrls: unknown,
   materialMode: AvatarMaterialMode,
+  unlitToon: boolean,
 ) => Promise<never>;
 
 /**
- * Load with `materialMode` and return the mode the VRM loader was asked for;
- * the loader stops the load there.
+ * Load with `materialMode` and return the mode the VRM loader was asked for
+ * and whether it toon-shades unlit-only files; the loader stops the load
+ * there.
  */
 async function loaderMode(
   materialMode: AvatarMaterialMode,
-): Promise<{ mode: AvatarMaterialMode; avatar: Avatar }> {
+): Promise<{ mode: AvatarMaterialMode; unlitToon: boolean; avatar: Avatar }> {
   const loadVrm = vi
     .spyOn(Avatar as unknown as { _loadVrm: LoadVrm }, "_loadVrm")
     .mockRejectedValue(new Error("stop"));
@@ -33,7 +35,11 @@ async function loaderMode(
   await expect(
     avatar.load({ filePath: "/converted.vrm", materialMode }),
   ).rejects.toThrow("stop");
-  return { mode: loadVrm.mock.calls[0]![3], avatar };
+  return {
+    mode: loadVrm.mock.calls[0]![3],
+    unlitToon: loadVrm.mock.calls[0]![4],
+    avatar,
+  };
 }
 
 /** Per-viewer storage, empty. */
@@ -156,6 +162,16 @@ describe("Avatar Materials setting", () => {
     expect(liltoon.avatar.automaticMaterials).toBeNull();
     vi.restoreAllMocks();
     expect((await loaderMode("simple")).mode).toBe("simple");
+  });
+
+  it("toon-shades unlit-only files unless the setting is Simple, whatever the GPU check chose", async () => {
+    storeMeasurement([40, 36]);
+    const automatic = await loaderMode("automatic");
+    expect(automatic).toMatchObject({ mode: "simple", unlitToon: true });
+    vi.restoreAllMocks();
+    expect((await loaderMode("liltoon")).unlitToon).toBe(true);
+    vi.restoreAllMocks();
+    expect((await loaderMode("simple")).unlitToon).toBe(false);
   });
 
   it("Automatic reads the stored measurement before any canvas notes its GPU", async () => {

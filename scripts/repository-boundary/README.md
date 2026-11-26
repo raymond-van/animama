@@ -87,6 +87,19 @@ unchanged inputs and compare SHA-256 digests. This does not establish universal
 cross-platform reproducibility. Consumer dependencies resolve freshly from
 package metadata, separately from the producer's frozen locks; retained inventories
 identify what was actually tested.
+
+Fresh resolution means an upstream release can break the frontend consumer
+without any change here. When the break lies outside the packed packages, hold
+the offending transitive dependency back with a `pnpm.overrides` entry in
+[consumers/frontend/package.json](consumers/frontend/package.json). The checker
+keeps fixture overrides beside its tarball overrides, refuses an override key
+that names a packed package and a `resolutions` field, and drops every other
+`pnpm` setting. Current hold: `csstype` 3.2.3. Version 3.2.4 adds a
+CSS `pathLength` property whose type conflicts with `framer-motion`'s own
+`MotionStyle` declarations, so `tsc` fails with TS2320 under `skipLibCheck: false`
+(`motion` 12.43.0 and 14.14.0 both do; #907). Remove the hold once a `motion`
+release that `product-ui` accepts type-checks against the latest `csstype`.
+
 Timing, transfer, sampled heap and process RSS observations do not establish a
 capacity budget. Same-source local production comparison, physical microphone
 and heard audio, native acceptance, live hosted/provider behavior and publication

@@ -67,16 +67,21 @@ wherever that Avatar is used:
 - **Wind strength**: 0–200% of the default wind and updraft, shown under
   Automatic and On. It applies live, and Automatic weighs it when deciding
   whether the Avatar's hair can hold against them.
-- **Materials**: Automatic, lilToon or Simple, shown only for a file with
-  authored lilToon materials (see
-  [Authored lilToon materials](../runtime/avatar-animation.md#authored-liltoon-materials)),
-  or while a stored choice is not Automatic. Automatic loads lilToon and
-  lowers the canvas's frame rate to 45, 30 or 24 fps where this machine's GPU
-  needs it, and Simple only when it cannot draw lilToon at 24 fps (the GPU
-  check in the linked section). Materials are built at load, so
-  a change reloads the Avatar wherever it is shown. Whether a file has lilToon
-  materials is known once any surface has loaded it in this session, or the
-  Library's Avatar settings have read its file facts
+- **Materials**: shown only for a file whose materials it changes, or while a
+  stored choice is not Automatic:
+  - a file with authored lilToon materials offers Automatic, lilToon or
+    Simple (see
+    [Authored lilToon materials](../runtime/avatar-animation.md#authored-liltoon-materials)).
+    Automatic loads lilToon and lowers the canvas's frame rate to 45, 30 or
+    24 fps where this machine's GPU needs it, and Simple only when it cannot
+    draw lilToon at 24 fps (the GPU check in the linked section);
+  - a file whose materials all ignore light offers Automatic, which adds toon
+    shading and outlines, or Simple, which keeps them flat
+    ([Unlit materials](../runtime/avatar-animation.md#unlit-materials)).
+
+  Materials are built at load, so a change reloads the Avatar wherever it is
+  shown. Which materials a file has is known once any surface has loaded it in
+  this session, or the Library's Avatar settings have read its file facts
   (`useAvatarFileTraitsStore`, keyed by the VRM's sha256).
 
 The Library offers the same rows for any Avatar item (see
@@ -130,9 +135,10 @@ Animama found in the Anima's Avatar and how it plays it:
   default.
 - **Warnings**: every face-part, landmark, texture-anchor, expression (no
   usable face expressions; `Fcl_EYE_Iris_Hide` with no iris part to hide),
-  spring and effect finding, once each, and each glTF extension the file needs
-  that Animama cannot load (such as Draco compression), read from the file
-  before loading.
+  spring and effect finding, once each, and, read from the file before
+  loading, each glTF extension the file needs that Animama cannot load (such
+  as Draco compression) and materials that all ignore light, which Animama
+  toon-shades unless the Materials setting is Simple.
 
 Diagnostics describes one of three sources (`useAvatarDiagnostics`):
 

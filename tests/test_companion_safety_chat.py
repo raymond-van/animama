@@ -26,7 +26,7 @@ from animama.app.safety.config import OperatorSafetyConfig, SafetyPreferences, r
 from animama.app.safety.crisis_resources import crisis_resource_table
 from animama.app.safety.moderation import OPENAI_MODERATION_MODEL, moderation_indicates_crisis
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
-from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
+from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID, BUILTIN_CHATGPT_PLAN_CONNECTION_ID
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.usage import Usage
 from animama.orm.companion_safety import ORMCompanionSafetyState
@@ -88,6 +88,8 @@ def test_moderation_crisis_interpretation(moderation: ModelClientModeration | No
         ("OpenAIResponsesHTTPAgent", True, OPENAI_MODERATION_MODEL),
         ("OpenAIResponsesHTTPAgent", False, None),
         ("OpenAIHTTPAgent", True, None),
+        # The ChatGPT plan's route refuses inline moderation (spec #919 R3.4).
+        ("ChatGPTPlanResponsesHTTPAgent", True, None),
     ],
 )
 def test_moderation_is_requested_only_for_responses(
@@ -284,6 +286,33 @@ async def test_operator_moderation_shows_the_card_on_anthropic_turns(monkeypatch
     assert names.count("safety.crisis_support") == 1
     assert names.index("user.response") < names.index("safety.crisis_support") < names.index("run.completed")
     assert route._event_data(chunks, "safety.crisis_support")["source"] == "moderation"
+
+
+@pytest.mark.asyncio
+async def test_plan_turns_keep_the_guardrail_without_a_moderation_card(monkeypatch) -> None:
+    """R3.4: like local Anthropic and Chat Completions turns, with no operator check either."""
+
+    client = route._RouteModelClient(finals=[_flagged_final()])
+    provider = route._model_provider(
+        model_provider_id="ChatGPTPlanResponsesHTTPAgent:gpt-6-luna", provider_type="ChatGPTPlanResponsesHTTPAgent"
+    )
+    provider.connection_id = BUILTIN_CHATGPT_PLAN_CONNECTION_ID
+    route._install_route_mocks(monkeypatch, model_client=client, model_provider=provider)
+    moderator = _RecordingModerator()
+
+    class _ModeratedPorts(route._RouteTestPorts):
+        @property
+        def chat_policy(self) -> ChatTurnPolicy:
+            return replace(super().chat_policy, crisis_moderator=moderator)
+
+    monkeypatch.setattr(route, "_RouteTestPorts", _ModeratedPorts)
+
+    chunks = await _run(CRISIS_MESSAGE)
+
+    assert "safety.crisis_support" not in _names(chunks)
+    assert moderator.seen == [] and client.seen_specs[0].provider_options.moderation_model is None
+    instructions = prompt_instruction_text(client.seen_specs[0].prompt)
+    assert instructions is not None and instructions.endswith(COMPANION_GUARDRAILS.strip())
 
 
 @pytest.mark.asyncio

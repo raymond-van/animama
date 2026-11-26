@@ -23,8 +23,8 @@ Existing shared router dependencies and owner filters remain unchanged.
 
 | Component | Responsibility |
 | --- | --- |
-| `config.py` | Immutable public origin, optional distinct desktop credentials, finite input limits. |
-| `admission.py` | Host/Origin/Fetch Metadata checks, capability and CSRF validation, HTTP receive limits, request accounting, receive-idle WebSocket cleanup. |
+| `config.py` | Immutable public origin, optional distinct desktop credentials, finite input limits, the optional sign-in return path and its derived authority. |
+| `admission.py` | Host/Origin/Fetch Metadata checks, capability and CSRF validation, the sign-in return rule, HTTP receive limits, request accounting, receive-idle WebSocket cleanup. |
 | `lifecycle.py` | One completed bootstrap identity, admitted principal resolution, active-work drain without in-process resume. |
 | `assets.py` | Audited build files and speech-to-text mounts (Parakeet and SenseVoice) resolved per request from installed model-asset sets; no private catalog lookup. |
 | `telemetry.py` | Optional fixed-destination OTLP forwarding with bounded input, output and deadlines. |
@@ -87,6 +87,29 @@ capabilities fail. An Origin-less safe desktop request must carry `none` or
 `same-origin` Fetch Metadata; desktop mutations always require Origin. Cookies
 are host-scoped, not port-scoped. This validator does not install cookies or
 expose either desktop secret to a renderer.
+
+One request is admitted without these browser checks: the system browser's
+return from OpenAI's ChatGPT sign-in
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)), a
+cross-site navigation that carries neither the page's Host on a `localhost`
+stack nor the desktop cookie. `server/local_http.py` sets
+`LocalHTTPConfig.sign_in_return_path` to `/auth/callback`, and the config
+derives the return's authority, `127.0.0.1:<port>` (bare `127.0.0.1` on port
+80), only when the public origin is `http` on `localhost`, `127.0.0.1` or a
+`*.localhost` name; any other origin has no return, and the app does not offer
+sign-in there. A request is the return only when all of these hold:
+
+- it is an HTTP `GET` of exactly that path (a WebSocket has no method);
+- its `Host` equals the return authority;
+- it has no `Origin`, no `Transfer-Encoding` and no body;
+- a `Sec-Fetch-Mode` header, when present, is `navigate`, and a
+  `Sec-Fetch-Dest` header, when present, is `document`.
+
+Such a request skips the Host, Origin, Fetch Metadata and capability checks;
+readiness still applies, and the route completes a sign-in only for the
+pending attempt's `state`. A request that misses any
+condition gets the normal checks. `/auth` paths never fall back to the SPA, and
+the development Vite proxy forwards only `/auth/callback` under `/auth`.
 
 The only admitted product WebSocket path is `/v1/logs`, with exact Origin and
 the same capability policy. A bounded receive pump observes disconnect even

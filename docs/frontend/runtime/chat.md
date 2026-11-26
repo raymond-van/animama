@@ -46,11 +46,17 @@ does. `model_refused` means a Claude model declined the turn:
 the notice says so and suggests rephrasing, and no other model is tried. Local admission errors describe
 installation access, without treating every HTTP 403 as an invalid provider key.
 Unknown errors use a safe fallback. The only URL text a notice shows is the base
-URL the owner configured for a non-built-in connection; provider response text,
-provider-returned URLs, credentials and exception messages are never inserted
-into the notice. A hosted `trial_complete` denial may add a "Download Animama"
-link, only for an absolute `https:` URL without credentials
-([hosted denials](../../../contracts/hosted-web.md#hosted-denials)). Details show only an allowlisted error code. A valid provider retry delay is shown as guidance.
+URL the owner configured for a non-built-in connection; provider-returned URLs,
+credentials and exception messages are never inserted into the notice, and
+neither is provider response text, with one exception: a ChatGPT plan request
+the route refused (`chatgpt_plan_unsupported_request`) quotes the route's
+reason, which the backend sanitizes and the notice clamps to 300 characters.
+A hosted `trial_complete` denial may add a "Download Animama" link, only for an
+absolute `https:` URL without credentials
+([hosted denials](../../../contracts/hosted-web.md#hosted-denials)). A ChatGPT
+plan limit or ineligible plan (`chatgpt_plan_usage_limit`,
+`chatgpt_plan_not_eligible`) links to the fixed **Manage usage** page; a
+required sign-in or plan use that is off names App Settings → Models. Details show only an allowlisted error code. A valid provider retry delay is shown as guidance.
 
 Any received partial reply remains visible and is labelled incomplete. The notice
 makes no claim that an uncertain turn was saved. Failed turns are local to the
@@ -265,8 +271,9 @@ while the same model stays selected (the capability loads after the catalog,
 or the owner configures or removes the backend). The request field is the same
 `native_tools: ["web_search"]` either way; the backend picks hosted or
 application search. The control does not see the per-turn reasoning effort:
-on Chat Completions `gpt-5.4` rows the backend drops search when an effort is
-sent and logs `reasoning_with_function_tools`.
+on Chat Completions rows for OpenAI GPT-5.4 and later, such as
+`OpenAIHTTPAgent:gpt-6-luna`, the backend drops search when an effort other
+than `none` is sent and logs `reasoning_with_function_tools`.
 
 Chat features are not saved. `SettingsProvider` keeps the composer's choice
 (`chatFeatureChoice`) for one Anima and model, so leaving and reopening the chat

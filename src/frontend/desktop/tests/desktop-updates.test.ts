@@ -10,6 +10,7 @@ import {
   updatePlatform,
   validateUpdateCandidate,
   validateUpdatePolicy,
+  windowsUpdateSupported,
 } from "../src/main-process/updates/policy.js";
 import { RuntimeError } from "../src/main-process/runtime/errors.js";
 
@@ -290,7 +291,12 @@ describe("public stable Windows update policy", () => {
         sha512: Buffer.alloc(64).toString("base64"),
       },
     ],
-    animama: { ...feed().animama, platform: "win32", architecture: "x64" },
+    animama: {
+      ...feed().animama,
+      platform: "win32",
+      architecture: "x64",
+      minimum_os: "10.0.18362",
+    },
   });
 
   it("names an Authenticode publisher instead of a Team ID", () => {
@@ -337,7 +343,25 @@ describe("public stable Windows update policy", () => {
     ).toThrow("updates_not_configured");
   });
 
-  it("accepts only the per-user installer for Windows 11 x64", () => {
+  it("withholds an update only from a Windows build below the release's floor", () => {
+    const info = { animama: { minimum_os: "10.0.19045" } };
+    expect(windowsUpdateSupported(info, "10.0.19045")).toBe(true);
+    expect(windowsUpdateSupported(info, "10.0.26100")).toBe(true);
+    expect(windowsUpdateSupported(info, "10.0.18362")).toBe(false);
+    // With nothing well-formed to compare, validation reports the feed instead.
+    for (const value of [
+      null,
+      {},
+      { animama: {} },
+      { animama: { minimum_os: "22000" } },
+      // Not a string, though it would print as a well-formed floor.
+      { animama: { minimum_os: ["10.0.99999"] } },
+    ])
+      expect(windowsUpdateSupported(value, "10.0.18362")).toBe(true);
+    expect(windowsUpdateSupported(info, "")).toBe(true);
+  });
+
+  it("accepts only the per-user installer for Windows x64", () => {
     const candidate = validateUpdateCandidate(
       windowsFeed(),
       "0.1.0",
@@ -349,10 +373,30 @@ describe("public stable Windows update policy", () => {
       downloadBytes: 1000,
       installedBytes: 5000,
     });
+    // A later release may raise its floor; whether this system meets it is the
+    // updater's support check, not metadata validity.
+    expect(
+      validateUpdateCandidate(
+        {
+          ...windowsFeed(),
+          animama: { ...windowsFeed().animama, minimum_os: "10.0.19045" },
+        },
+        "0.1.0",
+        windowsPolicy.distribution,
+        "win32",
+      ),
+    ).toEqual(candidate);
     const file = windowsFeed().files[0];
     for (const field of [
+      // The top-level value is frozen at what installed 0.1.6 apps require.
+      { minimumSystemVersion: "10.0.18362" },
       { minimumSystemVersion: "10.0.19045" },
       { minimumSystemVersion: "24.0.0" },
+      ...[undefined, "10.0", "6.3.9600", "10.0.18362.1", "10.0.x", 18362].map(
+        (minimum_os) => ({
+          animama: { ...windowsFeed().animama, minimum_os },
+        }),
+      ),
       { files: [{ ...file, url: "v0.2.0/Animama-0.2.0-x64.exe" }] },
       { files: [{ ...file, url: "v0.2.0/Animama-0.2.0-arm64.zip" }] },
       { files: [file, { ...file, url: "v0.2.0/Animama-0.2.0-x64.zip" }] },

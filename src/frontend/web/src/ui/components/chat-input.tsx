@@ -7,6 +7,7 @@ import { isUserImageFile } from "@/lib/user-files/chat-images";
 import { UserFileThumbnail } from "@/ui/components/user-file-thumbnail";
 import { Button } from "@/ui/components/button";
 import { attachmentSize } from "@/ui/components/chat-input-file-tray";
+import { ChatGPTPlanUsageNote } from "@/ui/components/chatgpt-plan-usage-note";
 import { Checkbox } from "@/ui/components/checkbox";
 import {
   Command,
@@ -72,10 +73,11 @@ import {
 } from "lucide-react";
 import {
   alternateModelIds,
-  modelConnectionLabel,
   modelDisplayName,
   modelOptionDetail,
   modelOptionLabel,
+  listsChatGPTPlanModels,
+  pickerModelGroups,
   selectableChatModels,
   supportedReasoningEfforts,
 } from "@/lib/chat/model-catalog";
@@ -331,18 +333,6 @@ function ChatInputFileUploadUnavailable({ reason }: { reason: string }) {
   );
 }
 
-function groupModelOptions(items: PyModelProviderCatalogItem[]) {
-  const groups = new Map<string, PyModelProviderCatalogItem[]>();
-  for (const item of items) {
-    const key = modelConnectionLabel(item);
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
-  return Array.from(groups, ([providerLabel, models]) => ({
-    providerLabel,
-    models,
-  }));
-}
-
 /** Why web search is unavailable for a model row, in the active locale. */
 function searchUnavailableText(
   t: TFunction<"chat">,
@@ -449,7 +439,7 @@ function ChatInputModelSelector({
   onModelChange,
   ...props
 }: ChatInputModelSelectorProps) {
-  const { t } = useTranslation("chat");
+  const { t, i18n } = useTranslation("chat");
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"reasoning" | "models" | "features">(
     "reasoning",
@@ -479,7 +469,12 @@ function ChatInputModelSelector({
   // A removed model (or connection) leaves the Anima's choice unavailable.
   const activeUnavailable =
     Boolean(activeItemId) && catalogLoaded && !activeItem;
-  const modelGroups = useMemo(() => groupModelOptions(models), [models]);
+  const modelGroups = useMemo(
+    () => pickerModelGroups(models),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- headings read the UI Locale, which can change while the chat is open
+    [models, i18n.language],
+  );
+  const splitOpenAI = useMemo(() => listsChatGPTPlanModels(models), [models]);
   // Rows sharing a name on one connection are told apart without naming APIs.
   const alternateIds = useMemo(() => alternateModelIds(models), [models]);
   // The same options the chat session sends with each turn.
@@ -908,13 +903,18 @@ function ChatInputModelSelector({
                           alternateIds.has(item.id),
                           t,
                         );
-                        const providerName = modelOptionDetail(item);
+                        const providerName = modelOptionDetail(
+                          item,
+                          splitOpenAI,
+                        );
                         return (
                           <CommandItem
                             key={item.id}
-                            // The index keeps values unique without making the
-                            // row's internal id searchable.
-                            value={`${providerName} ${modelName} ${item.model} ${index}`}
+                            // The group heading keeps "OpenAI" searchable on
+                            // rows that say only "API key"; the index keeps
+                            // values unique without making the row's internal
+                            // id searchable.
+                            value={`${group.providerLabel} ${providerName} ${modelName} ${item.model} ${index}`}
                             disabled={
                               isDisabled || rowUnsupported || rowNeedsWindow
                             }
@@ -948,6 +948,14 @@ function ChatInputModelSelector({
               </Command>
             )}
           </>
+        )}
+        {view === "features" ? null : (
+          <ChatGPTPlanUsageNote
+            model={activeItem}
+            className={
+              view === "models" ? "mx-1 mt-1 px-2 pt-2 pb-1" : "mt-4 pt-3"
+            }
+          />
         )}
       </PopoverContent>
     </Popover>

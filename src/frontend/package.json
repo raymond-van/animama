@@ -94,7 +94,7 @@
     "i18next-cli": "1.74.1",
     "knip": "6.43.0",
     "playwright": "1.58.2",
-    "sharp": "0.34.5",
+    "sharp": "0.35.5",
     "typescript": "6.0.3"
   },
   "pnpm": {
@@ -102,8 +102,7 @@
       "@parcel/watcher",
       "core-js",
       "esbuild",
-      "protobufjs",
-      "sharp"
+      "protobufjs"
     ],
     "patchedDependencies": {
       "@vitejs/plugin-react@6.0.1": "patches/@vitejs__plugin-react@6.0.1.patch",

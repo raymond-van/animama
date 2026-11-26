@@ -280,17 +280,36 @@ version history as an automatic update from episode notes. Distinct from
 
 ## Model connection
 
-An endpoint the installation reaches models through: a base URL, how its key is
-supplied and compatibility options. A connection speaks an OpenAI protocol
-(Responses or Chat Completions) or Anthropic's Messages API. The built-in
-OpenAI connection uses the OpenAI key and base URL from API Keys or the
-environment, and the built-in Anthropic connection uses only the Anthropic key
-against Anthropic's API; the owner adds others, such as Ollama, LM Studio,
-llama.cpp or any OpenAI-compatible Chat Completions server, in App Settings →
-Models. Keys never enter the database. A connection's
-**models** are either built-in (read-only templates the owner can hide) or
-owner-added. The hosted composition has no owner connections; see
+An endpoint the installation reaches models through: a base URL, its
+credential and compatibility options. A connection speaks an OpenAI protocol
+(Responses or Chat Completions) or Anthropic's Messages API. The credential is
+usually a key: the built-in OpenAI connection uses the OpenAI key and base URL
+from API Keys or the environment, and the built-in Anthropic connection uses
+only the Anthropic key against Anthropic's API. The built-in **ChatGPT plan
+connection**'s credential is a sign-in instead. The owner adds others, such as
+Ollama, LM Studio, llama.cpp or any OpenAI-compatible Chat Completions server,
+in App Settings → Models. Keys and sign-in tokens never enter the database. A
+connection's **models** are built-in (read-only templates the owner can hide),
+**account-listed** or owner-added. The hosted composition has no owner
+connections; see
 [ADR 0011](docs/adr/0011-application-owned-companion-features-and-composition-catalog-policy.md).
+
+## ChatGPT plan connection
+
+The built-in model connection whose credential is the owner's Sign in with
+ChatGPT session, in local compositions only. Eligible requests (chats, their
+titles and compaction, and Memory Manager runs) use the usage included in the
+account's ChatGPT plan instead of an API key; automatic episode processing uses
+it only with the owner's agreement. Its models are **account-listed**. A role
+whose plan model cannot run waits rather than moving to another connection. See
+[ADR 0039](docs/adr/0039-chatgpt-plan-sign-in-and-connection.md).
+
+## Account-listed models
+
+The models OpenAI lists for the signed-in ChatGPT account, stored as read-only
+rows of the ChatGPT plan connection when the owner signs in or refreshes the
+list, and retired at sign-out. The owner can hide one but not add or remove
+one.
 
 ## Model role
 

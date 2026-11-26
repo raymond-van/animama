@@ -1,9 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   crlfConvertedPaths,
+  desktopRoot,
   parseTarget,
   pnpmCommand,
   readJson,
@@ -16,7 +23,11 @@ import {
 import { distprepConflicts } from "../scripts/runtime/native-windows.mjs";
 import { packagedTarget } from "../scripts/before-build.mjs";
 import { PROCESS_GUARD } from "../scripts/runtime/process-guard.mjs";
-import { PROCESS_GUARD_PATH } from "../src/main-process/runtime/manifest.ts";
+import {
+  PROCESS_GUARD_PATH,
+  runtimePlatform,
+} from "../src/main-process/runtime/manifest.ts";
+import { RELEASE_TARGETS } from "../scripts/runtime/release-artifacts.mjs";
 import { iconFile } from "../scripts/runtime/windows-resources.mjs";
 import { untrustedWriters } from "../scripts/runtime/windows-acl.mjs";
 import {
@@ -81,13 +92,38 @@ afterEach(() => {
 });
 
 describe("Windows native build inputs", () => {
+  it("names one Windows floor in the installer, the stage inputs and the app", () => {
+    const floor = readJson(
+      path.join(sourceRoot, "native-components.win32-x64.lock.json"),
+    ).minimum_os;
+    // Windows 10 version 1903.
+    expect(floor).toBe("10.0.18362");
+    expect(
+      readJson(path.join(sourceRoot, "source-manifest.json")).targets[
+        "win32-x64"
+      ].minimum_os,
+    ).toBe(floor);
+    expect(runtimePlatform("win32").minimumOs).toBe(floor);
+    expect(RELEASE_TARGETS["win32-x64"].minimumOs).toBe(floor);
+    // Nothing else checks the installer's own number.
+    const installer = readFileSync(
+      path.join(desktopRoot, "build/installer.nsh"),
+      "utf8",
+    );
+    const refusals = [...installer.matchAll(/\$\{If\} \$0 < (\d+)/gu)];
+    expect(refusals.map(([, build]) => `10.0.${build}`)).toEqual([floor]);
+    expect(installer).toContain(
+      "Animama requires Windows 10 version 1903 or later.",
+    );
+  });
+
   it("builds the same pinned PostgreSQL and pgvector sources as macOS", () => {
     const mac = readJson(path.join(sourceRoot, "native-components.lock.json"));
     const windows = readJson(
       path.join(sourceRoot, "native-components.win32-x64.lock.json"),
     );
     expect(windows.target).toBe("win32-x64");
-    expect(windows.minimum_os).toBe("10.0.22000");
+    expect(windows.minimum_os).toBe("10.0.18362");
     for (const name of ["postgresql", "pgvector"])
       for (const field of [
         "version",
@@ -379,7 +415,7 @@ describe("Windows PE dependency audit", () => {
       stagedNames: new Map([["bin/postgres.exe", "bin/postgres.exe"]]),
     });
     // vcruntime140.dll is in System32 on developer machines but not on every
-    // Windows 11 install, so it is never a reviewed system DLL.
+    // Windows install, so it is never a reviewed system DLL.
     expect(() =>
       resolveDependency("vcruntime140.dll", "bin/postgres.exe", missingRuntime),
     ).toThrow("vcruntime140.dll does not resolve");

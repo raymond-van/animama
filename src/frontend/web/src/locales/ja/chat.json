@@ -84,6 +84,9 @@
       "uploading": "アップロード中 {{percent}}",
       "imageDetails": "{{size}} · {{status}}"
     },
+    "chatgptPlan": {
+      "using": "ChatGPT プランを使用中"
+    },
     "dictation": {
       "failed": "音声入力に失敗しました",
       "mute": "マイクをミュート",

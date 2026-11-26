@@ -353,6 +353,15 @@ ROUTES: tuple[RouteSpec, ...] = (
     ),
     _excluded("model_configuration", "PATCH", "/v1/model-providers/{model_provider_id}", "update_model", "write"),
     _excluded("model_configuration", "DELETE", "/v1/model-providers/{model_provider_id}", "remove_model", "write"),
+    # ChatGPT plan sign-in (the local composition only, spec #919); the return is the browser's
+    # navigation back from OpenAI, admitted by its own rule.
+    _excluded("chatgpt_plan", "GET", "/v1/chatgpt-plan", "get_chatgpt_plan", "read"),
+    _excluded("chatgpt_plan", "POST", "/v1/chatgpt-plan/sign-in", "begin_chatgpt_plan_sign_in", "write"),
+    _excluded("chatgpt_plan", "DELETE", "/v1/chatgpt-plan/sign-in", "cancel_chatgpt_plan_sign_in", "write"),
+    _excluded("chatgpt_plan", "POST", "/v1/chatgpt-plan:sign-out", "sign_out_of_chatgpt_plan", "write"),
+    _excluded("chatgpt_plan", "PUT", "/v1/chatgpt-plan/preferences", "update_chatgpt_plan_preferences", "write"),
+    _excluded("chatgpt_plan", "POST", "/v1/chatgpt-plan/models:refresh", "refresh_chatgpt_plan_models", "write"),
+    _local("GET", "/auth/callback", "complete_chatgpt_plan_sign_in", "write"),
     # Web search settings
     _excluded("web_search.configuration", "GET", "/v1/web-search/settings", "get_web_search_settings", "read"),
     _excluded("web_search.configuration", "PUT", "/v1/web-search/settings", "update_web_search_settings", "write"),

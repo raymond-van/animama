@@ -12,9 +12,13 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.api_standard import (
     CHAT_API_STANDARD_CHAT_COMPLETIONS,
     CHAT_API_STANDARD_RESPONSES,
+    chat_api_standard_for_provider,
 )
+from animama.app.chat.direct_turn.message_builders import assistant_message_data
+from animama.app.model_clients import ModelClientFinal
 from animama.app.services import ChatApiStandardConflictError, ChatManager, ModelProviderCatalogService
 from animama.app.services.chat_title_generation_service import sanitize_generated_chat_title
+from animama.domain import ModelProvider
 from animama.domain.chat import Chat, ChatMessage, MessageRole
 from animama.domain.chat_compaction import ChatCompaction
 from animama.domain.usage import Usage, UsageOutputDetails
@@ -681,6 +685,78 @@ async def test_chat_manager_record_turn_clears_cursor_for_chat_completions_turn_
     assert stored is not None
     assert stored.openai_previous_response_id is None
     assert stored.usage.total_tokens == 5
+
+
+@pytest.mark.asyncio
+async def test_a_chat_moves_between_key_and_plan_models_and_a_plan_turn_leaves_no_cursor(async_session):
+    """Spec #919 R3.6: both use the Responses standard; a plan turn's response is not stored at OpenAI."""
+
+    async_session.add(ORMAnima(id="anima-plan-move", user_id="user-1"))
+    await async_session.commit()
+    await SQLAlchemyChatRepository(async_session).create(
+        Chat(
+            id="chat-plan-move-1",
+            anima_id="anima-plan-move",
+            user_id="user-1",
+            api_standard=CHAT_API_STANDARD_RESPONSES,
+            openai_previous_response_id="resp_key_model",
+        )
+    )
+    await async_session.commit()
+    manager = _chat_manager(async_session)
+    plan = ModelProvider(
+        id="ChatGPTPlanResponsesHTTPAgent:gpt-6-luna",
+        provider_type="ChatGPTPlanResponsesHTTPAgent",
+        model="gpt-6-luna",
+        model_label="GPT-6 Luna",
+        provider_label="ChatGPT plan",
+        connection_id="chatgpt_plan",
+    )
+
+    await manager.ensure_owned_chat(
+        anima_id="anima-plan-move",
+        chat_id="chat-plan-move-1",
+        user_id="user-1",
+        api_standard=chat_api_standard_for_provider(plan).api_standard,  # type: ignore[union-attr]
+        model_provider_id=plan.id,
+    )
+    final = ModelClientFinal(
+        text="hi", raw_provider_metadata={"provider": plan.provider_type, "response_id": "resp_plan_unstored"}
+    )
+    await manager.record_turn(
+        anima_id="anima-plan-move",
+        chat_id="chat-plan-move-1",
+        user_msg=ChatMessage(
+            id=None,
+            chat_id="chat-plan-move-1",
+            run_id="run-1",
+            message_type="message",
+            role=MessageRole.USER,
+            content="hello",
+            data=None,
+            usage=None,
+            turn=None,
+            created_at=None,
+            internal=False,
+        ),
+        assistant_msg=ChatMessage(
+            id=None,
+            chat_id="chat-plan-move-1",
+            run_id="run-1",
+            message_type="message",
+            role=MessageRole.ASSISTANT,
+            content="hi",
+            data=assistant_message_data(structured={}, final=final, model_provider=plan),
+            usage=Usage(input_tokens=2, output_tokens=3, total_tokens=5),
+            turn=None,
+            created_at=None,
+            internal=False,
+        ),
+    )
+
+    stored = await SQLAlchemyChatRepository(async_session).get("chat-plan-move-1")
+    assert stored is not None and stored.openai_previous_response_id is None
+    assert stored.api_standard == CHAT_API_STANDARD_RESPONSES
 
 
 @pytest.mark.asyncio
