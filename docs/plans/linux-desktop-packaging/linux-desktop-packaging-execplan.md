@@ -51,6 +51,11 @@ Ordinary merges only; the other branch and its worktree are never edited.
 The draft pull request opens with the first phase commit and closes #920 when
 it merges. It stays a draft until `main` contains Windows 10 support.
 
+Windows 10 support reached `main` on 2026-11-25. On 2026-11-26 the branch
+merged `origin/main` at `be048d5b3` as `d3d27742d`, so the pull request now
+shows this work alone. "Merge of `main`" under the final integration review
+records the conflicts, checks and review.
+
 ### Where Linux is refused or missing today
 
 Paths are under `src/frontend/desktop` unless stated.
@@ -184,7 +189,8 @@ specifications.
 - [ ] Gates G1–G4 on the reference system. Owner and hardware.
 - [ ] Gate G5, macOS and Windows unchanged. Added by the integration review
       (FI-F1) and taken up by the owner on 2026-11-24. Step 1, the macOS
-      build, passed at `6a77da29f`. Step 2 waits for the Windows host.
+      build, passed at `6a77da29f` and again at `d3d27742d` after `main` was
+      merged. Step 2 waits for the Windows host.
 - [ ] Phase 7: documentation and decision record. Not started; after G1.
 - [ ] Final integration review and the single full pre-push run. The review
       of Phases 1–6 is recorded below: no code finding, one plan amendment
@@ -192,6 +198,16 @@ specifications.
 
 ## Surprises & Discoveries
 
+- 2026-11-26, merging `main`. On Linux the vault gate asks the encryptor
+  what would protect a value before the vault is opened, so an encryptor
+  that fails altogether stops in recovery. `main`'s new behaviour, starting
+  without the ChatGPT plan key when the vault cannot save one, is therefore
+  reached on Linux only when the gate passes and the later write fails. Its
+  test made every encryption fail and so failed on a Linux host; it now
+  fails writes only.
+- 2026-11-26. A draft pull request's hosted Validation run defers every
+  product step and then reports failure by design ("Draft deferral is not
+  acceptance"), so a red check on this draft says nothing about the code.
 - 2026-11-24, planning. electron-builder 26.18.0's generated `AppRun` runs
   `unshare -Ur true` and appends `--no-sandbox` when it fails, on both
   AppImage toolsets, with no switch to turn it off. Its default desktop entry
@@ -1699,7 +1715,13 @@ ended with `Unsigned development app: release/mac/Animama.app; runtime
 inventory: OK`. The app was not started, so this shows the macOS stage,
 audit and packaging paths unchanged, not the running app.
 
-Step 2 is open.
+Step 1 again, 2026-11-26, after the merge of `main` changed shared shell
+code: commit `d3d27742d` (tree `dbb2aaa1908e`), same host, command and
+conditions. Exit 0 in four minutes; `runtime audit: OK`; `Unsigned
+development app: release/mac/Animama.app; runtime inventory: OK`. The app
+was not started.
+
+Step 2 is open. Windows 10 support is on `main`, so it can run.
 
 ### Phase 7: documentation and decision record
 
@@ -1738,7 +1760,9 @@ suite once on the final candidate: root `make check-test`, and from
 the pull request.
 
 Before any push or `gh pr create`, check `gh workflow list --all`: the hosted
-Validation workflow stays disabled unless the owner enables it.
+Validation workflow stays disabled unless the owner enables it. The owner
+enabled it on 2026-11-25, so from the merge of `main` on, a push to this
+pull request starts a hosted run.
 
 ### Integration Review #1 Findings (Phases 1–6)
 
@@ -1833,6 +1857,74 @@ Result: no code finding; one plan wording correction.
 All three accepted: step 1 names `pnpm desktop:mac:build`, step 2 adds
 `pnpm desktop:win`, and the gates' opening line covers G5. These are plan
 wording only, verified against the package scripts by reading them.
+
+### Merge of `main`, 2026-11-26
+
+`origin/main` at `be048d5b3` (79 commits, with Windows 10 support) merged as
+`d3d27742d` (tree `dbb2aaa1908e`). Conflicts in `licenses/source-review.json`
+and seven shell files (`ipc.ts`, `runtime-preload.cts`, `supervisor.ts`,
+`main.ts`, `preload.cts`, `shared/desktop-runtime.ts`, `vite-env.d.ts`), all
+resolved by keeping both sides: `main`'s application-menu commands and
+ChatGPT plan store key beside this plan's menu entry and vault gate. The
+supervisor opens the vault through the Linux gate and then asks for the key.
+
+Three adaptations in `tests/runtime-supervisor.test.ts`: `main`'s test edits
+a saved vault through the fixture's `v11` prefix; the same test fails vault
+writes only (see Surprises & Discoveries); the macOS and Windows protection
+test expects the second vault write that the new key adds.
+
+Checks at the merge's tree (macOS arm64, working directory `src/frontend`
+unless stated):
+
+| Command | Result |
+| --- | --- |
+| `pnpm desktop:test` | Pass: 48 files passed, 2 skipped; 793 tests passed, 16 skipped |
+| `pnpm desktop:check` | Pass |
+| `pnpm check` | Pass |
+| `pnpm prettier:check` | Pass |
+| `pnpm exec vitest run src/ui/settings src/hooks src/ui/sidebar` (from `web`) | Pass: 45 files, 401 tests |
+| `python3 scripts/public-release/check_source.py` (repository root) | Pass |
+| `pnpm desktop:mac:build` | Pass; see gate G5 |
+| `pnpm desktop:test` in a `node:24-bookworm` container (aarch64, not the reference system) | Pass: 48 files passed, 2 skipped; 780 tests passed, 29 skipped |
+
+Hosted Validation run 45885445459 on the pull request deferred every
+product step because the pull request is a draft; it is no evidence. The
+full pre-push suite has not been run.
+
+#### Merge Review #1 Findings
+
+Reviewed source `d3d27742d`, both parents and the previous merge base,
+high-risk tier. No blocking finding. Every line either side added to the
+conflicted files is in the merge; the only replaced lines are the three test
+adaptations, which are sound. `protect()` keeps the ChatGPT plan key when a
+vault moves under a secret store, and the key is written only after the gate
+or consent has passed. Stopping in recovery when the encryptor fails
+altogether is consistent with R5. Linux offers no Check for Updates, because
+no updater exists there, and keeps Import Anima.
+
+Not blocking:
+
+- The ChatGPT plan card shows no unprotected-storage note. Without a secret
+  store its session is protected by file permissions only. R5 names
+  provider-key entry, so this is the owner's decision; the existing note
+  component could be reused.
+- `docs/backend/operations/desktop-runtime.md` says FastAPI starts without
+  the key when the vault cannot create one; on Linux a failing encryptor
+  stops in recovery first.
+- `main` made `pyjwt[crypto]` and `cryptography` direct backend dependencies
+  and raised others, and no Linux stage or audit has run on the merged tree.
+
+Checks rerun independently on an export of the commit (macOS arm64, working
+directory `src/frontend`): `pnpm desktop:test` with 48 files passed, 2
+skipped; 793 tests passed, 16 skipped; `pnpm desktop:check` passes.
+
+Result: pass.
+
+#### Merge Review #1 Revisions
+
+No change to the merge. The ChatGPT plan note is raised for the owner; the
+document line goes to Phase 7; the Linux gates run on the merged tree or
+later, as the handoff says.
 
 ## Validation and acceptance
 
