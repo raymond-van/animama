@@ -3,10 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import type {
-  PyModelAssetState,
-  PyVoiceContent,
-} from "@animama/runtime-contracts/api-types";
+import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 
 import {
   prepareVoiceClone,
@@ -34,15 +31,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/ui/components/dialog";
 
 /**
- * Text for a failed clone operation. The in-use and changed codes have voice
- * wording; content save failures arrive worded (`toContentSaveApiError`), as
- * do `WordedError`s such as cloning and download-guard refusals; any other
+ * Text for a failed clone operation. The changed code has voice wording;
+ * content save failures arrive worded (`toContentSaveApiError`), as do
+ * `WordedError`s such as cloning and download-guard refusals; any other
  * English stays primary in English and is secondary detail under `fallback`
  * elsewhere.
  */
@@ -55,7 +51,6 @@ function cloneError(
     error instanceof ContentSaveApiError
       ? error.code
       : parseContentApiErrorDetail(error)?.code;
-  if (code === "catalog_item_in_use") return t("voices.cloning.errors.inUse");
   // The encoder was offered before the model-asset list said downloads ended.
   if (code === "model_downloads_ended")
     return t("voices.cloning.downloadsEnded");
@@ -65,18 +60,18 @@ function cloneError(
   return failureLine(error, fallback);
 }
 
-/** Named originals and encoded voices are saved together, independently of selection. */
+/**
+ * Named originals and encoded voices are saved together, independently of
+ * selection. A clone is deleted through the shared content delete
+ * confirmation, opened from the voice picker.
+ */
 export function VoiceCloneLibrary({
   disabled,
   heading = true,
-  deleting,
-  onDeleteClose,
   onBusyChange,
 }: {
   disabled: boolean;
   heading?: boolean;
-  deleting: PyVoiceContent | null;
-  onDeleteClose: () => void;
   onBusyChange: (busy: boolean) => void;
 }) {
   const apiClient = useProductApiClient();
@@ -93,7 +88,6 @@ export function VoiceCloneLibrary({
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [dialogError, setDialogError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [encoderOpen, setEncoderOpen] = useState(false);
   const [encoder, setEncoder] = useState<PyModelAssetState | null>(null);
@@ -249,23 +243,6 @@ export function VoiceCloneLibrary({
     }
   };
 
-  const remove = async () => {
-    if (!deleting || locked || pending.current) return;
-    changeBusy(true);
-    setDialogError(null);
-    try {
-      await actions.deleteVoiceClone.mutateAsync(deleting);
-      onDeleteClose();
-      toast.success(t("voices.cloning.deleted"));
-    } catch (cause) {
-      setDialogError(
-        cloneError(t, cause, t("voices.cloning.errors.deleteFailed")),
-      );
-    } finally {
-      changeBusy(false);
-    }
-  };
-
   return (
     <section
       className="space-y-3"
@@ -377,52 +354,6 @@ export function VoiceCloneLibrary({
               onClose={closeEncoder}
             />
           ) : null}
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={Boolean(deleting)}
-        onOpenChange={(open) => {
-          if (!open && !busy) {
-            setDialogError(null);
-            onDeleteClose();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {t("voices.cloning.delete.title", { name: deleting?.name ?? "" })}
-            </DialogTitle>
-            <DialogDescription>
-              {t("voices.cloning.delete.description")}
-            </DialogDescription>
-          </DialogHeader>
-          {dialogError ? (
-            <p role="alert" className="text-destructive text-sm">
-              {dialogError}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => {
-                setDialogError(null);
-                onDeleteClose();
-              }}
-            >
-              {t("actions.cancel")}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={busy}
-              onClick={() => void remove()}
-            >
-              {t("voices.cloning.delete.confirm")}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </section>

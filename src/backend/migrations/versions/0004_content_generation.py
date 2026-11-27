@@ -1,7 +1,7 @@
 """Add the content assistant's conversations, messages and drafts (spec #942).
 
 Revision ID: content_generation_20261126
-Revises: reasoning_effort_20261112
+Revises: sidebar_pins_20261126
 Create Date: 2026-11-26
 
 An assistant conversation is not a Chat: these tables reference neither
@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "content_generation_20261126"
-down_revision: str | None = "reasoning_effort_20261112"
+down_revision: str | None = "sidebar_pins_20261126"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

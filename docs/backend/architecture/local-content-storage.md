@@ -270,8 +270,8 @@ revision and targets only an owned Local entry; Included remains read-only.
 Explicit API deletion removes both the registered files and that catalog
 identity, so a following exact GET returns 404. A manual host-file removal is
 different: reconciliation retains its `missing` tombstone for repair. Content
-still referenced by an Avatar or Anima loadout must be unequipped before it can
-be deleted.
+in use, an Avatar's portrait and files changed on disk follow
+[Deleting Local content](../features/custom-animas-and-content.md#deleting-local-content).
 
 Direct Save error details use stable `code` values and may include a canonical
 `field` when one creator control is unambiguously responsible. Name validation
@@ -297,6 +297,7 @@ before touching journals or backups.
 ```text
 GET    /v1/content/catalog
 GET    /v1/content/items/{item_id}
+GET    /v1/content/items/{item_id}/usage
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}?expected_revision=...
 POST   /v1/content/evidence:resolve

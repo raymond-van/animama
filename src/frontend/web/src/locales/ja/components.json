@@ -3,6 +3,10 @@
     "description": "実行するコマンドを検索...",
     "title": "コマンドパレット"
   },
+  "confirmDelete": {
+    "cancel": "キャンセル",
+    "confirm": "削除"
+  },
   "dialog": {
     "close": "閉じる"
   },

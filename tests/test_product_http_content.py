@@ -59,6 +59,7 @@ async def test_an_owner_never_reaches_another_owners_content(
         async with composition.client(owner_b) as b:
             assert item.id not in {entry["item_id"] for entry in (await b.get("/v1/content/catalog")).json()["items"]}
             assert (await b.get(f"/v1/content/items/{item.id}")).status_code == 404
+            assert (await b.get(f"/v1/content/items/{item.id}/usage")).status_code == 404
             refused = await b.delete(f"/v1/content/items/{item.id}", params={"expected_revision": item.revision_sha256})
             assert refused.status_code == 404
             file = await b.get(f"/v1/content/files/{file_ref}")
@@ -70,6 +71,8 @@ async def test_an_owner_never_reaches_another_owners_content(
         async with composition.client(owner_a) as a:
             assert item.id in {entry["item_id"] for entry in (await a.get("/v1/content/catalog")).json()["items"]}
             assert (await a.get(f"/v1/content/items/{item.id}")).json()["item_id"] == item.id
+            usage = await a.get(f"/v1/content/items/{item.id}/usage")
+            assert usage.json() == {"item_id": item.id, "used_by": []}
             delivered = await a.get(f"/v1/content/files/{file_ref}")
             # The composition's own byte policy, not the local one.
             assert (delivered.content, delivered.headers["cache-control"]) == (vrma("Wave A"), "private, no-store")

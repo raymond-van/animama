@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 
 import type {
+  ContentKind,
   PyAvatarCatalogItem,
   PyCatalogViewItem,
 } from "@/lib/content/catalogTypes";
@@ -78,6 +79,11 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { UnavailableAction } from "@/ui/components/unavailable-action";
+import type { DeleteFocusTargets } from "@/ui/components/useDeleteReturnFocus";
+import {
+  ContentDeleteDialog,
+  type ContentToDelete,
+} from "@/ui/content-delete/ContentDeleteDialog";
 import { SoundPickerPreview } from "@/ui/sound-preview/SoundPickerPreview";
 import {
   ActionManageDialog,
@@ -89,11 +95,23 @@ import {
 } from "./LibraryAvatarSettingsDialog";
 import { LibrarySoundDialog } from "./LibrarySoundDialog";
 import { LibraryFilterMenu } from "./LibraryFilterMenu";
+import { LibraryItemMenu } from "./LibraryItemMenu";
 import { LibraryProductRow, type LibraryLayout } from "./LibraryProductRow";
 import { useLibraryLayout } from "./useLibraryLayout";
 import { useSearchDraft } from "./useSearchDraft";
 
 type SearchUpdate = (update: Partial<ContentLibrarySearch>) => void;
+
+/** The content kind each Library product family deletes as. */
+const CARD_CONTENT_KINDS = {
+  gesture: "gesture",
+  reaction: "reaction",
+  pose: "pose",
+  particle: "particle_effect",
+  "avatar-effect": "avatar_effect",
+  scene: "scene_effect",
+  sound: "sound_effect",
+} as const satisfies Record<LibraryProductCard["family"], ContentKind>;
 
 function ProductGroup({
   id,
@@ -133,7 +151,8 @@ function ProductGroup({
         </button>
       </h2>
       {expanded ? (
-        <div id={contentId} className="space-y-3">
+        // Item menus find a surviving item here after a delete.
+        <div id={contentId} data-library-group-items="" className="space-y-3">
           <div
             className={
               layout === "grid"
@@ -214,12 +233,15 @@ function ProductRow({
   card,
   onPreview,
   onManage,
+  onDelete,
   previewing = false,
   layout,
 }: {
   card: LibraryProductCard;
   onPreview: () => void;
   onManage?: () => void;
+  /** Open the delete confirmation; offered only for deletable Local items. */
+  onDelete: (focus: DeleteFocusTargets) => void;
   previewing?: boolean;
   layout: LibraryLayout;
 }) {
@@ -371,6 +393,9 @@ function ProductRow({
               </Button>
             </ActionTooltip>
           ) : null}
+          {policy.delete ? (
+            <LibraryItemMenu name={card.name} onDelete={onDelete} />
+          ) : null}
         </>
       }
     />
@@ -476,6 +501,7 @@ export function LibraryContentInventory({
     null,
   );
   const [manage, setManage] = useState<ManageActionTarget | null>(null);
+  const [deleting, setDeleting] = useState<ContentToDelete | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const soundPreview = useMemo(
@@ -641,6 +667,16 @@ export function LibraryContentInventory({
                 }
               : undefined
         }
+        onDelete={(focus) => {
+          soundPreview.stop();
+          setDeleting({
+            itemId: card.itemId,
+            kind: CARD_CONTENT_KINDS[card.family],
+            name: card.name,
+            revision: card.revision ?? null,
+            focus,
+          });
+        }}
       />
     ));
 
@@ -883,6 +919,22 @@ export function LibraryContentInventory({
                           </Button>
                         </ActionTooltip>
                       )}
+                      {avatar.origin === "local" && avatar.catalog_item_id ? (
+                        <LibraryItemMenu
+                          name={avatar.name}
+                          onDelete={(focus) => {
+                            soundPreview.stop();
+                            // Avatar rows carry no revision; the dialog reads it.
+                            setDeleting({
+                              itemId: avatar.catalog_item_id!,
+                              kind: "avatar",
+                              name: avatar.name,
+                              revision: null,
+                              focus,
+                            });
+                          }}
+                        />
+                      ) : null}
                     </>
                   }
                 />
@@ -954,6 +1006,7 @@ export function LibraryContentInventory({
           onClose={() => setManagedSound(null)}
         />
       ) : null}
+      <ContentDeleteDialog item={deleting} onClose={() => setDeleting(null)} />
       <ActionManageDialog
         open={Boolean(manage)}
         onOpenChange={(open) => {

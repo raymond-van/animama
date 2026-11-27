@@ -68,6 +68,7 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
+from animama.product_http.chat.active_turns import ActiveChatTurns
 from animama.product_http.routes import (
     animas as anima_router,
     memory as memory_entries_router,
@@ -823,7 +824,11 @@ async def test_deleting_an_anima_removes_its_coverage(async_session, clean_rows)
     assert await _coverage(async_session, user_id=user_id, anima_id=anima_id) is not None
 
     await anima_router.delete_anima(
-        anima_id, repositories=SQLAlchemyProductRepositories(async_session), user=_user(user_id)
+        anima_id,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        user=_user(user_id),
+        ports=_LOCAL_PORTS,
+        turns=ActiveChatTurns(),
     )
 
     rows = await async_session.execute(

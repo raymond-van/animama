@@ -26,6 +26,7 @@ from animama.app.services.content_portability import DISTRIBUTION_KEY, DISTRIBUT
 from animama.domain.content_catalog import (
     ACTION_KINDS,
     CONTENT_SOURCE_LOCK_ORDER,
+    CONTENT_USAGE_LIMIT,
     MISSING_EFFECT_DEPENDENCY,
     REMOVABLE_EFFECT_KINDS,
     CatalogContentEntry,
@@ -39,6 +40,8 @@ from animama.domain.content_catalog import (
     ContentScope,
     ContentSource,
     ContentStatus,
+    ContentUsage,
+    ContentUsageKind,
     ScannedContentEntry,
 )
 from animama.domain.content_documents import ContentDocumentError
@@ -67,6 +70,25 @@ SHARED_CATALOG_ROWS_IMMUTABLE = "animama.shared_catalog_rows_immutable"
 _LISTED = or_(
     ORMContentCatalogItem.source != ContentSource.INCLUDED.value,
     ORMContentCatalogItem.status != ContentStatus.MISSING.value,
+)
+# The use an Anima loadout binding of each kind names (``item_usage``). A Gesture
+# binding whose slot is ``idle:…`` is an Idle pool member instead.
+_BINDING_USES: dict[str, ContentUsageKind] = {
+    "avatar": "anima_avatar",
+    "appearance": "anima_appearance",
+    "voice": "anima_voice",
+    "gesture": "anima_gesture",
+    "reaction": "anima_reaction",
+    "music_track": "anima_music",
+}
+_USE_ORDER: tuple[ContentUsageKind, ...] = (
+    "anima_avatar",
+    "anima_appearance",
+    "anima_voice",
+    "anima_gesture",
+    "anima_idle",
+    "anima_reaction",
+    "anima_music",
 )
 
 
@@ -986,29 +1008,54 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         await self._session.delete(avatar)
         await self._session.flush()
 
-    async def item_has_runtime_references(self, *, item_id: str) -> bool:
-        """Retain Avatar/Appearance bindings and supports still used by content."""
+    async def item_usage(self, *, item_id: str, limit: int = CONTENT_USAGE_LIMIT) -> tuple[ContentUsage, ...]:
+        """Name the Animas and items that keep an item from being deleted.
 
-        avatar_id = (
-            await self._session.execute(select(ORMAvatar.id).where(ORMAvatar.catalog_item_id == item_id).limit(1))
-        ).scalar_one_or_none()
-        if avatar_id is not None:
-            return True
-        binding_id = (
-            await self._session.execute(
-                select(ORMAnimaContentBinding.id).where(ORMAnimaContentBinding.catalog_item_id == item_id).limit(1)
-            )
-        ).scalar_one_or_none()
-        if binding_id is not None:
-            return True
-        # Dependency rows protect support content even when it is reached
-        # transitively rather than equipped as a top-level Anima binding.
-        dependency_id = await self._session.scalar(
-            select(ORMContentCatalogDependency.item_id)
-            .where(ORMContentCatalogDependency.target_item_id == item_id)
-            .limit(1)
+        An Avatar counts through the Animas that select its mapping; the owner's
+        unused mapping is released by deletion, so it is not a use. Each loadout
+        binding counts by its kind, and a Gesture slot ``idle:…`` as an Idle pool
+        member. Dependency rows protect support content reached transitively
+        rather than equipped. Each Anima use is named once, ordered by Anima name
+        and then use; dependent items follow by name.
+        """
+
+        avatar_animas = await self._session.execute(
+            select(ORMAnima.id, ORMAnima.display_name)
+            .join(ORMAvatar, ORMAnima.avatar_id == ORMAvatar.id)
+            .where(ORMAvatar.catalog_item_id == item_id)
+            .order_by(ORMAnima.display_name, ORMAnima.id)
+            .limit(limit)
         )
-        return dependency_id is not None
+        anima_uses = {ContentUsage("anima_avatar", anima_id, name) for anima_id, name in avatar_animas}
+        idle = ORMAnimaContentBinding.slot_key.startswith("idle:").label("idle")
+        bindings = await self._session.execute(
+            select(ORMAnimaContentBinding.kind, idle, ORMAnima.id, ORMAnima.display_name)
+            .join(ORMAnima, ORMAnima.id == ORMAnimaContentBinding.anima_id)
+            .where(ORMAnimaContentBinding.catalog_item_id == item_id)
+            .distinct()
+            .order_by(ORMAnima.display_name, ORMAnima.id, ORMAnimaContentBinding.kind, idle)
+            .limit(limit)
+        )
+        anima_uses.update(
+            ContentUsage("anima_idle" if is_idle else _BINDING_USES[kind], anima_id, name)
+            for kind, is_idle, anima_id, name in bindings
+        )
+        dependents = await self._session.execute(
+            select(ORMContentCatalogItem.id, ORMContentCatalogItem.display_name)
+            .join(ORMContentCatalogDependency, ORMContentCatalogDependency.item_id == ORMContentCatalogItem.id)
+            .where(ORMContentCatalogDependency.target_item_id == item_id)
+            .distinct()
+            .order_by(ORMContentCatalogItem.display_name, ORMContentCatalogItem.id)
+            .limit(limit)
+        )
+        ordered = sorted(anima_uses, key=lambda use: (use.name.casefold(), use.id, _USE_ORDER.index(use.kind)))
+        ordered.extend(
+            sorted(
+                (ContentUsage("content", dependent_id, name) for dependent_id, name in dependents),
+                key=lambda use: (use.name.casefold(), use.id),
+            )
+        )
+        return tuple(ordered[:limit])
 
     async def _withdraw_included_sources(self, rows: list[ORMContentCatalogItem], *, now: datetime) -> None:
         """Withdraw absent packs atomically, never reinterpret them as missing files.

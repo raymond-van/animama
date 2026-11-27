@@ -188,7 +188,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 27.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 28.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -408,14 +408,19 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   that changes with every application revision, such as that revision.
   Unsupported encodings fail with 406 `content_encoding_not_acceptable`.
 - `GET /v1/content/items/{item_id}` reads one visible item.
+- `GET /v1/content/items/{item_id}/usage` names what keeps an owned Local item
+  from being deleted, as `{item_id, used_by}`; other items are 404.
 - `POST /v1/content:rescan` performs an authoritative scan of registered
   Included and Local type roots and returns per-source counts plus the updated
   visible catalog. It resolves unfinished Local mutations before admission.
   Valid new files become selectable but are never equipped.
 - `DELETE /v1/content/items/{item_id}` deletes one expected owned Local
-  revision and purges its explicit catalog identity; Included is read-only and
-  content still referenced by an Avatar or Anima loadout is rejected. File
-  removal and catalog deletion share recoverable mutation ownership with an
+  revision and purges its explicit catalog identity, with a Local Avatar's
+  unused portrait; Included is read-only. Content an Anima or other content
+  uses is 409 `catalog_item_in_use` with `used_by`, and a registered file
+  changed on disk is 409 `catalog_item_changed` with the `current_revision`
+  after a Local rescan ([Deleting Local content](../features/custom-animas-and-content.md#deleting-local-content)).
+  File removal and catalog deletion share recoverable mutation ownership with an
   internal operation identity; the route does not accept a retry key.
 - `GET /v1/content/files/{file_ref}` authorizes one opaque registration,
   revalidates filesystem containment, regular-file/link state, exact size, and
@@ -797,6 +802,19 @@ and loadout once; name plus Avatar in one PATCH still increments each once.
 Direct `anima.profile_picture_url` updates return `422
 use_typed_appearance_command`; use reviewed typed Appearance commands instead.
 Ordinary emotional state/metadata patches do not change definition revision.
+Body `pinned: true` pins the Anima in the sidebar and `false` unpins it;
+omitting it keeps the pin. A pin is runtime state: it needs no
+`expected_aggregate_revision` and changes neither aggregate revision nor
+`updated_at`. A rename sent with it still needs the revision. Pinning a pinned
+Anima keeps its pin time. Anima responses carry nullable `pinned_at`.
+`GET /v1/animas` keeps its creation order; clients list pinned Animas first.
+
+`DELETE /v1/animas/{anima_id}` deletes the owner's Anima with its chats and
+messages, its `IDENTITY.md` and `MEMORIES.md`, its pending episode items and
+the chat images only its chats use, and clears a `last_active_anima_id` that
+names it. Shared memory, processed episodes and Library content stay. Like a
+chat delete, it first stops any streaming reply in its chats and returns `409
+chat_turn_stopping` when one does not stop in time (see [Chats](#chats)).
 
 Typed loadout read/plan responses carry `aggregate_revision`. Existing
 `:plan`/`:commit` bodies keep `expected_revision` for the loadout; the reviewed
@@ -1679,8 +1697,24 @@ product-shaped chat CRUD and message retrieval backed by `chats` and
 
 Chat creation verifies the referenced anima exists and is owned by the
 current user; missing or foreign animas return `404`. Chat reads, updates,
-deletes, and message reads are scoped to the current user's chats. Message
-responses expose `chat_id`, `run_id`, `model_provider`, `model`, and
+deletes, and message reads are scoped to the current user's chats.
+
+`PATCH /v1/chats/{chat_id}` takes `pinned: true` to pin the chat in the
+sidebar and `false` to unpin it; omitting it keeps the pin. A pin is not an
+edit: `updated_at` stays unchanged, so `GET /v1/chats` keeps its most recent
+first order and clients list pinned chats first. Pinning a pinned chat keeps
+its pin time. Chat responses carry nullable `pinned_at`. Deleting a chat or its
+Anima deletes the pin with it.
+
+`DELETE /v1/chats/{chat_id}` deletes the chat's messages, its pending episode
+items and the chat images only it uses; processed episodes and the memory
+written from them stay (see [Memory](../features/memory.md#episodic-memory-capture)).
+If a reply is streaming in the chat, the delete first stops it as a client
+disconnect would (a reply save that has begun finishes) and waits for it. A
+reply that has not stopped within 10 seconds returns `409` with
+`detail.code = "chat_turn_stopping"`; nothing is deleted, and a retry is safe.
+
+Message responses expose `chat_id`, `run_id`, `model_provider`, `model`, and
 `internal`; identifiers belong to Chats and request-local runs. Visible
 assistant messages also carry nullable `memory_cue`
 (`{episode: {text} | null, memories: {entry_id, version, excerpt} | null}`),

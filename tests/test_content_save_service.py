@@ -291,7 +291,7 @@ async def test_explicit_delete_rejects_a_loadout_binding_before_touching_files(a
             catalog_item_id=None,
             expected_revision=None,
         )
-        assert not await catalog.item_has_runtime_references(item_id=saved.item.id)
+        assert await catalog.item_usage(item_id=saved.item.id) == ()
         async_session.add(
             ORMAnimaContentBinding(
                 id=f"binding-{fixture.suffix}",

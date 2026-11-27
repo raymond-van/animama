@@ -84,6 +84,11 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Textarea } from "@/ui/components/textarea";
+import type { DeleteFocusTargets } from "@/ui/components/useDeleteReturnFocus";
+import {
+  ContentDeleteDialog,
+  type ContentToDelete,
+} from "@/ui/content-delete/ContentDeleteDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -183,12 +188,16 @@ function PoseDataActionTooltip({
   );
 }
 
+/** Open a Local Pose's delete confirmation, returning focus to `focus`. */
+type DeleteSavedDraft = (draft: PyPose, focus: DeleteFocusTargets) => void;
+
 type SavedDraftRowProps = {
   draft: PyPose;
   isCurrent: boolean;
   onLoad: (draft: PyPose) => void;
   onCreateBranch: (draft: PyPose) => void;
-  onDelete: (draft: PyPose) => void;
+  /** Called with the row's Delete button. */
+  onDelete: (draft: PyPose, button: HTMLElement) => void;
 };
 
 function SavedDraftRow({
@@ -248,7 +257,7 @@ function SavedDraftRow({
               size="sm"
               variant="ghost"
               className="text-destructive hover:text-destructive h-11 px-2 text-xs lg:h-7"
-              onClick={() => onDelete(draft)}
+              onClick={(event) => onDelete(draft, event.currentTarget)}
               aria-label={t("library.row.delete", { name: draft.name })}
             >
               <Trash2Icon className="size-3.5" />
@@ -277,14 +286,16 @@ function SavedDraftLoadButton({
   selectedSavedDraftId: string | null;
   onLoad: (draft: PyPose) => void;
   onCreateBranch: (draft: PyPose) => void;
-  onDelete: (draft: PyPose) => void;
+  onDelete: DeleteSavedDraft;
 }) {
   const { t } = useTranslation("pose");
   const [open, setOpen] = useState(false);
+  const loadRef = useRef<HTMLButtonElement>(null);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={loadRef}
           type="button"
           variant="outline"
           className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
@@ -332,7 +343,15 @@ function SavedDraftLoadButton({
                   onLoad(selectedDraft);
                 }}
                 onCreateBranch={onCreateBranch}
-                onDelete={onDelete}
+                onDelete={(selectedDraft) => {
+                  // The confirmation replaces the list, and focus returns
+                  // to Load whether or not the Pose is deleted.
+                  setOpen(false);
+                  onDelete(selectedDraft, {
+                    kept: () => loadRef.current,
+                    deleted: () => loadRef.current,
+                  });
+                }}
               />
             ))}
           </div>
@@ -393,7 +412,10 @@ export function PoseCreatorLibrarySection({
   const draftName = usePoseCreatorStore((state) => state.draftName);
   const posesQuery = usePoses();
   const savedDrafts = posesQuery.data?.items ?? [];
-  const { savePose, deletePose } = usePoseContentActions();
+  const { savePose } = usePoseContentActions();
+  const [poseToDelete, setPoseToDelete] = useState<ContentToDelete | null>(
+    null,
+  );
   const pendingSave = useRef(false);
   const savedPoseIdentity = usePoseCreatorStore(
     (state) => state.savedPoseIdentity,
@@ -722,24 +744,29 @@ export function PoseCreatorLibrarySection({
     );
   };
 
-  const handleDeleteSavedDraft = async (item: PyPose) => {
-    if (item.source !== "local" || deletePose.isPending) return;
-    if (!window.confirm(t("library.delete.confirm", { name: item.name })))
-      return;
-    try {
-      await deletePose.mutateAsync(item);
-      const current = usePoseCreatorStore.getState();
-      if (current.savedPoseIdentity?.itemId === item.item_id) {
-        current.loadPoseDocument(
-          null,
-          capturePoseCreatorSubmittedDraft(current),
-        );
-      }
-      toast.success(t("library.delete.deleted"));
-    } catch (error) {
-      toast.error(failureLine(error, t("library.delete.failed")));
-    }
+  const handleDeleteSavedDraft: DeleteSavedDraft = (item, focus) => {
+    if (item.source !== "local") return;
+    setPoseToDelete({
+      itemId: item.item_id,
+      kind: "pose",
+      name: item.name,
+      revision: item.revision_sha256,
+      focus,
+    });
   };
+  /** Deleting the open Pose keeps its draft as unsaved work for Save. */
+  const keepDeletedPoseDraft = (deleted: ContentToDelete) => {
+    const current = usePoseCreatorStore.getState();
+    if (current.savedPoseIdentity?.itemId === deleted.itemId)
+      current.loadPoseDocument(null, capturePoseCreatorSubmittedDraft(current));
+  };
+  const poseDeleteDialog = (
+    <ContentDeleteDialog
+      item={poseToDelete}
+      onClose={() => setPoseToDelete(null)}
+      onDeleted={keepDeletedPoseDraft}
+    />
+  );
 
   const handleNewPose = () => {
     if (!confirmPoseCreatorDirtyReplacement(isDirty, t("dirty.newPose"))) {
@@ -1083,6 +1110,7 @@ export function PoseCreatorLibrarySection({
             </div>
           </DialogContent>
         </Dialog>
+        {poseDeleteDialog}
       </>
     );
   }
@@ -1232,7 +1260,12 @@ export function PoseCreatorLibrarySection({
                 isCurrent={draft.item_id === selectedSavedDraftId}
                 onLoad={handleLoadSavedDraft}
                 onCreateBranch={handleCreateBranch}
-                onDelete={handleDeleteSavedDraft}
+                onDelete={(selectedDraft, button) =>
+                  handleDeleteSavedDraft(selectedDraft, {
+                    kept: () => button,
+                    deleted: () => null,
+                  })
+                }
               />
             ))}
           </div>
@@ -1242,6 +1275,7 @@ export function PoseCreatorLibrarySection({
           </p>
         )}
       </div>
+      {poseDeleteDialog}
     </PoseCreatorPanelSection>
   );
 }

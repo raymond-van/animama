@@ -3,7 +3,6 @@ import { useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useFormatters } from "@animama/product-ui/i18n";
-import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 
 import { usePocketTtsRuntime } from "@/hooks/usePocketTtsRuntime";
 import { usePocketVoiceDownloads } from "@/hooks/usePocketVoiceDownloads";
@@ -27,6 +26,10 @@ import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
+import {
+  ContentDeleteDialog,
+  type ContentToDelete,
+} from "@/ui/content-delete/ContentDeleteDialog";
 import { toTtsProvider } from "@/lib/speech/tts-provider";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
 import { GeminiVoicePicker } from "@/ui/animas/GeminiVoicePicker";
@@ -116,7 +119,7 @@ export function AnimaVoicesEditor() {
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
   const [cloning, setCloning] = useState(false);
-  const [deletingClone, setDeletingClone] = useState<PyVoiceContent | null>(
+  const [deletingClone, setDeletingClone] = useState<ContentToDelete | null>(
     null,
   );
   const disabled = isLoading || isUpdating || saving || cloning || !animaId;
@@ -340,11 +343,20 @@ export function AnimaVoicesEditor() {
                 ? t("voices.pocket.savedUnavailable")
                 : undefined
             }
-            onDeleteClone={(id) =>
-              setDeletingClone(
-                clones.find((clone) => `clone:${clone.item_id}` === id) ?? null,
-              )
-            }
+            onDeleteClone={(id, focus) => {
+              const clone = clones.find(
+                (candidate) => `clone:${candidate.item_id}` === id,
+              );
+              // The confirmation names this Anima if it uses the clone.
+              if (clone)
+                setDeletingClone({
+                  itemId: clone.item_id,
+                  kind: "voice",
+                  name: clone.name,
+                  revision: clone.revision_sha256,
+                  focus,
+                });
+            }}
             clones={clones.map(voiceCloneSampleSource.bind(null, apiClient))}
             hasCustomVoice={runtime.hasCustomVoice}
             onSelect={savePocketVoice}
@@ -415,9 +427,11 @@ export function AnimaVoicesEditor() {
               {t("voices.pocket.selectedUnavailable")}
             </p>
           ) : null}
+          <ContentDeleteDialog
+            item={deletingClone}
+            onClose={() => setDeletingClone(null)}
+          />
           <VoiceCloneLibrary
-            deleting={deletingClone}
-            onDeleteClose={() => setDeletingClone(null)}
             disabled={
               isLoading || isUpdating || saving || !animaId || library.isError
             }

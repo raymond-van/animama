@@ -711,14 +711,38 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         return cast(CursorResult[Any], result).rowcount > 0
 
     async def image_file_ids_only_in_chat(self, *, user_id: str, chat_id: str) -> list[str]:
+        return await self._image_file_ids_only_in(
+            inside="message.chat_id = :scope_id",
+            other_outside="other.chat_id <> :scope_id",
+            user_id=user_id,
+            scope_id=chat_id,
+        )
+
+    async def image_file_ids_only_in_anima_chats(self, *, user_id: str, anima_id: str) -> list[str]:
+        return await self._image_file_ids_only_in(
+            inside="chat.anima_id = :scope_id",
+            other_outside="other_chat.anima_id <> :scope_id",
+            user_id=user_id,
+            scope_id=anima_id,
+        )
+
+    async def _image_file_ids_only_in(
+        self, *, inside: str, other_outside: str, user_id: str, scope_id: str
+    ) -> list[str]:
+        """The image ids user messages inside a scope attach and no user message outside it does.
+
+        ``inside`` and ``other_outside`` are fixed SQL predicates over ``message``/``chat``
+        and ``other``/``other_chat``; only the bound ``scope_id`` comes from the caller.
+        """
+
         # Saved user messages list their images in message_data.images (see
         # app/chat/direct_turn/message_builders.py); an image attached again from
         # the Library can appear in several chats.
-        # Only user messages carry images. A chat without images returns at once;
-        # other chats are searched only for this chat's image ids.
+        # Only user messages carry images. A scope without images returns at once;
+        # other chats are searched only for this scope's image ids.
         result = await self._s.execute(
             text(
-                """
+                f"""
                 SELECT DISTINCT image ->> 'file_id' AS file_id
                 FROM chat_messages AS message
                 JOIN chats AS chat ON chat.id = message.chat_id
@@ -726,7 +750,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                     CASE WHEN jsonb_typeof(message.message_data -> 'images') = 'array'
                          THEN message.message_data -> 'images' ELSE '[]'::jsonb END
                 ) AS image
-                WHERE message.chat_id = :chat_id
+                WHERE {inside}
                   AND message.role = 'user'
                   AND chat.user_id = :user_id
                   AND image ->> 'file_id' IS NOT NULL
@@ -734,7 +758,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                       SELECT 1
                       FROM chat_messages AS other
                       JOIN chats AS other_chat ON other_chat.id = other.chat_id
-                      WHERE other.chat_id <> :chat_id
+                      WHERE {other_outside}
                         AND other.role = 'user'
                         AND other_chat.user_id = :user_id
                         AND other.message_data -> 'images'
@@ -742,7 +766,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                   )
                 """
             ),
-            {"chat_id": chat_id, "user_id": user_id},
+            {"scope_id": scope_id, "user_id": user_id},
         )
         return sorted(str(row.file_id) for row in result if row.file_id)
 

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, Text, text as sa_text
+from sqlalchemy import TIMESTAMP, CheckConstraint, ForeignKey, Integer, String, Text, text as sa_text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -42,6 +43,9 @@ class ORMAnima(SqlalchemyBase, TimestampMixin, AuditMixin, OrganizationMixin):
     avatar_id: Mapped[str | None] = mapped_column(String, ForeignKey("avatar.id", ondelete="RESTRICT"), nullable=True)
     profile_picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     emotional_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # When the owner pinned the Anima in the sidebar; NULL when unpinned. Runtime
+    # state, not part of the definition: it never advances aggregate_revision.
+    pinned_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)
 
     archive: Mapped[ORMArchive | None] = relationship(
         "ORMArchive",

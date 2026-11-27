@@ -202,7 +202,7 @@ def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
 def test_each_stage_shares_the_planned_routes() -> None:
     # The ExecPlan's stages; audio isolation stays local (owner, 2026-10-10).
     shared = Counter(spec.stage for spec in ROUTES if spec.disposition == "shared")
-    assert shared == {2: 45, 3: 81, 4: 18, 5: 1}
+    assert shared == {2: 45, 3: 82, 4: 18, 5: 1}
 
 
 def test_routers_mount_the_served_routes_in_inventory_order() -> None:

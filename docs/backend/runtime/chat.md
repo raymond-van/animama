@@ -673,6 +673,15 @@ Request-local cleanup runs in `finally`, shielded from the disconnect's
 cancellation and bounded to five seconds, and waits until each task has stopped;
 only then does the response settle the turn's lease.
 
+From admission until its lease settles, a turn is listed in the app's
+active-turn registry (`product_http/chat/active_turns.py`, on `app.state`)
+under its owner, chat and Anima. Deleting the chat or Anima stops it the same
+way as a disconnect, ends whatever the response had sent, and waits for the
+turn to settle and for its reply save to finish. A turn stopped during setup
+sends no model request and settles `unstarted`. A turn that has not settled
+within 10 seconds makes the delete return `409 chat_turn_stopping`
+([HTTP API](../architecture/http-api.md#chats)).
+
 ## Runtime scope
 
 `chat:sse` runs one avatar companion turn. Helper, trigger, feed and aggregate

@@ -3,6 +3,10 @@
     "description": "실행할 명령 검색...",
     "title": "명령 팔레트"
   },
+  "confirmDelete": {
+    "cancel": "취소",
+    "confirm": "삭제"
+  },
   "dialog": {
     "close": "닫기"
   },

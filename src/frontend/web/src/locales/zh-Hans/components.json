@@ -3,6 +3,10 @@
     "description": "搜索要运行的命令...",
     "title": "命令面板"
   },
+  "confirmDelete": {
+    "cancel": "取消",
+    "confirm": "删除"
+  },
   "dialog": {
     "close": "关闭"
   },

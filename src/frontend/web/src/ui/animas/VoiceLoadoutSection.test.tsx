@@ -50,6 +50,10 @@ vi.mock("@/query/hooks/useVoiceClones", () => ({
     isError: false,
   }),
 }));
+// The shared delete confirmation has its own tests.
+vi.mock("@/ui/content-delete/ContentDeleteDialog", () => ({
+  ContentDeleteDialog: () => null,
+}));
 vi.mock("@/query/mutations/useVoiceSelection", () => ({
   useVoiceSelection: () => ({ mutateAsync: vi.fn() }),
 }));
@@ -57,7 +61,6 @@ vi.mock("@/query/mutations/useVoiceCloneActions", () => ({
   useVoiceCloneActions: () => ({
     saveVoiceClone: { mutateAsync: vi.fn() },
     renameVoiceClone: { mutateAsync: vi.fn() },
-    deleteVoiceClone: { mutateAsync: vi.fn() },
   }),
 }));
 vi.mock("@/query/mutations/useModelAssetActions", () => ({

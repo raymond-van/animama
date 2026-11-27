@@ -15,7 +15,9 @@ from animama.app.contracts.anima import PyAnimaChatProfileUpdateRequest, PyAnima
 from animama.app.contracts.settings import PyAnimaSettingsUpdate
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima
+from animama.product_http.chat.active_turns import ActiveChatTurns
 from animama.product_http.routes import animas as anima, settings
+from tests.product_http_support import local_ports
 
 CALLER = RequestPrincipal(id="caller-owner")
 
@@ -49,7 +51,11 @@ def anima_scoped_calls(anima_id: str, session: AsyncSession) -> dict[str, Callab
             user=CALLER,
         ),
         "delete_anima": lambda: anima.delete_anima(
-            anima_id=anima_id, repositories=SQLAlchemyProductRepositories(session), user=CALLER
+            anima_id=anima_id,
+            repositories=SQLAlchemyProductRepositories(session),
+            user=CALLER,
+            ports=local_ports(),
+            turns=ActiveChatTurns(),
         ),
         "get_anima_settings": lambda: settings.get_anima_settings(
             anima_id=anima_id, repositories=SQLAlchemyProductRepositories(session), user=CALLER

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -29,13 +28,13 @@ from animama.app.services import ChatService
 from animama.domain.chat import Chat, ChatMessage, ChatSearchResult
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.usage import Usage
-from animama.logging import get_logger
+from animama.product_http.chat.active_turns import ActiveTurns
 from animama.product_http.ports import Ports, ProductRepositories, ReadRepositories, WriteRepositories
 from animama.product_http.principal import get_current_principal
+from animama.product_http.routes._deletion import delete_chat_images, pending_episode_removal, stop_turns_before_delete
 from animama.product_http.routes._owner import require_owned_anima
 
 router = APIRouter()
-_log = get_logger("product_http.routes.chats")
 
 
 def _to_schema(chat: Chat, *, last_message_at: datetime | None = None) -> PyChatResponse:
@@ -50,6 +49,7 @@ def _to_schema(chat: Chat, *, last_message_at: datetime | None = None) -> PyChat
         metadata=chat.metadata or {},
         created_at=chat.created_at,
         updated_at=chat.updated_at,
+        pinned_at=chat.pinned_at,
         last_message_at=last_message_at,
         usage=_usage_to_schema(chat.usage),
         active_context_tokens=int(getattr(chat, "active_context_tokens", 0) or 0),
@@ -262,6 +262,7 @@ async def update_chat(
         user_id=user.id,
         title=req.title,
         metadata=req.metadata,
+        pinned=req.pinned,
     )
     if chat is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
@@ -278,42 +279,29 @@ async def delete_chat(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     repositories: WriteRepositories,
     ports: Ports,
+    turns: ActiveTurns,
 ) -> Response:
-    # Deleting a chat also deletes the chat images only it uses. (A comment, not a
-    # docstring: the docstring is the operation's OpenAPI description.) Read them
-    # before the delete: the chat's messages go with it.
+    # (Comments, not a docstring: the docstring is the operation's OpenAPI description.)
+    # Deleting a chat first stops its reply, if one is running, then deletes its
+    # messages, its pending episodes and the chat images only it uses. A reply that
+    # does not stop in time refuses the delete with 409 chat_turn_stopping.
+    service = ChatService(
+        chats=repositories.chats,
+        uow=repositories.unit_of_work,
+        pending_episodes=pending_episode_removal(repositories),
+    )
+    chat = await service.get(chat_id)
+    if chat is None or chat.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
+    await stop_turns_before_delete(turns, owner_id=user.id, chat_ids=(chat_id,))
+    # Read the images before the delete: the chat's messages go with it.
     image_ids = await repositories.user_file_processing.image_file_ids_only_in_chat(user_id=user.id, chat_id=chat_id)
-    ok = await _chat_service(repositories).delete(chat_id=chat_id, user_id=user.id)
+    ok = await service.delete(chat_id=chat_id, user_id=user.id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
     if image_ids:
-        await _delete_chat_images(ports, user, repositories, image_ids)
+        await delete_chat_images(ports, user, repositories, image_ids)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-async def _delete_chat_images(
-    ports: Ports, user: RequestPrincipal, repositories: ProductRepositories, image_ids: list[str]
-) -> None:
-    """Delete images as ``DELETE /v1/files/{file_id}`` would; the chat is already gone.
-
-    Each image's row is committed with its own outcome, so a failure part way
-    leaves the images not yet reached in the Library, where the person can
-    delete them. As in ``DELETE /v1/files/{file_id}``, a failure between an
-    image's byte delete and its commit leaves that one row ready without bytes.
-    """
-
-    try:
-        storage = ports.uploads(user).private_files
-        user_files = repositories.user_file_processing
-        for file_id in image_ids:
-            row = await user_files.get_user_file(user_id=user.id, file_id=file_id)
-            if row is None:
-                continue
-            removed = await asyncio.to_thread(storage.delete, row.storage_locator)
-            await user_files.record_file_deleted(user_id=user.id, file_id=file_id, object_deleted=removed)
-            await repositories.unit_of_work.commit()
-    except Exception as exc:
-        _log.warning("Chat image cleanup failed", user_id=user.id, image_count=len(image_ids), error=str(exc))
 
 
 @router.get("/v1/chats/{chat_id}/messages", response_model=PyChatMessagesResponse)

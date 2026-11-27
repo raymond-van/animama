@@ -287,6 +287,33 @@ async def test_failures_back_off_then_pause_and_interrupted_runs_do_not_count(
 
 
 @pytest.mark.asyncio
+async def test_a_run_a_chat_delete_ended_is_not_a_failure(
+    async_session: AsyncSession,
+    async_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    harness = _harness(async_session_factory)
+    await _notes(async_session, harness.owner_id, 10)
+    failure = _NOW - timedelta(hours=2)
+    await _automatic_run(
+        async_session, harness.owner_id, status="failed", started_at=failure, completed_at=failure, error="first"
+    )
+    ended = _NOW - timedelta(minutes=30)
+    await _automatic_run(
+        async_session,
+        harness.owner_id,
+        status="failed",
+        started_at=ended,
+        completed_at=ended,
+        reason="source_deleted",
+        error="Its source chat was deleted",
+    )
+
+    status = await harness.worker.status()
+    # Only the real failure counts, and its one-hour backoff has passed.
+    assert (status.state, status.last_error) == ("ready", "first")
+
+
+@pytest.mark.asyncio
 async def test_a_successful_owner_run_lifts_the_pause(
     async_session: AsyncSession,
     async_session_factory: async_sessionmaker[AsyncSession],

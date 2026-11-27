@@ -65,6 +65,37 @@
       }
     }
   },
+  "delete": {
+    "avatarPortrait": "如果没有其他内容使用，生成的肖像也会被删除。",
+    "changed": "此项目已更改。请检查后重试。",
+    "checkFailed": "无法检查此项目。请关闭后重试。",
+    "checking": "正在检查是否有内容使用它…",
+    "deleted": "已删除“{{name}}”。",
+    "description": "此{{kind}}及其本地文件将被删除。此操作无法撤销。",
+    "failed": "无法删除“{{name}}”。请重试。",
+    "inUse": {
+      "animaAppearance": "用作 {{name}} 的个人资料或背景图片。",
+      "animaAvatar": "用作 {{name}} 的虚拟形象。",
+      "animaGesture": "已装备为 {{name}} 的动作。",
+      "animaIdle": "在 {{name}} 的待机中。",
+      "animaMusic": "用作 {{name}} 的音乐。",
+      "animaReaction": "在 {{name}} 行为中的反应格里。",
+      "animaVoice": "用作 {{name}} 的语音。",
+      "content": "“{{name}}”依赖于它。",
+      "freeAppearance": "要删除它，请先在每个 Anima 的页面上点击 Anima 的图片打开外观，并选择其他图片。",
+      "freeAvatar": "要删除它，请先在每个 Anima 的设置中用“更换虚拟形象”选择其他虚拟形象。",
+      "freeBehavior": "要删除它，请先从每个 Anima 的行为中移除它。",
+      "freeContent": "要删除它，请先删除依赖它的项目。",
+      "freeMusic": "音乐无法在应用中更改，因此无法在此删除。",
+      "freeVoice": "要删除它，请先在每个 Anima 的行为中的语音里选择其他语音。",
+      "heading": "它正在使用中，无法删除：",
+      "more": "可能还有未列出的其他用途。",
+      "other": "由 {{name}} 使用。"
+    },
+    "noRevision": "无法读取它的文件，因此无法在此删除。请修复或移除这些文件，然后重新扫描。",
+    "title": "要删除“{{name}}”吗？",
+    "unavailable": "此项目已无法删除，可能已被删除。"
+  },
   "filters": {
     "all": "全部",
     "allStatuses": "所有状态",
@@ -102,11 +133,13 @@
   "inventory": {
     "actions": {
       "createAnima": "创建 Anima",
+      "delete": "删除",
       "draft": "草稿",
       "edit": "编辑",
       "manage": "添加 / 管理",
       "manageShort": "管理",
       "manageSound": "管理音效",
+      "more": "{{name}} 的更多操作",
       "notEditable": "不可编辑",
       "play": "播放",
       "preview": "预览",
@@ -381,11 +414,7 @@
     "yourPackage": "你的包"
   },
   "sound": {
-    "cancel": "取消",
     "changed": "此音效已更改。保存前请关闭并重新打开。",
-    "confirmDelete": "确认删除",
-    "confirmDeleteQuestion": "要删除“{{name}}”吗？仍被其他内容使用的音效无法删除。",
-    "delete": "删除",
     "description": "在资源库中重命名此音效或替换其音频。",
     "name": "名称",
     "readOnly": "内置音效为只读。",

@@ -9,6 +9,7 @@ import {
   libraryRowPresentation,
   actionLibraryCard,
   contentRowDescription,
+  poseLibraryCard,
 } from "./libraryPresentation";
 
 function card(
@@ -108,9 +109,57 @@ describe("Library product presentation", () => {
         edit: true,
         useInGesture: false,
         useInReaction: false,
+        delete: false,
       });
     },
   );
+
+  it.each([
+    "gesture",
+    "reaction",
+    "pose",
+    "particle",
+    "avatar-effect",
+    "scene",
+    "sound",
+  ] as const)("offers Delete on a Local %s with a revision only", (family) => {
+    const local = { ...card(family, "Mine"), revision: "r1" };
+    expect(libraryProductActionPolicy(local).delete).toBe(true);
+    // Included content is read-only.
+    expect(
+      libraryProductActionPolicy({ ...card(family), revision: "r1" }).delete,
+    ).toBe(false);
+    // An item whose files could not be read has no revision to delete at.
+    expect(
+      libraryProductActionPolicy({ ...local, revision: null }).delete,
+    ).toBe(false);
+  });
+
+  it("carries each family's revision for a fenced delete", () => {
+    expect(
+      effectLibraryCard("sound", {
+        item_id: "bell",
+        name: "Bell",
+        description: null,
+        origin: "owned",
+        source: null,
+        state: "ready",
+        revision_sha256: "sound-revision",
+        created_at: null,
+        updated_at: null,
+      }).revision,
+    ).toBe("sound-revision");
+    expect(
+      poseLibraryCard({
+        item_id: "wave",
+        pose_id: "local:pose:wave",
+        name: "Wave",
+        source: "local",
+        editable: true,
+        revision_sha256: "pose-revision",
+      } as Parameters<typeof poseLibraryCard>[0]).revision,
+    ).toBe("pose-revision");
+  });
 
   it("explains why a non-portable Action cannot be edited", () => {
     const gesture = libraryProductActionPolicy({

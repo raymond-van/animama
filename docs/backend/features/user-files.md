@@ -529,8 +529,11 @@ finished".
 
 Deleting a chat deletes the images its user messages reference unless a
 message in another chat references them too (an image can be attached again
-from the Library). Each image is deleted and committed on its own, like a file
-the person removed. Deleting an Anima leaves its chats' images in place.
+from the Library). Deleting an Anima applies the same rule to all its chats: it
+deletes the images they reference unless a chat of another Anima references
+them too. The images are read before the chat or Anima is deleted and removed
+after that delete commits, each deleted and committed on its own, like a file
+the person removed.
 
 Pending uploads can be aborted with `DELETE /v1/files/uploads/{file_id}`. If the
 browser PUT fails, the pending row remains until abort or expiry cleanup is

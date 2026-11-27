@@ -38,6 +38,8 @@ class Chat:
     next_turn: int = 1
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # Sidebar pin time; None when unpinned. Changed only through ChatRepository.set_pinned.
+    pinned_at: datetime | None = None
 
 
 @dataclass(slots=True)

@@ -35,6 +35,7 @@
     { "en": "Included content", "ja": "同梱コンテンツ", "ko": "기본 제공 콘텐츠", "zh-Hans": "内置内容", "zh-Hant": "內建內容" },
     { "en": "Local content", "ja": "ローカルコンテンツ", "ko": "로컬 콘텐츠", "zh-Hans": "本地内容", "zh-Hant": "本機內容" },
     { "en": "Chat", "ja": "チャット", "ko": "채팅", "zh-Hans": "聊天", "zh-Hant": "聊天" },
+    { "en": "Pin", "ja": "ピン留め", "ko": "고정", "zh-Hans": "置顶", "zh-Hant": "置頂", "note": "A sidebar pin keeps a chat or Anima at the top of its sidebar list (Unpin removes it); unrelated to pinned model asset revisions." },
     { "en": "Memory", "ja": "記憶", "ko": "기억", "zh-Hans": "记忆", "zh-Hant": "記憶", "note": "An Anima's memories, not computer memory." },
     { "en": "Memory Manager", "ja": "記憶マネージャー", "ko": "기억 관리자", "zh-Hans": "记忆管理器", "zh-Hant": "記憶管理器" },
     { "en": "Reflection", "ja": "振り返り", "ko": "회고", "zh-Hans": "回顾", "zh-Hant": "回顧", "note": "An owner-started Memory Manager review of one Anima's recent turns." },

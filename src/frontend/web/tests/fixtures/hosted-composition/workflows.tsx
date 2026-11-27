@@ -22,6 +22,7 @@ import { useElevenLabsTtsRuntime } from "@/hooks/useElevenLabsTtsRuntime";
 import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
 import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";
+import { useDeleteContentItem } from "@/query/mutations/useDeleteContentItem";
 import { useUpdateAnima } from "@/query/mutations/useUpdateAnima";
 import { useUpdateAnimaEmotionalState } from "@/query/mutations/useUpdateAnimaEmotionalState";
 import { useRepairAnimaMemories } from "@/query/mutations/useRepairAnimaMemories";
@@ -57,6 +58,8 @@ function WorkflowObserver() {
   const loadout = useAnimaLoadoutMutations("fixture-anima");
   const voice = useVoiceSelection("fixture-anima");
   const clones = useVoiceCloneActions();
+  // A clone is deleted through the shared content delete, as the app does.
+  const removeContent = useDeleteContentItem().mutateAsync;
   const updateAnima = useUpdateAnima();
   const emotion = useUpdateAnimaEmotionalState();
   const repair = useRepairAnimaMemories();
@@ -95,7 +98,12 @@ function WorkflowObserver() {
       clones: {
         save: clones.saveVoiceClone.mutateAsync,
         rename: clones.renameVoiceClone.mutateAsync,
-        remove: clones.deleteVoiceClone.mutateAsync,
+        remove: (clone: { item_id: string; revision_sha256: string }) =>
+          removeContent({
+            itemId: clone.item_id,
+            kind: "voice",
+            revision: clone.revision_sha256,
+          }),
       },
       identity: {
         update: updateAnima.mutateAsync,
@@ -140,7 +148,7 @@ function WorkflowObserver() {
     voice.mutateAsync,
     clones.saveVoiceClone.mutateAsync,
     clones.renameVoiceClone.mutateAsync,
-    clones.deleteVoiceClone.mutateAsync,
+    removeContent,
     updateAnima.mutateAsync,
     emotion.mutateAsync,
     repair.mutateAsync,

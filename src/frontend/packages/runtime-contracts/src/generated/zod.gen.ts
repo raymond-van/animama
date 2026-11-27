@@ -2609,6 +2609,10 @@ export const zPyChatUpdate = z.object({
         z.record(z.string(), z.unknown()),
         z.null()
     ])),
+    pinned: z.optional(z.union([
+        z.boolean(),
+        z.null()
+    ])),
     title: z.optional(z.union([
         z.string(),
         z.null()
@@ -2806,6 +2810,42 @@ export const zPyContentRescan = z.object({
 export const zPyContentSaveResult = z.object({
     item: zPyContentItem,
     operation_id: z.string()
+});
+
+/**
+ * PyContentUsage
+ *
+ * One thing that keeps an owned item from being deleted.
+ *
+ * ``anima_avatar``, ``anima_appearance`` (profile or background),
+ * ``anima_voice``, ``anima_gesture``, ``anima_idle`` (an Idle pool member),
+ * ``anima_reaction`` (a Reaction cell member) and ``anima_music`` name the
+ * Anima by ``id`` and ``name``; ``content`` names the catalog item that
+ * depends on it.
+ */
+export const zPyContentUsage = z.object({
+    id: z.string(),
+    kind: z.enum([
+        'anima_avatar',
+        'anima_appearance',
+        'anima_voice',
+        'anima_gesture',
+        'anima_idle',
+        'anima_reaction',
+        'anima_music',
+        'content'
+    ]),
+    name: z.string()
+});
+
+/**
+ * PyContentItemUsage
+ *
+ * What uses an owned item, at most ten uses with Anima uses first; empty when unused.
+ */
+export const zPyContentItemUsage = z.object({
+    item_id: z.string(),
+    used_by: z.array(zPyContentUsage)
 });
 
 /**
@@ -3029,6 +3069,10 @@ export const zPyAnimaResponse = z.object({
         z.string(),
         z.null()
     ])),
+    pinned_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
     pocket_voice_catalog_url: z.optional(z.union([
         z.string(),
         z.null()
@@ -3099,6 +3143,10 @@ export const zPyAnimaUpdateRequest = z.object({
     ])),
     expected_aggregate_revision: z.optional(z.union([
         z.int().gte(1),
+        z.null()
+    ])),
+    pinned: z.optional(z.union([
+        z.boolean(),
         z.null()
     ]))
 });
@@ -5607,6 +5655,10 @@ export const zPyAnimaListItem = z.object({
         z.string(),
         z.null()
     ])),
+    pinned_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
     pocket_voice_catalog_url: z.optional(z.union([
         z.string(),
         z.null()
@@ -6307,6 +6359,10 @@ export const zPyChatResponse = z.object({
     ])),
     metadata: z.optional(z.union([
         z.record(z.string(), z.unknown()),
+        z.null()
+    ])),
+    pinned_at: z.optional(z.union([
+        z.iso.datetime(),
         z.null()
     ])),
     title: z.optional(z.union([
@@ -8482,6 +8538,19 @@ export const zGetContentItemV1ContentItemsItemIdGetData = z.object({
  * Successful Response
  */
 export const zGetContentItemV1ContentItemsItemIdGetResponse = zPyContentItem;
+
+export const zGetContentItemUsageV1ContentItemsItemIdUsageGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetContentItemUsageV1ContentItemsItemIdUsageGetResponse = zPyContentItemUsage;
 
 export const zPreparePackageExportV1ContentPackageExportsPostData = z.object({
     body: zPackageExportRequest,

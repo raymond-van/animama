@@ -210,10 +210,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **27.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **28.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.27.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.28.0 and
 `product-ui` is version 0.23.0. Consumers explicitly admit
 the new contract major before adoption.
 

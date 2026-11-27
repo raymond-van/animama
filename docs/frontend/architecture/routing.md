@@ -125,7 +125,9 @@ chat or URL.
   `/library` and Scene FX is `/library?section=fx&fx=scene`. Use normal
   history entries for sections, discrete filters, and Upload status changes.
   Replace the current entry for either debounced text-query change so typing
-  does not fill browser history.
+  does not fill browser history. Drop a Library search update once the router
+  has started leaving `/library`; a query committed after the owner followed a
+  row's Edit link would otherwise replace that navigation.
 - Keep subtype disclosure and locally revealed Starter page counts out of the
   URL. Changing Library category, query, or Starter inclusion remounts the
   inventory scope and opens its first non-empty subtype.

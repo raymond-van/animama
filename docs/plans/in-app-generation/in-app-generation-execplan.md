@@ -296,6 +296,17 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] Full pre-push suite on the candidate `3d692bcb9` (G3, 2026-11-27): the
   backend and frontend suites passed; one browser test failed on an existing
   timing flake that also fails on `main`.
+- [x] `origin/main` (`9e90a610b`, sidebar pins and Library delete) merged again
+  on 2026-11-27. Main had taken `local-http` 26.0.0, `runtime-contracts`
+  0.26.0 and revision file `0003`, so this change takes the next, as Phase
+  2 planned: `local-http` 27.0.0, `runtime-contracts` 0.27.0, and
+  `0004_content_generation.py`, which now follows `sidebar_pins_20261126`.
+  The revision's id is unchanged. Earlier records in this plan keep the
+  numbers they were written with. A development database that already ran
+  the revision under its old place must downgrade it before upgrading.
+  Targeted checks on the merged tree `554e9c05…`: 888 backend tests, the
+  web unit suite (7,095), lint, types, i18n, the regenerated client, the CI
+  policy tests and the licence record.
 - [ ] First pull request (Phases 0 to 3):
   [#956](https://github.com/raymond-van/animama/pull/956), opened 2026-11-27
   for the owner's review. The model list decision (INT-F2) and gates G4, G7
@@ -304,6 +315,11 @@ provider, and, in Phase 8, an outside client and the backend.
   (2026-11-27). Raised to the high-risk tier in review; Code Review #2
   passed. The manual check on a key-based model (G2) waits for the owner's
   spend approval.
+- [x] The first pull request's re-merged head (`c6575e7bd`, with main's
+  sidebar pins) merged into this branch on 2026-11-27. Phase 4's contract
+  change takes `local-http` 28.0.0 and `runtime-contracts` 0.28.0 in turn.
+  Targeted checks on the merged tree `961fff0f…`: 962 backend tests, the web
+  unit suite (7,135), lint, types, i18n, the client and the licence record.
 - [ ] Phase 5: the creator control, revising and Reactions.
 - [ ] Phase 6: batches and effects on the timeline.
 - [ ] Phase 7: references and presets (C3).
