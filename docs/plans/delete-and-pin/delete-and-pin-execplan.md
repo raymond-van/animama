@@ -75,8 +75,16 @@ Relevant code:
 - [x] Phase 5: Library Delete action (frontend). Review passed after 1 repair round. Owner question Q2 is open for G2.
 - [x] Flaky journey fix (owner-added scope): fixed in the app, cherry-picked, review passed, and FJ-F1 repaired.
 - [x] Final integration review: passed after recording FI-F1 and the trivial repairs.
-- [ ] Full pre-push suite and full browser journeys (gate G1): waiting for the owner's go.
-- [ ] Owner manual acceptance on a task stack (gate G2).
+- [x] Full pre-push suite and full browser journeys (gate G1): run on
+  2026-11-26 at tree `b357b312c` (head `71abbe6ff`); full results in the PR.
+  - `make check-test`, `pnpm verify` and `pnpm prettier:check` passed.
+  - `pnpm e2e:test` passed 42 of 42 (50.8 min) on a disposable built stack.
+  - `pnpm web:test:browser` passed 140 of 141. The one failure is
+    animation-combo's real-time check (1.157× against a 1.15 limit). It fails
+    the same way on `git archive` exports of both `main` (1 of 3, 1.166×) and
+    this branch (1 of 3, 1.157×), so it is a load-sensitive timing flake that
+    predates this branch.
+- [ ] Owner manual acceptance (G2) and owner questions Q1/Q2.
 
 ## Surprises & Discoveries
 
