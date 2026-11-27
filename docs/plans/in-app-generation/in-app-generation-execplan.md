@@ -1,8 +1,8 @@
 # Generate content in the app: Gestures and Reactions first
 
 Source agreement: [#942](https://github.com/raymond-van/animama/issues/942),
-published from the agreed [spec](in-app-generation-spec.md) and captured at
-2026-11-26T19:02:50Z. The owner accepted the spec on 2026-11-24, including P1
+published from the agreed [spec](in-app-generation-spec.md) and last captured
+at 2026-11-26T19:06:58Z, after the owner added R3.7. The owner accepted the spec on 2026-11-24, including P1
 and P3 to P12. It was revised on 2026-11-26 where delivered work changed a
 fact (the ChatGPT plan connection, #919, and chat image input, #904), and the
 owner added R3.7 the same day.
@@ -15,7 +15,7 @@ refer to. Implementation base: `origin/main` at `be048d5b3`, merged as
 `c2f9fa3b5`; the two commits between them change only lifecycle and licensing
 documents.
 Workspace: worktree `in-app-generation`, branch `feat/in-app-generation`; the
-spec snapshot is commit `4e53de1aa`. Task stack `animama-generate` at
+spec snapshot was first committed as `4e53de1aa` and refreshed in `8d8cfde6d`. Task stack `animama-generate` at
 `http://animama-generate.localhost:9300` (development mode), started with
 `./reset.sh --name generate --base-port 9300` when a phase needs it and
 stopped afterwards; it holds only test data.
@@ -289,9 +289,12 @@ provider, and, in Phase 8, an outside client and the backend.
   guidance gained main's rule for writing one. Targeted checks on the
   merged tree `20128b5b…`: 887 backend tests, the web unit suite (7,011),
   lint, types, i18n, the client and the licence record.
-- [ ] First pull request (Phases 0 to 3): integration review, the full
-  pre-push suite on the candidate (G3, the owner's go-ahead first) and the
-  package-set comparison.
+- [x] Integration review of Phases 0 to 3 (2026-11-26): no code defect
+  across the phases; the fast journey suite (41 passed) and the package-set
+  comparison passed on the candidate.
+- [ ] First pull request (Phases 0 to 3). Waits for the owner: the decision
+  on the model list (INT-F2) and the go-ahead for the full pre-push suite
+  (G3). The pull request lists G4, G7 and G8 as open gates.
 - [ ] Phase 4: other Model connections, usage and cost.
 - [ ] Phase 5: the creator control, revising and Reactions.
 - [ ] Phase 6: batches and effects on the timeline.
@@ -623,7 +626,9 @@ What it shows:
     model with tool support on any connection, and Phase 3's model control
     lists them with plan models first. A journey's stack has no plan
     session, so a plan-only list could not be exercised there. Phase 4 keeps
-    usage, cost and the image-capability note.
+    usage and cost. **The owner has not yet decided this** (INT-F2 under
+    Integration reviews): it brings key-based connections into the first
+    pull request ahead of Phase 4's own work for them.
   - **A draft changes only when a pass leaves a valid project.** A new
     draft's row is created then, and a revision keeps its restore point and
     stores the new project in one step.
@@ -1086,7 +1091,8 @@ Steps, tests first in `tests/test_generation_*.py`:
    DELETE /v1/generation/drafts/{draft_id}
    ```
 
-   The run stream sends `run.started`, `message.delta`, `progress` (thinking,
+   The run stream sends `run.started`, `message.delta`, `frames.requested`,
+   `progress` (thinking,
    writing, checking, repairing, reviewing frames), `questions`,
    `draft.updated`, `run.failed` and `run.completed` with token use. Logs
    carry ids, counts and sizes, never message or clip text.
@@ -1205,7 +1211,7 @@ For later phases:
 
 - Phase 3's model control lists every eligible model, plan models first. A
   journey's stack has no plan session, so a plan-only list could not be
-  exercised there. Phase 4 keeps the usage, cost and image-capability work.
+  exercised there. Phase 4 keeps the usage and cost work.
 - The plan's open question on cached input stays open: tool sets differ by
   pass kind, which may limit cache hits across kinds. The manual check on a
   plan model (G1) reads the reported cached tokens.
@@ -1614,7 +1620,10 @@ Steps:
    an estimate from `estimate_model_token_cost` beside them when the row has
    a price. A plan model shows the plan notice instead (R6.3).
 4. Failures on key-based connections: the same wording chat uses, with retry
-   and "choose another model" (R2.4).
+   and "choose another model" (R2.4). A pass continues its tool rounds from
+   the provider's stored response on an OpenAI API key's Responses models;
+   where the organisation stores no responses the second round fails. Give
+   a pass chat's fallback, which replays the exchange without the cursor.
 5. C5. From Phase 0 and this phase's manual check, record which models
    produced loadable drafts and how many repairs they needed. Add a short
    note in setup and beside the model control on what to expect from smaller
@@ -1784,7 +1793,47 @@ One per pull request (D14): combined acceptance for its phases, any light
 phase folded in, and still-valid phase evidence. Then, with the owner's
 agreement (G3), the full pre-push suite once on that candidate; its results
 go in the pull request. Each pull request states which evidence is local and
-which checks did not run. None yet.
+which checks did not run.
+
+### Phases 0 to 3 (first pull request)
+
+Final integration review of `26084dd7c` (the branch with `origin/main`
+`9b275f6e4` merged) by an independent reviewer, reusing the phases' evidence
+and running no suite. It compared both sides of every seam between the
+phases (the check report, the stream's events, expression names, the project
+shape after main dropped a Gesture's description, refusal codes, the frames
+upload and the questions rule), the one source of guidance, the merge's two
+conflict resolutions line by line, local-only delivery, contract versions,
+records and leftovers, and found no code defect. Result: blocked by two
+evidence and decision items.
+
+| ID | Kind | Finding | Disposition |
+| --- | --- | --- | --- |
+| INT-F1 | Required | The journey's evidence predated the merge of main, which changed the creator's save and import, and no other journey had run on the branch. | Resolved by evidence: the journey passed on `26084dd7c`, and the fast journey suite ran on the candidate (below). |
+| INT-F2 | Required | The model control lists key-based connections, which belong to Phase 4: such a run shows no token use (a draft costs 60,000 to 100,000 input tokens), Phase 4's context-size rule, adequacy note and manual check (G2) are absent, and on an OpenAI API key whose organisation stores no responses a pass fails at its second response. | **Waits for the owner**: accept the wider list in this pull request with those gaps stated, or have the page list plan models only until Phase 4. The fallback for unstored responses is now a step of Phase 4. |
+| INT-F3 | Optional | A six-row review sheet is 2,008 pixels tall and the server's image opener caps the long edge at 2,000, so such a sheet is scaled by 0.4% and re-encoded. | Not acted on: the change is below what a reader of the sheet can see. Phase 4 can lift the cap for sheets when it touches the frame review. |
+| INT-F4 | Optional | The tool's description of the AI description said "one or two sentences"; the guidance carried from main says about 120 characters, led by when chat should use the Gesture. | Fixed in `tools.py`. |
+| INT-F5 | Optional | `scripts/generation_probe.py` keeps its own role statement, task messages and three-round loop, so its results no longer predict a product run. | Deferred: rebuild it on the product modules or retire it when Phase 4 settles C5. |
+| INT-F6 | Optional | Small record and documentation inaccuracies (the snapshot's capture time, a stale note on the image-capability work, `frames.requested` missing from a step, the plan client's callers, the journeys page's coverage sentence). | Fixed. |
+
+What this pull request delivers of the spec, for Gestures on the Generate
+page: R1.1, R1.3 to R1.5, R2.1 (the remembered choice), R2.2, the frame
+review of R2.3, R2.4 in chat's wording, R3.1 to R3.7, R4.1 to R4.4, R5.1,
+R6.1, R6.2, R6.4, R6.5 and the plan notice of R6.3. Remaining: token use,
+cost and the rest of the key-connection work (Phase 4); the creator control,
+revising saved items and Reactions (Phase 5); batches and effects (Phase 6);
+references and presets (Phase 7); the connector (Phase 8).
+
+Evidence on the candidate, after the review:
+
+| Check | Result |
+| --- | --- |
+| Journey `generate-gesture` on a disposable built stack at `26084dd7c` | 2 passed |
+| `pnpm e2e:test:fast` through the heavy slot on a disposable built stack (`ANIMAMA_LLM_SKIP=1`, production build), tree `c7b4c75d…` | 41 passed in 6.2 minutes |
+| Package sets built from `9b275f6e4` (main) and `26084dd7c`, then `scripts/package-sets/build.py compare` | Compatibility policy passed (closes P2-R1-FC1) |
+| `pytest` on the generation authoring, prompt, probe and run tests after the INT-F4 change | 347 passed |
+
+Not run: the full pre-push suite (G3) and the `@complete-anima` journeys.
 
 ### Gates
 
