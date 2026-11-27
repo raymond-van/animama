@@ -292,9 +292,11 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] Integration review of Phases 0 to 3 (2026-11-26): no code defect
   across the phases; the fast journey suite (41 passed) and the package-set
   comparison passed on the candidate.
-- [ ] First pull request (Phases 0 to 3). Waits for the owner: the decision
-  on the model list (INT-F2) and the go-ahead for the full pre-push suite
-  (G3). The pull request lists G4, G7 and G8 as open gates.
+- [x] Full pre-push suite on the candidate `3d692bcb9` (G3, 2026-11-27): the
+  backend and frontend suites passed; one browser test failed on an existing
+  timing flake that also fails on `main`.
+- [ ] First pull request (Phases 0 to 3): opened for the owner's review. The
+  model list decision (INT-F2) and gates G4, G7 and G8 are open in it.
 - [ ] Phase 4: other Model connections, usage and cost.
 - [ ] Phase 5: the creator control, revising and Reactions.
 - [ ] Phase 6: batches and effects on the timeline.
@@ -1833,7 +1835,22 @@ Evidence on the candidate, after the review:
 | Package sets built from `9b275f6e4` (main) and `26084dd7c`, then `scripts/package-sets/build.py compare` | Compatibility policy passed (closes P2-R1-FC1) |
 | `pytest` on the generation authoring, prompt, probe and run tests after the INT-F4 change | 347 passed |
 
-Not run: the full pre-push suite (G3) and the `@complete-anima` journeys.
+Full pre-push suite (G3; the owner's go-ahead on 2026-11-27), through the
+heavy slot on `3d692bcb9` (tree `062c1a7e…`, clean), macOS arm64, while the
+task's development stack was also running:
+
+| Check | Result |
+| --- | --- |
+| `make check-test` (typed-content audit, format, lint, mypy, `pytest`) | mypy clean in 970 files; 6,630 passed, 30 skipped |
+| `pnpm verify` (from `src/frontend`) | 7,011 web tests passed, 2 skipped; the build succeeded |
+| `pnpm web:test:browser` | 143 of 144 passed. `scripts/animation-combo.browser.test.mjs` failed its playback-speed assertion (1.16 times real time) |
+| `pnpm prettier:check` | Clean |
+
+The failing test and the page it drives are unchanged by this branch. Run
+alone it passed 8 of 9 times here and 5 of 6 on `main` (`9b275f6e4`) in the
+same hour, so it is the existing timing flake under load, not a regression.
+
+Not run: the `@complete-anima` journeys.
 
 ### Gates
 
