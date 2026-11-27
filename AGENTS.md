@@ -316,10 +316,19 @@ Choose the smallest meaningful verification for the change and state what was
 not run.
 
 Run applicable local static checks, tests and builds before pushing a candidate
-that triggers CI. Fix local failures first and batch intermediate work where
+for review. Fix local failures first and batch intermediate work where
 practical. After changes, rerun affected checks; do not repeat unchanged passing
 checks without a reason. Use read-only checks such as `make format-check` to
 verify formatting, rather than commands that rewrite files.
+
+Hosted validation runs on the owner's own PR only when it carries the `ci:run`
+label (the ordinary selected checks) or `ci:full` (every suite), and merges to
+`main` start no run. When the machine is under heavy load, meaning
+`python3 scripts/heavy-slot.py --status` shows every slot held, add `ci:run` to
+the ready PR instead of running the expensive local checks, not in addition, and
+record the hosted run as that evidence. Hosted validation does not run `pnpm prettier:check`;
+run it locally when it applies. Outside contributors' PRs always run hosted
+validation, after the owner approves each run.
 
 Run expensive checks locally before pushing, through the machine-wide
 [heavy-job slots](SDLC.md#repository-setup) so parallel sessions queue instead of
@@ -329,8 +338,8 @@ replace selected hosted work under the local-first validation policy. This is an
 owner-reviewed local assertion, not independent CI evidence. Receipts are not part
 of the default flow: agents prepare one only when the owner plans a reduced hosted
 run for that PR, and never impersonate the owner's review. Documentation-only changes
-need no receipt; high-risk or uncertain changes, persistent `ci:full`, manual runs
-and release callers retain full hosted validation.
+need no receipt; local evidence cannot narrow a high-risk or uncertain change,
+and persistent `ci:full`, manual runs and release callers validate in full.
 
 Record local evidence and the actual hosted `Validation` scope separately, with
 pending/failed/unperformed checks. Source, baseline, environment and freshness

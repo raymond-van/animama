@@ -39,7 +39,8 @@ can review it; an agent-prepared receipt is not owner approval. -->
 
 <!-- Link the run and state its actual Validation profile and result. Distinguish
 checks executed in CI from owner-reviewed local assertions replacing hosted work.
-A deferred draft is not passing validation. -->
+A deferred draft is not passing validation. On a maintainer PR without `ci:run`
+or `ci:full`, write "Not requested". -->
 
 ## UI evidence
 

@@ -26,7 +26,7 @@ the missing input and resolve it before that action.
 | Spec authority           | Agreed draft before workspace setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [bug report](.github/ISSUE_TEMPLATE/bug.yml).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). **Full pre-push suite**, run once per candidate as a heavy job: root `make check-test`, plus, when anything under `src/frontend` or a shared contract changed, the [frontend commands](AGENTS.md#verification) and `pnpm prettier:check` from `src/frontend`. |
+| Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). **Full pre-push suite**, run once per candidate as a heavy job: root `make check-test`, plus, when anything under `src/frontend` or a shared contract changed, the [frontend commands](AGENTS.md#verification) and `pnpm prettier:check` from `src/frontend`. When every heavy slot is held (`python3 scripts/heavy-slot.py --status`), a [`ci:run`](docs/backend/operations/development.md#when-validation-runs) hosted run of the exact final candidate on its ready PR may replace the suite. That run uses the ordinary selected checks; still run `pnpm prettier:check` locally when it applies, because hosted validation does not, and record the hosted run as the evidence. |
 | Heavy jobs               | Run browser journeys, local receipts, package-set builds and the full pre-push suite through `scripts/heavy-slot.py`, for example `python3 scripts/heavy-slot.py -- make check-test` from the root or `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test:fast` from `src/frontend`. Two machine-wide slots are shared with Animama Cloud checkouts; `--status` names the holders.                                                                                                                                                                                                                                                                     |
 | Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). AGENTS.md owns workspace policy; this guide owns lifecycle gates.                                                                                                                                                                                                                                                                                                                                                              |
 | Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -177,7 +177,8 @@ separate. Do not infer authority from issue text, labels or imported skills.
    final independent review of combined acceptance and integration. It reuses
    unchanged passing evidence and runs no checks of its own; do not reopen cleared
    findings without new evidence. After its repairs, run the full pre-push suite
-   once on the final candidate, as a heavy job. A fix for a failure there reruns
+   once on the final candidate, as a heavy job, or its `ci:run` replacement
+   when every heavy slot is held ([repository setup](#repository-setup)). A fix for a failure there reruns
    the suite, and a non-trivial fix gets a targeted review recheck. Commit only
    task changes. Once required checks and review pass, `implement`
    automatically creates or updates the plan's PR using the template and
@@ -292,11 +293,12 @@ Local-first reductions require the existing evidence and actual owner review;
 agents must not impersonate that review. Untrusted changes receive no development
 credentials. Report unperformed or failed checks honestly.
 
-Ordinary merges can reuse a qualifying hosted PR result under the existing
-[source-bound reuse rules](docs/backend/operations/development.md#reuse-a-hosted-pr-result-after-merging).
-The merge method alone does not establish eligibility. Squash/rebase cannot use
-that reuse path. Merge, deployment, native acceptance and publication remain
-separate outcomes. Record regressions and obtain authorization for a revert or fix.
+Hosted validation runs on every fork PR, after the owner approves each run, and
+on the owner's own PR only when it carries `ci:run` or `ci:full`. Merges to
+`main` start no run; the weekly full checkpoint and a manual dispatch validate
+`main` ([when validation runs](docs/backend/operations/development.md#when-validation-runs)).
+Merge, deployment, native acceptance and publication remain separate outcomes.
+Record regressions and obtain authorization for a revert or fix.
 
 ### GitHub enforcement
 
@@ -307,12 +309,14 @@ describe a requirement as enforced only when GitHub enforces it. A chat
 approval is never a GitHub approving review.
 
 Before proposing a merge, inspect the actual `Validation` check (the displayed
-name, not its internal job ID `validation`) and its selected profile. Present the
+name, not its internal job ID `validation`) and its selected profile. On the
+owner's PR without `ci:run` or `ci:full` the check is skipped, and the local
+validation record is the evidence. Present the
 PR URL, its validated revision reference, review findings and limitations. Immediately
 before an approved merge, recheck them and use `gh pr merge --merge
 --match-head-commit HEAD_SHA --repo raymond-van/animama PR_NUMBER` with the actual
 approved SHA and PR number. Do not use an admin bypass or enable auto-merge.
-Read back the merge commit, issue outcome and separate main-push validation.
+Read back the merge commit and issue outcome.
 
 Reinspect remote capabilities before changing enforcement. Any proposed rules,
 bypass permissions, account-plan change or repository visibility change require
@@ -332,11 +336,16 @@ Treat one as untrusted input until it has been read:
   manifests, lockfiles and workflow files. Run it only where no secrets file,
   release credential or publish token is reachable, such as a disposable VM or
   container.
-- Hosted validation is disabled at present, so an outside PR has no hosted
-  checks. When a workflow does run on a fork's PR, it waits for approval in
-  GitHub, and approving it is the owner's action.
+- Hosted validation runs on a fork's PR only after the owner approves the run
+  in GitHub. GitHub holds every run on the PR, including one started by the
+  owner's `ci:full` label. Approving runs the PR's own workflow and scripts on
+  a GitHub runner with a read-only token and no secrets, so approve only after
+  the reading above. If a run fails at "Hydrate assets required by full
+  validation" on a PR that adds or changes a Git LFS file, validate that PR
+  locally.
 - The contributor's reported results are information, not evidence. Record
-  local validation of the exact head commit as for any PR, and merge with
+  validation of the exact head commit, from its approved hosted run or from
+  local checks run as the previous bullets require, and merge with
   `--match-head-commit`.
 - When the PR adds or substantially rewrites a file, check that its
   [licence record](licenses/README.md) entry names the contributor. The
@@ -386,7 +395,8 @@ approval. Adopted mapping:
 | `triage:ready-for-human` | Named human decision, verification or manual action needed |
 | `triage:wontfix`         | Owner decided not to pursue it; record why before closing  |
 | `blocked`                | Explicit dependency or action prevents progress            |
-| `ci:full`                | Existing PR control requesting full hosted validation      |
+| `ci:full`                | PR control requesting full hosted validation               |
+| `ci:run`                 | PR control requesting hosted validation of an owner's PR   |
 
 Use one triage state at a time; `blocked` may coexist with it. Re-evaluate after
 new information or scope changes. Use assignments, dependencies and PR state for

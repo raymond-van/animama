@@ -83,6 +83,15 @@ class CommandTests(unittest.TestCase):
             self.assertIsNotNone(validation.check_receipts(root, plan)[1])
 
 
+REPOSITORY = "owner/animama"
+FORK = "contributor/animama"
+
+
+def contains(items, item):
+    """GitHub's contains() on an array: case-insensitive element equality."""
+    return any(isinstance(value, str) and value.lower() == item.lower() for value in items)
+
+
 class WorkflowContractTests(unittest.TestCase):
     def workflow_event(
         self,
@@ -92,19 +101,35 @@ class WorkflowContractTests(unittest.TestCase):
         state="open",
         base_changed=False,
         label=None,
+        labels=(),
+        head_repo=FORK,
         number=4,
         ref="refs/pull/4/merge",
         run_id=100,
         workflow="Portable product validation",
     ):
-        """Evaluate the workflow's small boolean/format expression subset with event fixtures."""
+        """Evaluate the workflow's small boolean/format expression subset with event fixtures.
+
+        `labels` are the PR's labels before the event; a `labeled` or `unlabeled`
+        event's payload already carries the change, as GitHub sends it.
+
+        Limits: `==`/`!=` stay case-sensitive (GitHub ignores case) and Python's
+        `not` binds looser than GitHub's `!`. The current expressions depend on
+        neither; a new expression that does needs a faithful evaluator.
+        """
         text = (ROOT / ".github/workflows/validate-public.yml").read_text()
+        current = [name for name in labels if not (action == "unlabeled" and name == label)]
+        if action == "labeled" and label is not None and label not in current:
+            current.append(label)
         context = {
             "github.workflow": workflow,
             "github.event_name": event,
+            "github.repository": REPOSITORY,
             "github.event.action": action,
             "github.event.pull_request.state": state,
             "github.event.pull_request.number": number,
+            "github.event.pull_request.head.repo.full_name": head_repo,
+            "github.event.pull_request.labels.*.name": current,
             "github.event.changes.base": base_changed,
             "github.event.label.name": label,
             "github.ref": ref,
@@ -112,10 +137,13 @@ class WorkflowContractTests(unittest.TestCase):
         }
 
         def evaluate(expression):
-            expression = re.sub(r"github\.[a-z_.]+", lambda match: repr(context[match[0]]), expression)
+            # Only the checked-in workflow's expressions reach eval, with the
+            # fixture values substituted as literals and no builtins available.
+            expression = re.sub(r"github\.[a-z_.*]+", lambda match: repr(context[match[0]]), expression)
             expression = expression.replace("&&", " and ").replace("||", " or ")
             expression = re.sub(r"!(?!=)", "not ", expression)
-            return eval(" ".join(expression.split()), {"__builtins__": {}, "format": str.format})
+            namespace = {"__builtins__": {}, "format": str.format, "contains": contains}
+            return eval(" ".join(expression.split()), namespace)
 
         group = re.search(r"^  group: >-\n(.*?)^  cancel-in-progress:", text, re.M | re.S)[1]
         group = re.sub(r"\$\{\{(.*?)\}\}", lambda match: str(evaluate(match[1])), group, flags=re.S).strip()
@@ -130,26 +158,86 @@ class WorkflowContractTests(unittest.TestCase):
                 enabled, ignored = self.workflow_event(state=state, action=action, ref="refs/heads/main")
                 self.assertFalse(enabled)
                 self.assertNotEqual(ignored, pr_group)
-                self.assertNotEqual(ignored, self.workflow_event(event="push", ref="refs/heads/main")[1])
+                self.assertNotEqual(ignored, self.workflow_event(event="schedule", ref="refs/heads/main")[1])
                 self.assertNotEqual(ignored, self.workflow_event(state=state, action=action, run_id=101)[1])
 
-    def test_labels_other_than_ci_full_neither_run_nor_cancel_validation(self):
+    def test_labels_other_than_ci_full_and_ci_run_neither_run_nor_cancel_validation(self):
         meaningful, pr_group = self.workflow_event()
         self.assertTrue(meaningful)
         for action in ("labeled", "unlabeled"):
-            # A deleted label may arrive without its name; it cannot be ci:full being added.
+            # A deleted label may arrive without its name; it cannot be either control being added.
             # GitHub compares names case-insensitively and keeps them unique that way,
-            # so no other label can match ci:full.
-            for label in ("type:feat", "documentation", "ci:fully", None):
+            # so no other label can match ci:full or ci:run.
+            for label in ("type:feat", "documentation", "ci:fully", "ci:runs", None):
+                for head_repo, labels in ((FORK, ()), (REPOSITORY, ("ci:run",)), (REPOSITORY, ("ci:full",))):
+                    with self.subTest(action=action, label=label, head_repo=head_repo, labels=labels):
+                        event = {"action": action, "label": label, "head_repo": head_repo, "labels": labels}
+                        enabled, ignored = self.workflow_event(**event)
+                        self.assertFalse(enabled)
+                        self.assertNotEqual(ignored, pr_group)
+                        self.assertNotEqual(ignored, self.workflow_event(**event, run_id=101)[1])
+            for label in ("ci:full", "ci:run"):
                 with self.subTest(action=action, label=label):
-                    enabled, ignored = self.workflow_event(action=action, label=label)
-                    self.assertFalse(enabled)
-                    self.assertNotEqual(ignored, pr_group)
-                    self.assertNotEqual(ignored, self.workflow_event(action=action, label=label, run_id=101)[1])
-            with self.subTest(action=action, label="ci:full"):
-                self.assertEqual(self.workflow_event(action=action, label="ci:full"), (True, pr_group))
+                    self.assertEqual(self.workflow_event(action=action, label=label), (True, pr_group))
         # Other actions carry no label and are unaffected.
         self.assertEqual(self.workflow_event(action="synchronize", label="type:feat"), (True, pr_group))
+
+    def test_same_repository_prs_run_only_with_an_opt_in_label(self):
+        pr_group = self.workflow_event()[1]
+        actions = ("opened", "synchronize", "reopened", "ready_for_review", "converted_to_draft")
+        for action in actions:
+            for labels, expected in (
+                ((), False),
+                (("type:feat", "documentation"), False),
+                (("ci:run",), True),
+                (("CI:Run",), True),
+                (("ci:full",), True),
+                (("type:feat", "ci:full", "ci:run"), True),
+            ):
+                with self.subTest(action=action, labels=labels):
+                    self.assertEqual(
+                        self.workflow_event(action=action, head_repo=REPOSITORY, labels=labels), (expected, pr_group)
+                    )
+        own = {"head_repo": REPOSITORY}
+        # Adding either control starts a run.
+        for label in ("ci:run", "ci:full"):
+            self.assertEqual(self.workflow_event(action="labeled", label=label, **own), (True, pr_group))
+        # Removing the last control cancels the opted-in run without starting another.
+        self.assertEqual(
+            self.workflow_event(action="unlabeled", label="ci:run", labels=("ci:run",), **own), (False, pr_group)
+        )
+        # Removing ci:full under a remaining ci:run replans to the ordinary profile.
+        self.assertEqual(
+            self.workflow_event(action="unlabeled", label="ci:full", labels=("ci:run", "ci:full"), **own),
+            (True, pr_group),
+        )
+        # A base edit replans only an opted-in PR.
+        self.assertEqual(self.workflow_event(action="edited", base_changed=True, **own), (False, pr_group))
+        self.assertEqual(
+            self.workflow_event(action="edited", base_changed=True, labels=("ci:run",), **own), (True, pr_group)
+        )
+
+    def test_fork_prs_run_without_labels_including_deleted_forks(self):
+        pr_group = self.workflow_event()[1]
+        for head_repo in (FORK, None):
+            for action in ("opened", "synchronize", "reopened", "ready_for_review", "converted_to_draft"):
+                with self.subTest(head_repo=head_repo, action=action):
+                    self.assertEqual(self.workflow_event(action=action, head_repo=head_repo), (True, pr_group))
+        # Closed fork PRs and their metadata edits still do nothing.
+        self.assertFalse(self.workflow_event(state="closed")[0])
+        self.assertFalse(self.workflow_event(action="edited")[0])
+
+    def test_main_pushes_do_not_trigger_validation(self):
+        workflow = (ROOT / ".github/workflows/validate-public.yml").read_text()
+        triggers = re.search(r"^on:\n(.*?)^permissions:", workflow, re.M | re.S)[1]
+        self.assertEqual(
+            re.findall(r"^  ([a-z_]+):", triggers, re.M),
+            ["pull_request", "schedule", "workflow_dispatch", "workflow_call"],
+        )
+        # Scheduled and manual runs need no PR metadata.
+        for event in ("schedule", "workflow_dispatch"):
+            with self.subTest(event=event):
+                self.assertTrue(self.workflow_event(event=event, ref="refs/heads/main", head_repo=REPOSITORY)[0])
 
     def test_base_edits_and_existing_pr_actions_keep_pr_concurrency(self):
         expected = self.workflow_event()[1]
@@ -163,14 +251,16 @@ class WorkflowContractTests(unittest.TestCase):
             with self.subTest(action=action):
                 self.assertEqual(self.workflow_event(action=action), (True, expected))
         for action in ("labeled", "unlabeled"):
-            self.assertEqual(self.workflow_event(action=action, label="ci:full"), (True, expected))
+            for label in ("ci:full", "ci:run"):
+                self.assertEqual(self.workflow_event(action=action, label=label), (True, expected))
         self.assertEqual(self.workflow_event(action="edited", base_changed=True), (True, expected))
         self.assertNotEqual(self.workflow_event(number=5)[1], expected)
 
-    def test_pr_push_schedule_manual_and_release_groups_are_separate(self):
+    def test_pr_schedule_manual_and_release_groups_are_separate(self):
         results = [self.workflow_event(ref="refs/heads/main")]
-        for event in ("push", "schedule", "workflow_dispatch"):
+        for event in ("schedule", "workflow_dispatch"):
             results.append(self.workflow_event(event=event, ref="refs/heads/main"))
+        # A release caller reports its own trigger, which may be a push.
         for run_id in (100, 101):
             results.append(self.workflow_event(event="push", ref="refs/heads/main", workflow="Release", run_id=run_id))
         self.assertTrue(all(enabled for enabled, _ in results))

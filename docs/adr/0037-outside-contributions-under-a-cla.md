@@ -6,6 +6,10 @@
 - Original decision date: 2026-11-24 (owner decision, tracked in
   [#911](https://github.com/raymond-van/animama/issues/911))
 - Decision basis: Explicit owner decision
+- Amended: 2026-11-25, hosted validation runs on outside pull requests, each
+  run after the owner's approval; the owner re-enabled it after the failures
+  tracked in [#907](https://github.com/raymond-van/animama/issues/907) were
+  fixed.
 
 ## Context
 
@@ -39,10 +43,11 @@ to every part of the source.
 3. **Agreement is a ticked box in the pull request description.** It covers
    that pull request and the contributor's later ones. The maintainer checks
    it before merging.
-4. **Hosted validation stays off for pull requests for now.** Contributors
+4. **Hosted validation runs on outside pull requests, and each run waits for
+   the maintainer's approval in GitHub.** Contributors still
    report the local checks they ran, and the maintainer validates the exact
-   head commit before merging. When a workflow does run on a fork's pull
-   request, it first needs the maintainer's approval in GitHub.
+   head commit before merging. Until the 2026-11-25 amendment, hosted
+   validation stayed off for pull requests.
 
 ## Rationale and consequences
 
@@ -72,8 +77,8 @@ Consequences:
 - The agreement was written without a lawyer's review. A later review may
   revise it; a revision applies only to contributions made after a
   contributor agrees to it.
-- Without hosted checks, an outside change is untrusted input until it has
-  been read. [Outside contributions](../../SDLC.md#outside-contributions)
+- An outside change is untrusted input until it has been read, and approving
+  its hosted run runs its code. [Outside contributions](../../SDLC.md#outside-contributions)
   describes how the maintainer handles one.
 
 ## Evidence

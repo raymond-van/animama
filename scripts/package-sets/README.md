@@ -126,12 +126,10 @@ failure. Python names/versions identify the tested installation; they do not
 prove reproducible transitive wheel bytes or constitute a frozen consumer gate.
 
 Full validation retains unpublished package outputs in GitHub Actions for 14
-days, so a PR run's set outlives the seven-day reuse window and a `main` set can
-serve a later baseline comparison. A `selective` or routed run, an ordinary PR
-run or `main` push, builds no set. A `reused` main run uploads none. After a
-`full` PR run its receipt names that run's set instead; after a selective or
-routed PR run it names none (see
-[reuse after merging](../../docs/backend/operations/development.md#reuse-a-hosted-pr-result-after-merging)).
+days, so a `main` set from a dispatch or weekly run can serve a later baseline
+comparison. A `selective` or routed run (an ordinary PR run) builds no set.
+Merges to `main` start no run (see
+[when validation runs](../../docs/backend/operations/development.md#when-validation-runs)).
 Failure diagnostics and compact validation receipts retain 14 days. Reduced
 profiles do not produce package sets. No bucket, Cloud checkout, R2 credential
 or desktop release is needed. A separate private maintainer workflow may select an exact successful
@@ -220,9 +218,9 @@ require them. A change to this shape is a change to this section.
 ## Compatibility policy
 
 Every run that executes the promotion suite compares its set against the exact
-PR base, pre-push commit, or dispatched commit parent selected by the workflow.
+PR base or dispatched commit parent selected by the workflow.
 `scripts/ci/baseline_set.py` first uses the set a successful full run of that
-baseline retained (or the PR set a `reused` receipt names for the same tree).
+baseline retained.
 That set must be verified and come from the same producer code and toolchain.
 Otherwise it rebuilds the baseline independently. The run's
 `validation-receipt` records the path taken as `baseline_set`. A baseline that
