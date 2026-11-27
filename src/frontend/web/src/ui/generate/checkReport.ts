@@ -15,9 +15,9 @@ import type { DraftCheckReport } from "@/lib/avatar/motion-authoring/draftChecks
  * the page's own check result and clamped to the route's bounds; nothing else
  * (such as the result's own `ok`) is sent.
  *
- * The bounds mirror the backend's: `MAX_REPORT_*` in
- * `src/backend/animama/app/generation/check_report.py`, applied by
- * `PyGenerationCheckReport` in `src/backend/animama/server/schemas/generation.py`.
+ * The bounds mirror the backend's `MAX_REPORT_*` constants (its check-report
+ * module), which the route's request schema `PyGenerationCheckReport` applies;
+ * the list bounds also show in the generated client's `zPyGenerationCheckReport`.
  * Change them together.
  */
 
