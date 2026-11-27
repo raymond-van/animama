@@ -295,8 +295,10 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] Full pre-push suite on the candidate `3d692bcb9` (G3, 2026-11-27): the
   backend and frontend suites passed; one browser test failed on an existing
   timing flake that also fails on `main`.
-- [ ] First pull request (Phases 0 to 3): opened for the owner's review. The
-  model list decision (INT-F2) and gates G4, G7 and G8 are open in it.
+- [ ] First pull request (Phases 0 to 3):
+  [#956](https://github.com/raymond-van/animama/pull/956), opened 2026-11-27
+  for the owner's review. The model list decision (INT-F2) and gates G4, G7
+  and G8 are open in it; hosted Validation waits for the `ci:full` label.
 - [ ] Phase 4: other Model connections, usage and cost.
 - [ ] Phase 5: the creator control, revising and Reactions.
 - [ ] Phase 6: batches and effects on the timeline.
