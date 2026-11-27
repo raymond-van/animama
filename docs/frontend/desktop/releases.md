@@ -2,8 +2,8 @@
 
 The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
-Signed macOS preview builds 0.1.0 to 0.1.4 and stable releases 0.1.4 and 0.1.5
-are published; the macOS update feed (`latest-mac.yml`) serves 0.1.5. Windows
+Signed macOS preview builds 0.1.0 to 0.1.4 and stable releases 0.1.4, 0.1.5 and
+0.1.7 are published; the macOS update feed (`latest-mac.yml`) serves 0.1.7. Windows
 0.1.6 is published as a preview and as the first Windows stable release; the
 Windows update feed (`latest.yml`) serves 0.1.6.
 Animama's prebuilt distribution ends before 2027-01-01: the final

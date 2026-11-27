@@ -1,6 +1,6 @@
 # Install and use Animama Desktop
 
-Animama 0.1.5 is the current stable macOS release and 0.1.6 the current stable
+Animama 0.1.7 is the current stable macOS release and 0.1.6 the current stable
 Windows release; installed apps receive later stable versions through their
 platform's update feed. Signed macOS preview builds 0.1.0 to 0.1.4 and the
 Windows 0.1.6 preview have also been published for testing.

@@ -50,7 +50,7 @@ Animama 会在屏幕一角放上一位迷人又富有表现力的伙伴，无论
 
 | 平台 | 系统要求 | 安装包 | 大小 |
 | --- | --- | --- | --- |
-| macOS | macOS 15 或更高版本，Apple 芯片 | [Animama-0.1.5-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.5/Animama-0.1.5-arm64.dmg) | 418 MB（安装后 889 MB） |
+| macOS | macOS 15 或更高版本，Apple 芯片 | [Animama-0.1.7-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.7/Animama-0.1.7-arm64.dmg) | 419 MB（安装后 893 MB） |
 | Windows | Windows 11 x64，内部版本 22000 或更高 | [Animama-0.1.6-x64-setup.exe](https://downloads.animama.ai/desktop/v0.1.6/Animama-0.1.6-x64-setup.exe) | 377 MB（安装后 988 MB） |
 
 在 Windows 上，由于 Animama 是新应用，SmartScreen 可能会提示“Windows 已保护你的电脑”。请选择**更多信息**，确认发布者为 Raymond Van，然后选择**仍要运行**。
