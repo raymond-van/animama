@@ -74,7 +74,7 @@ export function SidebarPinIndicator() {
   return (
     <Pin
       aria-hidden="true"
-      className="text-muted-foreground pointer-events-none absolute top-0.5 left-0.5 size-[7px]"
+      className="text-muted-foreground pointer-events-none absolute top-0.5 left-0.5 size-[9px]"
     />
   );
 }
@@ -177,6 +177,23 @@ export function SidebarRowMenu({
 
 /** Keeps a row link's text and pin clear of the More button. */
 export const SIDEBAR_ROW_LINK_CLASS = "pr-9";
+
+/**
+ * A row link whose text runs to the row's end on desktop, where the More
+ * button only appears on hover or focus and is drawn over the text. Phones
+ * always show the button, so the space stays reserved there.
+ */
+export const SIDEBAR_ROW_LINK_UNDER_MENU_CLASS = "pr-9 md:pr-2";
+
+/**
+ * Fades the end of a row's text out while its More button shows (hover,
+ * keyboard focus or an open menu), so the button sits cleanly over it.
+ */
+export const SIDEBAR_ROW_TEXT_UNDER_MENU_CLASS = [
+  "md:group-hover/row:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
+  "md:group-has-[button:focus]/row:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
+  "md:group-has-[[data-state=open]]/row:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
+].join(" ");
 
 /**
  * Toggle a chat's or Anima's sidebar pin with `setPin` (`useSetChatPin` or
