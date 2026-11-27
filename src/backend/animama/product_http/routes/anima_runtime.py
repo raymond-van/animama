@@ -19,7 +19,7 @@ from animama.domain.content_catalog import (
     VerifiedContentFile,
 )
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.delivery import negotiate_json_encoding
+from animama.product_http.delivery import DeferredJsonBody, negotiate_json_encoding
 from animama.product_http.ports import Ports, ProductPorts, ReadContent, WriteContent
 from animama.product_http.principal import get_current_principal
 
@@ -122,13 +122,21 @@ async def get_runtime_bundle(
                 await catalog.mark_scan_required(source=source, relative_paths=tuple(paths))
             await session.commit()
     if bundle.format == "json":
+        body: bytes | DeferredJsonBody
+        if bundle.complete:
+            # Every member is verified by now, so a client holding this validator gets
+            # its 304 without the envelope being encoded, compressed or hashed.
+            body = DeferredJsonBody(bundle.validator, build=lambda: asyncio.to_thread(bundle.encode))
+        else:
+            body = await asyncio.to_thread(bundle.encode)
         return await ports.json_response(
-            request, bundle.body, encoding=encoding, headers={}, if_none_match=if_none_match, cacheable=bundle.complete
+            request, body, encoding=encoding, headers={}, if_none_match=if_none_match, cacheable=bundle.complete
         )
+    encoded = await asyncio.to_thread(bundle.encode)
     frame = VerifiedContentFile(
-        handle=BytesIO(bundle.body),
-        size_bytes=len(bundle.body),
-        sha256=hashlib.sha256(bundle.body).hexdigest(),
+        handle=BytesIO(encoded),
+        size_bytes=len(encoded),
+        sha256=hashlib.sha256(encoded).hexdigest(),
         media_type="application/octet-stream",
     )
     return ports.file_response(
