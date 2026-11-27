@@ -2,7 +2,7 @@
 
 Source agreement: [#942](https://github.com/raymond-van/animama/issues/942),
 published from the agreed [spec](in-app-generation-spec.md) and last captured
-at 2026-11-26T19:06:58Z, after the owner added R3.7. The owner accepted the spec on 2026-11-24, including P1
+at 2026-11-27T16:19:34Z, after the owner added R2.5 (R3.7 was added on 2026-11-26). The owner accepted the spec on 2026-11-24, including P1
 and P3 to P12. It was revised on 2026-11-26 where delivered work changed a
 fact (the ChatGPT plan connection, #919, and chat image input, #904), and the
 owner added R3.7 the same day.
@@ -647,6 +647,9 @@ What it shows:
     candidate**, through a heavy slot, not per phase: it builds both package
     sets from commits, and the pre-push suite does not include it.
 
+- 2026-11-27, owner: **the assistant's reasoning effort can be chosen**
+  (R2.5, the spec's decision 13), in Phase 4. This replaces the earlier
+  entry that the assistant names no level.
 - 2026-11-27, owner: **three pull requests, not four** (changes D14). Phases
   0 to 3 are the first (#956); Phases 4 to 7 are one pull request; Phases 8
   and 9 are the last, which closes #942. The connector's spike and re-plan
@@ -1614,7 +1617,7 @@ Phase commit: this commit (`feat(generate)[p3]`).
 
 Review tier: standard.
 
-Requirements: R2.1 to R2.4, R6.3; check C5.
+Requirements: R2.1 to R2.5, R6.3; check C5.
 
 Steps:
 
@@ -1637,7 +1640,14 @@ Steps:
    produced loadable drafts and how many repairs they needed. Add a short
    note in setup and beside the model control on what to expect from smaller
    models. The owner decides whether any model is hidden.
-6. Update the model settings page in `docs/frontend/features/`.
+6. Reasoning effort (R2.5). The model control offers the chosen row's
+   `supported_reasoning_efforts`, as chat's picker does, and shows nothing
+   for a row that has none. The choice is stored with the model choice and
+   sent with each run. The backend checks it against the row and puts it in
+   the request's options; with none chosen the model's default applies, as
+   now. Phase 0 saw no reasoning tokens on the plan route with or without a
+   named level, so the manual checks record what a chosen level changes.
+7. Update the model settings page in `docs/frontend/features/`.
 
 Tests: the request built for each provider family (Responses, Chat
 Completions, Anthropic) with the existing fakes; a model without tools cannot

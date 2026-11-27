@@ -5,9 +5,10 @@ Owner decision: accepted as written by the owner on 2026-11-24, including the
 choices this draft proposed (P1 and P3 to P12; P2 was withdrawn). Revised on
 2026-11-26 only where work delivered since then changed a fact: the ChatGPT
 plan connection (#919) and chat image input (#904). No agreed decision changed.
-On 2026-11-26 the owner added R3.7 (decision 12).
+On 2026-11-26 the owner added R3.7 (decision 12). On 2026-11-27
+the owner added R2.5 (decision 13).
 Authority: [#942](https://github.com/raymond-van/animama/issues/942). This file
-is a snapshot of that issue captured 2026-11-26T19:06:58Z; change the issue,
+is a snapshot of that issue captured 2026-11-27T16:19:34Z; change the issue,
 not this file.
 
 ## Problem and intended users
@@ -103,6 +104,10 @@ Non-goals:
   model these failures are the plan connection's own (#919 R5): the same
   states and wording, **Manage usage** at a usage limit, and no move to
   another connection unless the person chooses one.
+- **R2.5** Where the chosen model offers reasoning effort levels, the person
+  can choose one for the assistant, as in the chat model picker. The choice is
+  remembered with the model. A model that offers none shows no control, and
+  with no level chosen the model's default applies.
 
 ### R3: Authoring one item
 
@@ -332,6 +337,8 @@ Agreed by the owner (2026-11-24):
     share one facial expression guidance. It keys named blendshapes (VRoid
     presets, MMD morphs with their Japanese labels, ARKit shapes and
     custom-authored blendshapes) according to what is available (R3.7).
+13. **Reasoning effort (2026-11-27).** The person can choose the assistant's
+    reasoning effort where the model offers levels (R2.5).
 
 Proposed by this draft and accepted by the owner on 2026-11-24:
 
