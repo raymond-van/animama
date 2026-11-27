@@ -647,6 +647,11 @@ What it shows:
     candidate**, through a heavy slot, not per phase: it builds both package
     sets from commits, and the pre-push suite does not include it.
 
+- 2026-11-27, owner: **three pull requests, not four** (changes D14). Phases
+  0 to 3 are the first (#956); Phases 4 to 7 are one pull request; Phases 8
+  and 9 are the last, which closes #942. The connector's spike and re-plan
+  (G6) then hold up nothing else.
+
 ## Phased implementation
 
 Each phase starts from the previous phase's commit and writes its tests
@@ -1676,8 +1681,7 @@ Steps:
 
 Gate: the owner reads the Reaction guidance before it ships (G7).
 
-Manual check (G1): one revision in each creator, at most ten runs. The second
-pull request follows.
+Manual check (G1): one revision in each creator, at most ten runs.
 
 Records: no checks run, commits or reviews yet. Code Review #1 Findings and
 Revisions go here.
@@ -1747,7 +1751,7 @@ refused; an image reaches the request only for a model that accepts images;
 a starter fills the field; a preset stays selected; the inspirations licence
 check.
 
-The third pull request follows.
+The second pull request (Phases 4 to 7) follows.
 
 Records: no checks run, commits or reviews yet. Code Review #1 Findings and
 Revisions go here.
