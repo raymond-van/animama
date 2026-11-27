@@ -897,7 +897,10 @@ There is no separate generic Pose Creator route or raw package save provider.
 Clip JSON is `animaPoseClip/2.0`; a separate versioned project envelope
 (`animamaActionProject/1.0`) carries the name, AI description, Selector ID and
 typed effect/sound dependencies with the sequence. Import accepts either
-format; the sequence must be `animaPoseClip/2.0`.
+format; the sequence must be `animaPoseClip/2.0`. The Generate page's **Open
+in creator** loads a content assistant draft's project through the same
+import, as a new unsaved Gesture
+([Content generation](../features/content-generation.md#saving-and-opening-in-the-creator)).
 
 For an Action implemented by an Anima Pose Clip, the Action display name is
 the authoritative authoring name. The embedded clip `name` matches it, and the

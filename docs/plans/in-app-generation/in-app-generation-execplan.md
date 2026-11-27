@@ -280,7 +280,12 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] Phase 2: the assistant's backend (2026-11-26). Code Review #3 passed
   after two repair rounds. The package-set comparison runs on the pull
   request's candidate.
-- [ ] Phase 3: the Generate page. Ends the spec's first usable phase.
+- [x] Phase 3: the Generate page (2026-11-26). Code Review #2 passed after
+  one repair round. The live check on a plan model used three runs. Ends
+  the spec's first usable phase.
+- [ ] First pull request (Phases 0 to 3): integration review, the full
+  pre-push suite on the candidate (G3, the owner's go-ahead first) and the
+  package-set comparison.
 - [ ] Phase 4: other Model connections, usage and cost.
 - [ ] Phase 5: the creator control, revising and Reactions.
 - [ ] Phase 6: batches and effects on the timeline.
@@ -1404,8 +1409,185 @@ Completion: the spec's first usable phase. The first pull request follows
 Recovery: the page adds no stored state beyond Phase 2's. Local content it
 saved is ordinary content and stays.
 
-Records: no checks run, commits or reviews yet. Code Review #1 Findings and
-Revisions go here.
+Records. As built:
+
+- **Page.** `/generate` (`ui/generate/`) in the creators' workspace shell: a
+  header with New conversation, the earlier-conversations menu and the model
+  control; the conversation on the left; the creator's stage; the drafts on
+  the right; and the canvas bar with the Avatar picker, Loop and transport.
+  Below the large breakpoint the shell's tabs apply. Entries on the Create
+  page and in the sidebar's Create menu are hidden without the capability.
+- **One selection.** The selected draft is what the preview plays and what
+  the next message revises. A line above the request field says so and
+  offers a new draft instead.
+- **Run stream.** `useGenerationRun` reads `runs:sse` with `fetch` and an
+  `AbortController`. Stop, leaving the page and switching conversation abort
+  it. A run that ends without `run.completed` makes the page read the
+  conversation again.
+- **Draft worker.** `useDraftWorker` validates each new version, hands a
+  loadable clip to the preview, runs the checks in the worker, adds the
+  missing and Avatar-only expression names for the chosen Avatar, and sends a
+  report clamped to the route's bounds. It draws review sheets on the
+  preview's renderer through a bridge mounted in the canvas, and picks up a
+  draft left unchecked after a reload.
+- **Included Avatar bytes** for checks and sheets come only from Included
+  catalog items named `Andrew.vrm` and `Annie.vrm`, fetched by digest and
+  verified (T4).
+- **Model choice.** Any eligible chat model, ChatGPT plan models first,
+  stored under `generation.model_provider_id`. Setup shows the plan card,
+  the list and the way to Model connections. The control ends with the plan
+  usage note on a plan model and says when a model cannot look at frames.
+- **Save** goes through `useSaveActionDocument`, the creator's save moved
+  out of `ActionEditorPage`, then `:mark-saved`. Saving again replaces the
+  draft's own Library item. **Open in creator** is
+  `/gestures/new?draft=<id>&conversation=<id>`, loaded through the creator's
+  import as an unsaved document.
+- **Questions** show as option cards with Skip. They return after a reload
+  and after an answering run that failed or was stopped before it stored a
+  draft, by the same rule the backend plans with.
+- **Query keys** for the feature are in `product-ui`'s `queryKeys`, where
+  the plan feature keeps its own, so `product-ui` is 0.23.0 (one changed
+  declaration file).
+- **Text.** A `generate` catalog in five locales (147 English keys), with
+  "assistant", "draft" and "Generate" added to the term list first.
+- **Records.** ADR 0041 (proposed), glossary entries for the content
+  assistant and a draft, the feature page
+  `docs/frontend/features/content-generation.md`, and the routing, model
+  settings and data model pages.
+- **Backend changes in this phase.** The assistant's instructions always end
+  with a Language section, which names English for an English or unknown
+  locale (see the live check below). A draft the page was shown and the
+  person then discarded keeps its name on the run's turn (P2-R3-F1).
+
+Built in a helper worktree (`in-app-generation-p3`, a local branch on the
+tree Phase 2's review froze) while Phase 2 was reviewed, and brought onto the
+task branch after Phase 2's commit.
+
+Live check on a plan model (G1), 2026-11-26, task stack, `gpt-6-luna`, three
+runs of the ten allowed:
+
+| Run | Result | Requests | Input tokens | Output tokens | Cached input |
+| --- | --- | --- | --- | --- | --- |
+| "A shy little wave with the right hand, with a small smile" | Two questions with options | 1 | 17,847 | 105 | 0 |
+| The same request with both questions answered | Draft "Shy Little Wave", 2.3 s, five beats; no finding; frame review accepted; `ready` in 53 s | 5 | 99,955 | 2,260 | 0 |
+| "Make the wave a bit bigger: raise the forearm so the hand is beside the shoulder" | Version 3, no finding, frame review accepted, `ready` | 3 | 61,838 | 1,458 | 0 |
+
+- The draft played on Annie and on Andrew, Restore appeared after the
+  revision, Save stored a Local Gesture, the saved item opened in the
+  Gesture creator with its five beats editable, and Open in creator loaded
+  the draft as an unsaved document. Review sheets were drawn and uploaded
+  (two sheets, 300 KB) with the browser pane in the background.
+- **The first run's questions came back in Spanish** for an English request
+  under an English locale. The instructions said only "in the language they
+  write in". They now name the language outright; the two later runs were in
+  English.
+- **The write pass took four responses**: one example read, two submissions
+  the server refused (two problems, then one) and a valid third. Phase 0's
+  trial wrote in one. What the refusals were is not logged, by the no-text
+  rule.
+- **No cached input was reported** on any of the nine requests, each of
+  which carries about 18,000 tokens of instructions. The plan's open question
+  on caching stays open, and a draft costs roughly 60,000 to 100,000 input
+  tokens of plan usage. Phase 4 shows token use; lowering it is a separate
+  question for the owner.
+
+For later phases:
+
+- A late check report that lands while another run holds the conversation
+  is stored without settling the draft's status (P3-R2-F1), and Try again
+  can be hidden for a request that failed before it reached the backend when
+  the run before it failed after storing a draft (P3-R2-F2). Both go to
+  Phase 4, which next touches the run's failure states.
+- The typed request is lost when Model setup is opened. The own-Avatar list
+  in the preview picker is the catalog's first page.
+- Why a write pass's first submissions are refused is not visible without
+  logging text. Acceptance (G4) should look at it with the owner.
+
+Not verified: a hidden or minimized window (the live check ran with the
+app's browser pane not displayed, but the page reported itself visible), the
+packaged desktop build (G8), the three interface fixes made after the live
+check in a browser (the journey exercises the held Discard), and
+translations by a reader of each language.
+
+Check record, on working tree `c7db67cc3d5583dced082d56041bf5ccbc61b9b5`:
+
+| Check (from `src/frontend` unless noted) | Result |
+| --- | --- |
+| `python3 ../../scripts/heavy-slot.py -- pnpm web:test` (the whole web unit suite) | 716 files passed, 1 skipped; 6,957 tests passed, 2 skipped |
+| `pnpm check` (types and i18n); `pnpm web:lint`; `pnpm prettier:check`; `pnpm e2e:check:source` | Clean; every translated catalog complete |
+| `pnpm openapi-ts:check` | Generated SDK is current (on `c3a74896…`; no schema changed afterwards) |
+| `pnpm packages:build`, `packages:check`, `packages:test` | Exit 0; 10, 1 and 50 tests (on the plumbing's tree; packages unchanged afterwards) |
+| Journey `pnpm e2e:test -- --project chromium --grep "generate-gesture"` through the heavy slot, on a disposable built stack started with `ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh` | 2 passed (installation setup and the journey, 15 s) |
+| From the root: `uv run --no-sync pytest -q -p no:cacheprovider` on the six `tests/test_generation_*.py` files, `test_accountless_repository_boundaries.py` and `test_shared_backend_boundary.py` | 524 passed (on `c3a74896…`; only a docstring in `run.py` changed afterwards) |
+| `uv run --no-sync ruff check`; `ruff format --check src/backend/animama tests scripts`; `mypy src/backend/animama tests`; `scripts/repository-boundary/check-python-imports.py` | Clean; 970 files; no forbidden edge (on `c3a74896…`; `ruff check` on `run.py` rerun) |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| Relative Markdown links in the new and changed documents (a throwaway script) | 210 links, none broken (before later sentence edits that added no link) |
+
+Not run: the full pre-push suite (the backend's full `pytest`, `pnpm build`,
+`pnpm web:test:browser`), the other journeys and the package-set `compare`.
+They run once on the pull request's candidate (G3).
+
+#### Code Review #1 Findings
+
+Independent review at the standard tier of working tree
+`c3a748964d1fb4c6c57af00fb33827e1006e53f7` against `5783f08d1`: one reviewer
+for the feature and one for the shared code it touches, both reusing the
+check record. Result: blocked by FA1, FA2 and FB1.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P3-R1-FA1 | Required | A failed draft with no project became the revision target, so the next message, its retry and the same after a reload were refused with `generation_draft_empty`. |
+| P3-R1-FA2 | Required | ADR 0041 and the feature page said the page later checks a version a run left "not checked". No code did, and Check again did nothing in that state. |
+| P3-R1-FB1 | Required | The Gesture creator is keyed by the draft it opened and prompts only when the path changes. Create → Gesture from the sidebar kept the path, so edits to a draft opened in the creator were dropped without a prompt. |
+| P3-R1-FA3 | Optional | Try again repeated the whole request after a run that had already stored its draft: a second revision overwrote the restore point, or a second draft was written. |
+| P3-R1-FA4 | Optional | The delayed re-reads after a stopped run were not cancelled and could put older draft state back under a new run. |
+| P3-R1-FA5 | Optional | A connection lost after the stream began was worded as a request that never arrived, and could replace a failure the run had reported. |
+| P3-R1-FA6 | Optional | The hidden-window check that Phase 0 left to this phase is not in the check record. |
+| P3-R1-FA7 | Optional | Opening Model setup unmounted the workspace, so going back opened the most recent conversation, not the one the person had open. |
+| P3-R1-FB2 | Optional | A docstring in `run.py` did not name the third case in which a turn names a draft. |
+| P3-R1-FB3 | Optional | The preview Avatar chosen on Generate carries into the Gesture creator, which lists it only as a fallback entry. |
+
+The shared-code reviewer also noted that `/gestures/new?draft=…` on a
+runtime without the capability waited for ever, and confirmed line by line
+that the moved save behaves as before.
+
+#### Code Review #1 Revisions
+
+Each finding was verified against the code.
+
+| ID | Disposition |
+| --- | --- |
+| P3-R1-FA1 | Fixed: a draft with no project is never selected as the revision target and no `draft_id` is sent for it. |
+| P3-R1-FA2 | Fixed in the code, so the documents hold: with no run in flight, the page checks a draft whose current version is stored as not checked, on opening the conversation and through Check again. |
+| P3-R1-FB1 | Fixed: a dirty document opened from a draft is not dropped without the prompt. |
+| P3-R1-FA3 | Fixed: a failure after the run stored its draft offers Dismiss only. |
+| P3-R1-FA4 | Fixed: the timers are cleared when a run begins and on unmount. |
+| P3-R1-FA5 | Fixed: a transport error after the first event reads as an interrupted stream, and never replaces a reported failure. |
+| P3-R1-FA6 | Recorded as not performed. The live check ran with the app's browser pane not displayed, and checks and sheets completed, but the page itself reported visible. A hidden or minimized window stays with the packaged check (G8). |
+| P3-R1-FA7 | Fixed: the open conversation is kept across setup. |
+| P3-R1-FB2 | Fixed. |
+| P3-R1-FB3 | Not acted on: the creator shows the carried Avatar and previews with it. |
+
+The creator route without the capability now reports the draft as not
+loadable instead of waiting.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `c7db67cc3d5583dced082d56041bf5ccbc61b9b5`
+at the standard tier, covering both reviewers' findings. Result: pass. Every
+accepted finding is resolved with no regression.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P3-R2-F1 | Optional | A late report for a version left unchecked that lands while another run holds the conversation is stored, but the draft's status is not settled from it. |
+| P3-R2-F2 | Optional | The rule that hides Try again reads the conversation's last stored turn, which belongs to the run before when the failed request never reached the backend. |
+
+#### Code Review #2 Revisions
+
+Both are carried to Phase 4 (see "For later phases"). One repair round of
+the two allowed was used.
+
+Phase commit: this commit (`feat(generate)[p3]`).
 
 ### Phase 4: Other Model connections, usage and cost
 

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
 
 import {
+  chatModelUnusableReason,
   defaultReasoningEffort,
   effectiveReasoningEffort,
   modelConnectionLabel,
@@ -165,5 +166,49 @@ describe("chat picker groups", () => {
       ["Anthropic", ["opus"]],
       ["OpenAI · ChatGPT plan", ["luna"]],
     ]);
+  });
+});
+
+describe("models chat cannot use", () => {
+  const usable = row({ api_standard: "responses", source: "builtin" });
+
+  it("accepts a listed model the app has an API for", () => {
+    expect(chatModelUnusableReason(usable)).toBeNull();
+    // The owner's own model, once its context window is set.
+    expect(
+      chatModelUnusableReason({
+        ...usable,
+        source: "owner",
+        context_window_tokens: 128_000,
+      }),
+    ).toBeNull();
+  });
+
+  it("refuses the owner's own model until its context window is set", () => {
+    for (const context_window_tokens of [null, undefined])
+      expect(
+        chatModelUnusableReason({
+          ...usable,
+          source: "owner",
+          context_window_tokens,
+        }),
+      ).toBe("needs_context_window");
+    // A built-in model's window comes with the catalog, set or not.
+    expect(
+      chatModelUnusableReason({ ...usable, context_window_tokens: null }),
+    ).toBeNull();
+  });
+
+  it("refuses a model the app has no API to talk to", () => {
+    expect(chatModelUnusableReason(row({ api_standard: null }))).toBe(
+      "unsupported",
+    );
+    expect(chatModelUnusableReason(row())).toBe("unsupported");
+    // Said first: a context window would not make it usable.
+    expect(
+      chatModelUnusableReason(
+        row({ source: "owner", context_window_tokens: null }),
+      ),
+    ).toBe("unsupported");
   });
 });

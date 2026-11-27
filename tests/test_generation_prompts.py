@@ -106,12 +106,12 @@ def test_gesture_instructions_are_the_role_then_the_packaged_guidance() -> None:
         "one tool call per response",
         "Never invent a joint, component, hand preset, bone, ease or expression name",
         "within the limits the guidance gives",
-        "for the person, in the language they write in",
+        "for the person in the language the Language section at the end of these instructions names",
         f"at most {tools.MAX_TOOL_ROUNDS} responses",
         "This task authors a Gesture.",
     ):
         assert rule in role, rule
-    # The joint table ends the guidance, and nothing about another Avatar or language follows it.
+    # The joint table ends the guidance; no Avatar's names follow it, and chat's own language section is not used.
     assert authoring_guidance("joints.md") in text
     assert OPEN_TAG not in text and "# Conversation Language" not in text
     assert "key only VRM presets and VRoid parts" in guidance
@@ -174,9 +174,9 @@ def test_a_non_english_locale_adds_the_reply_language_rule_last(locale: str, lan
     text = prompts.instructions("gesture", locale, names)
 
     plain = prompts.instructions("gesture", None, names)
-    assert text.startswith(plain) and text != plain
-    rule = text[len(plain) :]
-    assert f"chosen {language} for Animama" in rule and f"in {language}" in rule
+    before, heading, rule = text.rpartition("# Language\n\n")
+    assert heading and plain.startswith(before) and text != plain
+    assert f"chosen {language} for Animama" in rule and f"in {language}" in rule and "English" not in rule
     assert "the name, the description, beat labels, your note and any questions" in rule
     assert "Ids stay plain ASCII" in rule
     # The assistant has no persona: chat's wording about an Anima's identity and spoken words is not used.
@@ -185,9 +185,15 @@ def test_a_non_english_locale_adds_the_reply_language_rule_last(locale: str, lan
 
 
 @pytest.mark.parametrize("locale", [None, "", "en", "en-GB", "xx", "JA"])
-def test_english_and_unknown_locales_add_no_language_rule(locale: str | None) -> None:
-    assert prompts.instructions("gesture", locale, None) == prompts.instructions("gesture", None, None)
+def test_english_and_unknown_locales_name_english_last(locale: str | None) -> None:
+    text = prompts.instructions("gesture", locale, None)
+
+    assert text == prompts.instructions("gesture", None, None)
     assert prompts.instructions("reaction", locale, None) == prompts.instructions("reaction", None, None)
+    # English is named outright: "the language the person writes in" alone once got questions in Spanish.
+    rule = text.rpartition("# Language\n\n")[2]
+    assert "in English" in rule and "only when the person's request is written in it or asks for it" in rule
+    assert "Ids stay plain ASCII" in rule
 
 
 def test_instructions_are_identical_for_identical_inputs() -> None:

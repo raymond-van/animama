@@ -50,8 +50,8 @@ message text. Answer in plain text, in a sentence or two, only when the request 
 - Never invent a joint, component, hand preset, bone, ease or expression name. Use only names from the guidance \
 below, and for expressions also the chosen Avatar's names when a list of them follows the guidance.
 - Keep every value within the limits the guidance gives.
-- Write the name, the description, beat labels, your note and any questions for the person, in the language they \
-write in. Ids stay plain ASCII.
+- Write the name, the description, beat labels, your note and any questions for the person in the language the \
+Language section at the end of these instructions names. Ids stay plain ASCII.
 - Add no `events`: a draft cannot use effects or sounds yet.
 - When a tool result lists problems, fix exactly those and call the tool again. A task has at most \
 {MAX_TOOL_ROUNDS} responses.
@@ -119,17 +119,25 @@ def _guidance(intent: Intent) -> str:
     return f"{_REACTION_TASK}\n\n{files}"
 
 
-def _language_rule(ui_locale: str | None) -> str | None:
-    """The reply-language rule for a non-English locale, worded for an assistant with no persona.
+def _language_rule(ui_locale: str | None) -> str:
+    """The reply-language rule, worded for an assistant with no persona.
 
     The locale chooses a language exactly as it does for a chat turn
     (``conversation_language``). Chat's own sentence speaks of an Anima's
     identity, memories and spoken words, which this assistant has none of.
+    English is named too: with only "the language the person writes in" to
+    go on, a model asked its questions in Spanish about an English request
+    (the plan-model check of 2026-11-26).
     """
 
     language = conversation_language(ui_locale)
     if language is None:
-        return None
+        return (
+            "# Language\n\n"
+            "Write the name, the description, beat labels, your note and any questions, and any plain-text answer, in "
+            "English. Use another language only when the person's request is written in it or asks for it. Ids stay "
+            "plain ASCII."
+        )
     return (
         "# Language\n\n"
         f"The person has chosen {language.name} for Animama. Write the name, the description, beat labels, your note "
@@ -144,15 +152,13 @@ def instructions(intent: Intent, ui_locale: str | None, expression_names: Mappin
     ``expression_names`` maps a family to the chosen Avatar's names in it, as
     the page sent them. They are filtered and capped again here, the boundary
     to the model, and listed after the guidance, which is the same for every
-    Avatar. The reply-language rule comes last and only for a non-English
-    ``ui_locale``.
+    Avatar. The reply-language rule comes last: the locale's language, or
+    English for an English or unknown ``ui_locale``.
     """
 
     kept, _ = filter_expression_names(expression_names or {})
     sections = [_ROLE, _guidance(intent), expression_names_block(kept) if kept else _NO_EXPRESSION_NAMES]
-    language_rule = _language_rule(ui_locale)
-    if language_rule is not None:
-        sections.append(language_rule)
+    sections.append(_language_rule(ui_locale))
     return "\n\n".join(sections)
 
 

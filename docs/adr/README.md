@@ -56,6 +56,7 @@ production readiness or publication rights.
 | 0038 | [Chat images are saved as references to one stored copy](0038-chat-images-saved-as-references.md)                                                  | accepted                                                      |
 | 0039 | [A ChatGPT plan sign-in is a model connection's credential](0039-chatgpt-plan-sign-in-and-connection.md)                                         | accepted                                                      |
 | 0040 | [The Windows update feed's minimum system version is frozen](0040-windows-update-feed-minimum-is-frozen.md)                                        | accepted                                                      |
+| 0041 | [The backend builds the content assistant's runs and the page checks its drafts](0041-backend-built-content-assistant-runs.md)                     | proposed                                                      |
 
 ## When and how to record a decision
 

@@ -187,10 +187,11 @@ def _questions_outstanding(messages: Sequence[GenerationMessage]) -> bool:
       outstanding.
 
     A run's turn names a draft only when the run left one changed
-    (``GenerationRun._settle``): a new draft it kept, or the draft it revised
-    once the revision was stored. So a run that got the answers, stored its
-    draft and then failed or was stopped has answered the questions, while an
-    attempt at a revision that stored nothing has not.
+    (``GenerationRun._settle``): a new draft it kept, the draft it revised
+    once the revision was stored, or a new draft the page was shown and the
+    person then discarded. So a run that got the answers, stored its draft and
+    then failed or was stopped has answered the questions, while an attempt at
+    a revision that stored nothing has not.
     """
 
     for message in reversed(messages):
@@ -817,7 +818,8 @@ class GenerationRun:
         or conversation that is gone is left alone.
 
         The message names the draft only when the run left it changed: a new
-        draft that was kept, or a revised one whose version moved. Whether a
+        draft that was kept or that the page was shown before the person
+        discarded it, or a revised one whose version moved. Whether a
         revision was stored is read from the draft, so a run that failed or
         was stopped as it stored one says what is true either way.
         ``plan_run`` reads the name as "this run used what the person sent".
@@ -831,7 +833,11 @@ class GenerationRun:
                 except GenerationNotFoundError:
                     settled = None
             revised = self._plan.draft
-            if settled is None or (revised is not None and settled.version == revised.version):
+            if settled is None:
+                # Gone. A draft the page was already shown keeps its name on the turn: the run made it.
+                if self._told_status is None:
+                    self._draft_id = None
+            elif revised is not None and settled.version == revised.version:
                 self._draft_id = None
             elif settled.status != self._told_status:
                 changed = settled

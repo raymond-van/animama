@@ -34,6 +34,9 @@ Feature guides:
 - `features/anima-memory.md` (filesystem workspace and Memory Manager)
 - `features/user-file-uploads.md`
 - `features/model-settings.md` (model connections, models, roles and web search)
+- `features/content-generation.md` (the Generate page: asking the content
+  assistant for a Gesture, drafts and their checks, saving, and what reaches
+  the model provider; local compositions only)
 - `features/library.md`
 - `features/user-profiles.md` (private display-name setup, 18+ confirmation,
   and personalization)

@@ -175,6 +175,11 @@
   "hub": {
     "actions": {
       "description": "Give your Anima movement, personality, and emotion.",
+      "generate": {
+        "action": "Open Generate",
+        "description": "Describe a Gesture in words, then preview, revise and save the result.",
+        "title": "Generate"
+      },
       "gesture": {
         "action": "Create Gesture",
         "description": "Choreograph expressive movement and reusable actions.",

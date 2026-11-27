@@ -220,6 +220,18 @@ export const queryKeys = {
   /** The installation's application web search backend (local composition). */
   webSearchSettings: (userId: string) =>
     ["web-search-settings", userId] as const,
+  /** The content assistant's conversations and their drafts (local composition). */
+  generation: {
+    all: (userId: string) => ["generation", userId] as const,
+    conversations: (userId: string) =>
+      [...queryKeys.generation.all(userId), "conversations"] as const,
+    conversation: (userId: string, conversationId: string) =>
+      [
+        ...queryKeys.generation.all(userId),
+        "conversation",
+        conversationId,
+      ] as const,
+  },
   /** The owner's automatic episode-processing setting and state (local composition). */
   automaticEpisodeProcessing: (userId: string) =>
     ["automatic-episode-processing", userId] as const,

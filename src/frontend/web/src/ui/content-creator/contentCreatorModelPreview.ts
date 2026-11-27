@@ -43,16 +43,36 @@ export type ContentCreatorIncludedAvatarSource =
     itemId: string;
   };
 
+/** One of the person's own Avatars, previewed through its catalog item. */
+export type ContentCreatorOwnAvatarSource = ContentCreatorModelSourceBase & {
+  sourceType: "own_avatar";
+  itemId: string;
+};
+
 export type ContentCreatorModelSource =
   | ContentCreatorAnimaModelSource
-  | ContentCreatorIncludedAvatarSource;
+  | ContentCreatorIncludedAvatarSource
+  | ContentCreatorOwnAvatarSource;
+
+/**
+ * The catalog item a source is previewed through: an Included Avatar's or one
+ * of the person's own. `null` for an Anima's equipped model, which resolves
+ * through that Anima's runtime instead.
+ */
+export function contentCreatorCatalogAvatarItemId(
+  source: ContentCreatorModelSource | null,
+): string | null {
+  return source && source.sourceType !== "resolved_entry"
+    ? source.itemId
+    : null;
+}
 
 /** The Avatar catalog item behind a model source, for face part corrections. */
 export function contentCreatorModelCatalogItemId(
   source: ContentCreatorModelSource | null,
 ): string | null {
   if (!source) return null;
-  if (source.sourceType === "included_avatar") return source.itemId;
+  if (source.sourceType !== "resolved_entry") return source.itemId;
   const itemId = source.config.avatar_catalog_item_id;
   return typeof itemId === "string" && itemId ? itemId : null;
 }
@@ -71,6 +91,25 @@ export function contentCreatorIncludedAvatarSource(item: {
     versionLabel: t("modelPreview.versions.included"),
     sourceLabel: "Built-in Avatar",
     runtimeId: `included-avatar-${item.catalog_item_id}`,
+    configSchemaVersion: 1,
+    config: {},
+  };
+}
+
+/** A model option for one of the person's own Avatar catalog items. */
+export function contentCreatorOwnAvatarSource(item: {
+  catalog_item_id: string;
+  name: string;
+}): ContentCreatorOwnAvatarSource {
+  const t = getI18n().getFixedT(null, "creator");
+  return {
+    key: `own:${item.catalog_item_id}`,
+    sourceType: "own_avatar",
+    itemId: item.catalog_item_id,
+    displayName: item.name,
+    versionLabel: t("modelPreview.versions.own"),
+    sourceLabel: "My Avatar",
+    runtimeId: `own-avatar-${item.catalog_item_id}`,
     configSchemaVersion: 1,
     config: {},
   };
@@ -138,7 +177,7 @@ export function contentCreatorModelPreviewTarget(input: {
   ownerKey: string;
 }): ContentPreviewTarget | null {
   const source = input.source;
-  // Included Avatars resolve through their catalog preview instead.
+  // Included and own Avatars resolve through their catalog preview instead.
   if (!source || source.sourceType !== "resolved_entry") return null;
   const base = {
     key: `${input.ownerKey}:${source.key}`,

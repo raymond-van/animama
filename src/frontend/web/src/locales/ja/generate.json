@@ -1,0 +1,208 @@
+{
+  "composer": {
+    "label": "アシスタントへのリクエスト",
+    "newDraftInstead": "代わりに新しい下書きを作成",
+    "placeholder": "ジェスチャーを説明…",
+    "revisePlaceholder": "変えたい点を入力…",
+    "revises": "次のメッセージで「{{name}}」を修正します。",
+    "send": "リクエストを送信",
+    "stop": "アシスタントを停止",
+    "tooLong": "リクエストは {{max}} 文字以内にしてください。",
+    "writesNew": "次のメッセージで新しい下書きを作成します。"
+  },
+  "drafts": {
+    "actions": {
+      "discard": "破棄",
+      "open": "クリエイターで開く",
+      "restore": "前のバージョンに戻す",
+      "retryCheck": "もう一度チェック",
+      "save": "保存",
+      "saveAgain": "もう一度保存",
+      "saving": "保存中…"
+    },
+    "checksUnavailable": "チェックを実行できませんでした",
+    "count_other": "下書き {{count}} 件",
+    "discard": {
+      "cancel": "キャンセル",
+      "confirm": "下書きを破棄",
+      "description": "この下書きと、最後に修正する前のバージョンを削除します。この操作は取り消せません。",
+      "savedDescription": "この会話から下書きを削除します。保存したアイテムはライブラリに残ります。",
+      "title": "「{{name}}」を破棄しますか？"
+    },
+    "emptyDescription": "アシスタントにジェスチャーを頼んでみましょう。下書きはチェック結果と一緒にここに表示され、再生、修正、保存ができます。",
+    "emptyTitle": "下書きはまだありません",
+    "loadFailed": "下書きを読み込めませんでした。",
+    "loading": "下書きを読み込み中…",
+    "openSaved": "保存したアイテムを開く",
+    "saved": "ライブラリに保存済み",
+    "select": "下書き「{{name}}」を選択",
+    "showAll": "{{total}} 件すべて表示",
+    "showFewer": "表示を減らす",
+    "status": {
+      "checking": "チェック中…",
+      "failed": "失敗",
+      "ready": "準備完了",
+      "repairing": "修復中…",
+      "reviewing": "フレームを確認中…",
+      "warnings": "準備完了（警告あり）",
+      "writing": "作成中…"
+    },
+    "toasts": {
+      "saved": "「{{name}}」をライブラリに保存しました。",
+      "saveFailed": "下書きを保存できませんでした。"
+    },
+    "unnamed": "無題の下書き",
+    "unplayable": "この下書きは再生も保存もできません。",
+    "waitForRun": "アシスタントの作業が終わると使えます。"
+  },
+  "failure": {
+    "dismiss": "閉じる",
+    "kept": "会話と下書きはそのまま残ります。",
+    "model": "アシスタントはこのリクエストを完了できませんでした。",
+    "retry": "再試行"
+  },
+  "header": {
+    "conversations": "以前の会話",
+    "discard": {
+      "cancel": "キャンセル",
+      "confirm": "会話を破棄",
+      "description": "メッセージと未保存の下書きを削除します。保存したアイテムはライブラリに残ります。この操作は取り消せません。",
+      "title": "この会話を破棄しますか？"
+    },
+    "discardConversation": "この会話を破棄…",
+    "newConversation": "新しい会話",
+    "untitled": "新しい会話",
+    "waitForRun": "アシスタントの作業が終わると使えます。"
+  },
+  "model": {
+    "chooseFailed": "モデルの選択を保存できませんでした。",
+    "description": "アシスタントはこのモデルで下書きを作成し、修復します。",
+    "empty": "モデルが見つかりません。",
+    "noFrames": "このモデルは画像を見られないため、アシスタントは描画したフレームの確認を省略します。チェックは引き続き実行されます。",
+    "none": "モデルを選択",
+    "search": "モデルを検索…",
+    "setup": "モデルのセットアップ",
+    "title": "アシスタントのモデル",
+    "trigger": "アシスタントのモデル: {{model}}"
+  },
+  "page": {
+    "conversationsFailed": "アシスタントとの会話を読み込めませんでした。",
+    "loading": "生成を開いています…",
+    "modelsFailed": "モデルを読み込めませんでした。",
+    "panels": {
+      "conversation": "アシスタント",
+      "drafts": "下書き"
+    },
+    "retry": "再試行",
+    "title": "生成"
+  },
+  "preview": {
+    "avatar": "アバター",
+    "chooseAvatar": "アバターを選択",
+    "empty": "アシスタントが下書きを作成すると、すぐにここで再生されます。",
+    "loadingAvatars": "アバターを読み込み中…",
+    "loadingDraft": "下書きを読み込み中…",
+    "loop": "ループ",
+    "loopLabel": "下書きをループ再生",
+    "selectDraft": "再生する下書きを選択してください。",
+    "target": "下書き",
+    "unplayable": "この下書きは再生できません。"
+  },
+  "progress": {
+    "checking": "下書きをチェック中…",
+    "framesUnavailable": "フレームを描画できなかったため、アシスタントはフレームを見ずに続行します。",
+    "repairing": "チェックで見つかった問題を修復中…",
+    "reviewingFrames": "描画したフレームを確認中…",
+    "starting": "開始しています…",
+    "thinking": "考え中…",
+    "writing": "下書きを作成中…"
+  },
+  "questions": {
+    "answerFor": "「{{question}}」への回答",
+    "answerPlaceholder": "回答を入力",
+    "hint": "答えたい質問だけに答えるか、スキップしてアシスタントに任せることができます。",
+    "skip": "スキップ",
+    "submit": "回答を送信",
+    "title": "アシスタントからいくつか質問があります"
+  },
+  "setup": {
+    "claudeNote": "Claude の API キーも使えます。API キーや、ツールを呼び出せるほかのモデルは、「アプリ設定 → モデル」のモデルの接続で追加してください。",
+    "description": "アシスタントは言葉でのリクエストからジェスチャーを作成し、チェックして修復します。ツールを呼び出せるモデルが必要です。",
+    "done": "生成に戻る",
+    "modelsDescription": "ツールを呼び出せて、チャットで使えるモデルだけが表示されます。選択は記憶され、いつでも変更できます。",
+    "modelsTitle": "使用できるモデル",
+    "modelTitle": "アシスタントのモデルを選択",
+    "noModels": "使用できるモデルがまだありません。上の「ChatGPT で続ける」を使うか、モデルの接続でモデルを追加してください。",
+    "openConnections": "モデルの接続を開く",
+    "otherTitle": "その他のモデル",
+    "title": "生成のセットアップ"
+  },
+  "transcript": {
+    "answer": "{{question}} — {{answer}}",
+    "emptyDescription": "「恥ずかしそうに小さく手を振る」のように、アバターにしてほしい動きを伝えてください。アシスタントが下書きを作成してチェックし、プレビューで再生します。",
+    "emptyTitle": "ジェスチャーを説明してください",
+    "failed": "アシスタントはこのリクエストを完了できませんでした。",
+    "loadFailed": "この会話を読み込めませんでした。",
+    "loading": "会話を読み込み中…",
+    "scrollToLatest": "最新のメッセージまでスクロール",
+    "skippedQuestions": "質問をスキップしました。",
+    "stopped": "停止しました。ここまでに完成した下書きは残ります。"
+  },
+  "warnings": {
+    "avatarOnlyExpressions": "次の表情を持つアバターでのみ再生されます: {{names, list}}。",
+    "contact": {
+      "fail": "手が、触れるはずの場所に届いていません。",
+      "warn": "手が、触れるはずの場所から少しずれています。"
+    },
+    "feet": {
+      "fail": "接地している足が滑るか、浮いています。",
+      "warn": "接地している足がわずかにずれます。"
+    },
+    "fingers": {
+      "fail": "指どうしがめり込んでいます。",
+      "warn": "指どうしがめり込みそうです。"
+    },
+    "intersection": {
+      "fail": "体の部位どうしがめり込んでいます。",
+      "warn": "体の部位どうしがめり込みそうです。"
+    },
+    "issue": "クリップの一部が有効ではありません。",
+    "issueAt": "{{path}}: {{message}}",
+    "loopSeam": {
+      "fail": "ループの終わりが始まりとつながっていません。",
+      "warn": "ループが繰り返すところで少し飛びます。"
+    },
+    "missingExpressions": "選択中のアバターは次の表情を表示できません: {{names, list}}。",
+    "oscillation": {
+      "fail": "体の部位が速すぎる往復で震えています。",
+      "warn": "体の部位が素早く往復しています。"
+    },
+    "parity": {
+      "fail": "2 体の同梱アバターで動きが異なります。",
+      "warn": "2 体の同梱アバターで動きがわずかに異なります。"
+    },
+    "pose": {
+      "fail": "下書きで使われているポーズが見つかりませんでした。",
+      "warn": "下書きで使われているポーズが正しく見えない可能性があります。"
+    },
+    "range": {
+      "fail": "関節が、体が曲がる範囲を超えて曲がっています。",
+      "warn": "関節が、自然に見える範囲を超えて曲がっています。"
+    },
+    "smoothness": {
+      "fail": "動きが急にがくっと変わります。",
+      "warn": "動きが少し唐突です。"
+    },
+    "unchecked": "このバージョンはチェックされていません。",
+    "unknown": {
+      "fail": "モーションチェックに失敗しました。",
+      "warn": "モーションチェックで警告が出ました。"
+    },
+    "where": {
+      "at": "{{time}} 秒",
+      "avatar": "{{avatar}} の場合",
+      "avatarWhen": "{{avatar}} · {{when}}",
+      "range": "{{from}}～{{to}} 秒"
+    }
+  }
+}

@@ -855,6 +855,11 @@ than moving its work to another connection, and Utility and the Memory Manager
 wait too when they inherit such a waiting chat role
 ([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)).
 
+`generation.model_provider_id` is the content assistant's model. It is not a
+role: the page sends it with each run, the run route checks it
+(`422 generation_model_unusable`), and no default stands in for it
+([ADR 0041](../../adr/0041-backend-built-content-assistant-runs.md)).
+
 ### Avatar And Uploads
 
 `ORMAvatar` stores Avatar metadata, catalog association, and the shared markdown

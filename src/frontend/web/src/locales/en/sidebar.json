@@ -27,6 +27,7 @@
   "create": {
     "anima": "Anima",
     "effects": "Effects",
+    "generate": "Generate",
     "gesture": "Gesture",
     "label": "Create",
     "reaction": "Reaction"

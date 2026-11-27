@@ -12,6 +12,7 @@ import { VROID_MOOD_PRESETS, isVroidMoodPart } from "../vroidMoodParts";
 import {
   MAX_EXPRESSION_NAME_LENGTH,
   MAX_EXPRESSION_NAMES,
+  avatarOnlyExpressionNames,
   groupExpressionNames,
   missingExpressionNames,
 } from "./expressionInventory";
@@ -201,5 +202,51 @@ describe("missingExpressionNames", () => {
 
   it("reports nothing for a clip without expressions", () => {
     expect(missingExpressionNames({}, () => false)).toEqual([]);
+  });
+});
+
+describe("avatarOnlyExpressionNames", () => {
+  const key = [{ beat: "a", v: 1 }];
+  const supports = (names: string[]) => (name: string) => names.includes(name);
+
+  it("lists the keyed names the Avatar has that other Avatars may lack", () => {
+    const clip = {
+      expressions: {
+        happy: key,
+        Fcl_BRW_Joy: key,
+        jawOpen: key,
+        まばたき: key,
+        Cheek_Blush: key,
+        Fcl_HA_Fung1: key,
+      },
+    };
+    // ARKit shapes, MMD morphs, an author's own shapes and VRoid shapes that
+    // are not mood parts play only where they exist.
+    expect(avatarOnlyExpressionNames(clip, () => true)).toEqual([
+      "jawOpen",
+      "まばたき",
+      "Cheek_Blush",
+      "Fcl_HA_Fung1",
+    ]);
+  });
+
+  it("leaves out presets and VRoid mood parts, which every Avatar plays", () => {
+    const clip = {
+      expressions: Object.fromEntries(
+        [...VRM_PRESETS, ...VROID_MOOD_PARTS].map((name) => [name, key]),
+      ),
+    };
+    expect(avatarOnlyExpressionNames(clip, () => true)).toEqual([]);
+  });
+
+  it("leaves out names the Avatar lacks, which are reported as missing", () => {
+    const clip = { expressions: { tongueOut: key, Smirk: key, 照れ: key } };
+    const has = supports(["Smirk"]);
+    expect(avatarOnlyExpressionNames(clip, has)).toEqual(["Smirk"]);
+    expect(missingExpressionNames(clip, has)).toEqual(["tongueOut", "照れ"]);
+  });
+
+  it("reports nothing for a clip without expressions", () => {
+    expect(avatarOnlyExpressionNames({}, () => true)).toEqual([]);
   });
 });

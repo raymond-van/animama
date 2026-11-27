@@ -244,6 +244,14 @@ describe("ChatGPTPlanCard", () => {
 
     const dialog = document.querySelector('[role="dialog"]');
     expect(dialog?.textContent).toContain("You're using your ChatGPT plan");
+    // It names every kind of request that uses the plan.
+    for (const use of [
+      "chats with plan models",
+      "chat titles and summaries",
+      "memory updates you start",
+      "drafts the assistant writes on the Generate page with a plan model",
+    ])
+      expect(dialog?.textContent).toContain(use);
     expect(
       dialog
         ?.querySelector('button[role="checkbox"]')

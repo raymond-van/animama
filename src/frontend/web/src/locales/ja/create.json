@@ -172,6 +172,11 @@
   "hub": {
     "actions": {
       "description": "Anima に動き、個性、感情を与えます。",
+      "generate": {
+        "action": "生成を開く",
+        "description": "ジェスチャーを言葉で説明して、できあがりをプレビュー、修正、保存できます。",
+        "title": "生成"
+      },
       "gesture": {
         "action": "ジェスチャーを作成",
         "description": "表現豊かな動きや再利用できるアクションを振り付けます。",

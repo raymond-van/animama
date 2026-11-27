@@ -1263,7 +1263,11 @@ request from its own instructions and tools. A caller sends the person's
 message, the chosen model, and what the page measured; request bodies with any
 other field fail validation (`422`). Every route serves only the caller's
 conversations and drafts, and another owner's id answers like a missing one
-(`404 generation_not_found`).
+(`404 generation_not_found`). The page's side, and what reaches a model
+provider, are in
+[Content generation](../../frontend/features/content-generation.md); the
+reasons for the split are in
+[ADR 0041](../../adr/0041-backend-built-content-assistant-runs.md).
 
 - `GET /v1/generation/conversations`: `{conversations}`, the most recently
   written to first. Each is `{id, title, scope, style_preset, created_at,

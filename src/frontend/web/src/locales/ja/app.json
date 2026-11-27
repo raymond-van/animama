@@ -193,6 +193,7 @@
     "reasons": {
       "animaCreation": "このホスト型アプリでは Anima を作成できません。",
       "chatFileUploads": "このホスト型アプリではチャットの添付ファイルを利用できません。",
+      "contentGeneration": "このホスト型アプリではコンテンツの生成を利用できません。",
       "documentProcessing": "このホスト型アプリではドキュメントの取り込みと OCR を利用できません。",
       "hostedSetup": "インストールの設定はローカルアプリで行います。ホスト型のアカウントはランタイムが準備します。",
       "localFilesystemAdministration": "ローカルファイルシステムの管理にはローカルアプリが必要です。",

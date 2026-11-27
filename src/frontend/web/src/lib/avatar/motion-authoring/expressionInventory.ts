@@ -136,3 +136,22 @@ export function missingExpressionNames(
         .length === 0,
   );
 }
+
+/**
+ * The expression names a clip keys that the Avatar has but other Avatars may
+ * lack: every name outside the two families the runtime plays on any Avatar
+ * (VRM presets, and VRoid mood parts through their fallbacks). Such a name
+ * plays only on Avatars that have it. A name the Avatar lacks is not listed
+ * here; {@link missingExpressionNames} reports it.
+ *
+ * @param supports Whether the Avatar has an expression of that name.
+ */
+export function avatarOnlyExpressionNames(
+  clip: Pick<AnimaPoseClipV2, "expressions">,
+  supports: (name: string) => boolean,
+): string[] {
+  return Object.keys(clip.expressions ?? {}).filter(
+    (name) =>
+      supports(name) && !VRM_PRESET_NAMES.has(name) && !isVroidMoodPart(name),
+  );
+}

@@ -2018,6 +2018,26 @@ async def test_a_draft_discarded_during_its_run_ends_the_run(studio: _Studio) ->
     assert isinstance(events[-1], pipeline.RunCompleted) and (await studio.snapshot()).drafts == ()
 
 
+async def test_a_draft_made_from_the_answers_and_discarded_during_its_run_still_used_them(studio: _Studio) -> None:
+    await studio.go([_ask()])
+    run = studio.run(await studio.plan(answers=ANSWERS), _ScriptedModelClient([_submit(), _edit(_longer(4.5))]))
+    events: list[pipeline.RunEvent] = []
+
+    async for event in run.events():
+        events.append(event)
+        if isinstance(event, pipeline.DraftUpdated):
+            async with studio.storage() as service:
+                await service.delete_draft(studio.owner, event.draft.id)
+
+    # The run showed the draft it wrote from the answers before the person discarded it, so its turn still
+    # names that draft and the next request is an ordinary one: it may be asked about, and nothing was skipped.
+    shown = _of(events, pipeline.DraftUpdated)[0].draft.id
+    turn = (await studio.snapshot()).messages[-1].data
+    assert (turn["outcome"], turn["draft_id"]) == ("failed", shown)
+    plan = await studio.plan("now a deep bow")
+    assert (plan.can_ask, plan.answers) == (True, None)
+
+
 # --- Stopping (R6.2) -------------------------------------------------------------------
 
 

@@ -22,7 +22,7 @@
     "confirmation": {
       "background": "也让自动记忆更新使用我的套餐",
       "backgroundHint": "之后可以在“应用设置 → 模型”中更改。",
-      "description": "Animama 中符合条件的 AI 请求现在会使用你的 ChatGPT 套餐：与套餐模型的聊天、聊天标题和摘要，以及你发起的记忆更新。你可以在 ChatGPT 设置中查看并限制这些用量。",
+      "description": "Animama 中符合条件的 AI 请求现在会使用你的 ChatGPT 套餐：与套餐模型的聊天、聊天标题和摘要、你发起的记忆更新，以及助手在“生成”页面用套餐模型编写的草稿。你可以在 ChatGPT 设置中查看并限制这些用量。",
       "gotIt": "知道了",
       "title": "你正在使用 ChatGPT 套餐"
     },

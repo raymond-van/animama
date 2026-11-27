@@ -70,12 +70,15 @@
     "includedListFailed": "Could not load the Included Avatars.",
     "noAnima": "Create an Anima before previewing this effect on an Avatar.",
     "noAvatar": "The selected Anima does not have an available Avatar.",
+    "ownFailed": "The selected Avatar could not be prepared.",
+    "ownListFailed": "Could not load your Avatars.",
     "releaseUnavailable": "The selected Avatar release is no longer available.",
     "runtimeFailed": "Could not load the preview Anima's runtime.",
     "unnamedAnimaModel": "Your (Anima)",
     "versions": {
       "equipped": "Equipped on preview Anima",
-      "included": "Included Avatar"
+      "included": "Included Avatar",
+      "own": "Your Avatar"
     }
   },
   "panel": {

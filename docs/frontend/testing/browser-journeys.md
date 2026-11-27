@@ -85,7 +85,7 @@ The explicit allowlist selects `accountless-library`, `accountless-journeys`,
 `accountless-numeric-input`, `accountless-creator-discard(-local)`,
 `accountless-effect-template-picker`,
 `accountless-avatar-effect-direct-manipulation`,
-`accountless-creator-generated-gesture`,
+`accountless-creator-generated-gesture`, `accountless-generate-gesture`,
 `accountless-particle-texture-import` and `accountless-scene-layers` specs.
 They cover Library, companion
 selection, chat Stop/recovery, creator JSON import/preview, Save/reload revision

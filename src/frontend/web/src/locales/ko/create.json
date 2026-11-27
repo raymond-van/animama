@@ -172,6 +172,11 @@
   "hub": {
     "actions": {
       "description": "Anima에게 움직임, 개성, 감정을 부여하세요.",
+      "generate": {
+        "action": "생성 열기",
+        "description": "제스처를 말로 설명한 뒤 결과를 미리 보고, 수정하고, 저장하세요.",
+        "title": "생성"
+      },
       "gesture": {
         "action": "제스처 만들기",
         "description": "표현력 있는 움직임과 재사용 가능한 액션을 안무합니다.",

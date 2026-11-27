@@ -27,6 +27,7 @@
   "create": {
     "anima": "Anima",
     "effects": "エフェクト",
+    "generate": "生成",
     "gesture": "ジェスチャー",
     "label": "作成",
     "reaction": "リアクション"

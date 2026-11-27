@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Avatar } from "@/lib/avatar";
@@ -17,8 +17,16 @@ import { useActionEditorPreview } from "./ActionEditorPreviewProvider";
 /** Host the editable Avatar on the same preview shell used by product previews. */
 export function ActionEditorScene({
   capabilities,
+  canvasTestId = "action-editor-canvas",
+  showHumanoidTools = capabilities.allowsHumanoid,
+  children,
 }: {
   capabilities: ActionEditorCapabilities;
+  canvasTestId?: string;
+  /** Bone markers and the rotation gizmo; a playback-only stage turns them off. */
+  showHumanoidTools?: boolean;
+  /** Rendered inside the canvas, beside the Avatar. */
+  children?: ReactNode;
 }) {
   const { t } = useTranslation("actionEditor");
   const { t: tEffects } = useTranslation("effects");
@@ -74,7 +82,7 @@ export function ActionEditorScene({
       <AvatarPreviewSurface
         activeAvatar={activeAvatar}
         cameraProfile={capabilities.cameraProfile}
-        canvasTestId="action-editor-canvas"
+        canvasTestId={canvasTestId}
         className="bg-transparent"
         lifecycleOwner="creator"
         minDistance={capabilities.intent === "reaction" ? 0.45 : 0.75}
@@ -106,11 +114,12 @@ export function ActionEditorScene({
               entry={preview.modelEntry}
               catalog={preview.catalog}
               onAvatarInstanceChange={handleAvatarChange}
-              showHumanoidTools={capabilities.allowsHumanoid}
+              showHumanoidTools={showHumanoidTools}
             />
           </group>
         ) : null}
         {effectHandles.renderer}
+        {children}
       </AvatarPreviewSurface>
       {!activeAvatar ? (
         <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center p-6">

@@ -193,6 +193,7 @@
     "reasons": {
       "animaCreation": "此代管應用程式不支援建立 Anima。",
       "chatFileUploads": "此代管應用程式不支援聊天附件。",
+      "contentGeneration": "此代管應用程式不支援生成內容。",
       "documentProcessing": "此代管應用程式不支援文件匯入和 OCR。",
       "hostedSetup": "安裝設定屬於本機應用程式。你的代管帳號由執行環境準備。",
       "localFilesystemAdministration": "管理本機檔案系統需要本機應用程式。",

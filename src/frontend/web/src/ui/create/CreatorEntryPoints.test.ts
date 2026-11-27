@@ -71,6 +71,38 @@ describe("Effect creator entry points", () => {
   });
 });
 
+describe("Generate entry points", () => {
+  it("reaches the Generate page from the creator hub and the sidebar's Create menu", async () => {
+    const [hub, sidebar, route] = await Promise.all([
+      readFile(hubSource, "utf8"),
+      readFile(sidebarSource, "utf8"),
+      readFile(
+        new URL("../../routes/_app/generate.tsx", import.meta.url),
+        "utf8",
+      ),
+    ]);
+
+    expect(hub).toContain('<Link to="/generate">');
+    expect(hub).toContain('t("hub.actions.generate.title")');
+    expect(sidebar).toContain('to: "/generate" as const');
+    expect(sidebar).toContain('t("create.generate")');
+    expect(route).toContain('createFileRoute("/_app/generate")');
+    expect(route).toContain("component: GeneratePage");
+  });
+
+  it("offers both only while the runtime reports the content assistant", async () => {
+    const [hub, sidebar] = await Promise.all([
+      readFile(hubSource, "utf8"),
+      readFile(sidebarSource, "utf8"),
+    ]);
+
+    expect(hub).toContain(
+      '<RuntimeFeatureGate capability="content_generation">',
+    );
+    expect(sidebar).toContain('useRuntimeFeatureEnabled("content_generation")');
+  });
+});
+
 describe("direct Anima creation entry points", () => {
   it.each([
     ["creator hub", "./CreateHubPage.tsx"],

@@ -103,6 +103,26 @@
     "voice_codec_invalid": "保存済みの PocketTTS 音声クローンを選んでください。",
     "voice_preset_unavailable": "利用可能な PocketTTS の音声を選んでください。"
   },
+  "generation": {
+    "generation_draft_empty": "この下書きにはまだ修正できる内容がありません。新しいリクエストを送ってください。",
+    "generation_draft_unloadable": "この下書きは再生できないため、保存できません。もう一度依頼するか、修正を依頼してください。",
+    "generation_intent_unavailable": "現在、アシスタントが作成できるのはジェスチャーのみです。",
+    "generation_model_unusable": "選択したモデルはアシスタントで使用できません。別のモデルを選んでください。",
+    "generation_model_unusable_connection_inactive": "選択したモデルの接続がオフになっています。アプリ設定でオンにするか、別のモデルを選んでください。",
+    "generation_model_unusable_inactive": "選択したモデルはオフになっています。別のモデルを選んでください。",
+    "generation_model_unusable_no_model_client": "このインストールでは選択したモデルを実行できません。別のモデルを選んでください。",
+    "generation_model_unusable_not_chat_model": "選択したモデルはチャットモデルではありません。別のモデルを選んでください。",
+    "generation_model_unusable_not_found": "選択したモデルは利用できなくなりました。別のモデルを選んでください。",
+    "generation_model_unusable_tools_unsupported": "選択したモデルは、アシスタントに必要なツール呼び出しに対応していません。別のモデルを選んでください。",
+    "generation_model_unusable_unsupported": "選択したモデルはその接続では使用できません。別のモデルを選んでください。",
+    "generation_no_valid_draft": "アシスタントは使用できる下書きを作成できませんでした。もう一度試すか、別の言い方で説明してください。",
+    "generation_not_found": "この会話または下書きはもう存在しません。",
+    "generation_nothing_to_restore": "この下書きには復元できる以前のバージョンがありません。",
+    "generation_request_failed": "リクエストがアシスタントに届きませんでした。もう一度お試しください。",
+    "generation_run_failed": "アシスタントで予期しない問題が発生しました。もう一度お試しください。",
+    "generation_run_in_progress": "アシスタントはこの会話でまだ作業中です。完了を待つか、先に停止してください。",
+    "generation_stream_interrupted": "アシスタントが完了する前に接続が切れました。保存済みの下書きは保持されています。"
+  },
   "generic": {
     "unexpected": "問題が発生しました。もう一度お試しください。",
     "withDetail": "{{message}}（{{detail}}）"

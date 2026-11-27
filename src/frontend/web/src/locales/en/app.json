@@ -193,6 +193,7 @@
     "reasons": {
       "animaCreation": "Creating Animas is unavailable in this hosted application.",
       "chatFileUploads": "Chat attachments are unavailable in this hosted application.",
+      "contentGeneration": "Content generation is unavailable in this hosted application.",
       "documentProcessing": "Document ingestion and OCR are unavailable in this hosted application.",
       "hostedSetup": "Installation setup belongs to the local application. Your hosted account is prepared by the runtime.",
       "localFilesystemAdministration": "Local filesystem administration requires the local application.",

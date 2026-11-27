@@ -1,7 +1,10 @@
 import type { TFunction } from "i18next";
 import { getI18n } from "react-i18next";
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
-import { ANTHROPIC_MESSAGES_PROVIDER_TYPE } from "@animama/product-ui/chat";
+import {
+  ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+  chatModelSendGate,
+} from "@animama/product-ui/chat";
 
 /** Defined once in product-ui, whose web search rule also reads it. */
 export { ANTHROPIC_MESSAGES_PROVIDER_TYPE };
@@ -284,6 +287,31 @@ export function effectiveReasoningEffort(
 /** Chat rows; rows from before model kinds existed count as chat. */
 export function isChatModelRow(item: PyModelProviderCatalogItem): boolean {
   return (item.model_kind ?? "chat") === "chat";
+}
+
+/** Why chat cannot use a listed chat model. */
+export type ChatModelUnusableReason =
+  /** The app has no API to talk to it with. */
+  | "unsupported"
+  /** The owner's own model has no context window set yet. */
+  | "needs_context_window";
+
+/**
+ * Why chat cannot use a listed chat model, or `null` when it can. The chat's
+ * model picker disables such a row and says why, and the content assistant
+ * does not list it. The backend refuses such a model when a chat turn or an
+ * assistant run starts.
+ */
+export function chatModelUnusableReason(
+  item: PyModelProviderCatalogItem,
+): ChatModelUnusableReason | null {
+  // The send gate without a chat judges the model alone.
+  const gate = chatModelSendGate(null, item);
+  if (!gate.ok && gate.reason === "unsupported_model") return "unsupported";
+  // Owner models need a context window before they can chat.
+  if (item.source === "owner" && item.context_window_tokens == null)
+    return "needs_context_window";
+  return null;
 }
 
 /**
