@@ -3807,7 +3807,7 @@ export default interface Resources {
         "animaVoice": "Used as {{name}}'s voice.",
         "content": "“{{name}}” depends on it.",
         "freeAppearance": "To delete it, first choose another image in each Anima's Appearance, which opens from the Anima's picture on its page.",
-        "freeAvatar": "An Anima's Avatar can't be changed, so to free it, delete that Anima first.",
+        "freeAvatar": "To delete it, first choose another Avatar with Change Avatar in each Anima's Settings tab.",
         "freeBehavior": "To delete it, first remove it from each Anima's Behavior.",
         "freeContent": "To delete it, first delete the items that depend on it.",
         "freeMusic": "Music can't be changed in the app, so it can't be deleted here.",

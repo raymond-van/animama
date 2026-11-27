@@ -83,7 +83,7 @@
       "animaVoice": "用作 {{name}} 的语音。",
       "content": "“{{name}}”依赖于它。",
       "freeAppearance": "要删除它，请先在每个 Anima 的页面上点击 Anima 的图片打开外观，并选择其他图片。",
-      "freeAvatar": "Anima 的虚拟形象无法更改，因此要释放它，请先删除该 Anima。",
+      "freeAvatar": "要删除它，请先在每个 Anima 的设置中用“更换虚拟形象”选择其他虚拟形象。",
       "freeBehavior": "要删除它，请先从每个 Anima 的行为中移除它。",
       "freeContent": "要删除它，请先删除依赖它的项目。",
       "freeMusic": "音乐无法在应用中更改，因此无法在此删除。",

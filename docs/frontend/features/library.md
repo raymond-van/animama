@@ -186,7 +186,7 @@ cannot be confirmed: the dialog names each use and how to free it:
 - Voice: choose another voice under Voices in that Behavior tab.
 - Profile or background image: choose another in the Anima's Appearance,
   opened from its picture on the Anima page.
-- Avatar: an Anima's Avatar cannot be changed, so delete that Anima first.
+- Avatar: choose another Avatar with Change Avatar in that Anima's Settings tab.
 - Music: no screen changes it, so the item cannot be deleted from the app.
 - Another item that depends on it: delete that item first.
 

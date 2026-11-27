@@ -193,7 +193,7 @@ describe("the Library delete confirmation", () => {
     expect(text()).toContain("Used as Andrew's voice.");
     expect(text()).toContain("Used as Andrew's music.");
     expect(text()).toContain(
-      "An Anima's Avatar can't be changed, so to free it, delete that Anima first.",
+      "To delete it, first choose another Avatar with Change Avatar in each Anima's Settings tab.",
     );
     expect(text()).toContain(
       "choose another image in each Anima's Appearance, which opens from the Anima's picture on its page.",
@@ -204,7 +204,8 @@ describe("the Library delete confirmation", () => {
     expect(text()).toContain(
       "Music can't be changed in the app, so it can't be deleted here.",
     );
-    expect(text()).not.toContain("Settings");
+    // The retired catch-all sent every Anima use to the Settings tab.
+    expect(text()).not.toContain("choose something else");
   });
 
   it("announces the check and what it found in one live region", async () => {
