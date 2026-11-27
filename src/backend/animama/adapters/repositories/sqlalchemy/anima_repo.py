@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload, selectinload
 
@@ -17,6 +17,7 @@ from animama.logging import get_logger
 from animama.orm.anima import ORMAnima
 from animama.orm.anima_definition import ORMAnimaDefinitionRevision
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
+from animama.orm.settings import ORMUserSettings
 
 from .anima_creation_repo import SQLAlchemyAnimaCreationRepository
 
@@ -78,6 +79,26 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
 
         await self._s.flush()
         await self._s.refresh(orm)
+        return anima_orm_to_domain(orm)
+
+    async def set_pinned(self, *, user_id: str, anima_id: str, pinned: bool) -> Anima | None:
+        result = await self._s.execute(
+            update(ORMAnima)
+            .where(ORMAnima.id == anima_id, ORMAnima.user_id == user_id)
+            .values(
+                pinned_at=func.coalesce(ORMAnima.pinned_at, func.now()) if pinned else None,
+                # Setting updated_at to itself suppresses its onupdate: a pin is not an edit.
+                updated_at=ORMAnima.updated_at,
+            )
+            .returning(ORMAnima.id)
+            .execution_options(synchronize_session=False)
+        )
+        if result.scalar_one_or_none() is None:
+            return None
+        orm = await self._s.get(ORMAnima, anima_id)
+        assert orm is not None
+        # The bulk update bypassed the identity map; reload the one value it changed.
+        await self._s.refresh(orm, attribute_names=["pinned_at"])
         return anima_orm_to_domain(orm)
 
     async def stored_emotional_state(self, anima_id: str) -> dict[str, int] | None:
@@ -166,6 +187,12 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
             return False
         await SQLAlchemyAnimaCreationRepository(self._s).tombstone_anima(anima_id=anima_id)
         await self._purge_anima_memory(anima_id)
+        # The last-active setting has no foreign key either; it must not name a deleted Anima.
+        await self._s.execute(
+            update(ORMUserSettings)
+            .where(ORMUserSettings.user_id == orm.user_id, ORMUserSettings.last_active_anima_id == anima_id)
+            .values(last_active_anima_id=None)
+        )
         await self._s.delete(orm)
         await self._s.flush()
         return True

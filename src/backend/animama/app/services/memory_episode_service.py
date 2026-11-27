@@ -177,8 +177,13 @@ class MemoryEpisodeService:
         item_ids: Iterable[str],
         processed_by_run_id: str | None = None,
         processed_at: datetime | None = None,
+        skip_missing: bool = False,
     ) -> list[MemoryEpisodeItem]:
-        """Mark episode items as reviewed by the Memory Manager."""
+        """Mark episode items as reviewed by the Memory Manager.
+
+        A missing item raises ``MemoryEpisodeNotFoundError`` unless ``skip_missing``
+        is set, as it is for a batch whose source chat was deleted meanwhile.
+        """
 
         return await self._mark_items_status(
             user_id=user_id,
@@ -186,6 +191,7 @@ class MemoryEpisodeService:
             status=MEMORY_EPISODE_STATUS_PROCESSED,
             processed_by_run_id=processed_by_run_id,
             processed_at=processed_at,
+            skip_missing=skip_missing,
         )
 
     async def lock_batch_selection(self, *, user_id: str) -> None:
@@ -217,14 +223,15 @@ class MemoryEpisodeService:
         return await self.refresh_daily_episode_file(user_id=item.user_id, local_date=item.local_date)
 
     async def refresh_daily_episode_file(self, *, user_id: str, local_date: date) -> MemoryEntry | None:
-        """Regenerate one daily episode markdown file from table rows."""
+        """Regenerate one daily episode markdown file from table rows.
+
+        A day without rows gets no file. A file whose rows were all removed (with a
+        deleted chat's pending notes) is kept with only its heading.
+        """
 
         self._require_local_date(local_date)
         episode_path = episode_path_for_date(local_date)
         items = await self._memory_episodes.list_items(user_id=user_id, local_date=local_date, limit=None)
-        if not items:
-            return None
-        content = render_daily_episode_file(local_date=local_date, items=items)
         expected_version = 0
         try:
             current = await self._memory_entries.get_entry_by_path(
@@ -234,7 +241,9 @@ class MemoryEpisodeService:
             )
             expected_version = current.version
         except MemoryEntryNotFoundError:
-            pass
+            if not items:
+                return None
+        content = render_daily_episode_file(local_date=local_date, items=items)
         return await self._memory_entries.put_file_by_path(
             user_id=user_id,
             anima_id=None,
@@ -260,6 +269,7 @@ class MemoryEpisodeService:
         status: str,
         processed_by_run_id: str | None,
         processed_at: datetime | None,
+        skip_missing: bool = False,
     ) -> list[MemoryEpisodeItem]:
         self._require_status(status)
         unique_ids = tuple(dict.fromkeys(item_id for item_id in item_ids if item_id))
@@ -273,7 +283,7 @@ class MemoryEpisodeService:
                 user_id=user_id,
                 item_ids=unique_ids,
             )
-            if len(existing) != len(unique_ids):
+            if len(existing) != len(unique_ids) and not skip_missing:
                 raise MemoryEpisodeNotFoundError("Episode item not found")
             clean_run_id = self._normalize_optional_text(processed_by_run_id)
             pending_ids: list[str] = []

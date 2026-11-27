@@ -29,8 +29,6 @@ export function VoiceCloneSettings() {
       <VoiceCloneLibrary
         heading={false}
         disabled={false}
-        deleting={null}
-        onDeleteClose={() => {}}
         onBusyChange={setCloning}
       />
       <SavedVoiceClones busy={cloning} />

@@ -70,6 +70,7 @@ from animama.product_http.chat import (
     tts as chat_tts,
     turn_setup as chat_turn_setup,
 )
+from animama.product_http.chat.active_turns import active_chat_turns
 from animama.product_http.chat.options import resolve_chat_request_options
 from animama.product_http.chat.setup_helpers import chat_manager as product_chat_manager
 from animama.product_http.chat.sse_events import SsePreparedTtsSpeechSegment, SseTextState
@@ -540,7 +541,9 @@ async def chat_anima_direct_sse(
 
     ports = request.app.state.product_ports
     async with asynccontextmanager(hold_chat_turn)() as hold, ports.write_session(user) as session:
-        return await chat_turns.chat_anima_direct_sse(anima_id, req, ports, hold, session, user)
+        return await chat_turns.chat_anima_direct_sse(
+            anima_id, req, ports, hold, session, user, active_chat_turns(request.app)
+        )
 
 
 def _chat_request(**values: Any) -> PyAnimaChatRequest:

@@ -207,8 +207,8 @@ class MemoryCatalog:
         self.rows[item_id] = replace(self.rows[item_id], provenance=provenance)
         return self.rows[item_id]
 
-    async def item_has_runtime_references(self, **kwargs):
-        return False
+    async def item_usage(self, **kwargs):
+        return ()
 
     async def purge_item(self, *, item_id):
         del self.rows[item_id]

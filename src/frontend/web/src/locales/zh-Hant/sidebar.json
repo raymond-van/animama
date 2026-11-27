@@ -32,6 +32,22 @@
     "label": "建立",
     "reaction": "反應"
   },
+  "delete": {
+    "anima": {
+      "chatCount_other": "{{name}} 有 {{count}} 個聊天。",
+      "deleted": "已刪除 {{name}}。",
+      "description": "它的聊天及其訊息、Anima 記憶檔案（IDENTITY.md 和 MEMORIES.md），以及只有它的聊天使用的圖片都會被刪除。共用記憶和資源庫內容會保留。",
+      "failed": "無法刪除 {{name}}。請再試一次。",
+      "title": "要刪除 {{name}} 嗎？"
+    },
+    "chat": {
+      "deleted": "已刪除聊天。",
+      "description": "「{{title}}」及其訊息，以及只有此聊天使用的圖片都會被刪除。已從此聊天儲存的記憶會保留。",
+      "failed": "無法刪除聊天。請再試一次。",
+      "title": "要刪除聊天嗎？"
+    },
+    "replyStopping": "回覆仍在停止中。請稍後再試一次。"
+  },
   "links": {
     "animas": "Anima",
     "library": "資源庫",
@@ -40,6 +56,16 @@
     "search": "搜尋"
   },
   "open": "開啟側邊欄",
+  "rowMenu": {
+    "delete": "刪除",
+    "more": "{{name}} 的更多操作",
+    "pin": "置頂",
+    "pinFailed": "無法置頂 {{name}}。請再試一次。",
+    "pinned": "已置頂",
+    "pinnedName": "{{name}}，已置頂",
+    "unpin": "取消置頂",
+    "unpinFailed": "無法取消置頂 {{name}}。請再試一次。"
+  },
   "search": {
     "close": "關閉搜尋",
     "description": "搜尋已儲存的聊天訊息。",

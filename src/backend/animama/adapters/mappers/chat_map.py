@@ -38,6 +38,7 @@ def chat_orm_to_domain(orm: ORMChat) -> Chat:
         next_turn=max(1, int(getattr(orm, "next_turn", 1) or 1)),
         created_at=getattr(orm, "created_at", None),
         updated_at=getattr(orm, "updated_at", None),
+        pinned_at=getattr(orm, "pinned_at", None),
     )
 
 
@@ -62,6 +63,7 @@ def chat_domain_to_orm(chat: Chat) -> ORMChat:
         cum_output_reasoning_tokens=int(getattr(usage.output_tokens_details, "reasoning_tokens", 0) or 0),
         active_context_tokens=int(chat.active_context_tokens or 0),
         next_turn=max(1, int(chat.next_turn or 1)),
+        pinned_at=chat.pinned_at,
     )
 
 

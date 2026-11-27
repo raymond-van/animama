@@ -36,6 +36,7 @@ def anima_domain_to_schema(
             "profile_picture_url": anima.profile_picture_url,
             "emotional_state": normalize_emotional_state(anima.emotional_state),
             "avatar": s_avatar.model_dump(mode="json") if s_avatar else None,
+            "pinned_at": anima.pinned_at,
         }
     )
 
@@ -56,6 +57,7 @@ def anima_domain_to_orm(anima: Anima) -> ORMAnima:
         avatar_id=anima.avatar.id if anima.avatar else None,
         profile_picture_url=anima.profile_picture_url,
         emotional_state=normalize_emotional_state(anima.emotional_state),
+        pinned_at=anima.pinned_at,
     )
     if anima.archive_id is not None:
         orm.archive = ORMArchive(
@@ -90,6 +92,7 @@ def anima_orm_to_domain(orm: ORMAnima) -> Anima:
         avatar=avatar,
         profile_picture_url=orm.profile_picture_url,
         emotional_state=normalize_emotional_state(orm.emotional_state),
+        pinned_at=orm.pinned_at,
     )
 
 

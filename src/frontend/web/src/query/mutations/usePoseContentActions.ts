@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { savePose } from "@animama/runtime-contracts/sdk";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
-import { deleteCatalogItem } from "@/lib/content/catalogApi";
 import { toContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import type { PoseSaveInput } from "@/lib/content/poseContent";
 import { queryKeys } from "@/query/keys";
@@ -49,7 +48,11 @@ export async function savePoseContent(
   }
 }
 
-/** Mutations refresh only Pose and neutral catalog views, preserving loaded draft revisions. */
+/**
+ * Pose Save refreshes only Pose and neutral catalog views, preserving loaded
+ * draft revisions. Pose delete is the shared content delete
+ * (`useDeleteContentItem`).
+ */
 export function usePoseContentActions() {
   const apiClient = useProductApiClient();
 
@@ -67,15 +70,5 @@ export function usePoseContentActions() {
     mutationFn: savePoseContent.bind(null, apiClient),
     onSuccess: refresh,
   });
-  const remove = useMutation({
-    mutationFn: async (item: PyPose) => {
-      if (!item.editable || item.source !== "local")
-        throw new Error("Included Poses cannot be deleted.");
-      await deleteCatalogItem(apiClient, item.item_id, item.revision_sha256);
-    },
-    // A refused delete usually means the item changed (409); refreshing gives
-    // the next attempt its current revision instead of failing the same way.
-    onSettled: refresh,
-  });
-  return { savePose: save, deletePose: remove };
+  return { savePose: save };
 }

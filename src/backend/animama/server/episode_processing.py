@@ -29,6 +29,7 @@ from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.app.services.memory_manager_service import (
     AUTOMATIC_COMPLETION_INTERRUPTED,
+    SOURCE_DELETED_COMPLETION,
     AutomaticEpisodeProcessingOutcome,
     MemoryManagerService,
 )
@@ -62,6 +63,8 @@ EPISODE_PROCESSING_MAX_BACKOFF = timedelta(hours=24)
 EPISODE_PROCESSING_REST_SECONDS = 300.0
 # Enough history to count today's runs and the latest failures.
 _RUN_HISTORY_LIMIT = EPISODE_PROCESSING_DAILY_RUN_LIMIT + EPISODE_PROCESSING_PAUSE_AFTER_FAILURES + 5
+# Failed runs whose ending says nothing about processing itself.
+_NOT_FAILURES = frozenset({AUTOMATIC_COMPLETION_INTERRUPTED, SOURCE_DELETED_COMPLETION})
 
 EpisodeProcessingState = Literal[
     "off",
@@ -309,7 +312,8 @@ def _started_at(run: MemoryManagerRun) -> datetime | None:
 def _consecutive_failures(history: list[MemoryManagerRun], *, since: datetime | None) -> list[MemoryManagerRun]:
     """Return the newest failed automatic runs back to the last success or ``since``, newest first.
 
-    Interrupted runs (a closed app or a restart) neither count nor end the streak.
+    Interrupted runs (a closed app or a restart) and runs a chat or Anima delete
+    ended neither count nor end the streak.
     """
 
     failures: list[MemoryManagerRun] = []
@@ -321,7 +325,7 @@ def _consecutive_failures(history: list[MemoryManagerRun], *, since: datetime | 
             break
         if run.status != MEMORY_MANAGER_RUN_STATUS_FAILED:
             continue
-        if dict(run.metadata or {}).get("completion_reason") == AUTOMATIC_COMPLETION_INTERRUPTED:
+        if dict(run.metadata or {}).get("completion_reason") in _NOT_FAILURES:
             continue
         failures.append(run)
     return failures

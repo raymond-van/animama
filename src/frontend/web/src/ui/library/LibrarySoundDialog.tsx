@@ -1,12 +1,9 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import {
-  deleteCatalogItem,
   getCatalogItem,
   previewCatalogItem,
   saveCatalogItem,
@@ -14,7 +11,6 @@ import {
 } from "@/lib/content/catalogApi";
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 import { loadCreatorPreviewFile } from "@/lib/content/contentEditorSource";
-import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -27,7 +23,11 @@ import { Input } from "@/ui/components/input";
 import { librarySoundSaveInput } from "./librarySoundSave";
 import { WordedError } from "@/lib/errors/apiError";
 
-/** A Library edit pins revision authority and retains its receipt across uncertain retries. */
+/**
+ * Rename or replace a Local Sound. A Library edit pins revision authority and
+ * retains its receipt across uncertain retries. Delete is the Sound's Library
+ * item menu, like every other kind.
+ */
 export function LibrarySoundDialog({
   item,
   onClose,
@@ -42,11 +42,8 @@ export function LibrarySoundDialog({
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const request = useRef<CatalogSaveInput | null>(null);
   const mounted = useRef(true);
-  const owner = useRuntimeCacheKey();
-  const queryClient = useQueryClient();
   const { saved: recordSaved } = useContentEditorSaveSource(
     "sound_effect",
     item.item_id,
@@ -102,23 +99,6 @@ export function LibrarySoundDialog({
       if (mounted.current) setBusy(false);
     }
   };
-  const remove = async () => {
-    if (!item.revision_sha256) return;
-    setBusy(true);
-    clear();
-    try {
-      await deleteCatalogItem(apiClient, item.item_id, item.revision_sha256);
-      if (owner)
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.soundEffects.all(owner),
-        });
-      onClose();
-    } catch (cause) {
-      capture(cause);
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  };
   return (
     <Dialog
       open
@@ -170,14 +150,7 @@ export function LibrarySoundDialog({
           </p>
         ) : null}
         {editable ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button
-              variant="destructive"
-              disabled={busy || saved || !item.revision_sha256}
-              onClick={() => setConfirmDelete(true)}
-            >
-              {t("sound.delete")}
-            </Button>
+          <div className="flex justify-end">
             <Button
               disabled={
                 busy ||
@@ -190,29 +163,6 @@ export function LibrarySoundDialog({
             >
               {busy ? t("sound.saving") : t("sound.save")}
             </Button>
-          </div>
-        ) : null}
-        {confirmDelete ? (
-          <div className="grid gap-3 rounded-md border p-3">
-            <p className="text-sm">
-              {t("sound.confirmDeleteQuestion", { name: item.name })}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="destructive"
-                disabled={busy}
-                onClick={() => void remove()}
-              >
-                {t("sound.confirmDelete")}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => setConfirmDelete(false)}
-              >
-                {t("sound.cancel")}
-              </Button>
-            </div>
           </div>
         ) : null}
       </DialogContent>

@@ -10,7 +10,7 @@ from typing import Annotated, BinaryIO, Literal, NoReturn
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Request, Response, UploadFile
 
-from animama.app.contracts.content import PyContentCatalog, PyContentItem
+from animama.app.contracts.content import PyContentCatalog, PyContentItem, PyContentItemUsage, PyContentUsage
 from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.content_thumbnails import ContentThumbnailError, thumbnail_file
@@ -89,6 +89,9 @@ def raise_content_mutation(exc: Exception) -> NoReturn:
             detail["current_revision"] = exc.current_revision
         if exc.field is not None:
             detail["field"] = exc.field
+        if exc.used_by:
+            # ``catalog_item_in_use``: the same entries the usage read returns.
+            detail["used_by"] = [PyContentUsage.from_domain(use).model_dump() for use in exc.used_by]
         status_code = 404 if exc.code in {"anima_not_found", "catalog_item_not_found"} else 409
         raise HTTPException(status_code=status_code, detail=detail) from exc
     if isinstance(exc, ContentPathError | ValueError):
@@ -147,6 +150,25 @@ async def get_content_item(
     return PyContentItem.from_domain(item)
 
 
+@router.get("/items/{item_id}/usage", response_model=PyContentItemUsage)
+async def get_content_item_usage(
+    item_id: str,
+    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    content: ReadContent,
+) -> PyContentItemUsage:
+    """Name what keeps an owned Local item from being deleted, before a client offers Delete.
+
+    It answers for the items Delete accepts; any other item is 404. An empty
+    ``used_by`` means Delete would not be refused as in use.
+    """
+
+    try:
+        used_by = await content.catalog.item_usage(item_id=item_id, user_id=user.id)
+    except ContentNotFoundError as exc:
+        raise HTTPException(status_code=404, detail={"code": "content_not_found"}) from exc
+    return PyContentItemUsage(item_id=item_id, used_by=[PyContentUsage.from_domain(use) for use in used_by])
+
+
 @router.delete("/items/{item_id}", status_code=204)
 async def delete_content_item(
     item_id: str,
@@ -154,7 +176,12 @@ async def delete_content_item(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     content: WriteContent,
 ) -> Response:
-    """Delete one exact editable Local entry; Included content is read-only."""
+    """Delete one exact editable Local entry; Included content is read-only.
+
+    Deleting a Local Avatar also deletes its unused portrait. An item in use is
+    409 ``catalog_item_in_use`` with ``used_by``; a file changed on disk is 409
+    ``catalog_item_changed`` with the ``current_revision`` after a Local rescan.
+    """
 
     try:
         await content.catalog.delete_item(

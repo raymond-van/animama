@@ -24,6 +24,7 @@ VERSIONS = ROOT / "src" / "backend" / "migrations" / "versions"
 BASELINE_MIGRATION = VERSIONS / "0001_baseline.py"
 BASELINE_SQL = VERSIONS / "0001_baseline.sql"
 BASELINE_REVISION = "baseline_20260908"
+REASONING_EFFORT_REVISION = "reasoning_effort_20261112"
 # Desktop 0.1.2 shipped this exact baseline, and installed profiles carry its
 # revision. Never update this hash: change the schema with a new revision.
 BASELINE_SHA256 = "438446a4a68e40391786337c6f0acd68e7398cf32dc9b82416bc59c975af1ad6"
@@ -283,6 +284,36 @@ def test_released_baseline_profile_upgrades_to_head_with_its_rows(db_url: str, m
             assert connection.scalar(text("SELECT count(*) FROM anima_chat_profiles")) == 1
 
 
+def test_profile_before_sidebar_pins_upgrades_with_its_rows_unpinned(
+    db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pins add a nullable pinned_at, typed like created_at, to chats and anima; existing rows start unpinned."""
+
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        command.upgrade(config, REASONING_EFFORT_REVISION)
+        with engine.begin() as connection:
+            connection.execute(text("INSERT INTO anima (id, display_name, user_id) VALUES ('anima', 'Annie', 'owner')"))
+            connection.execute(text("INSERT INTO chats (id, user_id, anima_id) VALUES ('chat', 'owner', 'anima')"))
+
+        command.upgrade(config, "head")
+
+        for table, row_id in (("anima", "anima"), ("chats", "chat")):
+            columns = inspect(engine).get_columns(table)
+            by_name = {column["name"]: column for column in columns}
+            # Appended, so the upgraded schema matches a fresh database's column order.
+            assert columns[-1]["name"] == "pinned_at", table
+            assert by_name["pinned_at"]["nullable"] is True
+            assert str(by_name["pinned_at"]["type"]) == str(by_name["created_at"]["type"])
+            with engine.connect() as connection:
+                assert connection.execute(text(f"SELECT id, pinned_at FROM {table}")).all() == [(row_id, None)]
+
+        command.downgrade(config, REASONING_EFFORT_REVISION)
+        for table in ("anima", "chats"):
+            assert "pinned_at" not in {column["name"] for column in inspect(engine).get_columns(table)}
+            with engine.connect() as connection:
+                assert connection.scalar(text(f"SELECT count(*) FROM {table}")) == 1
+
+
 def test_database_from_the_edited_baseline_reaches_head(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Development stacks and 0.1.3 preview profiles got reasoning_effort from an edited baseline."""
 
@@ -458,7 +489,7 @@ def test_fresh_avatar_setting_overrides_store_only_non_automatic_modes(
 def test_previous_head_gains_the_content_assistant_tables(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """A profile at the previous head keeps its rows; the new tables hold valid values and reference no Chat."""
 
-    previous_head = "reasoning_effort_20261112"
+    previous_head = "sidebar_pins_20261126"
     generation_tables = {"generation_conversations", "generation_messages", "generation_drafts"}
     with migration_schema(db_url, monkeypatch) as (config, engine):
         with engine.connect() as connection:

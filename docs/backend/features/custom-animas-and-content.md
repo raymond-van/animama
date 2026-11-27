@@ -156,9 +156,9 @@ edits advance aggregate and loadout once. Chat, emotion, relationship memory
 the definition. The required `IDENTITY.md` and `MEMORIES.md` files cannot be
 renamed, moved or deleted, and an Anima's memory scope holds no other entries;
 deleting the Anima permanently removes both.
-Avatar, Appearance, and support content with live bindings/dependency references
-cannot be deleted through the content API; confirmed My Content is not deleted
-when an Anima is removed. External file changes may break the next runtime
+Content an Anima uses cannot be deleted (see
+[Deleting Local content](#deleting-local-content)), and deleting an Anima never
+deletes Library content. External file changes may break the next runtime
 mount, but cannot change the live name or identity.
 
 ## Strict private creation
@@ -404,3 +404,40 @@ portraits record this association and the Avatar revision they were captured
 from.
 Packaged Included portraits retain the `avatar_model` metadata fallback,
 independently of an Anima's custom profile appearance. Missing or invalid portraits leave the URL empty for icon fallback.
+
+## Deleting Local content
+
+`DELETE /v1/content/items/{item_id}?expected_revision=…` deletes one owned Local
+item at that exact revision, removing its registered files and catalog identity
+in one recoverable mutation. Included and installation-shared items are
+read-only and answer 404.
+
+- **In use.** An item an Anima uses, or that other content depends on, is
+  refused with 409 `catalog_item_in_use` and `used_by`: at most ten
+  `{kind, id, name}` entries, Anima uses first. `anima_avatar`,
+  `anima_appearance` (profile or background), `anima_voice`, `anima_gesture`,
+  `anima_idle` (an Idle pool member), `anima_reaction` (a Reaction cell member)
+  and `anima_music` name the Anima; `content` names the item that depends on
+  it. To free the item, change that Anima's selection or delete the dependent
+  item first. `GET /v1/content/items/{item_id}/usage` returns the same list
+  without changing anything, so a client can show it before Delete; an empty
+  list means Delete is not refused as in use.
+- **Avatar portraits.** Deleting a Local Avatar also deletes the portrait
+  Appearance whose `presentation.avatar_item_id` names it, in the same
+  mutation, unless something uses that portrait. A used portrait stays as an
+  ordinary Appearance.
+- **Stale revision.** An `expected_revision` that is no longer current is
+  refused with 409 `catalog_revision_conflict` and the `current_revision`; the
+  client refreshes and offers the delete again.
+- **Changed files.** If a registered file changed, vanished or became a link
+  since the last scan, nothing is deleted and the refusal is 409
+  `catalog_item_changed`. Local is rescanned before the refusal returns, so its
+  `current_revision` and the catalog describe the files as they are now, and a
+  retry with that revision acts on them. A `missing` item keeps its last
+  revision; deleting it removes only its catalog row, never files the scan did
+  not attribute to it.
+- **No revision.** Every kind, including an invalid entry, registers at least
+  its descriptor or primary file and so has a revision. Only an entry none of
+  whose files could be read (for example, because of file permissions) has a
+  null `revision_sha256`, and it cannot be deleted from the app: fix or remove
+  the file on disk, then Rescan.

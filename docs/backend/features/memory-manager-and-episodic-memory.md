@@ -430,7 +430,9 @@ An automatic run always closes:
   eight-approval limit. Any proposal still pending (the ceiling, a version conflict, an invalid
   target) is recorded `rejected` with `operation_metadata.closed_reason =
   "automatic_closed"`, without resuming the runtime. Changes already approved stay;
-  the batch's notes stay pending for a later run.
+  the batch's notes stay pending for a later run. A run a chat or Anima delete
+  already ended keeps its `source_deleted` reason (see
+  [Status And Recovery Rules](#status-and-recovery-rules)).
 
 `fail_interrupted_automatic_runs(user_id=...)` closes automatic runs that an earlier
 process left open, for example after a crash between an approval's two
@@ -457,7 +459,7 @@ reported state):
 | `needs_plan_sign_in` | The role's model is a ChatGPT plan model, but the session is signed out or needs a new sign-in, or plan use is off. |
 | `needs_plan_agreement` | The role's model is a ChatGPT plan model, and the owner has not let automatic memory updates use the plan. |
 | `plan_paused` | The role's model is a ChatGPT plan model, and a usage limit paused background use of the plan until one of the owner's own plan requests succeeds or the backend restarts. |
-| `paused` | The last three automatic runs failed, counting back to the last completed automatic run, a processed owner-started batch or the last threshold change. Interrupted runs are skipped. |
+| `paused` | The last three automatic runs failed, counting back to the last completed automatic run, a processed owner-started batch or the last threshold change. Interrupted runs and runs a chat or Anima delete ended (`source_deleted`) are skipped. |
 | `backing_off` | After a failure, until 1 hour (doubling per further failure, at most 24 hours) after it; or after 10 automatic runs today, until the owner's local midnight, with no `last_error`. |
 | `waiting` | Fewer notes are pending than the threshold. |
 | `ready` | A run starts. After a completed run the task checks again at once, so a backlog continues within the daily limit. While an owner-started batch is still processing, for example waiting for an approval, the pass skips and the state stays `ready` until that batch ends. |
@@ -1223,6 +1225,18 @@ Important recovery cases:
   unapplied and the run fails, leaving the batch pending; an interrupted run is
   closed at the next startup (see
   [Automatic Episode Processing](#automatic-episode-processing)).
+- **Source chat or Anima deleted:** the delete removes its pending items. A
+  run, owner-started or automatic, still `processing` a batch that holds one
+  becomes `failed` with "Its source chat was deleted" and
+  `completion_reason = "source_deleted"`, and each pending proposal is
+  `rejected` with `operation_metadata.closed_reason = "source_deleted"`.
+  Changes already approved stay; the batch's other items stay pending for a
+  later run. The delete takes the batch-selection lock and then the run's row,
+  so it waits for a model request the run has in flight. "Process episodes"
+  takes those locks in the other order, and an approval decision locks the
+  approval before its run, so a delete at the same moment as either can rarely
+  deadlock: PostgreSQL aborts one side, and a failed delete has deleted nothing
+  and can be retried. A run that still finalizes marks only the items left.
 
 ## Prompt And Search Boundaries
 

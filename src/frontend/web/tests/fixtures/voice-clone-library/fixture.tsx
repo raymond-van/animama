@@ -20,8 +20,6 @@ root.render(
     <RuntimeOwnerProvider ownerId="voice-clone-fixture">
       <VoiceCloneLibrary
         disabled={false}
-        deleting={null}
-        onDeleteClose={() => undefined}
         onBusyChange={(busy) => observations.busy.push(busy)}
       />
     </RuntimeOwnerProvider>

@@ -1,6 +1,5 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useFormatters } from "@animama/product-ui/i18n";
-import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
@@ -18,6 +17,10 @@ import {
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { PocketVoicePicker } from "@/ui/animas/PocketVoicePicker";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
+import {
+  ContentDeleteDialog,
+  type ContentToDelete,
+} from "@/ui/content-delete/ContentDeleteDialog";
 import { elevenLabsVoiceId } from "@/ui/animas/VoiceLoadoutSection";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
@@ -82,7 +85,7 @@ export function CreateAnimaVoiceStep({
     enabled: voice?.provider === "pocket_tts",
   });
   const [cloning, setCloning] = useState(false);
-  const [deleting, setDeleting] = useState<PyVoiceContent | null>(null);
+  const [deleting, setDeleting] = useState<ContentToDelete | null>(null);
   const formatters = useFormatters();
   // Other Animas' settings load only once ElevenLabs is chosen.
   const reusable = reusableElevenLabsVoices(
@@ -204,12 +207,19 @@ export function CreateAnimaVoiceStep({
                   ? t("voiceStep.savedVoiceUnavailable")
                   : undefined
               }
-              onDeleteClone={(id) =>
-                setDeleting(
-                  clones.find((clone) => `clone:${clone.item_id}` === id) ??
-                    null,
-                )
-              }
+              onDeleteClone={(id, focus) => {
+                const clone = clones.find(
+                  (candidate) => `clone:${candidate.item_id}` === id,
+                );
+                if (clone)
+                  setDeleting({
+                    itemId: clone.item_id,
+                    kind: "voice",
+                    name: clone.name,
+                    revision: clone.revision_sha256,
+                    focus,
+                  });
+              }}
               onSelect={select}
               availability={downloads.availability}
               onDownload={downloads.install}
@@ -242,9 +252,11 @@ export function CreateAnimaVoiceStep({
               </div>
             ) : null}
           </div>
+          <ContentDeleteDialog
+            item={deleting}
+            onClose={() => setDeleting(null)}
+          />
           <VoiceCloneLibrary
-            deleting={deleting}
-            onDeleteClose={() => setDeleting(null)}
             disabled={(disabled && !cloning) || library.isError}
             onBusyChange={(busy) => {
               setCloning(busy);

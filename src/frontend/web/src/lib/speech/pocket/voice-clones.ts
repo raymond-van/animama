@@ -5,11 +5,7 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import { streamContentFileV1ContentFilesFileRefGet } from "@animama/runtime-contracts/sdk";
 import { getI18n } from "react-i18next";
-import {
-  ContentSaveApiError,
-  contentSaveFieldError,
-  toContentSaveApiError,
-} from "@/lib/content/contentSaveErrors";
+import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
 import { buildPocketVoiceCatalogFile } from "./catalog-builder";
 import type { PocketVoiceEncoderOptions } from "./voice-cloning-encoder";
 import { PocketVoiceCloningError } from "./voice-cloning-error";
@@ -187,22 +183,4 @@ export async function loadVoiceCloneSample(
     throw new PocketVoiceCloningError(t("pocket.clones.noOriginal"));
   }
   return loadVoiceCloneFile(apiClient, samples[0], signal);
-}
-
-/** Preserve stable server codes while explaining the guarded-delete recovery. */
-export function toVoiceCloneError(
-  error: unknown,
-  status: number | null = null,
-) {
-  const normalized = toContentSaveApiError(error, status);
-  if (normalized.code !== "catalog_item_in_use") return normalized;
-  const t = getI18n().getFixedT(null, "animas");
-  return new ContentSaveApiError(
-    normalized.status,
-    normalized.code,
-    t("voices.cloning.errors.inUse"),
-    normalized.reason,
-    normalized.details,
-    normalized.field,
-  );
 }

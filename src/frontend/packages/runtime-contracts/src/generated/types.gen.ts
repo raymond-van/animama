@@ -2845,6 +2845,12 @@ export type PyAnimaListItem = {
      */
     organization_id?: string | null;
     /**
+     * Pinned At
+     *
+     * When the Anima was pinned; null when unpinned.
+     */
+    pinned_at?: string | null;
+    /**
      * Pocket Voice Catalog Url
      */
     pocket_voice_catalog_url?: string | null;
@@ -2974,6 +2980,12 @@ export type PyAnimaResponse = {
      * Organization Id
      */
     organization_id?: string | null;
+    /**
+     * Pinned At
+     *
+     * When the Anima was pinned; null when unpinned.
+     */
+    pinned_at?: string | null;
     /**
      * Pocket Voice Catalog Url
      */
@@ -3237,6 +3249,12 @@ export type PyAnimaUpdateRequest = {
      * Required for explicit name, Avatar, or profile edits.
      */
     expected_aggregate_revision?: number | null;
+    /**
+     * Pinned
+     *
+     * Pin (true) or unpin (false) the Anima in the sidebar; omitted keeps the current state. A pin is runtime state: it needs no expected_aggregate_revision and does not advance it.
+     */
+    pinned?: boolean | null;
 };
 
 /**
@@ -4487,6 +4505,12 @@ export type PyChatResponse = {
         [key: string]: unknown;
     } | null;
     /**
+     * Pinned At
+     *
+     * When the chat was pinned; null when unpinned.
+     */
+    pinned_at?: string | null;
+    /**
      * Title
      */
     title?: string | null;
@@ -4597,6 +4621,12 @@ export type PyChatUpdate = {
     metadata?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Pinned
+     *
+     * Pin (true) or unpin (false) the chat in the sidebar; omitted keeps the current state.
+     */
+    pinned?: boolean | null;
     /**
      * Title
      */
@@ -4917,6 +4947,22 @@ export type PyContentItem = {
 };
 
 /**
+ * PyContentItemUsage
+ *
+ * What uses an owned item, at most ten uses with Anima uses first; empty when unused.
+ */
+export type PyContentItemUsage = {
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Used By
+     */
+    used_by: Array<PyContentUsage>;
+};
+
+/**
  * PyContentPreviewRootRequest
  */
 export type PyContentPreviewRootRequest = {
@@ -5061,6 +5107,32 @@ export type PyContentSelection = {
      * Type
      */
     type?: 'catalog';
+};
+
+/**
+ * PyContentUsage
+ *
+ * One thing that keeps an owned item from being deleted.
+ *
+ * ``anima_avatar``, ``anima_appearance`` (profile or background),
+ * ``anima_voice``, ``anima_gesture``, ``anima_idle`` (an Idle pool member),
+ * ``anima_reaction`` (a Reaction cell member) and ``anima_music`` name the
+ * Anima by ``id`` and ``name``; ``content`` names the catalog item that
+ * depends on it.
+ */
+export type PyContentUsage = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: 'anima_avatar' | 'anima_appearance' | 'anima_voice' | 'anima_gesture' | 'anima_idle' | 'anima_reaction' | 'anima_music' | 'content';
+    /**
+     * Name
+     */
+    name: string;
 };
 
 /**
@@ -13146,6 +13218,36 @@ export type GetContentItemV1ContentItemsItemIdGetResponses = {
 };
 
 export type GetContentItemV1ContentItemsItemIdGetResponse = GetContentItemV1ContentItemsItemIdGetResponses[keyof GetContentItemV1ContentItemsItemIdGetResponses];
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/content/items/{item_id}/usage';
+};
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetError = GetContentItemUsageV1ContentItemsItemIdUsageGetErrors[keyof GetContentItemUsageV1ContentItemsItemIdUsageGetErrors];
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyContentItemUsage;
+};
+
+export type GetContentItemUsageV1ContentItemsItemIdUsageGetResponse = GetContentItemUsageV1ContentItemsItemIdUsageGetResponses[keyof GetContentItemUsageV1ContentItemsItemIdUsageGetResponses];
 
 export type PreparePackageExportV1ContentPackageExportsPostData = {
     body: PackageExportRequest;

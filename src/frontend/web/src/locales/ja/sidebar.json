@@ -32,6 +32,22 @@
     "label": "作成",
     "reaction": "リアクション"
   },
+  "delete": {
+    "anima": {
+      "chatCount_other": "{{name}} のチャットは {{count}} 件です。",
+      "deleted": "{{name}} を削除しました。",
+      "description": "チャットとそのメッセージ、Anima の記憶ファイル（IDENTITY.md と MEMORIES.md）、そのチャットだけが使う画像が削除されます。共有の記憶とライブラリのコンテンツは残ります。",
+      "failed": "{{name}} を削除できませんでした。もう一度お試しください。",
+      "title": "{{name}} を削除しますか？"
+    },
+    "chat": {
+      "deleted": "チャットを削除しました。",
+      "description": "「{{title}}」とそのメッセージ、このチャットだけが使う画像が削除されます。このチャットからすでに保存された記憶は残ります。",
+      "failed": "チャットを削除できませんでした。もう一度お試しください。",
+      "title": "チャットを削除しますか？"
+    },
+    "replyStopping": "返信を停止しています。少し待ってからもう一度お試しください。"
+  },
   "links": {
     "animas": "Anima",
     "library": "ライブラリ",
@@ -40,6 +56,16 @@
     "search": "検索"
   },
   "open": "サイドバーを開く",
+  "rowMenu": {
+    "delete": "削除",
+    "more": "{{name}} のその他の操作",
+    "pin": "ピン留め",
+    "pinFailed": "{{name}} をピン留めできませんでした。もう一度お試しください。",
+    "pinned": "ピン留め済み",
+    "pinnedName": "{{name}}（ピン留め済み）",
+    "unpin": "ピン留めを解除",
+    "unpinFailed": "{{name}} のピン留めを解除できませんでした。もう一度お試しください。"
+  },
   "search": {
     "close": "検索を閉じる",
     "description": "保存されたチャットメッセージを検索します。",

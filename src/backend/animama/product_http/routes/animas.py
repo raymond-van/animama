@@ -25,8 +25,10 @@ from animama.domain.anima_loadout import AnimaLoadoutError
 from animama.domain.emotions import normalize_emotional_state
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging import get_logger
-from animama.product_http.ports import ProductRepositories, ReadRepositories, WriteRepositories
+from animama.product_http.chat.active_turns import ActiveTurns
+from animama.product_http.ports import Ports, ProductRepositories, ReadRepositories, WriteRepositories
 from animama.product_http.principal import get_current_principal
+from animama.product_http.routes._deletion import delete_chat_images, pending_episode_removal, stop_turns_before_delete
 from animama.product_http.routes._owner import require_owned_anima
 
 router = APIRouter()
@@ -198,7 +200,9 @@ async def patch_anima(
             )
         display_name = anima_patch.display_name if anima_patch else None
         changed = changed or (display_name is not None and display_name != dom.display_name)
-        await repo.update(anima_update_request_to_domain(req, dom))
+        if anima_patch is not None:
+            # A pin-only request writes nothing else, so the row's updated_at stays put.
+            await repo.update(anima_update_request_to_domain(req, dom))
         if changed:
             assert req.expected_aggregate_revision is not None
             await repo.record_definition_revision(
@@ -208,6 +212,9 @@ async def patch_anima(
                 reason="anima_definition_update",
                 display_name=display_name,
             )
+        if req.pinned is not None:
+            # A pin is runtime state: it needs no expected revision and never advances it.
+            await repo.set_pinned(user_id=user.id, anima_id=anima_id, pinned=req.pinned)
         await uow.commit()
     except AnimaDefinitionError as exc:
         await uow.rollback()
@@ -236,12 +243,30 @@ async def delete_anima(
     anima_id: str,
     repositories: WriteRepositories,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    ports: Ports,
+    turns: ActiveTurns,
 ) -> Response:
-    service = AnimaService(animas=repositories.animas, uow=repositories.unit_of_work)
+    # (Comments, not a docstring: the docstring is the operation's OpenAPI description.)
+    # Deleting an Anima first stops any reply in its chats, then deletes it with its
+    # chats, Anima memory files, pending episodes and the chat images only its chats
+    # use. A reply that does not stop in time refuses the delete with 409
+    # chat_turn_stopping.
+    service = AnimaService(
+        animas=repositories.animas,
+        uow=repositories.unit_of_work,
+        pending_episodes=pending_episode_removal(repositories),
+    )
     await require_owned_anima(repositories.animas, anima_id=anima_id, user_id=user.id)
-    deleted = await service.delete(anima_id)
+    await stop_turns_before_delete(turns, owner_id=user.id, anima_id=anima_id)
+    # Read the images before the delete: the chats' messages go with it.
+    image_ids = await repositories.user_file_processing.image_file_ids_only_in_anima_chats(
+        user_id=user.id, anima_id=anima_id
+    )
+    deleted = await service.delete(anima_id, user_id=user.id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anima not found")
+    if image_ids:
+        await delete_chat_images(ports, user, repositories, image_ids)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

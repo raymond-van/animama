@@ -412,11 +412,6 @@
     "copyJson": "Copy JSON",
     "current": "Current",
     "defaultName": "New Pose",
-    "delete": {
-      "confirm": "Delete \"{{name}}\" from Local content?",
-      "deleted": "Local pose deleted.",
-      "failed": "Could not delete this pose."
-    },
     "download": "Download",
     "draftName": "Draft name",
     "empty": "No Included or Local poses are available.",

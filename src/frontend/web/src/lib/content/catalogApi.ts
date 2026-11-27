@@ -2,6 +2,7 @@ import { contentSlug } from "./nameIdentifiers";
 import type { Client } from "@animama/runtime-contracts/sdk";
 import {
   deleteContentItemV1ContentItemsItemIdDelete,
+  getContentItemUsageV1ContentItemsItemIdUsageGet,
   getContentItemV1ContentItemsItemIdGet,
   getGesture,
   getReaction,
@@ -42,9 +43,14 @@ import type {
   PyVoiceContent,
 } from "@animama/runtime-contracts/api-types";
 import type { ContentKind, PyContentPreview } from "@/lib/content/catalogTypes";
+import {
+  ContentDeleteError,
+  type PyContentUsage,
+} from "@/lib/content/contentDeletion";
 import { toContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import { typedLogicalResourceFiles } from "@/lib/content/typedLogicalResources";
 import { typedComponentPreviewMetadata } from "@/lib/content/typedPreviewAdapters";
+import { sdkResultError } from "@/query/sdkResultError";
 
 type TypedCatalogTransport =
   | (PyGesture & { kind: "gesture" })
@@ -484,16 +490,54 @@ export async function listCatalogItems(
     : catalog.items;
 }
 
+/**
+ * Delete one owned Local item at the revision it was shown at. A 404 means it
+ * is already gone (deleted elsewhere), the outcome asked for. Any other
+ * refusal throws `ContentDeleteError`; a request that got no response throws
+ * the transport error.
+ */
 export async function deleteCatalogItem(
   apiClient: Client,
   itemId: string,
   expectedRevision: string,
 ): Promise<void> {
-  await deleteContentItemV1ContentItemsItemIdDelete({
+  const result = await deleteContentItemV1ContentItemsItemIdDelete({
     client: apiClient,
     path: { item_id: itemId },
     query: { expected_revision: expectedRevision },
     responseValidator: undefined,
-    throwOnError: true,
+    throwOnError: false,
   });
+  if (result.response?.status === 404) return;
+  if (result.error !== undefined || !result.response?.ok)
+    throw sdkResultError(
+      result,
+      (status, error) => new ContentDeleteError(status, error),
+    );
+}
+
+/**
+ * What keeps an owned Local item from being deleted, read before Delete is
+ * offered (R15). An empty list means Delete is not refused as in use. Any
+ * refusal, such as 404 for an item Delete would not accept, throws
+ * `ContentDeleteError`.
+ */
+export async function getCatalogItemUsage(
+  apiClient: Client,
+  itemId: string,
+  signal?: AbortSignal,
+): Promise<PyContentUsage[]> {
+  const result = await getContentItemUsageV1ContentItemsItemIdUsageGet({
+    client: apiClient,
+    path: { item_id: itemId },
+    signal,
+    responseValidator: undefined,
+    throwOnError: false,
+  });
+  if (result.error !== undefined || !result.data)
+    throw sdkResultError(
+      result,
+      (status, error) => new ContentDeleteError(status, error),
+    );
+  return result.data.used_by;
 }

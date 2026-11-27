@@ -144,6 +144,26 @@ class SQLAlchemyChatRepository(ChatRepository):
             return None
         return chat_orm_to_domain(orm)
 
+    async def set_pinned(self, *, chat_id: str, user_id: str, pinned: bool) -> Chat | None:
+        result = await self._s.execute(
+            update(ORMChat)
+            .where(ORMChat.id == chat_id, ORMChat.user_id == user_id)
+            .values(
+                pinned_at=func.coalesce(ORMChat.pinned_at, func.now()) if pinned else None,
+                # Setting updated_at to itself suppresses its onupdate: a pin is not an edit.
+                updated_at=ORMChat.updated_at,
+            )
+            .returning(ORMChat.id)
+            .execution_options(synchronize_session=False)
+        )
+        if result.scalar_one_or_none() is None:
+            return None
+        orm = await self._s.get(ORMChat, chat_id)
+        assert orm is not None
+        # The bulk update bypassed the identity map; reload the one value it changed.
+        await self._s.refresh(orm, attribute_names=["pinned_at"])
+        return chat_orm_to_domain(orm)
+
     async def delete(self, chat_id: str) -> bool:
         orm = await self._s.get(ORMChat, chat_id)
         if orm is None:

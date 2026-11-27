@@ -58,7 +58,8 @@ released in desktop 0.1.2 from `src/backend/migrations/versions/0001_baseline.sq
 The SQL creates the tables, constraints, indexes, runtime-worker heartbeats and
 content mutation receipts directly, without importing live ORM metadata. Later
 schema changes are revisions on top of it: `reasoning_effort_20261112` adds
-`anima_chat_profiles.reasoning_effort`, and `content_generation_20261126` adds
+`anima_chat_profiles.reasoning_effort`, `sidebar_pins_20261126` adds
+`chats.pinned_at` and `anima.pinned_at`, and `content_generation_20261126` adds
 the [content assistant's](#content-assistant) three tables.
 Database bootstrap (desktop startup, or `./reset.sh` for a Compose stack) runs
 `alembic upgrade head`, bringing an existing database forward. The baseline SQL
@@ -299,6 +300,9 @@ filesystem size and digest before streaming.
 - optional profile picture URL
 - emotional state JSON
 - user-controlled metadata
+- nullable `pinned_at`, set while the owner has the Anima pinned in the
+  sidebar. A pin is runtime state: it advances neither aggregate revision nor
+  `updated_at`
 - relationships to chat profile rows and chats
 
 Display names belong to Anima, independently of the joined Avatar. The Avatar
@@ -452,7 +456,9 @@ path index:
   binary status (`pending` or `processed`), processing metadata, and source
   metadata JSON. `processed` means reviewed, whether or not the review changed
   curated memory. Generated daily markdown files under `episodes/**` are
-  projections of this table.
+  projections of this table. The provenance columns have no foreign keys, so
+  chat and Anima deletes remove their `pending` rows explicitly and keep
+  `processed` ones.
 - `ORMMemoryManagerRun`, `ORMMemoryManagerMessage`, and
   `ORMMemoryManagerApproval` map to `memory_manager_runs`,
   `memory_manager_messages`, and `memory_manager_approvals`. Runs persist a
@@ -650,6 +656,8 @@ resolved owner principal chatting with one anima/avatar. The public durable API 
   `OpenAIResponsesHTTPAgent` turns advance this from the final assistant
   message's compact `message_data.openai.response_id`
 - created/updated timestamps
+- nullable `pinned_at`, set while the owner has the chat pinned in the
+  sidebar. Pinning leaves `updated_at`, which orders recent chats, unchanged
 - cumulative usage counters: `cum_input_tokens`, `cum_output_tokens`,
   `cum_total_tokens`, `cum_cached_input_tokens`, and
   `cum_output_reasoning_tokens`

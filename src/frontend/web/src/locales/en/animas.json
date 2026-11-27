@@ -581,12 +581,6 @@
       "chooseHint": "Each Anima chooses its own voice under Voices on its page.",
       "clone": "Clone voice",
       "cloningVoice": "Cloning voice…",
-      "delete": {
-        "confirm": "Delete voice",
-        "description": "This removes the saved clone and any original sample. Voices used by an Anima must be replaced before deletion.",
-        "title": "Delete {{name}}?"
-      },
-      "deleted": "Voice clone deleted.",
       "download": {
         "cancel": "Cancel download",
         "cancelling": "Cancelling…",
@@ -610,8 +604,6 @@
         "cancelFailed": "The download could not be cancelled. Try again.",
         "cancelled": "Download cancelled. Your sample is ready to retry.",
         "changed": "This voice changed. Refresh the voice library and try again.",
-        "deleteFailed": "Voice could not be deleted. Try again.",
-        "inUse": "This voice is used by an Anima. Choose another voice for each Anima using it before deleting.",
         "saveFailed": "Voice could not be saved. Your sample is ready to retry."
       },
       "fileLabel": "Upload custom voice sample",

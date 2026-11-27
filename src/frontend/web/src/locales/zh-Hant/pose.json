@@ -406,11 +406,6 @@
     "copyJson": "複製 JSON",
     "current": "目前",
     "defaultName": "新姿勢",
-    "delete": {
-      "confirm": "要從本機內容中刪除「{{name}}」嗎？",
-      "deleted": "已刪除本機姿勢。",
-      "failed": "無法刪除此姿勢。"
-    },
     "download": "下載",
     "draftName": "草稿名稱",
     "empty": "沒有可用的內建或本機姿勢。",

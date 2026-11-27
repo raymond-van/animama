@@ -37,6 +37,5 @@ export function useVoiceCloneActions() {
         observations.saved.push(prepared);
       },
     },
-    deleteVoiceClone: { mutateAsync: async () => undefined },
   };
 }

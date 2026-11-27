@@ -15,6 +15,11 @@ Routes:
 - `/animas/:animaId/identity`: edit the Anima's `IDENTITY.md` memory entry.
 - `/:animaId`: enter the live Avatar/chat surface.
 
+The More menu beside the Anima's name pins it in the sidebar or deletes it,
+as its sidebar row menu does (see [sidebar pins and
+deletes](../runtime/chat.md#sidebar-pins-and-deletes)); deleting opens the next
+Anima's page.
+
 The [live creation journey](custom-anima-creation.md) uses stable live
 name/identity authority, atomic creation, and durable idempotency receipts.
 Installation bootstrap/repair uses backend starter specifications and preserves existing
