@@ -1,4 +1,25 @@
 {
   "schema": "animama-size-exceptions/1",
-  "exceptions": []
+  "exceptions": [
+    {
+      "id": "web-javascript-draft-checks-worker-darwin-arm64-0.1.7",
+      "component": "web_javascript",
+      "target": "darwin-arm64",
+      "approved_byte_ceiling": 25500000,
+      "rationale": "In-app Gesture generation (#956) adds a draft-checks Web Worker (about 2.6 MB) that bundles its own copy of three.js, three-vrm and zod; measured darwin-arm64 web_javascript at 0.1.7 was 25,445,838 bytes against 22,485,994 at 0.1.5.",
+      "author": "raymond-van",
+      "approval_date": "2026-11-27",
+      "last_applicable_app_version": "0.1.7"
+    },
+    {
+      "id": "web-javascript-draft-checks-worker-win32-x64-0.1.7",
+      "component": "web_javascript",
+      "target": "win32-x64",
+      "approved_byte_ceiling": 25500000,
+      "rationale": "In-app Gesture generation (#956) adds a draft-checks Web Worker (about 2.6 MB) that bundles its own copy of three.js, three-vrm and zod; measured darwin-arm64 web_javascript at 0.1.7 was 25,445,838 bytes against 22,485,994 at 0.1.5.",
+      "author": "raymond-van",
+      "approval_date": "2026-11-27",
+      "last_applicable_app_version": "0.1.7"
+    }
+  ]
 }
