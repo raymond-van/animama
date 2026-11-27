@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "happy_sway",
   "name": "Happy Sway",
-  "ai_description": "Use as an idle while feeling happy, amused, excited, optimistic or grateful and nothing is being said. Hums along with a light, unhurried side-to-side sway, a closed-eye smile, little shoulder wiggles and one small bounce.",
+  "ai_description": "Use as an idle while happy, amused, excited or grateful. Sways side to side, humming, with a closed-eye smile.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

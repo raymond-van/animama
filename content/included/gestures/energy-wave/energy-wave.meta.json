@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "energy_wave_blast",
   "name": "Energy Wave",
-  "description": "Crouches, charges an energy ball at the hip, then blasts it forward with both palms, anime style. Use for hype, powering up, or a playful 'take that!' finisher.",
-  "ai_description": "Crouches, charges an energy ball at the hip, then blasts it forward with both palms, anime style. Use for hype, powering up, or a playful 'take that!' finisher.",
+  "description": "Use for hype, powering up or a playful 'take that!' finisher. Charges an anime energy ball and blasts it forward.",
+  "ai_description": "Use for hype, powering up or a playful 'take that!' finisher. Charges an anime energy ball and blasts it forward.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

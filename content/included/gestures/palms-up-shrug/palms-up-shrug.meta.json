@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "shrug",
   "name": "Palms Up Shrug",
-  "ai_description": "Use for \"who knows\", when you are unsure, or for a playful \"oh well\", not to rate something as so-so. Raises the shoulders with both palms turned up and a tilted head.",
+  "ai_description": "Use for \"who knows\", when unsure, or a playful \"oh well\", not to rate something so-so. Shrugs with palms up.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

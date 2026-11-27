@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "confession_letter_bow",
   "name": "Confession Letter Bow",
-  "description": "Bows deeply holding out a love letter, eyes shut, then peeks up shyly. Use for heartfelt confessions or nervously sharing feelings.",
-  "ai_description": "Bows deeply holding out a love letter, eyes shut, then peeks up shyly. Use for heartfelt confessions or nervously sharing feelings.",
+  "description": "Use for heartfelt confessions or nervously sharing feelings. Bows deeply holding out a love letter, then peeks up.",
+  "ai_description": "Use for heartfelt confessions or nervously sharing feelings. Bows deeply holding out a love letter, then peeks up.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

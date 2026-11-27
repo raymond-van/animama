@@ -9,6 +9,11 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
+import {
+  useAvatarPortraitVersionStore,
+  versionedPortraitUrl,
+} from "@/stores/avatar-portrait-version-store";
 import {
   ChevronDown,
   ChevronRight,
@@ -36,7 +41,11 @@ import {
   previewTypedCatalogItem,
 } from "@/lib/content/catalogApi";
 import { typedActionPreview } from "@/lib/content/typedPreviewAdapters";
-import { avatarPreviewTarget } from "@/lib/content/avatarPreviewTarget";
+import {
+  avatarPreviewPortraitRetake,
+  avatarPreviewTarget,
+  readAvatarContent,
+} from "@/lib/content/avatarPreviewTarget";
 import { componentPreviewTarget } from "@/lib/content/componentPreviewTarget";
 import {
   contentInventoryGroups,
@@ -482,6 +491,10 @@ export function LibraryContentInventory({
     sort: search.sort,
     enabled: includes("avatars"),
   });
+  // A portrait retaken this session (after Replace VRM) keeps its URL.
+  const portraitVersions = useAvatarPortraitVersionStore(
+    (state) => state.versions,
+  );
   const [avatarSettings, setAvatarSettings] =
     useState<LibraryAvatarTarget | null>(null);
   const [managedSound, setManagedSound] = useState<PyCatalogViewItem | null>(
@@ -589,16 +602,31 @@ export function LibraryContentInventory({
       );
     }
   };
-  const previewAvatar = async (avatar: PyAvatarCatalogItem) => {
+  const previewAvatar = async (
+    avatar: Pick<PyAvatarCatalogItem, "catalog_item_id" | "name" | "origin">,
+  ) => {
     if (!avatar.catalog_item_id) return;
     soundPreview.stop();
-    const preview = await previewCatalogItem(
-      apiClient,
-      avatar.catalog_item_id,
-      undefined,
-      "avatar",
+    // A Local Avatar whose portrait shows another revision (a replaced model)
+    // gets a new one from the Dock; a failed read only skips that.
+    const [preview, content] = await Promise.all([
+      previewCatalogItem(
+        apiClient,
+        avatar.catalog_item_id,
+        undefined,
+        "avatar",
+      ),
+      avatar.origin === "local"
+        ? readAvatarContent(apiClient, avatar.catalog_item_id).catch(() => null)
+        : null,
+    ]);
+    openPreview(
+      avatarPreviewTarget(
+        preview,
+        avatar.name,
+        avatarPreviewPortraitRetake(preview, content),
+      ),
     );
-    openPreview(avatarPreviewTarget(preview, avatar.name));
   };
   const manageCard = (card: LibraryProductCard) =>
     card.source &&
@@ -777,7 +805,12 @@ export function LibraryContentInventory({
                 <LibraryProductRow
                   key={avatar.avatar_id}
                   layout={layout}
-                  portraitUrl={avatar.preview_url}
+                  portraitUrl={versionedPortraitUrl(
+                    avatar.preview_url,
+                    avatar.catalog_item_id
+                      ? portraitVersions[avatar.catalog_item_id]
+                      : undefined,
+                  )}
                   row={{
                     family: "avatar",
                     name: avatar.name,
@@ -950,6 +983,20 @@ export function LibraryContentInventory({
           key={avatarSettings.itemId}
           avatar={avatarSettings}
           onClose={() => setAvatarSettings(null)}
+          onReplaced={(saved) => {
+            setAvatarSettings(null);
+            toast.success(
+              t("inventory.avatarSettings.model.replaced", {
+                name: avatarSettings.name,
+              }),
+            );
+            // Show the new model, which also retakes its portrait.
+            void previewAvatar({
+              catalog_item_id: saved.item_id,
+              name: avatarSettings.name,
+              origin: "local",
+            });
+          }}
         />
       ) : null}
       {managedSound ? (

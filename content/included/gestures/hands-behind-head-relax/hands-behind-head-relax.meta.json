@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "hands_behind_head_relax",
   "name": "Hands Behind Head Relax",
-  "description": "Leans back with hands behind the head, chill and content. Use for relaxing, taking a break or feeling carefree.",
-  "ai_description": "Leans back with hands behind the head, chill and content. Use for relaxing, taking a break or feeling carefree.",
+  "description": "Use for relaxing, taking a break or feeling carefree. Leans back with the hands behind the head.",
+  "ai_description": "Use for relaxing, taking a break or feeling carefree. Leans back with the hands behind the head.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

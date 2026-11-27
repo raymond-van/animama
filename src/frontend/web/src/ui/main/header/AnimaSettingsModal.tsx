@@ -14,6 +14,7 @@ import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFac
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import { cn } from "@/lib/utils";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
+import { AnimaAvatarChoiceRow } from "@/ui/animas/AnimaAvatarChoiceRow";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
 import { useAvatarSettingsAvailable } from "@/query/hooks/useAvatarSettings";
 import { AvatarDiagnosticsDialog } from "@/ui/animas/AvatarDiagnosticsDialog";
@@ -157,7 +158,7 @@ function AvatarDiagnosticsRow({ animaId }: { animaId: string }) {
 }
 
 type AnimaSettingsModalProps = {
-  /** The Anima whose Avatar the Diagnostics section describes. */
+  /** The Anima whose Avatar section (choice, settings, Diagnostics) this shows. */
   animaId?: string | null;
 };
 
@@ -252,6 +253,7 @@ export function AnimaSettingsModal({ animaId }: AnimaSettingsModalProps = {}) {
             {t("animaSettings.headings.avatar")}
           </p>
           <div className="mt-3 grid gap-3">
+            <AnimaAvatarChoiceRow animaId={animaId} />
             <AnimaAvatarSettingsRows animaId={animaId} />
             <AvatarDiagnosticsRow animaId={animaId} />
           </div>

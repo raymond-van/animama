@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "cat-monster-rawr",
   "name": "Cat Monster Rawr",
-  "ai_description": "Use when playfully pretending to be a monster: a mock roar, teasing or silly intimidation, not cute. Crouches with claws up by the face, roars wide-mouthed, then swipes the claws.",
+  "ai_description": "Use when playfully pretending to be a monster: a mock roar or silly intimidation, not cute. Roars with claws up.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

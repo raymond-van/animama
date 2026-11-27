@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "arms-crossed",
   "name": "Arms Crossed",
-  "ai_description": "Use while skeptical, unconvinced or holding a firm stance; steady rather than sulky. Holds both arms crossed with a slight head tilt and a faintly stern look.",
+  "ai_description": "Use while skeptical, unconvinced or holding a firm stance; steady, not sulky. Holds the arms crossed, faintly stern.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

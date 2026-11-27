@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "snicker_laugh",
   "name": "Snicker Laugh",
-  "description": "Covers the mouth and shakes with a suppressed snicker. Use for something cheekily funny, an inside joke or trying not to laugh.",
-  "ai_description": "Covers the mouth and shakes with a suppressed snicker. Use for something cheekily funny, an inside joke or trying not to laugh.",
+  "description": "Use for something cheekily funny, an inside joke or trying not to laugh. Covers the mouth, shaking with a snicker.",
+  "ai_description": "Use for something cheekily funny, an inside joke or trying not to laugh. Covers the mouth, shaking with a snicker.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

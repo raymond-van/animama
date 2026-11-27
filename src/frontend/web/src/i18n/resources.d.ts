@@ -3877,6 +3877,26 @@ export default interface Resources {
         "description": "Settings for {{name}}. They apply wherever this Avatar is used.",
         "diagnostics": "See what Animama found in this Avatar, and copy a report for support.",
         "diagnosticsOnly": "See what Animama found in {{name}}.",
+        "model": {
+          "cancel": "Cancel",
+          "changed": "This Avatar changed since you chose the file. Check the details below and replace again.",
+          "checking": "Checking file…",
+          "confirm": "Replace",
+          "confirmTitle": "Replace the model with {{file}} ({{size}})?",
+          "description": "Replace this Avatar's VRM with an updated file. Its name and settings stay.",
+          "faceParts": "The face part fixes saved for the current file stop applying, and face parts are detected again.",
+          "invalid": "This file cannot be used as a VRM.",
+          "keeps": "Each Anima keeps its Gestures, Reactions, Idle and voice. Animama retakes the Avatar's portrait from the new model, unless the portrait was imported.",
+          "label": "Model file",
+          "replace": "Replace VRM",
+          "replaced": "{{name}} now uses the new model.",
+          "replacing": "Replacing…",
+          "unreadable": "This Avatar's details could not be read. Close and reopen its settings to try again.",
+          "unused": "No Anima uses this Avatar yet.",
+          "usedBy_one": "{{names}} uses this Avatar and will switch to the new model the next time its chat loads.",
+          "usedBy_other": "{{names}} use this Avatar and will switch to the new model the next time their chats load.",
+          "usersUnknown": "Every Anima that uses this Avatar will switch to the new model the next time its chat loads."
+        },
         "title": "Avatar settings"
       },
       "groups": {
@@ -6243,6 +6263,35 @@ export default interface Resources {
           "value": "{{percent}}%"
         }
       },
+      "avatarPicker": {
+        "cancel": "Cancel",
+        "cancelUpload": "Cancel upload",
+        "changeFailed": "The Avatar could not be changed. Try again.",
+        "changed": "{{anima}} now uses {{avatar}}.",
+        "changedElsewhere": "This Anima changed elsewhere. Check the current Avatar and try again.",
+        "changedNextLoad": "{{anima}} now uses {{avatar}}. This chat shows it the next time it loads.",
+        "current": "Current",
+        "description": "Choose the Avatar {{name}} appears as. Its identity, memories, chats, Gestures, Reactions, Idle and voice stay the same.",
+        "groupLabel": "Avatars",
+        "included": "Included",
+        "loadFailed": "The Avatars could not be loaded.",
+        "loading": "Loading Avatars…",
+        "local": "My Content",
+        "nameUsed": "An Avatar already uses this name. Choose another name.",
+        "noMatches": "No Avatars match this search.",
+        "readFailed": "This file could not be read as a VRM.",
+        "retry": "Retry",
+        "saveFailed": "The Avatar could not be saved. Try again.",
+        "saveUpload": "Save Avatar",
+        "search": "Search Avatars",
+        "title": "Change Avatar",
+        "upload": "Upload VRM",
+        "uploadFile": "{{file}} ({{size}})",
+        "uploadName": "Avatar name",
+        "use": "Use Avatar",
+        "using": "Changing…",
+        "waitForReply": "{{name}} is replying. Change the Avatar when the reply ends."
+      },
       "choices": {
         "appDefaultOff": "App default (Off)",
         "appDefaultOn": "App default (On)",
@@ -6255,6 +6304,12 @@ export default interface Resources {
         "memory": "Memory"
       },
       "rows": {
+        "avatar_choice": {
+          "current": "Uses {{name}}. Changing it keeps this Anima's identity, memories, chats, Actions and voice.",
+          "description": "The Avatar this Anima appears as.",
+          "label": "Avatar",
+          "open": "Change Avatar"
+        },
         "avatar_diagnostics": {
           "description": "See what Animama found in this Anima's Avatar, and copy a report for support.",
           "label": "Avatar diagnostics",

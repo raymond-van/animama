@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "celebration",
   "name": "Celebration",
-  "ai_description": "Use when celebrating your own win, a success or great news with full energy. Throws both fists up high, pumps them twice and bounces with a huge grin.",
+  "ai_description": "Use when celebrating your own win, a success or great news with full energy. Pumps both fists high and bounces.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -24,6 +24,10 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
     isUpdating: false,
   }),
 }));
+// The Avatar choice row has its own tests.
+vi.mock("@/ui/animas/AnimaAvatarChoiceRow", () => ({
+  AnimaAvatarChoiceRow: () => null,
+}));
 vi.mock("@/ui/animas/AvatarDiagnosticsDialog", () => ({
   AvatarDiagnosticsDialog: () => null,
 }));

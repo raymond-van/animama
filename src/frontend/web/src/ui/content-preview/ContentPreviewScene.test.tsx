@@ -31,6 +31,12 @@ const harness = vi.hoisted(() => ({
   },
   /** The motion playback each play request starts. */
   playMotion: async () => false as boolean,
+  /** What the Dock last asked of the portrait retake. */
+  retake: null as null | {
+    ready: boolean;
+    shown: unknown;
+    retake: unknown;
+  },
 }));
 
 vi.mock("@/lib/avatar", () => ({
@@ -82,6 +88,19 @@ vi.mock("@/lib/avatar", () => ({
     setAutomaticAnimationPlaybackEnabled() {}
     resetAnimations() {}
     update() {}
+  },
+}));
+vi.mock("@/ui/avatar-preview/useStagePortraitRetake", () => ({
+  useStagePortraitRetake: (input: {
+    ready: boolean;
+    shown: unknown;
+    retake: unknown;
+  }) => {
+    harness.retake = {
+      ready: input.ready,
+      shown: input.shown,
+      retake: input.retake,
+    };
   },
 }));
 vi.mock("@/query/hooks/useAvatarSettings", () => ({
@@ -232,6 +251,7 @@ beforeEach(() => {
   };
   harness.three = { camera: {}, gl: { domElement: {} } };
   harness.playMotion = async () => false;
+  harness.retake = null;
   preparationRequest = 0;
   container = document.createElement("div");
   document.body.append(container);
@@ -423,5 +443,42 @@ describe("ContentPreviewScene Stop", () => {
     await act(async () => succeed(true));
 
     expect(onStatusChange).not.toHaveBeenCalledWith("playing");
+  });
+});
+
+describe("ContentPreviewScene portrait retake", () => {
+  const retake = { item_id: "item-annie", revision_sha256: "avatar-r2" };
+  const avatarPreview: ContentPreviewTarget = {
+    key: "typed-avatar:annie:avatar-r2",
+    sourceType: "resolved_entry",
+    entry: avatarEntry("avatar-r2"),
+    kind: "avatar_model",
+    displayName: "Annie",
+    versionLabel: "avatar-r2",
+    slot: "primary_model",
+    runtimeId: "annie",
+    configSchemaVersion: 1,
+    config: { avatar_catalog_item_id: "item-annie" },
+    portraitRetake: retake,
+  };
+
+  it("asks for the portrait once the Avatar preview's model has loaded", async () => {
+    await show(avatarPreview, "avatar-r2");
+    expect(harness.retake).toEqual({
+      ready: false,
+      shown: retake,
+      retake,
+    });
+
+    await finishLoads(0);
+    expect(harness.retake?.ready).toBe(true);
+  });
+
+  it("never retakes while an Action previews on the Avatar", async () => {
+    await show(avatarPreview, "avatar-r2");
+    await finishLoads(0);
+    await show(gesture("wave"), "avatar-r2");
+
+    expect(harness.retake).toMatchObject({ ready: false, retake: null });
   });
 });

@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "dismissive_hand_wave",
   "name": "Dismissive Hand Wave",
-  "description": "Flicks the hand away with an annoyed 'nah'. Use to dismiss a silly idea, brush off a tease or say 'whatever'.",
-  "ai_description": "Flicks the hand away with an annoyed 'nah'. Use to dismiss a silly idea, brush off a tease or say 'whatever'.",
+  "description": "Use to dismiss a silly idea, brush off a tease or say 'whatever'. Flicks the hand away with an annoyed 'nah'.",
+  "ai_description": "Use to dismiss a silly idea, brush off a tease or say 'whatever'. Flicks the hand away with an annoyed 'nah'.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

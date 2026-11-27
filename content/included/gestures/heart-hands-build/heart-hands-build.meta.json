@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "heart-hands-build",
   "name": "Heart Hands",
-  "ai_description": "Use to send warm affection, gratitude or support. Brings both hands together into a heart shape with a big beaming smile.",
+  "ai_description": "Use to send warm affection, gratitude or support. Makes a heart with both hands and a beaming smile.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

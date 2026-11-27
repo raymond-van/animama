@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "virtual_hug",
   "name": "Virtual Hug",
-  "ai_description": "Use when the user needs comfort or a hug, is sad, lonely or stressed, or shares something heartwarming you want to celebrate together. Opens both arms wide toward them, then wraps them in a warm hug with closed eyes, a gentle squeeze and a little sway.",
+  "ai_description": "Use when the user needs comfort or a hug, is sad, lonely or stressed, or shares something heartwarming. A warm, open-armed hug.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

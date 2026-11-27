@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "polite_bow",
   "name": "Polite Bow",
-  "ai_description": "Use for a formal greeting, a respectful thank-you or a calm, courteous apology. Bows from the hips with the arms at the sides and a soft, composed smile.",
+  "ai_description": "Use for a formal greeting, a respectful thank-you or a calm, courteous apology. Bows from the hips, composed.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

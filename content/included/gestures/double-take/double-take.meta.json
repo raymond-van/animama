@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "double_take",
   "name": "Double Take",
-  "ai_description": "Glances aside, turns back in surprise and leans closer with open hands. Use for disbelief, an unexpected reveal or a comic second look.",
+  "ai_description": "Use for disbelief, an unexpected reveal or a comic second look. Glances aside, then turns back in surprise.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "peace_over_eye",
   "name": "Peace Over Eye",
-  "ai_description": "Use when being playful, cute or showing off, such as after a compliment, a win or a cheerful sign-off. Snaps a sideways idol peace sign over the right eye with a wink, a hip pop and a bright smile.",
+  "ai_description": "Use when playful, cute or showing off, after a compliment, a win or a cheerful sign-off. An idol peace sign over one eye.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

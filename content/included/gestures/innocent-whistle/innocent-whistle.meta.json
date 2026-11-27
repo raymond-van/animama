@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "innocent_whistle",
   "name": "Innocent Whistle",
-  "description": "Hands behind the back, rocking and whistling while glancing away. Use when playfully dodging a question, pretending innocence or hiding something.",
-  "ai_description": "Hands behind the back, rocking and whistling while glancing away. Use when playfully dodging a question, pretending innocence or hiding something.",
+  "description": "Use when playfully dodging a question, pretending innocence or hiding something. Whistles, glancing away.",
+  "ai_description": "Use when playfully dodging a question, pretending innocence or hiding something. Whistles, glancing away.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "laugh_hard",
   "name": "Hearty Laugh",
-  "ai_description": "Use when something is very funny: stronger than a medium laugh, short of hysterical. Laughs hard, leaning back with the shoulders bouncing.",
+  "ai_description": "Use when something is very funny: stronger than a medium laugh, short of hysterical. Laughs hard, leaning back.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

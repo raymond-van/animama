@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "blow_kiss_both",
   "name": "Blow a Kiss 2",
-  "ai_description": "Use for a big, affectionate goodbye, thanks or love to the user; grander than a one-hand kiss. Kisses both hands' fingertips, then opens the arms forward, palms up, with a wink.",
+  "ai_description": "Use for a big, affectionate goodbye, thanks or love; grander than a one-hand kiss. Blows a kiss with both hands.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

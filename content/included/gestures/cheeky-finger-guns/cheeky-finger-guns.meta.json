@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "cheeky-finger-guns",
   "name": "Cheeky Finger Guns",
-  "ai_description": "Use to punctuate a joke, a cheeky compliment or confident agreement. Aims finger guns with both hands, fires them and winks.",
+  "ai_description": "Use to punctuate a joke, a cheeky compliment or confident agreement. Fires finger guns with both hands and winks.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

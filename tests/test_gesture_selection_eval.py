@@ -206,7 +206,9 @@ async def test_prompt_and_schema_match_the_chat_assembly_for_the_loadout() -> No
         anima_identity=harness.ANIMA_IDENTITY,
         anima_name=harness.ANIMA_NAME,
         response_format_guidance=gesture_response_guidance(
-            main_structured_response_guidance(provider, output_type), LOADOUT.gestures
+            main_structured_response_guidance(provider, output_type),
+            LOADOUT.gestures,
+            context_window_tokens=provider.context_window_tokens,
         ),
         # The eval speaks no reply, so its turns get the no-tags rule, as chat does.
         speech_guidance=speech_instruction(None),
@@ -1050,6 +1052,73 @@ def test_real_run_writes_results_and_a_summary_without_raw_replies(
     assert "SECRET-SPEECH" not in summary
     assert harness.ANIMA_IDENTITY not in summary
     assert str(output_dir / "summary.md") in capsys.readouterr().out
+
+
+def _write_long_description_loadout(loadout_path: Path) -> tuple[RuntimeGestureDescriptor, ...]:
+    gestures = (THINK, replace(WAVE, description="Greet or say goodbye. " * 300))
+    loadout_path.write_text(
+        json.dumps([{"selector": g.selector, "name": g.name, "description": g.description} for g in gestures])
+    )
+    return gestures
+
+
+def test_context_window_option_runs_the_model_as_if_its_row_recorded_that_window(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    loadout_path, prompts_path = _write_inputs(tmp_path)
+    gestures = _write_long_description_loadout(loadout_path)
+    provider = _provider()
+    client = _ReplyClient(lambda _request: _reply(gesture="wave"))
+
+    async def load_model_provider(_model_provider_id: str) -> ModelProvider:
+        return provider
+
+    monkeypatch.setattr(harness, "load_model_provider", load_model_provider)
+    monkeypatch.setattr(harness, "build_registry", lambda: _registry(client, provider))
+    output_dir = tmp_path / "out"
+
+    exit_code = harness.main(
+        [
+            "--loadout",
+            str(loadout_path),
+            "--prompts",
+            str(prompts_path),
+            "--model-provider-id",
+            provider.id,
+            "--max-calls",
+            "4",
+            "--context-window",
+            "12000",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    assert exit_code == 0
+    system_text = str(client.requests[0].prompt.messages[0]["content"])
+    assert "Available Gestures for this Anima:\n- think\n- wave\n\n" in system_text
+    results = json.loads((output_dir / "results.json").read_text())
+    assert results["model"]["context_window_tokens"] == 12_000
+    selectors_only = render_available_gestures(gestures, context_window_tokens=12_000)
+    assert results["loadouts"][0]["gesture_list_bytes"] == len(selectors_only.encode())
+    assert "context window 12,000 tokens" in (output_dir / "summary.md").read_text()
+
+
+def test_dry_run_sizes_the_gesture_list_for_the_context_window_option(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    loadout_path, prompts_path = _write_inputs(tmp_path)
+    gestures = _write_long_description_loadout(loadout_path)
+
+    exit_code = harness.main(
+        ["--loadout", str(loadout_path), "--prompts", str(prompts_path), "--context-window", "12000", "--dry-run"]
+    )
+
+    out = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Context window: 12,000 tokens, as if the model row recorded it" in out
+    selectors_only = render_available_gestures(gestures, context_window_tokens=12_000)
+    assert f"starters: 2 Gestures, {len(selectors_only.encode())} gesture-list bytes" in out
 
 
 async def test_model_provider_resolves_from_the_catalog_without_writing(async_session: AsyncSession) -> None:

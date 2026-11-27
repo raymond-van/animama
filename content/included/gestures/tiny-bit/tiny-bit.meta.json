@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "tiny_bit",
   "name": "Just a Tiny Bit",
-  "ai_description": "Use when saying something is only a little, a tiny amount or almost nothing (\"just a teeny bit\"). Holds up a small finger-and-thumb pinch beside the right eye and squints past it with a playful head tilt.",
+  "ai_description": "Use when something is only a little or almost nothing (\"just a teeny bit\"). Squints past a tiny finger pinch.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "sassy_hair_flip",
   "name": "Sassy Hair Flip",
-  "description": "Flicks the hair back with a head whip and lands a hand on the hip. Use for sass, playful vanity or 'I know I'm right'.",
-  "ai_description": "Flicks the hair back with a head whip and lands a hand on the hip. Use for sass, playful vanity or 'I know I'm right'.",
+  "description": "Use for sass, playful vanity or 'I know I'm right'. Flips the hair back and lands a hand on the hip.",
+  "ai_description": "Use for sass, playful vanity or 'I know I'm right'. Flips the hair back and lands a hand on the hip.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

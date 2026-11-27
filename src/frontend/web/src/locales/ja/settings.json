@@ -76,6 +76,35 @@
         "value": "{{percent}}%"
       }
     },
+    "avatarPicker": {
+      "title": "アバターを変更",
+      "description": "{{name}} の見た目になるアバターを選んでください。アイデンティティ、記憶、チャット、ジェスチャー、リアクション、待機、音声はそのままです。",
+      "search": "アバターを検索",
+      "upload": "VRM をアップロード",
+      "uploadFile": "{{file}}（{{size}}）",
+      "uploadName": "アバター名",
+      "saveUpload": "アバターを保存",
+      "cancelUpload": "アップロードをキャンセル",
+      "readFailed": "このファイルを VRM として読み込めませんでした。",
+      "saveFailed": "アバターを保存できませんでした。もう一度お試しください。",
+      "nameUsed": "この名前はすでに別のアバターで使われています。別の名前を選んでください。",
+      "loading": "アバターを読み込み中…",
+      "loadFailed": "アバターを読み込めませんでした。",
+      "retry": "再試行",
+      "noMatches": "検索に一致するアバターはありません。",
+      "groupLabel": "アバター",
+      "current": "現在",
+      "local": "マイコンテンツ",
+      "included": "同梱",
+      "cancel": "キャンセル",
+      "use": "このアバターを使う",
+      "using": "変更中…",
+      "waitForReply": "{{name}} が返信中です。返信が終わってからアバターを変更してください。",
+      "changed": "{{anima}} は {{avatar}} を使用しています。",
+      "changedNextLoad": "{{anima}} は {{avatar}} を使用しています。このチャットには次に読み込んだときに表示されます。",
+      "changedElsewhere": "この Anima は別の場所で変更されました。現在のアバターを確認して、もう一度お試しください。",
+      "changeFailed": "アバターを変更できませんでした。もう一度お試しください。"
+    },
     "choices": {
       "appDefaultOff": "アプリのデフォルト（オフ）",
       "appDefaultOn": "アプリのデフォルト（オン）",
@@ -88,6 +117,12 @@
       "memory": "記憶"
     },
     "rows": {
+      "avatar_choice": {
+        "label": "アバター",
+        "current": "{{name}} を使用中です。変更しても、この Anima のアイデンティティ、記憶、チャット、アクション、音声はそのままです。",
+        "description": "この Anima の見た目になるアバターです。",
+        "open": "アバターを変更"
+      },
       "avatar_diagnostics": {
         "description": "Animama がこの Anima のアバターで見つけた内容を確認し、サポート用のレポートをコピーできます。",
         "label": "アバター診断",

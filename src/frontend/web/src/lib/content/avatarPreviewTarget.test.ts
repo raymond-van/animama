@@ -1,10 +1,23 @@
-import type { PyTypedContentPreview } from "@animama/runtime-contracts/api-types";
-import { describe, expect, it } from "vitest";
+import type {
+  PyAvatarContent,
+  PyTypedContentPreview,
+} from "@animama/runtime-contracts/api-types";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
 import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
-import { avatarPreviewTarget } from "./avatarPreviewTarget";
+import {
+  avatarPreviewPortraitRetake,
+  avatarPreviewTarget,
+  readAvatarContent,
+} from "./avatarPreviewTarget";
 import { typedPreviewTransport } from "./catalogApi";
+
+const sdk = vi.hoisted(() => ({ getAvatarContent: vi.fn() }));
+vi.mock("@animama/runtime-contracts/sdk", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getAvatarContent: sdk.getAvatarContent,
+}));
 
 describe("avatarPreviewTarget", () => {
   it("maps a private Avatar VRM to an authorized model file", () => {
@@ -113,5 +126,52 @@ describe("avatarPreviewTarget", () => {
       facePartCorrections: correction,
       vrmSha256: sha,
     });
+  });
+});
+
+describe("avatarPreviewPortraitRetake", () => {
+  const revision = "d".repeat(64);
+  const preview: PyContentPreview = {
+    preview_id: "avatar-local",
+    item_id: "item-7",
+    revision,
+    revision_sha256: revision,
+    expires_at: "2026-08-13T00:05:00Z",
+    files: [],
+    metadata: { content_type: "avatar" },
+  };
+  const content = (captured: string | null, source = "local") =>
+    ({
+      item_id: "item-7",
+      revision_sha256: revision,
+      source,
+      name: "Mika",
+      editable: source === "local",
+      portrait: { url: "/p.webp", avatar_revision_sha256: captured },
+    }) as PyAvatarContent;
+
+  it("retakes a Local portrait captured from another revision", async () => {
+    sdk.getAvatarContent.mockResolvedValueOnce({
+      data: content("e".repeat(64)),
+    });
+    const avatar = await readAvatarContent({} as never, "item-7");
+    const retake = avatarPreviewPortraitRetake(preview, avatar);
+    expect(retake).toEqual({ item_id: "item-7", revision_sha256: revision });
+
+    const target = avatarPreviewTarget(preview, "Mika", retake);
+    expect(target.portraitRetake).toEqual(retake);
+  });
+
+  it("keeps a current, imported or Included portrait", () => {
+    expect(avatarPreviewPortraitRetake(preview, content(revision))).toBeNull();
+    // An imported portrait records no capture revision.
+    expect(avatarPreviewPortraitRetake(preview, content(null))).toBeNull();
+    expect(
+      avatarPreviewPortraitRetake(preview, content(null, "included")),
+    ).toBeNull();
+    expect(avatarPreviewPortraitRetake(preview, null)).toBeNull();
+    expect(avatarPreviewTarget(preview, "Mika")).not.toHaveProperty(
+      "portraitRetake",
+    );
   });
 });

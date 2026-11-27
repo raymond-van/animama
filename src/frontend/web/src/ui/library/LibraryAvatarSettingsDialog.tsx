@@ -1,3 +1,4 @@
+import type { PyAvatarContent } from "@animama/runtime-contracts/api-types";
 import { Stethoscope } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/components/dialog";
+import { LibraryAvatarModelRow } from "./LibraryAvatarModelRow";
 
 /** The Avatar card a Library settings dialog belongs to. */
 export type LibraryAvatarTarget = {
@@ -27,14 +29,17 @@ export type LibraryAvatarTarget = {
  * Materials) and its Diagnostics. The settings are the Anima settings' rows
  * for the same Avatar item, so a change applies wherever the Avatar is used,
  * the preview dock included. Where the runtime keeps no settings (the hosted
- * app) it offers Diagnostics only.
+ * app) it offers no settings rows. A Local Avatar also offers Replace VRM
+ * everywhere; `onReplaced` receives the new revision.
  */
 export function LibraryAvatarSettingsDialog({
   avatar,
   onClose,
+  onReplaced,
 }: {
   avatar: LibraryAvatarTarget;
   onClose: () => void;
+  onReplaced?: (saved: PyAvatarContent) => void;
 }) {
   const { t } = useTranslation("library");
   const { t: tSettings } = useTranslation("settings");
@@ -56,6 +61,12 @@ export function LibraryAvatarSettingsDialog({
         </DialogHeader>
         <div className="grid gap-3">
           <AvatarSettingsRows itemId={avatar.itemId} vrmSha256={vrmSha256} />
+          {avatar.source === "local" && onReplaced ? (
+            <LibraryAvatarModelRow
+              itemId={avatar.itemId}
+              onReplaced={onReplaced}
+            />
+          ) : null}
           <div className="border-border/60 bg-background flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="min-w-0">
               <p className="text-foreground text-sm font-medium">

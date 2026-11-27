@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "blow_kiss",
   "name": "Blow a Kiss",
-  "ai_description": "Use for an affectionate goodbye or thank-you. Kisses the right fingertips and sends the kiss forward with a wink and a smile.",
+  "ai_description": "Use for an affectionate goodbye or thank-you. Blows a kiss from the right fingertips with a wink.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

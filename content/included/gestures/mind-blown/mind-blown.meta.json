@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "mind_blown",
   "name": "Mind Blown",
-  "ai_description": "Use when something is astonishing, mind-boggling or too amazing to process, like a huge reveal or a brilliant idea from the user. Touches the fingertips of both flat hands to the temples, then bursts the hands outward with spread fingers and leans back, wide-eyed and open-mouthed.",
+  "ai_description": "Use when something is astonishing, like a huge reveal or the user's brilliant idea. Bursts both hands out from the temples.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

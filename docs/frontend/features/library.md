@@ -91,8 +91,28 @@ diagnostics** for that item. Materials needs to know whether the file has
 lilToon materials or only materials that ignore light; the backend keeps no
 file facts, so the dialog reads the
 file once per session when no surface has loaded it. The hosted app keeps no
-Avatar settings, so there the dialog offers Diagnostics only. Entries without model files are omitted; reference-safe seed reconciliation
+Avatar settings, so there the dialog offers only Diagnostics and, for a Local
+Avatar, Replace VRM. Entries without model files are omitted; reference-safe seed reconciliation
 preserves records needed by Animas.
+
+For a Local Avatar the dialog also has **Replace VRM** (`LibraryAvatarModelRow`),
+which swaps in an updated file while keeping the same Avatar item. The chosen
+file passes Create Anima's browser checks first. The owner then confirms after
+reading which Animas use the Avatar and, when a face part correction is saved,
+that the correction stops applying because it names the old file's digest. The
+save is `PUT /v1/avatar-content/{entry_name}` with the item id as the entry
+name (an existing item keeps its own file), `catalog_item_id` and the reviewed
+revision, without `creation_context`, so an Avatar in use can be replaced. A
+retry after an uncertain failure resends the same operation and revision, so
+the server replays a write it already made. A newer revision refuses the write
+and the dialog reads the details again. The sidecar is left as it is, so the name,
+description and identity stay. Avatar settings are keyed by item and stay too.
+Each Anima's Loadout points at the item, so Anima pages pick up the new model
+at once and a mounted chat at its next runtime mount. Afterwards the Library
+previews the new model. The Dock retakes a captured portrait, as described
+under [Avatar portraits](avatar-releases-and-appearance.md). An imported
+portrait records no capture revision and the server keeps one portrait per
+Avatar, so it still shows the old model. Included Avatars cannot be replaced.
 
 Some Included content is **non-portable**: it plays, previews and can be
 equipped, but never leaves the app as files. Its Gesture and Reaction rows show

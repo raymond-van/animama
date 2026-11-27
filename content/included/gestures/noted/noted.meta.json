@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "noted",
   "name": "Noted",
-  "ai_description": "Mimes writing a short note on the open palm, looks up and nods. Use for acknowledging and remembering a request or detail.",
+  "ai_description": "Use when acknowledging and remembering a request or detail. Mimes writing a note on the palm, then nods.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

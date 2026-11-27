@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "flustered_fan",
   "name": "Flustered Fan",
-  "ai_description": "Use when flustered, embarrassed or overheated by a compliment, a teasing remark or something too cute. Turns the face away and fans one cheek with a hand, eyes darting, with a bashful smile.",
+  "ai_description": "Use when flustered or overheated by a compliment, teasing or something too cute. Looks away, fanning one cheek.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

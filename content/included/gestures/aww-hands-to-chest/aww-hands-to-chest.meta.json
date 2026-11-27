@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "aww_hands_to_chest",
   "name": "Aww Hands to Chest",
-  "description": "Clasps hands to the chest and melts at something cute. Use for adorable things, sweet messages or heartwarming news.",
-  "ai_description": "Clasps hands to the chest and melts at something cute. Use for adorable things, sweet messages or heartwarming news.",
+  "description": "Use for adorable things, sweet messages or heartwarming news. Clasps the hands to the chest and melts.",
+  "ai_description": "Use for adorable things, sweet messages or heartwarming news. Clasps the hands to the chest and melts.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

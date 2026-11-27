@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "thinking-hand-on-chin-hold",
   "name": "Thinking Hand on Chin",
-  "ai_description": "Use while openly pausing to think before answering (\"hmm, let me think…\"); not for ordinary answers or explanations, and lighter than a deep ponder. Thumb under the jaw and index along the cheek, glancing up as the finger taps.",
+  "ai_description": "Use while openly pausing to think (\"hmm, let me think…\"); lighter than a deep ponder, not for ordinary answers or explanations. Hand on chin.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

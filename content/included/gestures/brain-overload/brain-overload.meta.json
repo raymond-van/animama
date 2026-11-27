@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "brain_overload",
   "name": "Brain Overload",
-  "description": "Grips the head, wobbles and goes limp as the brain fries. Use for too much information, an overwhelming question, or confusion past its limit.",
-  "ai_description": "Grips the head, wobbles and goes limp as the brain fries. Use for too much information, an overwhelming question, or confusion past its limit.",
+  "description": "Use for too much information, an overwhelming question or confusion past its limit. Grips the head and goes limp.",
+  "ai_description": "Use for too much information, an overwhelming question or confusion past its limit. Grips the head and goes limp.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

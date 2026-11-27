@@ -255,6 +255,32 @@ export async function resolveCreationEvidence(
   return { ...draft, evidence };
 }
 
+/**
+ * Every Avatar item the owner can use, with each portrait's capture revision.
+ * Create Anima, the Anima settings Avatar picker and the Anima page stage
+ * share this one query, so a save or portrait refresh updates all of them.
+ */
+export function useAvatarContents(enabled = true) {
+  const apiClient = useProductApiClient();
+  const userId = useRuntimeCacheKey();
+  return useQuery({
+    enabled: Boolean(userId && enabled),
+    retry: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    queryKey: queryKeys.animaCreation.list(userId ?? "__anon__", "avatar"),
+    queryFn: async ({ signal }) =>
+      (
+        await listAvatarContents({
+          client: apiClient,
+          signal: creationReadSignal(signal),
+          throwOnError: true,
+          responseValidator: undefined,
+        })
+      ).data.items,
+  });
+}
+
 /** Options and each family keep independent loading, failure, and retry states. */
 export function useAnimaCreationSources(enabled: boolean) {
   const apiClient = useProductApiClient();
@@ -280,19 +306,7 @@ export function useAnimaCreationSources(enabled: boolean) {
         })
       ).data,
   });
-  const avatars = useQuery({
-    ...common,
-    queryKey: queryKeys.animaCreation.list(owner, "avatar"),
-    queryFn: async ({ signal }) =>
-      (
-        await listAvatarContents({
-          client: apiClient,
-          signal: creationReadSignal(signal),
-          throwOnError: true,
-          responseValidator: undefined,
-        })
-      ).data.items,
-  });
+  const avatars = useAvatarContents(enabled);
   const gestures = useQuery({
     ...common,
     queryKey: queryKeys.animaCreation.list(owner, "gesture"),
