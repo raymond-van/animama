@@ -32,7 +32,7 @@ function LibraryHarness() {
 }
 
 /** The Library and an editor whose page keeps loading until it is released. */
-function createLibraryRouter() {
+function createLibraryRouter(initialEntry = "/library") {
   const rootRoute = createRootRoute({ component: Outlet });
   const libraryRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -51,7 +51,7 @@ function createLibraryRouter() {
   });
   return createRouter({
     routeTree: rootRoute.addChildren([libraryRoute, editorRoute]),
-    history: createMemoryHistory({ initialEntries: ["/library"] }),
+    history: createMemoryHistory({ initialEntries: [initialEntry] }),
   });
 }
 
@@ -80,6 +80,24 @@ describe("Library search navigation", () => {
       await router.latestLoadPromise;
     });
     expect(router.state.location.pathname).toBe("/library");
+    expect(router.state.location.search).toMatchObject({ query: "wave" });
+  });
+
+  it("still updates a Library opened with a differently cased path", async () => {
+    // Routes match case-insensitively, so /Library renders the Library too.
+    act(() => root.unmount());
+    router = createLibraryRouter("/Library/");
+    container = document.createElement("div");
+    root = createRoot(container);
+    await act(async () => {
+      root.render(<RouterProvider router={router} />);
+      await router.load();
+    });
+    expect(container.textContent).toBe("Library");
+    await act(async () => {
+      view.updateSearch({ query: "wave" });
+      await router.latestLoadPromise;
+    });
     expect(router.state.location.search).toMatchObject({ query: "wave" });
   });
 

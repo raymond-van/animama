@@ -58,7 +58,7 @@ Relevant code:
 - [x] Phase 3: Local content delete hardening (backend). Review passed after 1 repair round. The contracts bump is deferred to D6.
 - [x] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend). Review passed after 1 repair round. Focus residuals are recorded for G2.
 - [x] Phase 5: Library Delete action (frontend). Review passed after 1 repair round. Owner question Q2 is open for G2.
-- [ ] Flaky journey fix (owner-added scope).
+- [x] Flaky journey fix (owner-added scope): fixed in the app, cherry-picked, review passed, and FJ-F1 repaired.
 - [ ] Final integration review, full pre-push suite and full browser journeys
   (gate G1).
 - [ ] Owner manual acceptance on a task stack (gate G2).
@@ -852,7 +852,89 @@ Approach:
 4. Verify 0 failures in 20 runs of the pair.
 5. Bring the fix into this branch.
 
-Results, check record and review: _to be filled in._
+#### Results
+
+- **Root cause: an app bug, not test timing.**
+  - The Library search box commits its query to the URL 300 ms after typing,
+    and `routes/_app/library.tsx` sent updates through
+    `useNavigate({ from: "/library" })`.
+  - The Gesture list filters in the browser, so "Have an Idea" is already
+    visible before the commit. When Edit is clicked inside that window while
+    the editor chunk is still loading, the late commit navigates back to
+    `/library`.
+  - The failing trace ends at `/library?query=Have+an+Idea&sort=name` with
+    `section`/`action` lost, which shows the URL was built from the editor's
+    empty search.
+  - A person clicking Edit quickly after typing can hit the same bug.
+- **Fix.**
+  - `ui/library/useLibrarySearchNavigation.ts` ignores updates once
+    `router.latestLocation.pathname` has left `/library`.
+  - A real-router test fails without the guard and passes with it.
+  - `routing.md` gains one sentence on the rule.
+  - Made in a separate worktree at `main` (`dfb4004ec`) and cherry-picked as
+    `3d266640a`. The journey spec is unchanged.
+
+#### Check record
+
+- **Built stack** (`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production
+  ./reset.sh --name gesture-flake --base-port 8640`), each pass
+  `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test -- --project chromium
+  --grep "Local Gesture discard"`:
+  - Before the fix (main `3d1fa5863`), 10 passes: 2 of 20 failed, both with
+    the "element(s) not found" error.
+  - Forced race (temporary edits delaying the editor chunk 800 ms):
+    before 4 of 4 failed, after 0 of 6 failed.
+  - After the fix, two sets of 10 passes: 19 of 20 passed, then 20 of 20
+    passed. The single failure was an unrelated "socket hang up" from the e2e
+    catalog client.
+- `pnpm e2e:check`, `pnpm check`, `pnpm web:lint`, the vitest run over
+  `src/ui/library` and `src/routes` (20 files, 136 tests) and
+  `check_source.py` → pass.
+- **On this branch after the cherry-pick:** `check_source.py` → pass; vitest
+  over `src/ui/library` and `src/routes` → 21 files, 141 tests passed;
+  `tsc -b` → pass; eslint on the three files → pass.
+- **Separate flake, not fixed.** The e2e catalog client
+  (`scripts/e2e/local-catalog-client.mjs`) reuses a keep-alive connection
+  right at the server's 5 s `timeout_keep_alive`, which gives "socket hang
+  up". Candidate follow-up.
+
+#### Code Review #1 Findings
+
+Reviewed `3d266640a` (tree `12adc689e`), standard tier. **Pass, with no
+blocking findings.**
+
+The reviewer reran the new test file (2 passed). With the guard line removed
+in a scratch copy, the race test failed as expected. The reviewer confirmed
+the guard against TanStack Router's `latestLocation` semantics.
+
+- **FJ-F1.** The guard compared the raw path with `/library`. Routes match
+  case-insensitively, so a Library opened as `/Library` ignored every update.
+  Shown by a probe.
+- **FJ-F2.** The guard also drops Library clicks made while a navigation away
+  is pending. This is a deliberate, harmless trade-off that `routing.md`
+  describes.
+- **FJ-F3 (follow-up, out of scope).** The Memory page writes its URL from
+  `navigate({ from: "/memories" })` in promise continuations, after Memory
+  Manager runs, deletes and moves. Someone who leaves `/memories` mid-request
+  could be pulled back. Chat search is unaffected.
+- **FJ-F4.** Record wording: give the trees, and record the e2e catalog
+  client keep-alive flake as its own follow-up.
+
+#### Code Review #1 Revisions
+
+- **FJ-F1: accepted.** `isLibraryPath` compares case-insensitively and ignores
+  a trailing slash. New test "still updates a Library opened with a
+  differently cased path" went red, then green.
+  - `npx vitest run src/ui/library src/routes` (`src/frontend/web`) → 21
+    files, 142 tests passed.
+  - eslint, prettier check and `tsc -b` → pass.
+  - Below the high-risk tier this one-line fix with its own test needs no
+    reviewer recheck.
+- **FJ-F2: recorded** as a trade-off.
+- **FJ-F3: recorded** as a follow-up, offered to the owner.
+- **FJ-F4: accepted.** The record is reworded; the keep-alive flake is listed
+  as a follow-up.
+- Repair rounds used: 1 of 2.
 
 ## Final integration review
 

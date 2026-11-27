@@ -10,6 +10,11 @@ import {
 
 const LIBRARY_PATH = "/library";
 
+/** Routes match case-insensitively, so `/Library/` is the Library too. */
+function isLibraryPath(pathname: string): boolean {
+  return pathname.replace(/\/+$/, "").toLowerCase() === LIBRARY_PATH;
+}
+
 /**
  * Write a Library search update to the URL while the router is still on the
  * Library.
@@ -27,7 +32,7 @@ export function useLibrarySearchNavigation() {
     (update: Partial<ContentLibrarySearch>) => {
       // The router moves `latestLocation` as soon as a navigation starts,
       // before the next page has loaded.
-      if (router.latestLocation.pathname !== LIBRARY_PATH) return;
+      if (!isLibraryPath(router.latestLocation.pathname)) return;
       void navigate({
         replace: shouldReplaceContentLibrarySearch(update),
         search: (current) =>
