@@ -9,15 +9,30 @@ remain.
 
 ## Workspace
 
-- Checkout: the task worktree for branch `feat/delete-and-pin`, based on
-  `origin/main` `0703ca137`.
-- Commits so far: `92c4fa75e` (spec snapshot) and `2d0339df8` (this plan,
-  reviewed revision). The branch is pushed; there is no PR yet.
+- Checkout: the task worktree for branch `feat/delete-and-pin`. It started at
+  `origin/main` `0703ca137`; main was merged in at `8836fe83c` (#936) and
+  `a8126cd60` (#949, #951), so the integration baseline is `origin/main`
+  `3d1fa5863`.
+- Commits:
+  - `92c4fa75e`: spec snapshot;
+  - `2d0339df8`: this plan;
+  - `7241a0310`: Phase 1;
+  - `77536ca99`: Phase 3;
+  - `e78a14f6b`: Phase 2;
+  - `fd36050d7`: the D6 contracts bump;
+  - `14160d34d`: Phase 4;
+  - `b471c3c9b`: Phase 5;
+  - `0e64395b5`: the post-merge Avatar hint;
+  - `3d266640a` and `7076d938f`: the flaky-journey fix;
+  - then the records commit.
+
+  The branch is pushed up to the plan commit; there is no PR yet.
 - Parent issue: #950. No phase issues: one session and one repository.
 - Environment: Python 3.12 venv with the documented extras and `pnpm install`
-  are done; packages are built for web tests. The task stack (`./reset.sh
-  --name delflows --base-port 8300 --host localhost`, http://localhost:8300) is
-  down with its data kept. Start it only for browser checks.
+  are done.
+- Task stack: `./reset.sh --name delflows --base-port 8300 --host localhost`,
+  serving http://localhost:8300 in development mode. It was started for the
+  Phase 4–5 browser checks and is torn down after the last use.
 
 ## Purpose and context
 
@@ -59,8 +74,8 @@ Relevant code:
 - [x] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend). Review passed after 1 repair round. Focus residuals are recorded for G2.
 - [x] Phase 5: Library Delete action (frontend). Review passed after 1 repair round. Owner question Q2 is open for G2.
 - [x] Flaky journey fix (owner-added scope): fixed in the app, cherry-picked, review passed, and FJ-F1 repaired.
-- [ ] Final integration review, full pre-push suite and full browser journeys
-  (gate G1).
+- [x] Final integration review: passed after recording FI-F1 and the trivial repairs.
+- [ ] Full pre-push suite and full browser journeys (gate G1): waiting for the owner's go.
 - [ ] Owner manual acceptance on a task stack (gate G2).
 
 ## Surprises & Discoveries
@@ -152,11 +167,15 @@ Relevant code:
   episode lines from a log, should the log's earlier versions that still
   contain them be purged too? Today they are kept (Phase 1, P1-F3).
 
-- Open question Q2 (owner, before G2): R13 lists Appearance and Anima
-  content items, but the Library shows no rows for either kind. So Phase 5
-  gives them no Delete; the shared dialog supports them, but nothing opens it.
-  Adding Library rows for them would be a redesign. Accept this exception,
-  or add those rows in a follow-up? (Phase 5, P5-F3.)
+- Open question Q2 (owner, before G2): R13 lists Appearance items, Anima
+  items and voice clones, but the Library has no rows for these kinds.
+  - Appearance and Anima items get no Delete. The shared dialog supports
+    them, but nothing opens it.
+  - Voice clones are deleted from the Pocket voice picker (Behavior → Voices,
+    and Anima creation), which opens the same shared dialog.
+
+  Adding Library rows would be a redesign. Accept these exceptions, or add
+  rows in a follow-up? (P5-F3, FI-F1.)
 
 ## Phased implementation
 
@@ -831,8 +850,8 @@ suite (`test:source`: 694 files and 6646 tests passed) and
   - The reviewer reran 15 files / 85 tests and the two browser tests (30/30).
   - Repair rounds used: 1 of 2.
 - **Follow-up after merging main.** PR #949 added changing an Anima's Avatar
-  from its settings, so the Avatar hint ("can't be changed") is updated in
-  the integration commit.
+  from its settings, so commit `0e64395b5` points the Avatar hint at Change
+  Avatar in the Settings tab.
 
 ### Flaky journey fix (owner-added scope)
 
@@ -948,6 +967,85 @@ evidence. After its repairs:
 
 Gate G1: the full suite and the e2e run start only after the owner says go
 (owner preference: no full suite without asking). Results go in the PR.
+
+### Final integration Code Review #1 Findings
+
+Reviewed `7076d938f` against `origin/main` `3d1fa5863`, final integration
+mode, with no checks run (per SDLC). Every phase's evidence was reused.
+
+- **Integration areas found correct:**
+  - chat and Anima delete contract use (409 `chat_turn_stopping`, 404 counted
+    as gone, then stop, hold, delete, replace-navigate, settle);
+  - pins with naive timestamps (every reader passes
+    `responseValidator: undefined`);
+  - the content usage, 409 and `current_revision` retry;
+  - D6: `local-http` 26.0.0 and `runtime-contracts` 0.26.0 against main's
+    25.0.0 and 0.25.0. #949 and #951 changed no contracts or packages, and
+    product-ui's declarations are unchanged;
+  - #949 interactions (Avatar rows, portrait matching after a VRM replace,
+    the Change Avatar hint labels);
+  - docs and the ADR 0038 amendment;
+  - licence entries for all 43 added files;
+  - the linear Alembic chain, import boundaries, and locale key sets.
+- **FI-F1 (blocking until recorded).** Voice clones (R13) also have no
+  Library row; their Delete lives in the voice picker. They were not part of
+  Q2.
+- **FI-F2.** Several acceptance items lack browser or database evidence; see
+  the G2 checklist below.
+- **FI-F3.** A stale comment in `ContentDeleteDialog.tsx` says no screen
+  changes an Anima's Avatar.
+- **FI-F4.** Records were stale: the Workspace section, the commit named for
+  the Avatar hint, and missing check records for the merge `a8126cd60` and
+  for `0e64395b5`.
+- **FI-F5 (optional).** ADR 0038's Cloud consequence understates the
+  repository methods the shared routes now call.
+
+### Final integration Code Review #1 Revisions
+
+- **FI-F1: accepted.** Q2 now covers Appearance items, Anima items and voice
+  clones.
+- **FI-F3: accepted.** The comment now says Change Avatar in Settings frees
+  it.
+- **FI-F4: accepted.** The Workspace section and commit references are
+  updated. Check record on tree `7b079f456` (covers `a8126cd60`,
+  `0e64395b5`, the flake fix and these repairs):
+  - `npx vitest run src/ui/content-delete src/ui/library src/routes src/query/hooks/useContentDeletePreflight.test.tsx`
+    (`src/frontend/web`) → 23 files, 157 tests passed;
+  - `pnpm i18n:check` (`src/frontend`) → "Every translated catalog is
+    complete";
+  - prettier check on the edited file → clean.
+
+  The merge `a8126cd60` itself, before the hint commit, had passed:
+  `pnpm openapi-ts:check` ("current"); `pnpm check` under heavy-slot
+  (exit 0); vitest over library, animas, content-delete, sidebar and routes
+  (50 files, 320 tests); and `check_source.py`.
+- **FI-F5: accepted.** One sentence in ADR 0038's consequence.
+- **FI-F2: accepted** into the G2 checklist below and the PR's
+  unperformed-checks list.
+- These are record-only and trivial edits, so no reviewer recheck is needed.
+  The integration review passes. Repair rounds used: 1 of 2.
+
+### G2 checklist (owner manual acceptance)
+
+- **Library Delete walk-through** for each Local kind not yet walked:
+  - Gesture, Reaction, Particle/Avatar/Scene Effect and Sound;
+  - a Local Avatar with its portrait;
+  - an in-use item (Delete disabled with the use named);
+  - a voice clone from the voice picker.
+- **Pins:** persist across a stack restart.
+- **Anima delete:**
+  - from the sidebar row menu;
+  - during a streaming reply;
+  - deleting the last Anima lands on Anima creation (P4-F2).
+- **Chat delete:** chat-only images and the episode-log line are gone, and
+  processed memories stay (backend tests cover this).
+- **Owner questions:** Q1 (episode-log version history), Q2 (Library rows for
+  Appearance, Anima items and voice clones).
+- **Scope:** P4-F6 (Pin/Unpin on the Anima page goes beyond the spec).
+- **Residuals to accept:**
+  - Phase 4 focus: the Anima-page delete, phone widths, the last Anima;
+  - P5-F11: a stale Save from another tab's editor is refused; a null-revision
+    `catalog_item_changed` retry.
 
 ## Validation and acceptance
 

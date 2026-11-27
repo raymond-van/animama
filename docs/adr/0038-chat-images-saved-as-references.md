@@ -80,7 +80,10 @@ that deleting an image remove its bytes (R3.3).
 - Animama Cloud must add the two repository methods chat deletion uses
   (`image_file_ids_only_in_chat`, `record_file_deleted`) to its user-file port
   when it adopts this release: the shared chat delete route calls them, so
-  without them every hosted chat delete fails.
+  without them every hosted chat delete fails. Since issue #950 the shared
+  chat and Anima delete routes also call `image_file_ids_only_in_anima_chats`,
+  the Memory Manager repository and the episode repository's pending-item
+  methods; Cloud is not adopting that work.
 
 ## Evidence
 

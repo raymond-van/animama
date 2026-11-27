@@ -64,7 +64,7 @@ const USE_HINTS: Partial<Record<PyContentUsage["kind"], FreeHint>> = {
 function freeHint(t: TFunction<"library">, hint: FreeHint): string {
   switch (hint) {
     case "avatar":
-      // No screen changes an Anima's Avatar.
+      // Change Avatar in the Anima's Settings tab frees it.
       return t("delete.inUse.freeAvatar");
     case "appearance":
       return t("delete.inUse.freeAppearance");
