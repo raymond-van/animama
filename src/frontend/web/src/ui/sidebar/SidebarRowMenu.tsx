@@ -69,10 +69,12 @@ export function SidebarRowActionItems({
 
 /** Marks a pinned row; place it last inside the row's link. */
 export function SidebarPinIndicator() {
+  // Sits in the row's top-left corner: the row wrapper is the positioned
+  // ancestor, so the link's overflow clipping and layout are unaffected.
   return (
     <Pin
       aria-hidden="true"
-      className="text-muted-foreground ml-auto size-3.5 shrink-0"
+      className="text-muted-foreground pointer-events-none absolute top-0.5 left-0.5 size-[7px]"
     />
   );
 }
