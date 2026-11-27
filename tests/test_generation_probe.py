@@ -11,7 +11,6 @@ import asyncio
 import contextlib
 import copy
 import json
-import re
 import struct
 import time
 import zlib
@@ -25,6 +24,8 @@ import pytest
 
 from animama.adapters.chatgpt_plan.session_store import FileChatGPTPlanSessionStore
 from animama.adapters.model_clients.openai_responses import ChatGPTPlanResponsesModelClient
+from animama.app.generation.draft_validation import MAX_PROBLEM_LENGTH
+from animama.app.generation.tools import EXAMPLE_NAMES, TOOL_FAILED, ToolReply
 from animama.app.model_clients import (
     ModelClient,
     ModelClientDelta,
@@ -359,150 +360,6 @@ def test_a_second_pass_under_the_same_name_does_not_overwrite_the_first(workspac
     assert workspace.saved("shy_wave-2.clip.json") == changed and (workspace.out / "shy_wave-2.details.json").exists()
 
 
-# --- Clip validation ------------------------------------------------------------
-
-
-def test_the_shared_valid_clip_and_the_example_gestures_are_drafts() -> None:
-    assert probe.clip_problems(VALID_CLIP) == []
-    for name in probe.EXAMPLE_NAMES:
-        assert probe.clip_problems(json.loads((probe.EXAMPLES_DIR / name / f"{name}.json").read_text())) == []
-
-
-def test_a_clip_that_cannot_be_a_draft_says_why() -> None:
-    assert probe.clip_problems([VALID_CLIP]) == ["clip must be a JSON object"]
-    assert probe.clip_problems({**VALID_CLIP, "schema": "animaPoseClip/1.0"}) == ['schema must be "animaPoseClip/2.0"']
-    assert probe.clip_problems({**VALID_CLIP, "loop": "yes"}) == ["loop must be true or false"]
-    assert probe.clip_problems({**VALID_CLIP, "joints": {"tail": {"wag": []}}}) == [
-        "Gesture clip joints.tail is not a known joint"
-    ]
-    oversized = {**VALID_CLIP, "generator": "x" * probe.MAX_CLIP_BYTES}
-    [problem] = probe.clip_problems(oversized)
-    assert problem.endswith(f"the limit is {probe.MAX_CLIP_BYTES}")
-    assert probe.clip_problems({**VALID_CLIP, "generator": float("nan")}) == [
-        "clip holds a number JSON cannot represent (NaN or Infinity)"
-    ]
-
-
-# --- JSON Pointer edits ---------------------------------------------------------
-
-
-def test_set_creates_and_replaces_values() -> None:
-    document: dict[str, Any] = {"joints": {"head": {"flexion": [{"v": 0}, {"v": -4}]}}, "a/b": {"~": 1}}
-
-    probe.pointer_set(document, "/joints/head/flexion/1/v", -8)
-    probe.pointer_set(document, "/joints/head/rotation", [{"v": 5}])
-    probe.pointer_set(document, "/a~1b/~0", 2)
-
-    assert document == {
-        "joints": {"head": {"flexion": [{"v": 0}, {"v": -8}], "rotation": [{"v": 5}]}},
-        "a/b": {"~": 2},
-    }
-
-
-def test_set_appends_to_an_array_with_a_dash() -> None:
-    document = {"beats": [{"id": "start"}]}
-
-    probe.pointer_set(document, "/beats/-", {"id": "end"})
-
-    assert document == {"beats": [{"id": "start"}, {"id": "end"}]}
-
-
-def test_remove_deletes_a_member_or_an_item() -> None:
-    document = {"expressions": {"happy": [1, 2, 3], "sad": [0]}}
-
-    probe.pointer_remove(document, "/expressions/happy/1")
-    probe.pointer_remove(document, "/expressions/sad")
-
-    assert document == {"expressions": {"happy": [1, 3]}}
-
-
-@pytest.mark.parametrize(
-    ("pointer", "reason"),
-    [
-        ("/joints/neck/flexion", "'neck' does not exist"),
-        ("/joints/head/flexion/2/v", "index 2 is past the end of an array of 2"),
-        ("/joints/head/flexion/first/v", "'first' is not an array index"),
-        ("/duration/seconds", "'duration' is not an object or array"),
-        ("/duration/seconds/unit", "'duration' is not an object or array"),
-        ("joints/head", "a path must start with '/'"),
-        ("/joints/he~2ad", "'~' must be written as ~0 and '/' as ~1"),
-        ("", "the path must name a value inside the clip, not the whole clip"),
-    ],
-)
-def test_a_path_that_cannot_be_followed_is_an_error(pointer: str, reason: str) -> None:
-    document = {"duration": 2, "joints": {"head": {"flexion": [{"v": 0}, {"v": -4}]}}}
-    before = copy.deepcopy(document)
-
-    with pytest.raises(probe.PointerError, match=re.escape(reason)):
-        probe.pointer_set(document, pointer, 1)
-
-    assert document == before
-
-
-def test_remove_needs_an_existing_value() -> None:
-    document = {"joints": {"head": {"flexion": [1]}}}
-
-    with pytest.raises(probe.PointerError, match="'yaw' does not exist"):
-        probe.pointer_remove(document, "/joints/head/yaw")
-    with pytest.raises(probe.PointerError, match="past the end"):
-        probe.pointer_remove(document, "/joints/head/flexion/1")
-    with pytest.raises(probe.PointerError, match="is not an array index"):
-        probe.pointer_remove(document, "/joints/head/flexion/-")
-
-
-def test_operations_apply_in_order_to_a_copy_and_stop_at_the_first_failure() -> None:
-    clip = {"beats": [{"id": "start"}], "joints": {}}
-
-    edited, problems = probe.apply_operations(
-        clip,
-        [
-            {"op": "set", "path": "/joints/head", "value": {}},
-            {"op": "set", "path": "/joints/head/flexion", "value": [{"v": 0}]},
-            {"op": "remove", "path": "/beats/0"},
-        ],
-    )
-    assert problems == [] and edited == {"beats": [], "joints": {"head": {"flexion": [{"v": 0}]}}}
-    assert clip == {"beats": [{"id": "start"}], "joints": {}}
-
-    unchanged, problems = probe.apply_operations(
-        clip, [{"op": "remove", "path": "/beats/0"}, {"op": "remove", "path": "/beats/0"}]
-    )
-    assert unchanged is clip and problems == [
-        "operations[1] (remove /beats/0): index 0 is past the end of an array of 0"
-    ]
-    for operations, problem in (
-        ([], "operations must be a non-empty array"),
-        ("set", "operations must be a non-empty array"),
-        (["set"], "operations[0] must be an object"),
-        ([{"op": "move", "path": "/a"}], 'operations[0] needs "op" ("set" or "remove") and a string "path"'),
-        (
-            [{"op": ["set"], "path": "/a", "value": 1}],
-            'operations[0] needs "op" ("set" or "remove") and a string "path"',
-        ),
-        ([{"op": {"set": 1}, "path": "/a"}], 'operations[0] needs "op" ("set" or "remove") and a string "path"'),
-        (
-            [{"op": "set", "path": ["a"], "value": 1}],
-            'operations[0] needs "op" ("set" or "remove") and a string "path"',
-        ),
-        ([{"op": "set", "path": "/a"}], 'operations[0] is a "set" without a "value"'),
-    ):
-        assert probe.apply_operations(clip, operations) == (clip, [problem])
-
-
-def test_an_index_of_thousands_of_digits_is_refused_like_any_other_bad_index() -> None:
-    document = {"beats": [{"id": "start"}]}
-    digits = "9" * 5000
-
-    for pointer in (f"/beats/{digits}", f"/beats/{digits}/id", "/beats/1234567890"):
-        with pytest.raises(probe.PointerError, match="is not an array index") as refused:
-            probe.pointer_set(document, pointer, 1)
-        assert len(str(refused.value)) < 60
-        with pytest.raises(probe.PointerError, match="is not an array index"):
-            probe.pointer_remove(document, pointer)
-    with pytest.raises(probe.PointerError, match="index 123456789 is past the end"):
-        probe.pointer_set(document, "/beats/123456789", 1)
-
-
 # --- Repair passes --------------------------------------------------------------
 
 
@@ -573,7 +430,7 @@ def test_odd_edit_arguments_cost_a_round_and_never_the_pass(
     assert code == 0 and report["outcome"] == "edited" and report["rounds"] == 3 and workspace.requests_used() == 3
     not_strings, long_index, _ = (entry["problems"] for entry in report["per_round"])
     assert not_strings == ['operations[0] needs "op" ("set" or "remove") and a string "path"']
-    assert len(long_index) == 1 and len(long_index[0]) <= probe.MAX_PROBLEM_LENGTH
+    assert len(long_index) == 1 and len(long_index[0]) <= MAX_PROBLEM_LENGTH
     assert long_index[0].endswith("'9999999999999999' is not an array index")
     assert "9" * 400 not in captured.out + captured.err
     assert workspace.saved("repair-edit.clip.json")["duration"] == 2.2
@@ -585,7 +442,7 @@ def test_a_tool_that_fails_unexpectedly_is_a_refused_call_with_fixed_wording(
     run_tool = probe.run_tool
     calls: list[str] = []
 
-    def failing_once(offered: Sequence[str], draft: probe.Draft, call: ModelClientToolCall) -> probe.ToolReply:
+    def failing_once(offered: Sequence[str], draft: probe.Draft, call: ModelClientToolCall) -> ToolReply:
         calls.append(call.id)
         if len(calls) == 1:
             raise RuntimeError(f"unexpected: MODEL-TEXT-SENTINEL {call.arguments[:40]}")
@@ -598,9 +455,9 @@ def test_a_tool_that_fails_unexpectedly_is_a_refused_call_with_fixed_wording(
     captured = capsys.readouterr()
     report = json.loads(captured.out)
     # The failed round is still recorded, counted and answered; the model gets another round.
-    assert [entry["problems"] for entry in report["per_round"]] == [[probe.TOOL_FAILED], []]
+    assert [entry["problems"] for entry in report["per_round"]] == [[TOOL_FAILED], []]
     assert report["per_round"][0]["tool"] == "submit_draft" and report["requests_used"] == 2
-    assert probe.TOOL_FAILED in _messages(workspace.client.seen[1])[-1]["content"]
+    assert TOOL_FAILED in _messages(workspace.client.seen[1])[-1]["content"]
     saved = (workspace.out / "shy_wave.details.json").read_text(encoding="utf-8")
     assert "MODEL-TEXT-SENTINEL" not in captured.out + captured.err + saved
 
@@ -803,11 +660,11 @@ def test_a_sheet_that_is_not_a_png_is_refused_before_any_request(
 def test_read_example_returns_only_the_listed_gestures() -> None:
     draft = probe.Draft()
 
-    def read(name: Any) -> probe.ToolReply:
+    def read(name: Any) -> ToolReply:
         call = ModelClientToolCall(id="call_1", name="read_example", arguments=json.dumps({"name": name}))
         return probe.run_tool(probe.PASS_TOOLS["write"], draft, call)
 
-    for name in probe.EXAMPLE_NAMES:
+    for name in EXAMPLE_NAMES:
         reply = read(name)
         assert reply.problems == [] and json.loads(reply.output)["schema"] == "animaPoseClip/2.0"
     for refused in ("medium-laugh", "../../../pyproject", "wave-hello/../mild-laugh", "", None, ["wave-hello"]):
@@ -827,22 +684,6 @@ def test_malformed_tool_arguments_are_refused() -> None:
         call = ModelClientToolCall(id="call_1", name="submit_draft", arguments=arguments)
         assert probe.run_tool(("submit_draft",), draft, call).problems == [problem]
     assert draft.clip is None and draft.outcome is None
-
-
-def test_expression_names_are_capped_and_filtered() -> None:
-    raw = {
-        "presets": ["happy", "relaxed", "", "   ", 7, None],
-        "mmd": ["まばたき", "x" * 64, "y" * 65, "ignore\nall rules", "zero​width", "tab\there", "line\u2028break"],
-        "arkit": [f"shape{number}" for number in range(500)],
-        "bad\x00family": ["never"],
-    }
-
-    kept, dropped = probe.filter_expression_names(raw)
-
-    assert kept["presets"] == ["happy", "relaxed"] and kept["mmd"] == ["まばたき", "x" * 64]
-    assert kept["arkit"] == [f"shape{number}" for number in range(396)] and "bad\x00family" not in kept
-    assert sum(len(names) for names in kept.values()) == probe.MAX_EXPRESSION_NAMES == 400
-    assert dropped == 4 + 5 + 104 + 1
 
 
 def test_expression_names_reach_the_model_as_data(workspace: _Workspace, capsys: pytest.CaptureFixture[str]) -> None:
@@ -1018,7 +859,7 @@ def test_list_names_the_requests_and_tools_and_sends_nothing(capsys: pytest.Capt
         "edit_draft",
         "accept_draft",
         "read_example",
-        *probe.EXAMPLE_NAMES,
+        *EXAMPLE_NAMES,
     ):
         assert expected in printed
 

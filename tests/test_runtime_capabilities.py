@@ -281,6 +281,7 @@ async def test_local_composition_reports_uploads_and_anima_creation(async_sessio
     assert body["library_previews"] is True
     assert body["automatic_episode_processing"] is True
     assert body["chatgpt_plan"] is True
+    assert body["content_generation"] is True
 
 
 def test_library_previews_are_on_unless_a_runtime_turns_them_off():
@@ -386,6 +387,8 @@ def test_hosted_parity_contract_keeps_choices_independent_of_administration():
     assert capabilities.automatic_episode_processing is False
     # Hosted has no ChatGPT plan sign-in (spec #919).
     assert capabilities.chatgpt_plan is False
+    # Hosted has no content assistant (spec #942).
+    assert capabilities.content_generation is False
 
 
 @pytest.mark.parametrize(

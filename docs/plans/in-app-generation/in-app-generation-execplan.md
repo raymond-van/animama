@@ -277,7 +277,9 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] Phase 1: checks, validation, frames and guidance in app source
   (2026-11-26). Code Review #2 passed. The faces guidance waits for the
   owner (G7).
-- [ ] Phase 2: the assistant's backend.
+- [x] Phase 2: the assistant's backend (2026-11-26). Code Review #3 passed
+  after two repair rounds. The package-set comparison runs on the pull
+  request's candidate.
 - [ ] Phase 3: the Generate page. Ends the spec's first usable phase.
 - [ ] Phase 4: other Model connections, usage and cost.
 - [ ] Phase 5: the creator control, revising and Reactions.
@@ -603,6 +605,27 @@ What it shows:
     as warnings, which the repair pass also receives. A name the Avatar has
     but most Avatars lack is noted as playing on such Avatars only. The frame
     review is told which keyed names the Included Avatars cannot show.
+
+- 2026-11-26, agent, while building Phase 2. Each is within the approved
+  outcome, and the owner may reverse any of them:
+  - **Any eligible model may run.** The backend accepts an active chat
+    model with tool support on any connection, and Phase 3's model control
+    lists them with plan models first. A journey's stack has no plan
+    session, so a plan-only list could not be exercised there. Phase 4 keeps
+    usage, cost and the image-capability note.
+  - **A draft changes only when a pass leaves a valid project.** A new
+    draft's row is created then, and a revision keeps its restore point and
+    stores the new project in one step.
+  - **Nothing stays in a run's step.** A run settles its draft however it
+    ends; a report sent with no run in flight settles its draft; reading a
+    conversation settles what a killed run left.
+  - **Avatar-only expression names are a note** (D20's wording): a draft
+    whose only remark is such names ends `ready`.
+  - **Questions stay outstanding** across a run that failed or was stopped
+    before it stored a draft, so a retry sends the same answers.
+  - **The package-set `compare` runs once on each pull request's
+    candidate**, through a heavy slot, not per phase: it builds both package
+    sets from commits, and the pre-push suite does not include it.
 
 ## Phased implementation
 
@@ -1095,8 +1118,222 @@ passes.
 Recovery: the revision only adds tables. Reverting the phase leaves them
 unused; a later revision may drop them. No existing row changes.
 
-Records: no checks run, commits or reviews yet. Code Review #1 Findings and
-Revisions go here.
+Records. As built:
+
+- **Storage.** Revision `0003_content_generation.py` (down revision
+  `reasoning_effort_20261112`) adds `generation_conversations`,
+  `generation_messages` and `generation_drafts`, with the domain types, port,
+  mapper, repository and `GenerationService`. A draft starts at version 1
+  with no project; storing a project adds one to the version. A revision
+  keeps the project from before it for one restore. A conversation takes its
+  title from the person's first message.
+- **Tools.** `submit_draft`, `edit_draft` (JSON Pointer `set` and `remove`,
+  with optional detail fields), `accept_draft`, `read_example` and
+  `ask_questions`, as the authoring trial settled, in place of the
+  `write_clip`, `edit_clip` and `set_details` this section first named. One
+  call that validates ends a pass. A draft's clip is at most 2 MiB and 60
+  seconds, and may not carry timeline events until Phase 6; examples are
+  returned without theirs.
+- **Passes.** Each pass is a fresh request: the fixed instructions, one user
+  message and the pass's tools, with at most eight responses. The
+  instructions are byte-identical across a run's passes. Requests use chat's
+  default provider options and name no reasoning effort.
+- **The run.** A write or revise pass, then the page's check report (120 s),
+  repair passes while it holds a FAIL finding (three at most), one frame
+  review when the model accepts images and the page uploads sheets (60 s),
+  and one more check after a review's edit. The run holds no database
+  session while it waits on the model or the page. A new draft's row is
+  created when its write pass ends with a valid project, and a revision
+  touches its draft only then, so a failed or stopped pass changes nothing.
+  `run.completed` is always the last event, after `run.failed`.
+- **Settling.** A run that ends, fails or is stopped leaves its draft
+  described by its current version's report, or `checking` for the page to
+  check. With no run in flight, a report the page sends settles the draft,
+  and reading a conversation settles a draft that a killed run left in one
+  of its steps.
+- **Routes.** The ten routes of step 7, all `_excluded("content_generation", …)`.
+  Review frames take the draft's `version` as a query parameter, so a stale
+  or unrequested upload is refused before its body is read, and are parsed
+  and held in memory only. Refusal codes are listed in
+  `docs/backend/architecture/http-api.md`.
+- **The check report** the page sends:
+  `{version, loadable, issues: [{path, message}], findings: [{category,
+  severity, avatar, subject, from, to, value, limit, unit, detail}],
+  expression_names: {missing, avatar_only}}`, bounded in size and count. The
+  stored report leaves `version` out; the draft's `checked_version` holds it.
+- **Model choice.** Any active chat model with tool support on an active
+  connection may run a pass; chat's own validator decides what its
+  connection supports. A refused model gets `422 generation_model_unusable`
+  with a reason. Reactions are refused with
+  `generation_intent_unavailable` until Phase 5, although the prompt builder
+  already serves both intents with the same faces guidance.
+- **Without models.** Under `ANIMAMA_LLM_SKIP` the deterministic author
+  stands in for every pass, from a packaged example Gesture
+  (`resources/generation-example-gesture.json`).
+- **Shared tool rounds.** `tool_exchange_prompt_items` and
+  `model_request_with_appended_messages` moved to
+  `app/model_clients/tool_rounds.py`; chat imports them from there.
+- **Contract.** `local-http` 26.0.0 and `runtime-contracts` 0.26.0, with the
+  regenerated client. `product-ui` is unchanged.
+- **The probe** imports clip validation, pointer edits and the tool
+  definitions from `app/generation/`.
+
+Left as is, by the coordinator:
+
+- A report that reaches the server between a run's last read and its
+  unchecked marker at the 120 s limit loses to the marker. The window is
+  within one database session.
+- SSE event payloads are documented in `http-api.md` and are not in OpenAPI,
+  as with chat's stream.
+- A stored project reaches a model with its keys in JSONB order, not the
+  order written. Edits by JSON Pointer are unaffected.
+- On an OpenAI API key row a request is stored by the provider (`store`
+  default), as chat's requests are; the tool round's continuation needs it.
+
+For later phases:
+
+- Phase 3's model control lists every eligible model, plan models first. A
+  journey's stack has no plan session, so a plan-only list could not be
+  exercised there. Phase 4 keeps the usage, cost and image-capability work.
+- The plan's open question on cached input stays open: tool sets differ by
+  pass kind, which may limit cache hits across kinds. The manual check on a
+  plan model (G1) reads the reported cached tokens.
+
+Not verified: a live provider request through the product pipeline (Phase
+3's manual check), a real page against the routes (Phase 3), a process kill
+during a run (simulated by storing the statuses it would leave), a Docker
+image build and a frozen desktop build (G8).
+
+Check record, on working tree `bde2b654c896378085cfd9478885444e8f78cf12`:
+
+| Check | Result |
+| --- | --- |
+| `uv run --no-sync pytest -q -p no:cacheprovider` on the six `tests/test_generation_*.py` files and `test_model_client_tool_rounds.py`, `test_product_http_inventory.py`, `test_runtime_capabilities.py`, `test_alembic_fresh_install.py`, `test_accountless_repository_boundaries.py`, `test_desktop_runtime_packaging.py`, `test_shared_backend_boundary.py`, `test_authoring_guidance.py` | 619 passed |
+| `tests/test_direct_chat_turn_executor.py tests/test_anima_chat_sse.py` | 257 passed |
+| `tests/test_anthropic_direct_chat.py`, `test_anthropic_search_and_compaction.py`, `test_direct_chat_model_clients.py`, `test_product_http_chat_turns.py`, `test_episodic_memory_arm.py` (the other chat tool loops) | 96 passed |
+| `uv run --no-sync ruff check`; `ruff format --check src/backend/animama tests scripts` | Clean |
+| `uv run --no-sync mypy src/backend/animama tests` | No issues in 970 files |
+| `uv run --no-sync python scripts/repository-boundary/check-python-imports.py` | No forbidden edge |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| `pnpm openapi-ts:check`; `pnpm packages:build`; `pnpm --filter animama-web exec tsc -b` (from `src/frontend`) | Current; exit 0; exit 0 |
+| `pnpm --filter animama-web exec vitest run src/app/hosted-runtime/hosted-composition.test.ts` | 101 passed |
+
+The checks reviewer also ran, on the first reviewed tree: the generation
+tests twice with two workers (488 passed each); `tests/test_pose_clip_v2.py`
+(398 passed); 19 further chat-turn files (370 passed) and 15 local HTTP,
+OpenAPI export and contract files (399 passed); the repository-boundary unit
+tests and the typed-content audit; a wheel built from an export of the tree,
+which carries the example Gesture and the nine guidance files, with the
+packed-artifact backend consumer against it; and mutation checks, in which
+removing the owner filter at each of the repository's eight sites failed a
+test every time. `tests/test_alembic_fresh_install.py` upgrades a database
+at the previous head, checks the three tables' defaults, foreign keys and
+CHECK constraints, and downgrades again.
+
+Not run: the full pre-push suite, the package-set `compare` (FC1 below), a
+Docker image build and a frozen desktop build.
+
+#### Code Review #1 Findings
+
+Independent review at the high-risk tier of working tree
+`dbb617b4120abf80e76b569fe2d1f21de7367406` against `fc1d9df67`: an analysis
+reviewer, a security and privacy reviewer, and a checks reviewer who reran
+every check and matched the record. Result: blocked by FA1, FS1, FS2, FS3
+and FC1.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P2-R1-FA1 | Required | After a run that carried the person's answers failed or was stopped, a retry was planned as a new request: the assistant could ask again and the answers never reached the model. |
+| P2-R1-FS1 | Required | A creator scope's `catalog_item_id` had no bounds: an empty value answered 500, a NUL reached the insert, and any size was stored and listed. |
+| P2-R1-FS2 | Required | A clip nested about 260 levels deep under an unknown key passed validation and was stored. Building the `draft.updated` frame then failed, which broke the stream and made every read of the conversation answer 500. |
+| P2-R1-FS3 | Required | A refused run request freed its conversation twice (also FA2). A second request that claimed it between the two releases lost its claim, so a third run could start beside it. |
+| P2-R1-FC1 | Required | The package-set `compare` this phase lists had not been run, and the pre-push suite does not run it. |
+| P2-R1-FA3 | Optional | A revision stopped between keeping the restore point and storing the new project left the restore point equal to the project. |
+| P2-R1-FA4 | Optional | The data model page and the port said a draft's position is never reused; the next draft takes the highest position plus one. |
+| P2-R1-FA5 | Optional | The service still held a second wait loop for check reports, used only by its tests, and a docstring described a session held through a run. |
+| P2-R1-FA6 | Optional | The backend's package listings did not name `app/generation/` or the shared tool-round helpers. |
+| P2-R1-FA7 | Optional | An unexpected failure was logged with its exception type only, with no location. |
+| P2-R1-FS4 | Optional | The inventory labelled the conversation read `read`, although it can commit when it settles a draft. |
+| P2-R1-FS5 | Optional | A failed write in a route puts SQLAlchemy's statement parameters in the error log, as everywhere in the app; the engine does not hide them. |
+| P2-R1-FS6 | Optional | `passes.py` said a run never depends on a provider's stored state; within a pass on an OpenAI key row, later rounds continue from the provider's cursor and the request is stored there, as chat's are. |
+| P2-R1-FC2 | Optional | No test isolated the streamed-body bound on review frames (a chunked upload without a length). |
+
+The reviewers also noted, without findings: the page must clamp its report
+to the route's bounds, or the refused report costs a 120 s wait (passed to
+Phase 3); a draft keyed only with the chosen Avatar's own shapes ended
+`warnings` (changed below); and a pass does not retry without the cursor
+when an OpenAI organisation stores no responses, as chat does (Phase 4).
+
+#### Code Review #1 Revisions
+
+Each finding was verified against the code or the reviewer's probe.
+
+| ID | Disposition |
+| --- | --- |
+| P2-R1-FA1 | Fixed: outstanding questions are found past answering attempts that ended `failed` or `stopped`. Tests cover a retry after each. |
+| P2-R1-FS1 | Fixed: the field takes the bounded id type; empty, NUL and oversized values are 422. |
+| P2-R1-FS2 | Fixed: a clip nested deeper than 24 levels is a refused call, checked before any recursive work, for submissions and edits. A frame that cannot be built ends the stream with `run.failed`. |
+| P2-R1-FS3 | Fixed: the claim is released once. A test drives the interleaving. |
+| P2-R1-FC1 | Deferred to the first pull request's candidate, where `build` and `compare` run once through a heavy slot for Phases 0 to 3 together. Evidence for this phase by the tool's rules: `local-http` takes a new major (26.0.0); `runtime-contracts` changed four generated declaration files and takes 0.26.0; the 66 declaration files of `product-ui` and the two of `discover-client` are byte-identical to the baseline's builds; the wheel stays 0.3.0. |
+| P2-R1-FA3 | Fixed: the restore point and the new project are stored in one transaction. |
+| P2-R1-FA4 | Fixed: the wording and the test's name. |
+| P2-R1-FA5 | Fixed: the service reads a report once; the run owns the wait. |
+| P2-R1-FA6 | Fixed in `docs/backend/architecture/overview.md` and `src/backend/AGENTS.md`. |
+| P2-R1-FA7 | Fixed: those logs add the innermost frame as `module:line`, without the exception's message. |
+| P2-R1-FS4 | Fixed: the route is labelled `write`. |
+| P2-R1-FS5 | Not acted on: app-wide behaviour that chat shares. Its only input-driven trigger here was FS1. |
+| P2-R1-FS6 | Docstring corrected. Phase 3's feature page says what a key connection's provider stores. |
+| P2-R1-FC2 | Fixed: the reviewer's chunked-upload test is in `tests/test_generation_api.py`. |
+
+Also changed in this round, by the coordinator: Avatar-only expression names
+are a note, as D20 words it, so a draft whose only remark is such names ends
+`ready`; and the probe imports the tool-round helpers from their new module.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `8073796869238ce225b8bec20d912c07d1f2ef58`
+at the high-risk tier. The reviewer reran the six generation test files in
+process and with two workers (500 passed each), the inventory and OpenAPI
+export tests, and the round-1 probes. Every round-1 finding is resolved in
+its own scenario. Result: blocked by F1.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P2-R2-F1 | Required | The FA1 repair looked past every failed or stopped assistant turn. A run that used the answers, stored its draft and then stopped or failed made the person's next request read as "skipped your questions", with no chance to be asked. |
+| P2-R2-F2 | Optional | A stream closed at the `questions` frame stores a `stopped` turn that carries the questions. The walk-back skipped it, so the answering run was asked again. |
+| Notes | Optional | The depth walk visited every scalar of a wide flat list before the size check refused it; a frame that cannot be built ended the stream without `run.completed`; a failure's logged site was often a library frame. |
+
+#### Code Review #2 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P2-R2-F1 | Fixed: only a failed or stopped turn that stored no draft is passed over. |
+| P2-R2-F2 | Fixed by the same rule: a turn that carries questions leaves them outstanding, whatever its outcome. |
+| Notes | Fixed: the walk visits containers only; the guarded stream paths send `run.completed` after `run.failed`; the site is the innermost frame of the app's own package. |
+
+#### Code Review #3 Findings
+
+Final targeted recheck of working tree
+`bde2b654c896378085cfd9478885444e8f78cf12` at the high-risk tier. The
+reviewer reran the six generation test files in process and with two workers
+(510 passed each) and every earlier probe, compared the depth walk with a
+reference measure on 12,000 random trees, and drove the guarded stream paths
+with a real run. Result: pass. Both round-2 findings and the notes are
+resolved, with no regression.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P2-R3-F1 | Optional | A draft made from the person's answers and discarded while its run still checks it leaves a turn that names no draft, so the next request reads as "skipped your questions". The rule dates from the round-1 repair, and it corrects itself after one request. |
+| Notes | Optional | A restore that races a cancelled revision can leave a turn naming a draft the run did not store; the stream guard does not remember that `run.completed` was already sent, which the run cannot make happen today. |
+
+#### Code Review #3 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P2-R3-F1 | Deferred to Phase 3, with the reviewer's fix (keep the draft's name on the turn once the run has shown the draft) and a test of a discard during the check wait. Both repair rounds of this phase were used. |
+| Notes | Not acted on: each needs two requests to interleave inside one database round trip, or a path the run cannot reach. |
+
+Phase commit: this commit (`feat(generate)[p2]`).
 
 ### Phase 3: The Generate page
 

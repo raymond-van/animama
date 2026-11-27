@@ -21,8 +21,12 @@ specific docs linked from there.
 - `app/contracts/` owns neutral Pydantic schemas used by shared mappers;
   `server/schemas/` reexports these where HTTP routes need them.
 - `app/chat/` contains direct chat context compilation and turn execution.
+- `app/generation/` contains the content assistant: its stored conversations
+  and drafts, the authoring tools and prompts, and the run pipeline (local
+  compositions only).
 - `app/model_clients/` defines provider-neutral model-client contracts,
-  `MC*` stream-event types, sanitization, and stream-event summaries.
+  `MC*` stream-event types, sanitization, stream-event summaries, and the
+  tool-round helpers (`tool_rounds.py`) every tool loop shares.
 - `adapters/` contains SQLAlchemy repositories, mappers, and direct model-client
   adapters.
 - `orm/` contains SQLAlchemy async models.

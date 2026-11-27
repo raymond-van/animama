@@ -10,6 +10,7 @@
   "anima_creation": false,
   "automatic_episode_processing": false,
   "chatgpt_plan": false,
+  "content_generation": false,
   "library_previews": false,
   "local_filesystem_administration": false,
   "native_features": false,

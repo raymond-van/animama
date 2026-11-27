@@ -91,6 +91,7 @@ async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> Run
         anima_creation=True,
         automatic_episode_processing=True,
         chatgpt_plan=True,
+        content_generation=True,
         local_filesystem_administration=True,
         native_features=desktop,
         offline_speech_enabled=speech.enabled,

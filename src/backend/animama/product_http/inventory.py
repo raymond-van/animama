@@ -382,6 +382,56 @@ ROUTES: tuple[RouteSpec, ...] = (
         "update_automatic_episode_processing",
         "write",
     ),
+    # Content assistant (the local composition only, spec #942)
+    _excluded("content_generation", "GET", "/v1/generation/conversations", "list_generation_conversations", "read"),
+    _excluded("content_generation", "POST", "/v1/generation/conversations", "create_generation_conversation", "write"),
+    # Reading a conversation may settle a draft a run abandoned, so the handler commits.
+    _excluded(
+        "content_generation",
+        "GET",
+        "/v1/generation/conversations/{conversation_id}",
+        "get_generation_conversation",
+        "write",
+    ),
+    _excluded(
+        "content_generation",
+        "DELETE",
+        "/v1/generation/conversations/{conversation_id}",
+        "delete_generation_conversation",
+        "write",
+    ),
+    _excluded(
+        "content_generation",
+        "POST",
+        "/v1/generation/conversations/{conversation_id}/runs:sse",
+        "run_generation_sse",
+        "stream",
+    ),
+    _excluded(
+        "content_generation",
+        "PUT",
+        "/v1/generation/drafts/{draft_id}/check-report",
+        "record_generation_check_report",
+        "write",
+    ),
+    _excluded(
+        "content_generation",
+        "PUT",
+        "/v1/generation/drafts/{draft_id}/review-frames",
+        "upload_generation_review_frames",
+        "write",
+    ),
+    _excluded(
+        "content_generation", "POST", "/v1/generation/drafts/{draft_id}:restore", "restore_generation_draft", "write"
+    ),
+    _excluded(
+        "content_generation",
+        "POST",
+        "/v1/generation/drafts/{draft_id}:mark-saved",
+        "mark_generation_draft_saved",
+        "write",
+    ),
+    _excluded("content_generation", "DELETE", "/v1/generation/drafts/{draft_id}", "delete_generation_draft", "write"),
     # Desktop controls (mounted only with desktop credentials)
     _excluded(
         "native_features",

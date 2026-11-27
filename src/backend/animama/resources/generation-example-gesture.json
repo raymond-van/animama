@@ -1,0 +1,43 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "example-nod",
+  "name": "Example Nod",
+  "duration": 1.6,
+  "basePose": "relaxedRest",
+  "fadeIn": { "duration": 0.25 },
+  "fadeOut": { "duration": 0.35 },
+  "mutedProceduralLayers": ["sway", "bounce", "headNod", "headSideTilt", "cursorLookAt", "emotionPosture"],
+  "plantFeet": true,
+  "beats": [
+    { "id": "start", "label": "Start", "time": 0 },
+    { "id": "nod", "label": "Nod", "time": 0.45 },
+    { "id": "lift", "label": "Lift", "time": 0.9 },
+    { "id": "settle", "label": "Settle", "time": 1.5 }
+  ],
+  "joints": {
+    "neck": {
+      "flexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "nod", "dt": -0.05, "v": 5 },
+        { "beat": "lift", "dt": -0.05, "v": -1 },
+        { "beat": "settle", "dt": -0.1, "v": "base" }
+      ]
+    },
+    "head": {
+      "flexion": [
+        { "beat": "start", "v": "base" },
+        { "beat": "nod", "v": 9 },
+        { "beat": "lift", "v": -2 },
+        { "beat": "settle", "v": "base" }
+      ]
+    }
+  },
+  "expressions": {
+    "relaxed": [
+      { "beat": "start", "v": 0 },
+      { "beat": "nod", "dt": -0.1, "v": 0.5 },
+      { "beat": "lift", "dt": 0.2, "v": 0.5 },
+      { "beat": "settle", "v": 0 }
+    ]
+  }
+}

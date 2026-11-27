@@ -17,6 +17,12 @@ from animama.app.model_clients import (
     ModelClientProviderOptions,
     ModelClientRequest,
 )
+
+# Advancing a round's provider state is shared with other tool loops.
+from animama.app.model_clients.tool_rounds import (
+    continuation_after_tool_round,
+    openai_responses_continuation_from_final,
+)
 from animama.app.model_provider_native_tools import (
     normalized_native_tool_support,
     requestable_native_tool_support,
@@ -335,47 +341,6 @@ def should_skip_context_fetch_for_responses_cursor(
     """Skip explicit history when Responses can continue from provider state."""
 
     return model_provider.provider_type == OPENAI_RESPONSES_PROVIDER and continuation is not None
-
-
-def openai_responses_continuation_from_final(
-    model_request: ModelClientRequest,
-    previous_final: ModelClientFinal | None,
-) -> ModelClientContinuation | None:
-    """Advance a Responses continuation cursor after a tool-call follow-up."""
-
-    if model_request.model_provider.provider_type != OPENAI_RESPONSES_PROVIDER or previous_final is None:
-        return None
-    response_id = previous_final.raw_provider_metadata.get("response_id")
-    if not isinstance(response_id, str) or not response_id.strip():
-        return None
-    return ModelClientContinuation(
-        provider_type=OPENAI_RESPONSES_PROVIDER,
-        cursor=response_id.strip(),
-        metadata={
-            "source": "tool_call_response",
-            "model": model_request.model_provider.model,
-        },
-    )
-
-
-def continuation_after_tool_round(
-    model_request: ModelClientRequest,
-    previous_final: ModelClientFinal | None,
-) -> ModelClientContinuation | None:
-    """Return the provider state the next round of a turn continues from.
-
-    Responses advances its cursor to the tool-call response. Other providers
-    may return their own request-local state on the final: Anthropic carries
-    the turn's assistant content blocks so they are resent unchanged.
-    """
-
-    responses = openai_responses_continuation_from_final(model_request, previous_final)
-    if responses is not None:
-        return responses
-    continuation = previous_final.continuation if previous_final is not None else None
-    if continuation is not None and continuation.provider_type == model_request.model_provider.provider_type:
-        return continuation
-    return None
 
 
 def model_request_without_continuation(model_request: ModelClientRequest) -> ModelClientRequest:

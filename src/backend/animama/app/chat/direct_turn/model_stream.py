@@ -35,6 +35,7 @@ from animama.app.model_clients.context_budget import (
 from animama.app.model_clients.error_categories import ERROR_CONTEXT_EXCEEDED, model_error_category
 from animama.app.model_clients.event_summary import ModelClientStreamEventObserver
 from animama.app.model_clients.prompt import copy_direct_chat_prompt, prompt_messages
+from animama.app.model_clients.tool_rounds import model_request_with_appended_messages, tool_exchange_prompt_items
 from animama.app.model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY, context_tokens_from_usage
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.app.web_search import WEB_SEARCH_TOOL_NAME, WebSearchToolService, persisted_web_search_output
@@ -66,7 +67,6 @@ from .message_builders import (
 )
 from .provider_state import (
     compiled_context_history,
-    continuation_after_tool_round,
     final_with_previous_response_retry_metadata,
     model_request_without_continuation,
     should_retry_without_previous_response_id,
@@ -419,7 +419,7 @@ class DirectTurnModelStreamCollector:
                     )
                     for tool_call in tool_calls
                 )
-                limit_messages = _tool_exchange_prompt_items(
+                limit_messages = tool_exchange_prompt_items(
                     model_request=model_request,
                     tool_calls=tool_calls,
                     tool_results=limit_results,
@@ -432,7 +432,7 @@ class DirectTurnModelStreamCollector:
                         tool_results=limit_results,
                     )
                 )
-                limit_request = _model_request_with_appended_messages(
+                limit_request = model_request_with_appended_messages(
                     model_request,
                     limit_messages,
                     previous_final=final,
@@ -579,7 +579,7 @@ class DirectTurnModelStreamCollector:
                         final_request,
                     )
                 result_tuple = bounded
-            tool_prompt_messages = _tool_exchange_prompt_items(
+            tool_prompt_messages = tool_exchange_prompt_items(
                 model_request=model_request,
                 tool_calls=tool_calls,
                 tool_results=result_tuple,
@@ -595,7 +595,7 @@ class DirectTurnModelStreamCollector:
             # The next model request includes the assistant tool-call item plus
             # tool outputs. Responses providers may carry this via
             # previous_response_id; Chat Completions gets explicit messages.
-            model_request = _model_request_with_appended_messages(
+            model_request = model_request_with_appended_messages(
                 model_request,
                 tool_prompt_messages,
                 previous_final=final,
@@ -986,35 +986,6 @@ def _available_tool_names(model_request: ModelClientRequest) -> set[str]:
     return names
 
 
-def _tool_exchange_prompt_items(
-    *,
-    model_request: ModelClientRequest,
-    tool_calls: tuple[ModelClientToolCall, ...],
-    tool_results: tuple[ModelClientToolResult, ...],
-) -> list[dict[str, Any]]:
-    """Build ordered prompt items for one provider-neutral tool exchange."""
-
-    if model_request.model_provider.provider_type == OPENAI_RESPONSES_PROVIDER:
-        return [
-            *(model_client_tool_call_prompt_item(tool_call) for tool_call in tool_calls),
-            *(model_client_tool_result_prompt_item(tool_result) for tool_result in tool_results),
-        ]
-    if model_request.model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER:
-        return [
-            *(anthropic_tool_use_item(tool_call) for tool_call in tool_calls),
-            *(
-                anthropic_tool_result_item(tool_call, tool_result.output)
-                for tool_call, tool_result in zip(tool_calls, tool_results, strict=True)
-            ),
-        ]
-    call_message = assistant_tool_call_prompt_message(tool_calls)
-    result_messages = [
-        tool_result_prompt_message(tool_call, tool_result.output)
-        for tool_call, tool_result in zip(tool_calls, tool_results, strict=True)
-    ]
-    return [call_message, *result_messages]
-
-
 def _internal_tool_exchange_messages(
     *,
     prepared: PreparedDirectChatTurn,
@@ -1117,25 +1088,6 @@ def _tool_output_ok(output: str) -> bool:
     return isinstance(parsed, Mapping) and parsed.get("ok") is True
 
 
-def _model_request_with_appended_messages(
-    model_request: ModelClientRequest,
-    messages: list[dict[str, Any]],
-    *,
-    previous_final: ModelClientFinal | None = None,
-) -> ModelClientRequest:
-    """Append tool exchange messages and advance provider continuation state."""
-
-    prompt = model_request.prompt
-    return ModelClientRequest(
-        model_provider=model_request.model_provider,
-        limits=model_request.limits,
-        prompt=copy_direct_chat_prompt(prompt, messages=(*prompt_messages(prompt), *messages)),
-        # Moderation is requested only on round 0, whose input is the user's message.
-        provider_options=replace(model_request.provider_options, moderation_model=None),
-        continuation=continuation_after_tool_round(model_request, previous_final),
-    )
-
-
 def _prompt_with_appended_messages(
     prompt: DirectChatPrompt,
     messages: list[dict[str, Any]],
@@ -1224,7 +1176,7 @@ def _tool_results_within_budget(
     limit = budget.available_tokens - _final_round_reserve_tokens(model_request, structured_format)
 
     def next_prompt_tokens(results: tuple[ModelClientToolResult, ...]) -> int:
-        messages = _tool_exchange_prompt_items(model_request=model_request, tool_calls=tool_calls, tool_results=results)
+        messages = tool_exchange_prompt_items(model_request=model_request, tool_calls=tool_calls, tool_results=results)
         return estimate_prompt_tokens(_prompt_with_appended_messages(model_request.prompt, messages))
 
     if next_prompt_tokens(tool_results) <= limit:
