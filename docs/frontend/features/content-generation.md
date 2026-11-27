@@ -22,8 +22,10 @@ and the review sheets are the authoring code in
 commands also run. The backend half is `app/generation/` behind the
 [`/v1/generation` routes](../../backend/architecture/http-api.md#content-assistant).
 
-The assistant authors Gestures and Reactions. A draft cannot place effects or
-sounds on its timeline.
+The assistant authors Gestures and Reactions. A Gesture drafted on the
+Generate page can also play
+[effects that are already in the Library](#effects-on-the-timeline). The
+assistant makes no effects and places no sounds.
 
 A Reaction draft is a face only: expression tracks on beats, with a suggested
 emotion and an intensity from 1 to 4. The server refuses it any field that
@@ -160,8 +162,9 @@ chosen in the preview, so the face can key shapes that Avatar has.
 
 ## Drafts
 
-A request made with no draft selected writes one new draft. Each draft shows
-its name, a status and what its checks left:
+A request made with no draft selected writes one new draft, or
+[a batch](#batches) of up to ten when it asks for several items. Each draft
+shows its name, a status and what its checks left:
 
 | Status | Meaning |
 | --- | --- |
@@ -204,6 +207,84 @@ person's own Avatars and the Included Avatars, and starts as the Avatar of
 the Anima they chatted with last. Play, pause, restart and loop apply to the
 preview only.
 
+### Batches
+
+A request that asks for several items is planned as up to ten, each with a
+short brief and its own draft. The run writes, checks, repairs and reviews
+each item by itself, two at a time, and is still one run with one reply. A
+creator's run never plans a batch: it works on the item open there.
+
+- **Planned items.** Every item is listed as soon as the plan is made, before
+  it is written, with its brief and kind. An item the run has not started on
+  says that it is waiting for its turn; one in flight says its own step
+  (thinking, writing, checking, repairing, reviewing frames). The
+  conversation's progress line counts the items finished instead of naming
+  one step: an item counts once its draft is listed and settled or its item
+  failed, and a discarded item leaves the count. After a reload the briefs come from the run's stored turn, for
+  the drafts that still exist.
+- **Selection.** The first item to be written is selected when nothing is, so
+  the preview has a draft to play. Items written after it leave the selection
+  where it is.
+- **A failed item.** An item that fails does not stop the others. Its card
+  says why in the words a failed run uses: a model, plan or connection
+  failure reads as the title of chat's notice, and never as a code. An item
+  that fails after it had a version that loads keeps that version, and its
+  card adds that the assistant could not finish it. A failure every item
+  would meet (an expired sign-in, a missing or refused key, a usage, quota
+  or rate limit, a model the provider does not serve) ends the whole run
+  instead, with the notice a single run shows; drafts already written are
+  kept and items not written yet are removed.
+- **Checks and review sheets.** Two items can wait for the page at once. The
+  page checks them one after another and draws their review sheets one after
+  another, since the preview canvas draws one thing at a time. Each report
+  and each set of sheets is built from, and sent for, its own draft id and
+  version.
+- **Discarding an item.** A batch item can be discarded while the run works:
+  only that item ends, and what the run still reports about it is ignored.
+  The assistant asks the model nothing more for it: an item discarded before
+  its turn is never written, and one discarded while it is written stops
+  after the response in flight.
+- **Stopping.** Stop ends every item. Items with a version that validated are
+  kept, and planned items that were not written yet are removed.
+
+### Effects on the timeline
+
+A Gesture draft written or revised on the Generate page may play Avatar,
+Particle and Scene Effects that the Library already holds: the person's own
+portable effects and the Included ones.
+
+- **What the assistant places.** Up to 24 timeline events, each naming one
+  effect, when it starts and, where the clip format allows, how long it
+  shows; an Avatar Effect's event may adjust that use of the effect. It
+  places no sound events: a Gesture sounds only through its effects. A
+  Reaction draft holds no events, and a [creator's run](#in-a-creator) leaves
+  the open item's own effects and sounds as they are.
+- **How a draft names an effect.** An event names its effect by an alias made
+  from the effect's name. The draft's project pins each alias to one Library
+  item with a dependency, in the shape the creators use, so preview, Save and
+  **Open in creator** read a draft's effects as they read a creator
+  document's. The draft's card lists the aliases.
+- **Preview.** The page resolves the selected draft's dependencies through
+  the Library's preview route and mounts them in the preview as the creators
+  mount a document's effects, so playing the draft plays its effects on the
+  chosen Avatar. Mounting other effects reloads the Avatar. Moving between
+  drafts that play no effects, or the same ones, does not.
+- **Checks.** Validation reads events as part of the clip. The motion checks
+  and the review sheets measure and draw the motion and the face only.
+- **Save and Open in creator.** Save records the dependencies with the item
+  through the creator's own save. **Open in creator** opens the document with
+  the events and their dependencies, and the creator plays them.
+- **An effect that is gone.** A second request resolves the dependencies of
+  every listed draft, and is sent again each time the page opens. When the
+  Library no longer holds an effect a draft plays, the card names it by its
+  alias. That draft's Save is held, and **Save selected** and **Save all**
+  skip it, until a run has revised the draft: the assistant then removes the
+  event or places another effect. **Open in creator** stays available. Only
+  an effect the Library reports as gone holds a draft back. One that could
+  not be checked (the request is in flight or failed), or that the Library
+  holds but cannot show at the moment, does not: the Library's own save
+  decides then, and refuses a dependency it cannot resolve.
+
 ## Revising and restoring
 
 A draft the assistant has just written is selected, and opening a
@@ -224,7 +305,10 @@ valid change leaves the draft and its restore point as they were.
 **Save** stores a draft that loads as a Local Gesture or Reaction through its
 creator's own save, with the details the assistant wrote (a Gesture's name,
 AI description and Selector ID; a Reaction's name, suggested emotion and
-intensity), and then records the saved item on the draft. Saving is
+intensity), and then records the saved item on the draft. The assistant
+only gives a draft a name the Library can save (in Latin script: letters,
+digits, spaces, dots, underscores and hyphens, starting with a letter or
+digit), since the page cannot rename a draft. Saving is
 always the person's action; the assistant never saves. The saved draft stays
 in its conversation with a link that opens the item in its creator,
 where its beats are editable. Saving the same draft again, for example after
@@ -238,9 +322,19 @@ file (`/gestures/new?draft=<id>&conversation=<id>`, or `/reactions/new` with
 the same search). The creator then works
 on its own copy, and the draft stays in its conversation.
 
-**Discard** removes a draft with the version kept for restoring. Save and
-restore wait until a run in flight has finished, and so does Discard for the
-draft that run is working on.
+With two or more drafts the list offers **Save selected** and **Save all**.
+Each draft that loads has a mark for the selection. The drafts are saved one
+after another through the same save, each as its own Local item, and nothing
+is saved without that click. A draft that cannot be saved as it stands (no
+version that loads, a version the page has not validated yet, a run working
+on it, or [an effect that is gone](#effects-on-the-timeline)) is skipped. A save that fails is reported on that draft's card
+until the draft is saved, and neither stops the rest. A summary under the
+buttons counts the drafts saved, failed and skipped.
+
+**Discard** removes a draft with the version kept for restoring. Save,
+saving several and restore wait until a run in flight has finished, and so
+does Discard for the draft a run is writing or revising. A
+[batch item](#batches) can be discarded during its run.
 
 ## In a creator
 
@@ -282,8 +376,8 @@ closed. The narrow layout and VRMA items have no control.
   an entry of its own in the history; an unchanged one adds nothing. An
   unsaved pose of its own (a new pose, or a changed Library Pose) is on no
   keyframe and would be discarded by the result, so while one exists no run
-  starts and no result is applied, in any mode: the panel says to save it,
-  discard it or add it to the timeline first. The
+  starts and no result is applied, in any mode: the panel says to save or
+  discard it first. The
   server validates the document's clip as it validates a model's before any
   pass reads it, and the run revises that document, not a stored draft. An
   item with no beat yet sends none, and the run writes it anew.
@@ -322,7 +416,11 @@ Each step below is a fresh request, a *pass*:
 1. A write pass, or a revise pass on the selected draft. The model gets the
    authoring guidance, the conversation's recent text turns and the message,
    and writes the clip through tools. The server validates what a tool call
-   leaves and stores only a valid project.
+   leaves and stores only a valid project. On the Generate page a write pass
+   may plan a [batch](#batches) instead; every item then goes through the
+   steps below by itself. For a Gesture on the Generate page the model can
+   also list the Library's effects and read one, to
+   [place it on the timeline](#effects-on-the-timeline).
 2. The page checks that version and reports.
 3. A repair pass while the report holds a validation problem or a failed
    check. Findings that only warn are passed along but start no repair.
@@ -338,10 +436,12 @@ Each step below is a fresh request, a *pass*:
 | Limit | Value |
 | --- | --- |
 | Runs in flight for a conversation | 1 |
-| Drafts a request writes or revises | 1 |
+| Drafts a request writes or revises | 1, or up to 10 written as a batch |
+| Batch items in flight | 2 |
+| Time for the items of a batch | 60 min |
 | Model responses in a pass | 8 |
 | Repair passes for a draft after each request about it | 3 |
-| Frame reviews in a run | 1, of at most two sheets |
+| Frame reviews for a draft in a run | 1, of at most two sheets |
 | Wait for the page's check report | 120 s |
 | Wait for the review frames | 60 s |
 | Clip size and length | 2 MiB and 60 s |
@@ -399,6 +499,7 @@ draw them, for example with no preview canvas showing.
   | `generation_model_unusable` | The chosen model cannot run, with a reason such as `tools_unsupported`, `context_too_small` or `connection_inactive`. |
   | `generation_reasoning_effort_unsupported` | The chosen model cannot run a pass at the chosen reasoning effort. |
   | `generation_run_in_progress` | The conversation already has a run in flight. |
+  | `generation_batch_time_limit` | The items of a batch took longer than the batch may. The run ends as a stopped run does. |
   | `generation_stream_interrupted`, `generation_request_failed` | The connection was lost during a run, or the request never reached the backend. Drafts already stored are kept. |
   | `generation_run_failed` | Any other failure. |
 
@@ -419,7 +520,12 @@ Requests go only to the provider of the chosen model. A run sends:
 - for a frame review, the two contact sheets, which show only the Included
   Avatars;
 - one of three Included Gestures, or for a Reaction one of three Included
-  Reactions, when the model asks to read an example.
+  Reactions, when the model asks to read an example;
+- for a Gesture on the Generate page, when the model asks: the names, kinds
+  and short descriptions of the Library's portable effects, at most 100 for
+  each listing, and for one effect how an event plays it (for an Avatar
+  Effect, its region and the settings an event may adjust). These reach the
+  model as tagged data. An effect's images and other files are never sent.
 
 A run does not send the person's own Avatar: not its file, its textures or
 any picture of it. Checks and review frames use the Included Avatars alone,

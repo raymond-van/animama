@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "Choose an available PocketTTS voice."
   },
   "generation": {
+    "generation_batch_time_limit": "The assistant ran out of time for this request. Drafts finished so far are kept.",
     "generation_document_invalid": "The assistant cannot work on this item as it stands. Check the timeline for problems, then try again.",
     "generation_document_invalid_details": "The assistant cannot work on this item because of its name, description, Selector ID or suggested emotion. Check them, then try again.",
     "generation_document_invalid_timeline": "The assistant cannot work on this item's timeline as it stands. Check the timeline for problems, then try again.",

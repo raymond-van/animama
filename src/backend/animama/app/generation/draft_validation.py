@@ -18,13 +18,15 @@ import copy
 import json
 import re
 import unicodedata
-from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from typing import Any, Final, Literal
 
 from animama.app.services.clip_format import ANIMA_POSE_CLIP_SCHEMA
 from animama.app.services.content_kind_registry import SEMANTIC_KEY_PATTERN
+from animama.app.services.content_save_service import readable_entry_name
 from animama.app.services.idle_clip_validation import validate_clip_v2_timeline
 from animama.domain.anima_loadout import REACTION_INTENSITIES
+from animama.domain.content_catalog import ContentConflictError
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.emotions import TRACKED_EMOTION_SET, TRACKED_EMOTIONS
 
@@ -33,6 +35,8 @@ Intent = Literal["gesture", "reaction"]
 """The kind of content a draft becomes when saved."""
 SelectorInUse = Callable[[str], bool]
 """Whether another Gesture of the owner already uses a Selector ID. The caller leaves out the draft's own saved item."""
+EventCheck = Callable[[Mapping[str, Any]], list[str]]
+"""Why the timeline events of a Gesture draft's clip cannot stay, for a run that may place effects (``effects.py``)."""
 
 ACTION_PROJECT_SCHEMA: Final = "animamaActionProject/1.0"
 MAX_CLIP_BYTES: Final = 2 * 1024 * 1024
@@ -48,6 +52,9 @@ not be stored.
 MAX_PROBLEMS: Final = 20
 MAX_PROBLEM_LENGTH: Final = 300
 MAX_NAME_LENGTH: Final = 80
+NAME_RULE: Final = "letters, digits, spaces, dots, underscores and hyphens, starting with a letter or digit"
+"""What a name in Latin script may hold, in the words the tools and a problem use. The rule itself is the
+Library's (``is_library_name``); this only says it."""
 MAX_AI_DESCRIPTION_LENGTH: Final = 1000
 MAX_SELECTOR_ID_LENGTH: Final = 64
 """The length the creator gives a Selector ID it proposes (``gestureSemanticKey``)."""
@@ -90,6 +97,12 @@ def bounded_problems(problems: Iterable[str]) -> list[str]:
     return [
         bounded_text(problem, MAX_PROBLEM_LENGTH) for _, problem in zip(range(MAX_PROBLEMS), problems, strict=False)
     ]
+
+
+def data_json(value: object) -> str:
+    """Compact JSON for a tagged data block, with ``<`` escaped so nothing inside can close the block."""
+
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
 
 
 def bounded_text(text: str, limit: int) -> str:
@@ -187,7 +200,9 @@ def clip_problems(clip: object) -> list[str]:
     try:
         duration = validate_clip_v2_timeline(clip)
     except ContentDocumentError as error:
-        problems.append(f"{error.field}: {error}" if error.field else str(error))
+        # An override's failure already begins with its path.
+        named = error.field and not str(error).startswith(f"{error.field}:")
+        problems.append(f"{error.field}: {error}" if named else str(error))
     else:
         if duration > MAX_DRAFT_SECONDS:
             problems.append(f"duration must be at most {MAX_DRAFT_SECONDS} seconds for a draft")
@@ -203,10 +218,12 @@ def reaction_body_problems(clip: Mapping[str, Any]) -> list[str]:
 
 
 def _event_problems(clip: Mapping[str, Any]) -> list[str]:
-    """Refuse timeline events while a draft's project carries no dependencies.
+    """Refuse every timeline event of a draft that may place no effects.
 
-    An event names an effect or a sound by the alias of a dependency, so an
-    event in a draft would name one the project does not hold.
+    An event names an effect or a sound by the alias of a dependency. Only a
+    Gesture drafted on the Generate page gets its dependencies from this
+    backend (``effects.py``); a Reaction draft and a creator's document get
+    none, so an event in one would name what the project does not hold.
     """
 
     return ["events: a draft cannot use effects or sounds yet; remove this field"] if clip.get("events") else []
@@ -217,6 +234,24 @@ def _event_problems(clip: Mapping[str, Any]) -> list[str]:
 
 def _is_text(value: object, maximum: int) -> bool:
     return isinstance(value, str) and 0 < len(value.strip()) <= maximum and is_storable_text(value)
+
+
+def is_library_name(name: str) -> bool:
+    """Whether the Library would save an item under ``name``.
+
+    Save names an item's folder after it by the save path's own rule
+    (``readable_entry_name``): a name in Latin script may hold only letters,
+    digits, spaces, dots, underscores and hyphens and starts with a letter
+    or digit, and a name in another script is folded to such a name. A
+    draft cannot be renamed on the Generate page, so a name that rule
+    refuses would leave a draft that can never be saved.
+    """
+
+    try:
+        readable_entry_name(name)
+    except ContentConflictError:
+        return False
+    return True
 
 
 def _is_selector_id(value: str) -> bool:
@@ -236,7 +271,8 @@ def detail_problems(
 ) -> list[str]:
     """Why ``details`` cannot be a draft's details; empty when they can.
 
-    Every draft needs a name. A Gesture also needs an AI description and a
+    Every draft needs a name, and one the Library would save
+    (``is_library_name``). A Gesture also needs an AI description and a
     snake_case Selector ID that no other Gesture of the owner uses;
     ``selector_in_use`` is asked only about a well-formed id. A Reaction
     needs a tracked emotion and an intensity from 1 to 4, and has no Selector
@@ -245,12 +281,17 @@ def detail_problems(
     ``held`` names the details an item open in a creator already has. They
     are the person's, already checked by the catalog's own rules
     (``held_detail_problems``), and no pass may change them, so a draft's
-    stricter rules are not applied to them.
+    stricter rules are not applied to them: an existing item keeps the name
+    it was saved under.
     """
 
     problems: list[str] = []
-    if "name" not in held and not _is_text(details.get("name"), MAX_NAME_LENGTH):
-        problems.append(f"name must be a non-empty string of at most {MAX_NAME_LENGTH} characters")
+    if "name" not in held:
+        name = details.get("name")
+        if not _is_text(name, MAX_NAME_LENGTH):
+            problems.append(f"name must be a non-empty string of at most {MAX_NAME_LENGTH} characters")
+        elif not is_library_name(str(name)):
+            problems.append(f"name must be one the Library can save: {NAME_RULE} (a name in another script is fine)")
     if intent == "gesture":
         if "ai_description" not in held and not _is_text(details.get("ai_description"), MAX_AI_DESCRIPTION_LENGTH):
             problems.append(
@@ -336,18 +377,24 @@ def _one_of(values: tuple[int, ...]) -> str:
     return f"{', '.join(first)} or {last}"
 
 
-def timeline_problems(intent: Intent, clip: object) -> list[str]:
+def timeline_problems(intent: Intent, clip: object, *, events: EventCheck | None = None) -> list[str]:
     """Why ``clip`` cannot be the clip of a draft of ``intent``, whatever its details; empty when it can.
 
-    Beyond ``clip_problems``, a Reaction's clip may hold no body field, and no
-    draft may hold timeline events yet.
+    Beyond ``clip_problems``, a Reaction's clip may hold no body field and
+    no timeline event. A Gesture's clip may hold events only when the run
+    may place effects: ``events`` then says what is wrong with them, and is
+    asked only about a clip that is otherwise sound. Without it every event
+    is refused.
     """
 
     problems = clip_problems(clip)
     if isinstance(clip, dict):
         if intent == "reaction":
             problems += reaction_body_problems(clip)
-        problems += _event_problems(clip)
+        if events is None or intent == "reaction":
+            problems += _event_problems(clip)
+        elif not problems:
+            problems += events(clip)
     return problems
 
 
@@ -358,14 +405,17 @@ def draft_problems(
     *,
     selector_in_use: SelectorInUse | None = None,
     held: Collection[str] = (),
+    events: EventCheck | None = None,
 ) -> list[str]:
     """Why ``clip`` with ``details`` cannot be a draft of ``intent``: the clip's problems, then the details'.
 
     ``held`` names the details that are an open item's own, which a draft's
-    rules do not judge (``detail_problems``). The list is bounded.
+    rules do not judge (``detail_problems``). ``events`` checks a Gesture's
+    timeline events where the run may place effects (``timeline_problems``).
+    The list is bounded.
     """
 
-    problems = timeline_problems(intent, clip)
+    problems = timeline_problems(intent, clip, events=events)
     problems += detail_problems(intent, details, selector_in_use=selector_in_use, held=held)
     return bounded_problems(problems)
 
@@ -386,12 +436,19 @@ def clip_id(name: str, intent: Intent) -> str:
     return slug or f"new-{intent}"
 
 
-def build_project(intent: Intent, clip: Mapping[str, Any], details: Mapping[str, Any]) -> JsonObject:
+def build_project(
+    intent: Intent,
+    clip: Mapping[str, Any],
+    details: Mapping[str, Any],
+    dependencies: Sequence[Mapping[str, Any]] = (),
+) -> JsonObject:
     """The ``animamaActionProject/1.0`` project of a draft; call it for a clip and details without problems.
 
     The item's name is the clip's name, and the clip's id is that name in
     kebab-case, as the creator keeps them (``normalizeActionDocument``). The
-    project owns a copy of the clip. A draft has no notes or dependencies.
+    project owns a copy of the clip. A draft has no notes. Its
+    ``dependencies`` are the effects its events play, derived by this
+    backend (``effects.dependencies_for``); a draft without events has none.
     """
 
     gesture = intent == "gesture"
@@ -409,7 +466,7 @@ def build_project(intent: Intent, clip: Mapping[str, Any], details: Mapping[str,
         "suggestedIntensity": 1 if gesture else details["intensity"],
         "notes": "",
         "sequence": sequence,
-        "dependencies": [],
+        "dependencies": [copy.deepcopy(dict(dependency)) for dependency in dependencies],
     }
 
 
@@ -432,6 +489,7 @@ __all__ = [
     "CATALOG_NAME_LENGTH",
     "CATALOG_STRING_LENGTH",
     "DETAIL_FIELDS",
+    "EventCheck",
     "MAX_AI_DESCRIPTION_LENGTH",
     "MAX_CLIP_BYTES",
     "MAX_CLIP_DEPTH",
@@ -441,6 +499,7 @@ __all__ = [
     "MAX_PROBLEMS",
     "MAX_PROBLEM_LENGTH",
     "MAX_SELECTOR_ID_LENGTH",
+    "NAME_RULE",
     "REACTION_BODY_FIELDS",
     "Intent",
     "JsonObject",
@@ -451,10 +510,12 @@ __all__ = [
     "clip_and_details",
     "clip_id",
     "clip_problems",
+    "data_json",
     "detail_problems",
     "draft_problems",
     "held_detail_problems",
     "held_details",
+    "is_library_name",
     "is_storable_text",
     "nests_deeper_than",
     "reaction_body_problems",

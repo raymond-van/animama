@@ -126,6 +126,74 @@ describe("useSelectedDraft", () => {
     expect(selectedId()).toBe("draft-9");
   });
 
+  describe("a batch, whose drafts are listed before they are written", () => {
+    const planned = (id: string, position: number) =>
+      generationDraft({ id, position, status: "writing", project: null });
+
+    it("selects the first item to be written, and stays there as the others are", () => {
+      const earlier = draft("draft-0", 0);
+      mount({
+        conversationId: "conversation-1",
+        snapshot: withDrafts(earlier),
+      });
+      // A batch starts from no selection: it writes new drafts.
+      act(() => mounted.result()[1](null));
+      mounted.rerender({
+        conversationId: "conversation-1",
+        snapshot: withDrafts(
+          earlier,
+          planned("draft-1", 1),
+          planned("draft-2", 2),
+          planned("draft-3", 3),
+        ),
+      });
+      // Nothing can be played or revised yet.
+      expect(selectedId()).toBeNull();
+
+      // The second item is written first: the preview gets a draft to play.
+      mounted.rerender({
+        conversationId: "conversation-1",
+        snapshot: withDrafts(
+          earlier,
+          planned("draft-1", 1),
+          draft("draft-2", 2),
+          planned("draft-3", 3),
+        ),
+      });
+      expect(selectedId()).toBe("draft-2");
+
+      // The others being written does not take the selection away.
+      mounted.rerender({
+        conversationId: "conversation-1",
+        snapshot: withDrafts(
+          earlier,
+          draft("draft-1", 1),
+          draft("draft-2", 2),
+          draft("draft-3", 3),
+        ),
+      });
+      expect(selectedId()).toBe("draft-2");
+    });
+
+    it("leaves the person's own choice alone while the batch is written", () => {
+      const earlier = draft("draft-0", 0);
+      mount({
+        conversationId: "conversation-1",
+        snapshot: withDrafts(earlier),
+      });
+      mounted.rerender({
+        conversationId: "conversation-1",
+        snapshot: withDrafts(earlier, planned("draft-1", 1)),
+      });
+      expect(selectedId()).toBe("draft-0");
+      mounted.rerender({
+        conversationId: "conversation-1",
+        snapshot: withDrafts(earlier, draft("draft-1", 1)),
+      });
+      expect(selectedId()).toBe("draft-0");
+    });
+  });
+
   describe("a failed draft that never had a project", () => {
     const empty = (id: string, position: number) =>
       generationDraft({ id, position, status: "failed", project: null });

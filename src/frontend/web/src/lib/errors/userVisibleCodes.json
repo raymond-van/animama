@@ -71,6 +71,7 @@
     "voice_preset_unavailable"
   ],
   "generation": [
+    "generation_batch_time_limit",
     "generation_document_invalid",
     "generation_document_invalid_details",
     "generation_document_invalid_timeline",

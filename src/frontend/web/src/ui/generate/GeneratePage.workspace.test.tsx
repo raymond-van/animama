@@ -8,8 +8,10 @@ import type {
 
 import { privateStateResets } from "@/app/runtime/private-module-state";
 import { GeneratePage } from "./GeneratePage";
+import { createEffectLibraryServer } from "./testing/effectLibraryServer";
 import {
   controlledSseResponse,
+  effectGestureProject,
   generationConversation,
   generationDraft,
   generationMessage,
@@ -38,6 +40,8 @@ const fixture = vi.hoisted(() => ({
     conversationId: string | null;
     avatarExpressionNames: unknown;
   } | null,
+  /** The sandbox entries the preview provider was given, render by render. */
+  sandbox: [] as (readonly Record<string, unknown>[] | undefined)[],
 }));
 
 vi.mock("@/ui/app/AppShellPage", () => ({
@@ -50,9 +54,16 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ),
 }));
 vi.mock("./GeneratePreview", () => ({
-  GeneratePreviewProvider: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
+  GeneratePreviewProvider: ({
+    children,
+    sandboxEntries,
+  }: {
+    children: ReactNode;
+    sandboxEntries?: readonly Record<string, unknown>[];
+  }) => {
+    fixture.sandbox.push(sandboxEntries);
+    return <div data-testid="preview-provider">{children}</div>;
+  },
   GeneratePreviewStage: ({ draft }: { draft: PyGenerationDraft | null }) => (
     <div data-testid="stage" data-draft-id={draft?.id} />
   ),
@@ -125,6 +136,8 @@ const server = {
   model: {} as Record<string, unknown>,
   /** The owner's saved choices for the assistant. */
   generation: { model_provider_id: "model-1" } as Record<string, unknown>,
+  /** The Library's preview route, which resolves a draft's effects. */
+  effects: createEffectLibraryServer(),
 };
 
 async function fetch(request: Request): Promise<Response> {
@@ -169,6 +182,8 @@ async function fetch(request: Request): Promise<Response> {
       pathname.endsWith(`/conversations/${snapshot.conversation.id}`)
     )
       return jsonResponse(snapshot);
+  const effects = await server.effects.handle(request);
+  if (effects) return effects;
   throw new Error(`Unexpected request: ${request.method} ${pathname}`);
 }
 
@@ -222,8 +237,10 @@ beforeEach(() => {
   server.streams = [];
   server.model = {};
   server.generation = { model_provider_id: "model-1" };
+  server.effects = createEffectLibraryServer();
   fixture.player = [];
   fixture.workerInput = null;
+  fixture.sandbox = [];
 });
 afterEach(() => {
   mounted?.unmount();
@@ -359,6 +376,264 @@ describe("the Generate page's workspace", () => {
     expect(discardOf("draft-3").disabled).toBe(true);
     expect(discardOf("draft-1").disabled).toBe(false);
     expect(discardOf("draft-2").disabled).toBe(false);
+  });
+
+  it("shows a batch item by item, goes on past a failed item, and keeps the plan after a reload", async () => {
+    await open();
+    await click(find("generate-new-draft"));
+    type("three greetings");
+    await click(find("generate-send"));
+    await settle();
+    const emit = async (...frames: string[]) => {
+      await act(async () => {
+        for (const frame of frames) server.streams[0]!.send(frame);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await settle();
+    };
+    const planned = (id: string, position: number) =>
+      generationDraft({ id, position, status: "writing", project: null });
+    const card = (draftId: string) =>
+      document.querySelector<HTMLElement>(
+        `[data-testid="generate-draft-card"][data-draft-id="${draftId}"]`,
+      )!;
+    const shown = (draftId: string, testId: string) =>
+      card(draftId).querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+
+    await emit(
+      sseFrame("run.started", { run_id: "run-2" }),
+      sseFrame("batch.planned", {
+        items: [
+          { draft_id: "draft-3", intent: "gesture", brief: "A salute" },
+          { draft_id: "draft-4", intent: "gesture", brief: "A curtsy" },
+          { draft_id: "draft-5", intent: "gesture", brief: "A high five" },
+        ],
+      }),
+      sseFrame("draft.updated", { draft: planned("draft-3", 2) }),
+      sseFrame("draft.updated", { draft: planned("draft-4", 3) }),
+      sseFrame("draft.updated", { draft: planned("draft-5", 4) }),
+      sseFrame("progress", { phase: "writing", draft_id: "draft-3" }),
+      sseFrame("progress", { phase: "thinking", draft_id: "draft-4" }),
+    );
+    // Every planned item is listed with its brief and its own step.
+    expect(
+      ["draft-3", "draft-4", "draft-5"].map((id) => [
+        shown(id, "generate-draft-brief")!.textContent,
+        shown(id, "generate-draft-status")!.textContent,
+      ]),
+    ).toEqual([
+      ["A salute", "Writing…"],
+      ["A curtsy", "Thinking…"],
+      ["A high five", "Waiting for its turn…"],
+    ]);
+    expect(find("generate-progress")!.textContent).toBe(
+      "Working on 3 drafts. 0 finished so far…",
+    );
+    // An item's Discard does not wait for the run; an earlier draft's never did.
+    expect(discardOf("draft-3").disabled).toBe(false);
+    expect(discardOf("draft-5").disabled).toBe(false);
+
+    // The first item is written and settles; the second fails.
+    const salute = generationDraft({
+      id: "draft-3",
+      position: 2,
+      status: "ready",
+      checked_version: 1,
+      project: gestureProject({ name: "Salute" }),
+    });
+    await emit(
+      sseFrame("draft.updated", { draft: salute }),
+      sseFrame("item.failed", {
+        draft_id: "draft-4",
+        code: "openai_connection_error",
+        category: "connection",
+        details: { connection_name: "My Ollama" },
+      }),
+      sseFrame("draft.updated", {
+        draft: {
+          ...planned("draft-4", 3),
+          status: "failed",
+          failure_reason: "openai_connection_error",
+        },
+      }),
+      sseFrame("progress", { phase: "writing", draft_id: "draft-5" }),
+    );
+    expect(shown("draft-3", "generate-draft-status")!.textContent).toBe(
+      "Ready",
+    );
+    // The first item written is what the preview plays.
+    expect(find("stage")!.dataset.draftId).toBe("draft-3");
+    expect(shown("draft-4", "generate-draft-failure")!.textContent).toBe(
+      "Animama couldn't reach My Ollama.",
+    );
+    expect(shown("draft-5", "generate-draft-status")!.textContent).toBe(
+      "Writing…",
+    );
+    expect(find("generate-progress")!.textContent).toBe(
+      "Working on 3 drafts. 2 finished so far…",
+    );
+    // The run itself has not failed.
+    expect(find("generate-failure")).toBeNull();
+    // Saving waits for the run, for one draft and for several.
+    expect(
+      (find("generate-drafts-save-all") as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    // The run ends; the stored turn keeps the plan for a reload.
+    server.snapshot = generationSnapshot({
+      conversation: server.snapshot.conversation,
+      messages: [
+        ...server.snapshot.messages,
+        generationMessage({ id: "message-3", text: "three greetings" }),
+        generationMessage({
+          id: "message-4",
+          role: "assistant",
+          text: "Three greetings.",
+          data: {
+            outcome: "draft",
+            draft_id: "draft-3",
+            run_id: "run-2",
+            batch: [
+              { draft_id: "draft-3", intent: "gesture", brief: "A salute" },
+              {
+                draft_id: "draft-4",
+                intent: "gesture",
+                brief: "A curtsy",
+                error: {
+                  code: "openai_connection_error",
+                  category: "connection",
+                },
+              },
+              { draft_id: "draft-5", intent: "gesture", brief: "A high five" },
+            ],
+          },
+        }),
+      ],
+      drafts: [
+        first,
+        second,
+        salute,
+        {
+          ...planned("draft-4", 3),
+          status: "failed",
+          failure_reason: "openai_connection_error",
+        },
+      ],
+    });
+    await emit(sseFrame("run.completed", {}));
+    expect(find("generate-progress")).toBeNull();
+    expect(
+      (find("generate-drafts-save-all") as HTMLButtonElement).disabled,
+    ).toBe(false);
+
+    // After a reload the briefs and the failed item's reason are still there.
+    mounted!.unmount();
+    mounted!.container.remove();
+    for (const reset of privateStateResets()) reset();
+    await open();
+    expect(
+      findAll("generate-draft-card").map((element) => [
+        element.dataset.draftId,
+        element.querySelector('[data-testid="generate-draft-brief"]')
+          ?.textContent ?? null,
+      ]),
+    ).toEqual([
+      ["draft-1", null],
+      ["draft-2", null],
+      ["draft-3", "A salute"],
+      ["draft-4", "A curtsy"],
+    ]);
+    const reason = shown("draft-4", "generate-draft-failure")!.textContent;
+    expect(reason).toContain("couldn't reach");
+    expect(reason).not.toContain("openai_connection_error");
+  });
+
+  it("plays the selected draft's effects through the creator's sandbox entries", async () => {
+    const sparkling = generationDraft({
+      id: "draft-3",
+      position: 2,
+      status: "ready",
+      project: effectGestureProject({ name: "Sparkling Wave" }),
+    });
+    server.snapshot = {
+      ...server.snapshot,
+      drafts: [first, second, sparkling],
+    };
+    await open();
+
+    // The preview provider wraps the stage, and holds the effects of the
+    // draft the stage plays, under the alias its event names.
+    expect(find("preview-provider")!.contains(find("stage"))).toBe(true);
+    expect(find("stage")!.dataset.draftId).toBe("draft-3");
+    const mountedEffects = fixture.sandbox.at(-1)!;
+    expect(mountedEffects).toMatchObject([
+      { slot: "avatar_vfx", runtime_id: "sparkle" },
+    ]);
+    expect(server.effects.requests).toEqual([["effect-item-1"]]);
+    // The card says what the draft plays.
+    const card = findAll("generate-draft-card")[2]!;
+    expect(
+      card.querySelector('[data-testid="generate-draft-effects"]')!.textContent,
+    ).toBe("Plays 1 effect: sparkle");
+    expect(
+      card.querySelector('[data-testid="generate-draft-missing-effects"]'),
+    ).toBeNull();
+
+    // A draft without effects mounts none; moving on to another such draft
+    // leaves the preview's catalog, and so its Avatar, as it is.
+    await click(
+      findAll("generate-draft-card")[0]!.querySelector(
+        '[data-testid="generate-draft-select"]',
+      ),
+    );
+    await settle();
+    const none = fixture.sandbox.at(-1)!;
+    expect(none).toEqual([]);
+    await click(
+      findAll("generate-draft-card")[1]!.querySelector(
+        '[data-testid="generate-draft-select"]',
+      ),
+    );
+    await settle();
+    expect(find("stage")!.dataset.draftId).toBe("draft-2");
+    expect(fixture.sandbox.at(-1)).toBe(none);
+    expect(server.effects.requests).toHaveLength(1);
+  });
+
+  it("says on its card that a draft's effect is gone from the Library, and holds its Save", async () => {
+    const sparkling = generationDraft({
+      id: "draft-3",
+      position: 2,
+      status: "ready",
+      project: effectGestureProject({ name: "Sparkling Wave" }),
+    });
+    server.snapshot = {
+      ...server.snapshot,
+      drafts: [first, sparkling, second],
+    };
+    server.effects.gone.add("effect-item-1");
+    await open();
+
+    // Not the selected draft: the list resolves every draft's effects.
+    expect(find("stage")!.dataset.draftId).toBe("draft-2");
+    const card = findAll("generate-draft-card")[1]!;
+    const missing = card.querySelector<HTMLElement>(
+      '[data-testid="generate-draft-missing-effects"]',
+    )!;
+    expect(missing.textContent).toBe(
+      "This draft plays an effect that is no longer in your Library: sparkle. Ask the assistant to revise the draft before you save it.",
+    );
+    const save = card.querySelector<HTMLButtonElement>(
+      '[data-testid="generate-draft-save"]',
+    )!;
+    expect(save.disabled).toBe(true);
+    expect(save.getAttribute("aria-describedby")).toBe(missing.id);
+    // The other drafts save as before.
+    expect(
+      findAll("generate-draft-card")[0]!.querySelector<HTMLButtonElement>(
+        '[data-testid="generate-draft-save"]',
+      )!.disabled,
+    ).toBe(false);
   });
 
   it("returns from Model setup to the conversation that was open", async () => {

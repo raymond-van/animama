@@ -7,7 +7,11 @@ import {
   GenerateDraftCard,
   type GenerateDraftCardProps,
 } from "./GenerateDraftCard";
-import { generationDraft, reactionProject } from "./testing/generationFixtures";
+import {
+  effectGestureProject,
+  generationDraft,
+  reactionProject,
+} from "./testing/generationFixtures";
 import {
   click,
   mountInDocument,
@@ -416,6 +420,328 @@ describe("a draft card", () => {
     it("waits for a run in flight, whose checks these are", () => {
       const root = card(leftUnchecked(), { running: true });
       expect(find(root, "generate-draft-retry-check")).toBeNull();
+    });
+  });
+
+  describe("of a batch item", () => {
+    const planned = () => generationDraft({ status: "writing", project: null });
+    const item = (
+      overrides: Partial<NonNullable<GenerateDraftCardProps["batch"]>> = {},
+    ) => ({
+      brief: "A shy little wave",
+      step: null,
+      failure: null,
+      ...overrides,
+    });
+
+    it("shows what was planned as soon as it is planned, waiting for its turn", () => {
+      const root = card(planned(), {
+        running: true,
+        batch: item({ step: "waiting" }),
+      });
+      expect(find(root, "generate-draft-brief")!.textContent).toBe(
+        "A shy little wave",
+      );
+      expect(find(root, "generate-draft-kind")!.textContent).toBe("Gesture");
+      const status = find(root, "generate-draft-status")!;
+      expect(status.textContent).toBe("Waiting for its turn…");
+      expect(status.dataset.step).toBe("waiting");
+      // The stored status is unchanged, and nothing spins for a waiting item.
+      expect(status.dataset.status).toBe("writing");
+      expect(status.querySelector(".animate-spin")).toBeNull();
+    });
+
+    it.each([
+      ["thinking", "Thinking…"],
+      ["writing", "Writing…"],
+      ["checking", "Checking…"],
+      ["repairing", "Repairing…"],
+      ["reviewing_frames", "Reviewing frames…"],
+    ] as const)("says its own step while the run is %s it", (step, text) => {
+      const root = card(planned(), { running: true, batch: item({ step }) });
+      const status = find(root, "generate-draft-status")!;
+      expect(status.textContent).toBe(text);
+      expect(status.dataset.step).toBe(step);
+      expect(status.querySelector(".animate-spin")).not.toBeNull();
+    });
+
+    it("reads as any other draft once the run has finished with it, keeping its brief", () => {
+      const root = card(generationDraft({ status: "ready" }), {
+        batch: item(),
+      });
+      const status = find(root, "generate-draft-status")!;
+      expect(status.textContent).toBe("Ready");
+      expect(status.dataset.step).toBeUndefined();
+      expect(find(root, "generate-draft-brief")!.textContent).toBe(
+        "A shy little wave",
+      );
+    });
+
+    it("shows no brief for a draft that no batch planned, or a plan without one", () => {
+      expect(find(card(generationDraft()), "generate-draft-brief")).toBeNull();
+      mounted!.unmount();
+      expect(
+        find(
+          card(generationDraft(), { batch: item({ brief: "" }) }),
+          "generate-draft-brief",
+        ),
+      ).toBeNull();
+    });
+
+    it("says why its item failed, once, in the words a failed run uses", () => {
+      const root = card(
+        generationDraft({
+          status: "failed",
+          project: null,
+          failure_reason: "openai_connection_error",
+        }),
+        {
+          batch: item({
+            failure: {
+              code: "openai_connection_error",
+              category: "connection",
+              details: { connection_name: "My Ollama" },
+            },
+          }),
+        },
+      );
+      // The run's failure names the connection; the stored code alone cannot.
+      expect(find(root, "generate-draft-failure")!.textContent).toBe(
+        "Animama couldn't reach My Ollama.",
+      );
+      expect(find(root, "generate-draft-item-failed")).toBeNull();
+      expect(root.textContent).not.toContain("openai_connection_error");
+    });
+
+    it("words a failed item after a reload, from the stored code alone", () => {
+      const root = card(
+        generationDraft({
+          status: "failed",
+          project: null,
+          failure_reason: "chatgpt_plan_usage_limit",
+        }),
+        {
+          batch: item({
+            failure: {
+              code: "chatgpt_plan_usage_limit",
+              category: "rate_limited",
+              details: {},
+            },
+          }),
+        },
+      );
+      expect(find(root, "generate-draft-failure")!.textContent).toBe(
+        "You've reached your ChatGPT plan's usage limit.",
+      );
+      expect(root.textContent).not.toContain("chatgpt_plan_usage_limit");
+    });
+
+    it("says that an item with a version that loads was not finished, and why", () => {
+      const root = card(checked({}, { status: "warnings" }), {
+        batch: item({
+          failure: {
+            code: "chatgpt_plan_usage_limit",
+            category: "rate_limited",
+            details: {},
+          },
+        }),
+      });
+      expect(find(root, "generate-draft-item-failed")!.textContent).toBe(
+        "The assistant could not finish this draft.You've reached your ChatGPT plan's usage limit.",
+      );
+      // The version it has can still be saved.
+      expect(find(root, "generate-draft-save")).not.toBeNull();
+      expect(find(root, "generate-draft-failure")).toBeNull();
+    });
+  });
+
+  it("never shows a model error's code for a failed draft", () => {
+    const root = card(
+      generationDraft({
+        status: "failed",
+        project: null,
+        failure_reason: "provider_melted",
+      }),
+    );
+    expect(find(root, "generate-draft-failure")!.textContent).toBe(
+      "The assistant ran into an unexpected problem. Try again.",
+    );
+    expect(root.textContent).not.toContain("provider_melted");
+  });
+
+  describe("marked for saving with others", () => {
+    it("offers a named mark on a draft that loads, where the list asks for one", async () => {
+      const onMarkedChange = vi.fn();
+      const root = card(generationDraft({ status: "ready" }), {
+        onMarkedChange,
+      });
+      const mark = find(root, "generate-draft-mark")!;
+      expect(mark.getAttribute("role")).toBe("checkbox");
+      expect(mark.getAttribute("aria-label")).toBe(
+        "Mark “Shy Wave” for saving",
+      );
+      expect(mark.getAttribute("aria-checked")).toBe("false");
+      await click(mark);
+      expect(onMarkedChange).toHaveBeenCalledWith(true);
+
+      mounted!.unmount();
+      const marked = card(generationDraft({ status: "ready" }), {
+        onMarkedChange,
+        marked: true,
+      });
+      expect(
+        find(marked, "generate-draft-mark")!.getAttribute("aria-checked"),
+      ).toBe("true");
+      await click(find(marked, "generate-draft-mark"));
+      expect(onMarkedChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it("offers none without the list's choice, or on a draft that cannot be saved", () => {
+      expect(
+        find(card(generationDraft({ status: "ready" })), "generate-draft-mark"),
+      ).toBeNull();
+      mounted!.unmount();
+      expect(
+        find(
+          card(generationDraft({ status: "failed", project: null }), {
+            onMarkedChange: vi.fn(),
+          }),
+          "generate-draft-mark",
+        ),
+      ).toBeNull();
+    });
+
+    it("says on the card why its save failed", () => {
+      const root = card(generationDraft({ status: "ready" }), {
+        saveFailure: "The name is already in use.",
+      });
+      const failed = find(root, "generate-draft-save-failed")!;
+      expect(failed.getAttribute("role")).toBe("alert");
+      expect(failed.textContent).toBe("The name is already in use.");
+      // Save stays where it was, to try again.
+      expect(find(root, "generate-draft-save")).not.toBeNull();
+    });
+  });
+
+  it("takes every word of a batch item from the catalog", async () => {
+    const leave = await enterPseudoLocale();
+    try {
+      card(checked({}, { status: "warnings" }), {
+        running: true,
+        onMarkedChange: vi.fn(),
+        batch: {
+          brief: "A shy little wave",
+          step: "waiting",
+          failure: {
+            code: "generation_run_failed",
+            category: "internal",
+            details: {},
+          },
+        },
+      });
+      expect(
+        unmarkedText(document.body, ["Shy Wave", "A shy little wave"]),
+      ).toEqual([]);
+    } finally {
+      await leave();
+    }
+  });
+
+  describe("with effects on its timeline (R7.3)", () => {
+    const sparkling = generationDraft({
+      status: "ready",
+      project: effectGestureProject(),
+    });
+
+    it("shows nothing of effects for a draft that plays none", () => {
+      const root = card(generationDraft({ status: "ready" }));
+      expect(find(root, "generate-draft-effects")).toBeNull();
+      expect(find(root, "generate-draft-missing-effects")).toBeNull();
+    });
+
+    it("says which effects the draft plays, by their aliases", () => {
+      const root = card(sparkling, {
+        effects: { aliases: ["sparkle"], missing: [] },
+      });
+      const effects = find(root, "generate-draft-effects")!;
+      expect(effects.textContent).toBe("Plays 1 effect: sparkle");
+      expect(effects.dataset.count).toBe("1");
+      expect(find(root, "generate-draft-missing-effects")).toBeNull();
+      // Nothing stands in the way of Save.
+      const save = find(root, "generate-draft-save") as HTMLButtonElement;
+      expect(save.disabled).toBe(false);
+      expect(save.hasAttribute("aria-describedby")).toBe(false);
+      mounted!.unmount();
+
+      const several = card(sparkling, {
+        effects: { aliases: ["backdrop", "rain", "sparkle"], missing: [] },
+      });
+      expect(find(several, "generate-draft-effects")!.textContent).toBe(
+        "Plays 3 effects: backdrop, rain, and sparkle",
+      );
+    });
+
+    it("names an effect that is gone from the Library, and holds Save with the reason", async () => {
+      const root = card(sparkling, {
+        effects: { aliases: ["rain", "sparkle"], missing: ["sparkle"] },
+        onMarkedChange: vi.fn(),
+      });
+      const missing = find(root, "generate-draft-missing-effects")!;
+      expect(missing.textContent).toBe(
+        "This draft plays an effect that is no longer in your Library: sparkle. Ask the assistant to revise the draft before you save it.",
+      );
+      const save = find(root, "generate-draft-save") as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      expect(save.title).toBe(
+        "This draft cannot be saved until it is revised: an effect it plays is no longer in your Library.",
+      );
+      // The sentence on the card is the button's description.
+      expect(save.getAttribute("aria-describedby")).toBe(missing.id);
+      await click(save);
+      expect(actions.onSave).not.toHaveBeenCalled();
+      // It cannot be marked for saving with others either.
+      expect(find(root, "generate-draft-mark")).toBeNull();
+      // The creator can still open it, where the effect can be replaced by hand.
+      expect(find(root, "generate-draft-open")).not.toBeNull();
+      // What the draft plays is still said.
+      expect(find(root, "generate-draft-effects")!.textContent).toBe(
+        "Plays 2 effects: rain and sparkle",
+      );
+      mounted!.unmount();
+
+      const both = card(sparkling, {
+        effects: {
+          aliases: ["rain", "sparkle"],
+          missing: ["rain", "sparkle"],
+        },
+      });
+      expect(find(both, "generate-draft-missing-effects")!.textContent).toBe(
+        "This draft plays effects that are no longer in your Library: rain and sparkle. Ask the assistant to revise the draft before you save it.",
+      );
+    });
+
+    it("says that the assistant has to finish first while a run is in flight", () => {
+      const root = card(sparkling, {
+        running: true,
+        effects: { aliases: ["sparkle"], missing: ["sparkle"] },
+      });
+      expect(find(root, "generate-draft-save")!.title).toBe(
+        "Available when the assistant has finished.",
+      );
+    });
+
+    it("takes every word about effects from the catalog", async () => {
+      const leave = await enterPseudoLocale();
+      try {
+        const root = card(sparkling, {
+          effects: { aliases: ["rain", "sparkle"], missing: ["sparkle"] },
+        });
+        // An alias is the draft's own data, shown as written.
+        expect(unmarkedText(root, ["Shy Wave", "rain", "sparkle"])).toEqual([]);
+        expect(find(root, "generate-draft-save")!.title).toMatch(/^⟦.*⟧$/);
+      } finally {
+        await leave();
+      }
     });
   });
 

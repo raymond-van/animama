@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "请选择可用的 PocketTTS 语音。"
   },
   "generation": {
+    "generation_batch_time_limit": "这次请求已超出时间限制。已完成的草稿会保留。",
     "generation_document_invalid": "助手无法处理此项目当前的内容。请检查时间轴是否有问题，然后重试。",
     "generation_document_invalid_details": "此项目的名称、描述、选择器 ID 或建议情绪有问题，助手无法处理。请检查后重试。",
     "generation_document_invalid_timeline": "助手无法处理此项目当前的时间轴。请检查时间轴是否有问题，然后重试。",

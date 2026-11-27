@@ -49,6 +49,58 @@ export function gestureProject(
   };
 }
 
+/**
+ * The dependency of `effectGestureProject`: one Avatar Effect of the owner's
+ * Library under the alias its event names, in the creator's own shape.
+ */
+export function sparkleDependency(): {
+  alias: string;
+  content_type: "avatar_effect";
+  source: {
+    type: "catalog";
+    catalog_item_id: string;
+    logical_key: string | null;
+  };
+} {
+  return {
+    alias: "sparkle",
+    content_type: "avatar_effect",
+    source: {
+      type: "catalog",
+      catalog_item_id: "effect-item-1",
+      logical_key: "local:avatar-effect:sparkle",
+    },
+  };
+}
+
+/**
+ * A Gesture draft's project that plays an existing Avatar Effect: one
+ * `avatar_vfx` event from the clip's start, and the dependency the backend
+ * derives from it.
+ */
+export function effectGestureProject(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return gestureProject({
+    sequence: {
+      ...waveHelloClip(),
+      id: "shy-wave",
+      name: "Shy Wave",
+      events: [
+        {
+          id: "effect-1",
+          time: 0,
+          kind: "avatar_vfx",
+          effectId: "sparkle",
+          duration: 0.5,
+        },
+      ],
+    },
+    dependencies: [sparkleDependency()],
+    ...overrides,
+  });
+}
+
 /** A face-only clip as an Included Reaction shapes one: a flash that settles into a smile. */
 export function softJoyClip(): Record<string, unknown> {
   return {

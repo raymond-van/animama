@@ -176,7 +176,8 @@ export type GenerationRunController = {
  * A run is one streamed request. Its events update the run state
  * (`stores/generation-store.ts`) and write drafts into the conversation's
  * cached snapshot; when it ends, the conversation is read again for the turns
- * the server stored. Stop closes the request, which is how the backend learns
+ * the server stored. A run that plans a batch is still one run: its events
+ * name each item's draft, and the run state keeps each item's own step. Stop closes the request, which is how the backend learns
  * of it. Leaving the page or switching conversation stops the run too: the
  * page's checks, which a run waits for, stop with it.
  *
@@ -289,6 +290,10 @@ export function useGenerationRun(input: {
           events += 1;
           if (
             event.type === "draft.updated" &&
+            // A draft the person discarded during the run stays gone.
+            !generationRunState(conversationId).discardedDraftIds.includes(
+              event.draft.id,
+            ) &&
             !writeGenerationDraft(queryClient, ownerKey, event.draft)
           )
             // The conversation was not read yet: read it, so the page's

@@ -167,6 +167,112 @@ describe("parseGenerationRunEvent", () => {
   });
 });
 
+describe("a batch's events", () => {
+  it("reads the planned items in plan order, with each item's kind and brief", () => {
+    expect(
+      parseGenerationRunEvent("batch.planned", {
+        items: [
+          { draft_id: "draft-1", intent: "gesture", brief: " A shy wave " },
+          { draft_id: "draft-2", intent: "reaction", brief: "A soft smile" },
+        ],
+      }),
+    ).toEqual({
+      type: "batch.planned",
+      items: [
+        {
+          draftId: "draft-1",
+          intent: "gesture",
+          brief: "A shy wave",
+          error: null,
+        },
+        {
+          draftId: "draft-2",
+          intent: "reaction",
+          brief: "A soft smile",
+          error: null,
+        },
+      ],
+    });
+  });
+
+  it("drops an item it cannot place and skips a plan with none left", () => {
+    expect(
+      parseGenerationRunEvent("batch.planned", {
+        items: [
+          null,
+          "a wave",
+          { brief: "No draft" },
+          { draft_id: "", brief: "No draft either" },
+          // A kind this page does not know is a Gesture, as for a draft.
+          { draft_id: "draft-1", intent: "dance" },
+          // The same draft is planned once.
+          { draft_id: "draft-1", brief: "Again" },
+        ],
+      }),
+    ).toEqual({
+      type: "batch.planned",
+      items: [
+        { draftId: "draft-1", intent: "gesture", brief: "", error: null },
+      ],
+    });
+    for (const payload of [
+      {},
+      { items: [] },
+      { items: "draft-1" },
+      { items: [{ brief: "No draft" }] },
+      undefined,
+    ])
+      expect(parseGenerationRunEvent("batch.planned", payload)).toBeNull();
+  });
+
+  it("reads which batch item a piece of text is a note of", () => {
+    expect(
+      parseGenerationRunEvent("message.delta", {
+        text: "A shy wave.",
+        draft_id: "draft-2",
+      }),
+    ).toEqual({
+      type: "message.delta",
+      text: "A shy wave.",
+      draftId: "draft-2",
+    });
+    // Text that names no usable draft is the run's own, as before.
+    expect(
+      parseGenerationRunEvent("message.delta", { text: "Hi", draft_id: 7 }),
+    ).toEqual({ type: "message.delta", text: "Hi" });
+  });
+
+  it("reads one item's failure, with the fields a failed run carries", () => {
+    expect(
+      parseGenerationRunEvent("item.failed", {
+        draft_id: "draft-2",
+        code: "openai_rate_limit",
+        category: "rate_limited",
+        details: { connection_name: "OpenAI" },
+      }),
+    ).toEqual({
+      type: "item.failed",
+      draftId: "draft-2",
+      code: "openai_rate_limit",
+      category: "rate_limited",
+      details: { connection_name: "OpenAI" },
+    });
+    expect(
+      parseGenerationRunEvent("item.failed", { draft_id: "draft-2" }),
+    ).toEqual({
+      type: "item.failed",
+      draftId: "draft-2",
+      code: GENERATION_RUN_FAILED,
+      category: null,
+      details: {},
+    });
+    // A failure that names no item cannot be placed.
+    expect(
+      parseGenerationRunEvent("item.failed", { code: "openai_rate_limit" }),
+    ).toBeNull();
+  });
+});
+
 describe("parseGenerationDraft", () => {
   it("keeps a whole draft as sent, with fields this page does not know", () => {
     const draft = { ...generationDraft(), review_note: "kept" };

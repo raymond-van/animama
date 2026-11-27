@@ -14,10 +14,12 @@ import {
   applyGenerationRunEvent,
   beginGenerationRun,
   endGenerationRun,
+  forgetGenerationRunDraft,
   generationRunState,
 } from "@/stores/generation-store";
 import type { PreviewSheetRenderer } from "./previewSheetRenderer";
 import {
+  effectGestureProject,
   generationDraft,
   generationSnapshot,
   gestureProject,
@@ -78,7 +80,10 @@ vi.mock("@/lib/avatar/motion-authoring/draftChecksClient", () => ({
         await checks.hold;
         assertLive();
         if (checks.fail) throw new Error("The draft checks worker failed.");
-        return checks.report;
+        // A test may answer by clip, to tell two drafts' reports apart.
+        return typeof checks.report === "function"
+          ? (checks.report as (clip: unknown) => unknown)(clip)
+          : checks.report;
       },
       dispose: () => {
         client.disposed = true;
@@ -224,6 +229,25 @@ describe("validateDraft", () => {
       });
   });
 
+  it("hands a clip that plays effects to the preview with its events", () => {
+    const draft = generationDraft({ project: effectGestureProject() });
+    const validation = validateDraft(draft);
+    // Timeline events are part of the clip format: nothing is reported.
+    expect(validation).toMatchObject({ loadable: true, issues: [] });
+    expect(validation.sequence).toBe(
+      (draft.project as { sequence: unknown }).sequence,
+    );
+    expect(validation.sequence!.events).toEqual([
+      {
+        id: "effect-1",
+        time: 0,
+        kind: "avatar_vfx",
+        effectId: "sparkle",
+        duration: 0.5,
+      },
+    ]);
+  });
+
   it("still plays a clip that only exceeds an anatomical limit", () => {
     const clip = waveHelloClip() as {
       joints: { rightUpperArm: { elevation: { v: number }[] } };
@@ -339,6 +363,31 @@ describe("useDraftWorker", () => {
     await settle();
     expect(checks.checked).toHaveLength(1);
     expect(server.reports).toHaveLength(1);
+  });
+
+  it("checks and reports a draft that plays effects as any other draft", async () => {
+    const draft = generationDraft({ project: effectGestureProject() });
+    checks.report = CLEAN;
+    const { result } = await mount([draft]);
+
+    // The clip is measured as the preview plays it, events included.
+    const { sequence } = result().validations[draft.id]!;
+    expect(checks.checked).toEqual([sequence]);
+    expect((checks.checked[0] as { events: unknown[] }).events).toHaveLength(1);
+    // Nothing about the events is reported as a problem.
+    expect(server.reports).toEqual([
+      {
+        draftId: draft.id,
+        body: {
+          version: 1,
+          loadable: true,
+          issues: [],
+          findings: [],
+          expression_names: { missing: [], avatar_only: [] },
+        },
+      },
+    ]);
+    expect(result().failures).toEqual({});
   });
 
   it("reports an unloadable clip without measuring it or handing it to the preview", async () => {
@@ -521,6 +570,95 @@ describe("useDraftWorker", () => {
       body: { version: 2 },
     });
     expect(server.reports).toHaveLength(3);
+  });
+
+  it("reports two drafts that wait at once each for its own id, version and clip", async () => {
+    // As in a batch: two items in flight, both waiting for their reports.
+    let release!: () => void;
+    checks.hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const clip = (name: string) => ({ ...waveHelloClip(), name });
+    const wave = generationDraft({
+      id: "draft-1",
+      version: 2,
+      project: gestureProject({ sequence: clip("Wave") }),
+    });
+    const bow = generationDraft({
+      id: "draft-2",
+      position: 1,
+      version: 5,
+      project: gestureProject({ sequence: clip("Bow") }),
+    });
+    // The checks answer by clip: only the bow has a finding.
+    checks.report = (checked: { name: string }) =>
+      checked.name === "Bow"
+        ? {
+            ...CLEAN,
+            ok: false,
+            findings: [
+              {
+                category: "range",
+                severity: "fail",
+                avatar: "Andrew",
+                subject: "spine",
+                from: 0.2,
+                to: 0.4,
+                message: "The bow bends too far.",
+              },
+            ],
+          }
+        : CLEAN;
+    await mount([wave, bow]);
+
+    // One at a time: the second waits while the first is measured.
+    expect(checks.checked).toEqual([clip("Wave")]);
+    expect(server.reports).toEqual([]);
+
+    checks.hold = null;
+    release();
+    await settle();
+    expect(checks.checked).toEqual([clip("Wave"), clip("Bow")]);
+    expect(
+      server.reports.map(({ draftId, body }) => ({
+        draftId,
+        version: body.version,
+        findings: (body.findings as { subject: string }[]).map(
+          ({ subject }) => subject,
+        ),
+      })),
+    ).toEqual([
+      { draftId: "draft-1", version: 2, findings: [] },
+      { draftId: "draft-2", version: 5, findings: ["spine"] },
+    ]);
+    // Each draft is settled from its own report.
+    expect(cachedDrafts().map(({ id, status }) => [id, status])).toEqual([
+      ["draft-1", "ready"],
+      ["draft-2", "warnings"],
+    ]);
+  });
+
+  it("goes on to the next waiting draft when one draft's report is refused", async () => {
+    // As when a batch item is discarded while its check runs.
+    const gone = generationDraft({ id: "draft-1" });
+    const kept = generationDraft({ id: "draft-2", position: 1 });
+    server.refuseReport = () => {
+      server.refuseReport = null;
+      return jsonResponse({ detail: { code: "generation_not_found" } }, 404);
+    };
+    const { result } = await mount([gone, kept]);
+    await settle();
+
+    expect(server.reports.map(({ draftId }) => draftId)).toEqual([
+      "draft-1",
+      "draft-2",
+    ]);
+    expect(Object.keys(result().failures)).toEqual(["draft-1"]);
+    expect(cachedDrafts()[1]).toMatchObject({
+      id: "draft-2",
+      status: "ready",
+      checked_version: 1,
+    });
   });
 
   describe("a version a run stopped waiting for", () => {
@@ -729,9 +867,29 @@ describe("useDraftWorker", () => {
         ["Annie.jpg", "image/jpeg"],
       ]);
       // Answered: the request is forgotten and not drawn again.
-      expect(generationRunState(CONVERSATION).framesRequest).toBeNull();
+      expect(generationRunState(CONVERSATION).framesRequests).toEqual([]);
       await settle();
       expect(render).toHaveBeenCalledTimes(1);
+    });
+
+    it("show a draft that plays effects at its beats, as any other", async () => {
+      const render = vi.fn<PreviewSheetRenderer>(async () => [sheet("Andrew")]);
+      preview.render = render;
+      const draft = generationDraft({
+        status: "checking",
+        checked_version: 1,
+        project: effectGestureProject(),
+      });
+      const { result } = await mount([draft]);
+      requestFrames(draft);
+      await settle();
+
+      const request = render.mock.calls[0]![0];
+      expect(request.clip).toBe(result().validations[draft.id]!.sequence);
+      // One row per beat: an event adds none.
+      expect(request.times).toEqual([0, 0.5, 0.9, 2, 2.5]);
+      expect(request.view).toBe("body");
+      expect(server.frames).toHaveLength(1);
     });
 
     it("show the body for a Gesture and only the face for a Reaction", async () => {
@@ -763,6 +921,169 @@ describe("useDraftWorker", () => {
         "draft-1",
         "draft-2",
       ]);
+    });
+
+    describe("for two drafts at once", () => {
+      /** Sheets that carry their clip's name, so an upload shows whose it is. */
+      const namedSheets = (hold?: Promise<void>) =>
+        vi.fn<PreviewSheetRenderer>(async (request) => {
+          await hold;
+          return [
+            {
+              ...sheet("Andrew"),
+              blob: new Blob(
+                [`${(request.clip as { name: string }).name}/${request.view}`],
+                { type: "image/jpeg" },
+              ),
+            },
+          ];
+        });
+      const wave = () =>
+        generationDraft({
+          id: "draft-1",
+          status: "checking",
+          version: 2,
+          checked_version: 2,
+          project: gestureProject({
+            sequence: { ...waveHelloClip(), name: "Wave" },
+          }),
+        });
+      const joy = () =>
+        generationDraft({
+          id: "draft-2",
+          intent: "reaction",
+          position: 1,
+          status: "checking",
+          version: 4,
+          checked_version: 4,
+          project: reactionProject(),
+        });
+      /** Both requests outstanding before either is answered, as in a batch. */
+      const requestBoth = (...drafts: PyGenerationDraft[]) =>
+        act(() => {
+          beginGenerationRun(CONVERSATION, REQUEST);
+          for (const draft of drafts)
+            applyGenerationRunEvent(
+              CONVERSATION,
+              {
+                type: "frames.requested",
+                draftId: draft.id,
+                version: draft.version,
+              },
+              REQUEST,
+            );
+        });
+      const uploads = () =>
+        Promise.all(
+          server.frames.map(async ({ draftId, version, files }) => ({
+            draftId,
+            version,
+            sheets: await Promise.all(files.map((file) => file.text())),
+          })),
+        );
+
+      it("are drawn one after another and sent each for its own draft and version", async () => {
+        let release!: () => void;
+        const render = namedSheets(
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }),
+        );
+        preview.render = render;
+        const { result } = await mount([wave(), joy()]);
+        requestBoth(wave(), joy());
+        await settle();
+
+        // The canvas draws one thing at a time: the second request waits.
+        expect(render).toHaveBeenCalledTimes(1);
+        expect(result().frames).toEqual({
+          status: "rendering",
+          draftId: "draft-1",
+        });
+        expect(generationRunState(CONVERSATION).framesRequests).toHaveLength(2);
+
+        release();
+        await settle();
+        expect(render).toHaveBeenCalledTimes(2);
+        expect(await uploads()).toEqual([
+          { draftId: "draft-1", version: "2", sheets: ["Wave/body"] },
+          { draftId: "draft-2", version: "4", sheets: ["Soft Joy/face"] },
+        ]);
+        expect(generationRunState(CONVERSATION).framesRequests).toEqual([]);
+        expect(result().frames).toEqual({ status: "idle", draftId: null });
+      });
+
+      it("answer the second when the first cannot be drawn or sent", async () => {
+        preview.render = namedSheets();
+        // The first draft's sheets are refused; the second's are taken.
+        server.refuseFrames = () => {
+          server.refuseFrames = null;
+          return jsonResponse(
+            { detail: { code: "generation_frames_not_expected" } },
+            409,
+          );
+        };
+        const { result } = await mount([wave(), joy()]);
+        requestBoth(wave(), joy());
+        await settle();
+
+        expect(await uploads()).toEqual([
+          { draftId: "draft-2", version: "4", sheets: ["Soft Joy/face"] },
+        ]);
+        // The failure is the first draft's, and is not tried again.
+        expect(result().frames).toEqual({
+          status: "failed",
+          draftId: "draft-1",
+        });
+        expect(generationRunState(CONVERSATION).framesRequests).toEqual([
+          { draftId: "draft-1", version: 2 },
+        ]);
+        await settle();
+        expect(preview.render).toHaveBeenCalledTimes(2);
+      });
+
+      it("never send one draft's sheets for a version the page does not hold of it", async () => {
+        const render = namedSheets();
+        preview.render = render;
+        await mount([wave(), joy()]);
+        // The first request names a version this page has not validated.
+        requestBoth({ ...wave(), version: 3 }, joy());
+        await settle();
+
+        // It is not drawn from another version or draft, and holds nothing up.
+        expect(await uploads()).toEqual([
+          { draftId: "draft-2", version: "4", sheets: ["Soft Joy/face"] },
+        ]);
+        expect(render).toHaveBeenCalledTimes(1);
+      });
+
+      it("drop what was drawn for a draft that is discarded meanwhile", async () => {
+        let release!: () => void;
+        preview.render = namedSheets(
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }),
+        );
+        server.refuseFrames = () => {
+          server.refuseFrames = null;
+          return jsonResponse(
+            { detail: { code: "generation_not_found" } },
+            404,
+          );
+        };
+        const { result } = await mount([wave(), joy()]);
+        requestBoth(wave(), joy());
+        await settle();
+        act(() => forgetGenerationRunDraft(CONVERSATION, "draft-1"));
+        release();
+        await settle();
+
+        // The other draft's sheets are sent, and nothing is reported failed.
+        expect(await uploads()).toEqual([
+          { draftId: "draft-2", version: "4", sheets: ["Soft Joy/face"] },
+        ]);
+        expect(result().frames).toEqual({ status: "idle", draftId: null });
+      });
     });
 
     it("are not drawn without a preview canvas, and the page can say so", async () => {

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { PyGenerationDraft } from "@animama/runtime-contracts/api-types";
 
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import {
   DEFAULT_POSE_CREATOR_BASE_POSE,
   usePoseCreatorStore,
@@ -47,11 +48,27 @@ const MAX_STAGE_ISSUES = 3;
  * Claims the app's one preview canvas for the page and resolves the Avatars
  * the preview offers: the last active Anima's (the default), the person's own
  * and the Included ones (R5.1).
+ *
+ * `sandboxEntries` are the selected draft's effects, mounted as the creator
+ * mounts a document's (R5.3): the stage's playback finds each one under the
+ * alias the draft's events name. The provider rebuilds its runtime catalog,
+ * and so reloads the Avatar, whenever the list changes, so its owner keeps
+ * one list while the effects stay the same (`useDraftEffects`).
  */
-export function GeneratePreviewProvider({ children }: { children: ReactNode }) {
+export function GeneratePreviewProvider({
+  children,
+  sandboxEntries,
+}: {
+  children: ReactNode;
+  sandboxEntries?: readonly RuntimeCatalogEntry[];
+}) {
   return (
     <ContentPreviewExclusiveCanvasGate ownerId="generate">
-      <PoseCreatorPreviewProvider includedAvatars ownAvatars>
+      <PoseCreatorPreviewProvider
+        includedAvatars
+        ownAvatars
+        sandboxEntries={sandboxEntries}
+      >
         {children}
       </PoseCreatorPreviewProvider>
     </ContentPreviewExclusiveCanvasGate>

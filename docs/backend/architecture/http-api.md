@@ -1308,8 +1308,8 @@ reasons for the split are in
   messages, drafts, usage}`. A message is `{id, role, text, data,
   created_at}`; `data` holds what the turn carried besides text (`intent`,
   `draft_id` and `answers` on the person's turn; `run_id`, `outcome`, `usage`, `model`,
-  and where they apply `cost`, `draft_id`, `questions` and `error` on the
-  assistant's). A draft is described under [Drafts](#drafts) and `usage`
+  and where they apply `cost`, `draft_id`, `questions`, `error` and `batch`
+  on the assistant's). A draft is described under [Drafts](#drafts) and `usage`
   under [Token use and cost](#token-use-and-cost). With no run in flight, a
   draft whose status does not describe it is settled before it is returned:
   by its current version's report, to `checking` when that version has none,
@@ -1347,7 +1347,10 @@ has_previous_version, check_report, checked_version, repair_count,
 failure_reason, saved_item_id, created_at, updated_at}`. `project` is an
 `animamaActionProject/1.0` document the creator's Import accepts. It is stored
 only after the server validated it, and is `null` on a draft that failed
-before any version validated. `version` grows with every stored project.
+before any version validated or that a batch planned and has not written yet.
+Its `dependencies` are the effects its timeline events play, derived by the
+server ([Effects on the timeline](#effects-on-the-timeline)); a draft without
+events has none. `version` grows with every stored project.
 `check_report` is the page's report for `checked_version`, which may be older
 than `version`. `status` is `writing`, `checking`, `repairing` or `reviewing`
 while a run works on the draft, and `ready`, `warnings` or `failed` (with
@@ -1363,7 +1366,12 @@ to 4,000 characters. With
 `draft_id` the run revises that draft, keeping its kind; without it, it writes
 a new draft of `intent` (`gesture`, the default, or `reaction`). A Reaction's
 clip may hold no field that moves the body, and its details are `emotion` (a
-tracked emotion) and `intensity` (1 to 4).
+tracked emotion) and `intensity` (1 to 4). A name the assistant writes, for
+either kind, must be one the Library would save an item under
+(`readable_entry_name`, the save route's own rule): in Latin script only
+letters, digits, spaces, dots, underscores and hyphens, starting with a
+letter or digit. A draft cannot be renamed on the Generate page, so any
+other name is a refused tool call.
 
 A conversation whose scope is `creator` authors its item's kind whatever
 `intent` says, and its run may carry `document`: the item open in the creator
@@ -1389,6 +1397,108 @@ does not know:
 Otherwise the answer is `422 generation_document_invalid` with `reason`:
 `timeline`, `details`, or `document` for a wrong project schema or kind and
 for a document on a conversation that is not a creator's.
+
+#### Batches
+
+The write pass of a run for a new draft on a `page` conversation may answer
+with a plan instead of a draft (`plan_batch`): 2 to 10 items, each with a
+brief of at most 400 characters and its kind. A plan of more is refused whole
+and the model plans again; nothing is cut to fit. A creator's run and a
+revision never offer the tool.
+
+The run then creates one draft for each item, in plan order (`writing`, no
+project), and gives each its own write pass from the request and its brief,
+its own checks, repairs and frame review, and its own status. Two items are
+in flight at a time. An item's pass asks no questions and plans nothing, and
+a brief reaches it as tagged data. A batch is one run: the conversation
+takes no other until it ends, and `usage` and the stored cost add up the
+planning pass and every item's passes.
+
+- An item whose write produces no valid draft is left `failed` with
+  `generation_no_valid_draft`. An item that meets a model error or an
+  internal failure sends `item.failed`; its draft is left `failed` with the
+  failure's code when it has no project, and otherwise keeps its project and
+  is settled from its report. The other items go on, and the run does not
+  fail.
+- A model failure that every item would meet ends the batch instead, as a
+  failed run: `run.failed` carries that error, so the page shows the notice
+  a single run shows, with its sign-in or usage action. Those are the model
+  clients' error categories about the connection or its allowance
+  (`EVERY_ITEM_FAILURES`): `credential_missing`, `credential_rejected`,
+  `sign_in_required`, `not_eligible`, `model_not_found`, `quota_exceeded`,
+  `usage_limit` and `rate_limited`. No further item starts, drafts already
+  written are kept and settled, and planned items never written are
+  removed.
+- Discarding an item's draft during the run ends that item only. The draft
+  is looked for before an item's first model request and after each model
+  response of its passes, so a discarded item is asked nothing more.
+- Two items cannot take one Selector ID: an id another item's draft holds
+  counts as in use.
+- Closing the stream stops every item. A draft with a project is kept and
+  settled as a stopped run's draft is; a planned item never written is
+  removed.
+
+A batch's worst case is fixed by constants in `app/generation/run.py` and
+`tools.py`: 408 model responses (the planning pass's 8, and 10 items of at
+most 5 passes of 8), two provider streams open at once, and 60 minutes for
+its items (`MAX_BATCH_SECONDS`), after which the run ends as a stopped run
+does, with `run.failed` code `generation_batch_time_limit`. A route that
+lost its stored responses costs at most two refused requests, one for each
+item in flight that found out, and a failure every item would meet costs at
+most two requests for the same reason.
+
+#### Effects on the timeline
+
+A Gesture draft on a `page` conversation may play Avatar, Particle and Scene
+Effects that are already in the caller's Library. Its write, revise and
+repair passes offer two more tools:
+
+- `list_effects` (`kind?`, `search?`): the id, kind, name and description of
+  at most 100 effects a call. Names are cut to 80 characters and descriptions
+  to 160.
+- `read_effect` (`id`): one effect's event (the minimal timeline event that
+  plays it) and, for an Avatar Effect, its region and the parts an event's
+  `override` may replace (`attachment`, `appearance`, `motion`,
+  `soundAlias`). Its art and file names are not shown.
+
+The Library read for the run holds only usable, portable items of the three
+kinds, Included and Local; a non-portable effect can be neither listed nor
+read. Both results are tagged data blocks with `<` escaped: what an effect's
+maker wrote is never instructions. An effect's `id` is an alias the server
+derives from its name; it is the same for the same Library.
+
+The clip may then hold `events` of kind `avatar_vfx`, `particle_vfx` or
+`scene_vfx`, at most 24, that pass the clip validation and:
+
+- name an effect the run listed or read, or one the draft's stored project
+  already depends on, by `effectId` (`presetId` for a Scene Effect). A draft's
+  own alias keeps meaning the item it pinned;
+- name it in that field only: `effectId`, `presetId` or `cueId` on an event
+  whose kind does not use it is refused whatever it holds, since the creator
+  reads the first alias field an event has;
+- use the event kind of that effect, and for a Scene Effect its lane
+  (`sceneKind`);
+- carry only an `override` its Avatar Effect can play, checked with
+  `check_clip_effect_overrides`, the check Save applies;
+- are never `sfx`: a Gesture sounds only through its effects.
+
+Anything else is a refused tool call whose result names the event and what to
+change. The server derives the project's `dependencies` from the events, one
+for each effect: `{alias, content_type, source: {type: "catalog",
+catalog_item_id, logical_key}}`, the creator's own dependency shape, so the
+creator's import, preview and save read it unchanged. A model never writes a
+dependency or a content id.
+
+When a draft's effect is no longer in the Library, a pass that works on the
+draft is refused every edit until the event is removed or replaced. When the
+effects cannot be read at all, nothing can be listed and a draft keeps the
+events it has. They are held only to the kind their dependency pins; Save
+checks the rest.
+
+A Reaction draft and a creator's run hold no events: the tools are not
+offered and any event is refused. The creator's page keeps the open item's
+own events and dependencies off the request and puts them back on the
+result.
 
 Every pass that works on a draft (revise, repair, review) gives the model the
 draft's details and clip inside one tagged data block with `<` escaped, which
@@ -1437,12 +1547,21 @@ The response is `text/event-stream`. Each frame has an `event` name and JSON
 | --- | --- |
 | `run.started` | `{run_id}` |
 | `progress` | `{phase, draft_id?}`; `phase` is `thinking`, `writing`, `checking`, `repairing` or `reviewing_frames` |
-| `message.delta` | `{text}`: more of the assistant's text; the pieces in order are the stored message |
+| `message.delta` | `{text, draft_id?}`: more of the assistant's text; the pieces in order are the stored message. `draft_id` names the item when the text is one batch item's note, which begins with the draft's name |
 | `questions` | `{questions: [{question, options}]}`; the run ends here |
+| `batch.planned` | `{items: [{draft_id, intent, brief}]}`: the planned items in order, once their drafts exist; one `draft.updated` for each follows |
 | `draft.updated` | `{draft}`: the whole draft after a new version or status |
 | `frames.requested` | `{draft_id, version}`: upload the review frames of this version |
+| `item.failed` | `{draft_id, code, category, details}`: one item of a batch failed, as `run.failed` describes a run's failure; the run goes on |
 | `run.failed` | `{code, category, details}` |
 | `run.completed` | `{usage: {input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, requests}}` |
+
+Every event about a draft names it, so the page can follow the items of a
+batch: `progress`, `draft.updated` and `frames.requested` always did, and a
+planned item that has had no `progress` yet waits its turn. A run for one
+draft sends the frames it always sent. A page that does not know
+`batch.planned`, `item.failed` or the `draft_id` of a `message.delta` still
+sees every draft through `draft.updated`.
 
 `run.completed` is the last frame of every run the server ends, after
 `run.failed` when the run failed. When the stream itself fails (an event that
@@ -1452,7 +1571,8 @@ stored message. A model failure carries the model client's own `code` and the
 `category` and connection `details` chat's error frame carries, so a usage
 limit, a missing key or an expired sign-in reads as it does in chat. The
 assistant's own failures have category `generation`
-(`generation_no_valid_draft`, `generation_not_found`) or `internal`
+(`generation_no_valid_draft`, `generation_not_found`,
+`generation_batch_time_limit`) or `internal`
 (`generation_run_failed`). The conversation and its drafts stay.
 
 On an OpenAI API key's Responses models, a pass's later tool rounds name the
@@ -1460,8 +1580,8 @@ response the provider stored (`previous_response_id`). When the provider
 cannot resolve it (`openai_previous_response_unresolvable`: the organisation
 stores no responses, or the response expired), the round is sent once more
 without the cursor, carrying the whole exchange, and no later round of the
-run names one, in that pass or the passes after it. A run therefore spends
-at most one refused request. Chat's own stale-cursor check decides
+run names one, in that pass or the passes after it. A run for one draft
+therefore spends at most one refused request, and a batch at most two. Chat's own stale-cursor check decides
 (`should_retry_without_previous_response_id` in
 `app/model_clients/tool_rounds.py`). The refused request is no response: it
 is neither one of the pass's eight nor counted in `usage`.
@@ -1496,13 +1616,19 @@ A run makes at most five model passes for a draft: one write or revise pass,
 three repair passes and one frame review, each at most eight model responses.
 It waits up to 120 seconds for a version's check report (then leaves the
 draft `warnings` with the report `{unchecked: true}`) and up to 60 seconds for
-review frames (then skips the review). Closing the stream stops the run: its
-model request is cancelled, a draft keeps its last stored project, and the
-conversation is free for the next run. Nothing restarts a stopped run.
+review frames (then skips the review). Reports and review frames are keyed by
+draft and version, so two items of a batch that wait at once never take each
+other's. Closing the stream stops the run: its model requests are cancelled,
+a draft keeps its last stored project, and the conversation is free for the
+next run. Nothing restarts a stopped run.
 
 With `ANIMAMA_LLM_SKIP` set, a deterministic author stands in for every model
-pass: it submits a packaged example Gesture named after the request, lengthens
-the clip on a revision or repair, and accepts a review.
+pass: it submits a packaged example Gesture named after the request (without
+the punctuation a saved name cannot hold), lengthens
+the clip on a revision or repair, and accepts a review. Words in the request
+choose what journeys need: `batch of N` plans N items, `item K fails` makes
+item K of that plan fail to validate, and `with an effect` makes a Gesture
+list the Library's Avatar Effects and play the first.
 
 ### Check reports and review frames
 

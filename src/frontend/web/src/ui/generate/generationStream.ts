@@ -10,7 +10,9 @@ import type {
 import { isRecord } from "@/lib/records";
 import type { GenerationRunUsage } from "@/stores/generation-store";
 import {
+  parseGenerationBatch,
   parseGenerationQuestions,
+  type GenerationBatchItem,
   type GenerationQuestion,
 } from "./generationDrafts";
 
@@ -47,14 +49,33 @@ export type GenerationRunEvent =
       phase: GenerationProgressPhase | null;
       draftId: string | null;
     }
-  /** More of the assistant's text; the pieces in order are the stored message. */
-  | { type: "message.delta"; text: string }
+  /**
+   * The request is written as a batch: its items in plan order, each with the
+   * draft created for it. Sent once; every item's own events follow.
+   */
+  | { type: "batch.planned"; items: GenerationBatchItem[] }
+  /**
+   * More of the assistant's text; the pieces in order are the stored message.
+   * `draftId` is set when the text is one batch item's note.
+   */
+  | { type: "message.delta"; text: string; draftId?: string }
   /** The run ends here: the assistant asks before writing. */
   | { type: "questions"; questions: GenerationQuestion[] }
   /** A draft as it is stored now: a new version, or a new status. */
   | { type: "draft.updated"; draft: PyGenerationDraft }
   /** The page should render and upload this draft version's review sheets. */
   | { type: "frames.requested"; draftId: string; version: number }
+  /**
+   * One batch item failed on a model error or an internal failure; the run
+   * goes on with the others. The fields are a failed run's.
+   */
+  | {
+      type: "item.failed";
+      draftId: string;
+      code: string;
+      category: string | null;
+      details: Record<string, unknown>;
+    }
   | {
       type: "run.failed";
       code: string;
@@ -142,9 +163,19 @@ export function parseGenerationRunEvent(
             : null,
         draftId: text(payload.draft_id),
       };
+    case "batch.planned": {
+      const items = parseGenerationBatch(payload.items);
+      return items.length > 0 ? { type: "batch.planned", items } : null;
+    }
     case "message.delta": {
       const delta = text(payload.text);
-      return delta ? { type: "message.delta", text: delta } : null;
+      if (!delta) return null;
+      const draftId = text(payload.draft_id);
+      return {
+        type: "message.delta",
+        text: delta,
+        ...(draftId ? { draftId } : {}),
+      };
     }
     case "questions":
       return {
@@ -162,6 +193,18 @@ export function parseGenerationRunEvent(
         Number.isInteger(payload.version) &&
         payload.version >= 1
         ? { type: "frames.requested", draftId, version: payload.version }
+        : null;
+    }
+    case "item.failed": {
+      const draftId = text(payload.draft_id);
+      return draftId
+        ? {
+            type: "item.failed",
+            draftId,
+            code: text(payload.code) ?? GENERATION_RUN_FAILED,
+            category: text(payload.category),
+            details: isRecord(payload.details) ? payload.details : {},
+          }
         : null;
     }
     case "run.failed":

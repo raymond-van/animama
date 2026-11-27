@@ -326,7 +326,9 @@ provider, and, in Phase 8, an outside client and the backend.
   Reviewed at the high-risk tier; Code Review #3 passed after two repair
   rounds. The Reaction guidance waits for the owner (G7), and the live check
   from a creator and on a Reaction (G1) is not run yet.
-- [ ] Phase 6: batches and effects on the timeline.
+- [x] Phase 6: batches and effects on the timeline (2026-11-27). Reviewed
+  at the high-risk tier; Code Review #2 passed after one repair round. The
+  live batch check (G1) is not run yet.
 - [ ] Phase 7: references and presets (C3).
 - [ ] Phase 8: the connector (C4).
 - [ ] Phase 9: acceptance and closing records.
@@ -2016,8 +2018,129 @@ Steps:
 
 Manual check (G1): one batch of three, at most ten runs.
 
-Records: no checks run, commits or reviews yet. Code Review #1 Findings and
-Revisions go here.
+Records. As built:
+
+- **Batches (R7.4).** On the Generate page a write pass may answer with a
+  plan of 2 to 10 items (`plan_batch`), each with a brief. Every item gets
+  its own draft, passes, checks and status, two at a time, inside the one
+  run its conversation holds. An item that fails does not stop the others;
+  a failure every item would meet (an expired sign-in, a usage limit) ends
+  the run. Stop keeps what was written and removes planned items never
+  written. Token use and cost add up over the batch. The creator panel never
+  plans a batch.
+- **Bounds (T7).** At most 10 items, 2 provider streams at once, 408 model
+  responses (8 for planning and 8 for each of an item's five passes) and 60
+  minutes for the items, after which the run ends as a stopped run with
+  `generation_batch_time_limit`. Every bound of a single draft still holds.
+- **The page.** Each planned item shows as a card with its brief, kind and
+  step. The person saves selected drafts or all of them, one after another,
+  with failures reported per card and a summary. A batch item can be
+  discarded during the run, and is then spent no further model request.
+- **Effects on the timeline (R7.3, R5.3).** For a Gesture draft on the
+  Generate page the assistant can list and read portable Avatar, Particle
+  and Scene Effects (`list_effects`, `read_effect`) and place up to 24
+  events that use them, with per-use overrides. An event must name an effect
+  the run listed or read, or one the draft already depends on, by the field
+  its kind uses and no other; overrides pass the validator Save uses; the
+  server derives the draft's dependencies. Sounds are never placed. The
+  preview shows the effects through the creator's sandbox entries, Save
+  records the dependencies, and a draft whose effect has left the Library
+  says so and cannot be saved until revised.
+- **What a model provider now also receives.** Names, short descriptions
+  and the overridable parts of portable Library effects, as tagged data.
+  Non-portable effects are never read.
+- **A draft's name is one the Library will save.** Names the assistant
+  writes are held to the catalog's entry-name rule on every tool path.
+- **Scope choices.** Reactions and the creator panel place no effects in
+  this phase: the Reaction guidance has no rules for them, and the panel
+  keeps an item's own events off the request and puts them back.
+- **Contract.** No version change: the new stream events are outside
+  OpenAPI.
+
+Threat model changes: T7 gains the batch bounds above. T4 and T10 now cover
+effect names, descriptions and definitions from the owner's Library, which
+may be written by other people and reach a model only as tagged, escaped
+data. T2's fixed tool list gains `plan_batch`, `list_effects` and
+`read_effect`.
+
+For later phases and the owner:
+
+- Effects for Reactions need guidance the owner approves (G7).
+- An alias a draft keeps can differ from what a later run's `read_effect`
+  describes after the Library gains a second effect of the same name
+  (P6-R1-F4); no wrong item is resolved.
+- A page run reads three more typed lists from the catalog at its start;
+  the cost was not measured.
+
+Check record, on working tree `d1ae3c817159fd0e742a652f0aa746c1bc9a5852`,
+each rerun by the checks reviewer with the same result:
+
+| Check | Result |
+| --- | --- |
+| `uv run --no-sync pytest -q -p no:cacheprovider tests/test_generation_*.py` with the guidance, packaging, boundary, inventory, OpenAPI export, clip and `test_content_save*.py` files | 1,230 passed |
+| The generation test files with two workers, three times; `tests/test_generation_batch.py` twenty times in a row | 770 passed each time; 20 of 20 |
+| `ruff check`; `ruff format --check src/backend/animama tests scripts`; `mypy src/backend/animama tests`; the import boundary; the CI policy tests; `check_source.py` | Clean; 979 files; no forbidden edge; 143 OK; every file covered (the format check by the coordinator only) |
+| From `src/frontend`: `pnpm openapi-ts:check`; `packages:build`, `packages:check`, `packages:test`; `pnpm web:test` through the heavy slot; `pnpm check`; `pnpm web:lint`; `pnpm prettier:check`; `pnpm e2e:check:source` | Current; exit 0; 747 files and 7,302 tests passed; clean (the Prettier check by the coordinator only) |
+| `pnpm e2e:test:fast` on a disposable built stack, on this tree and on the tree before the repair | 45 of 45 both times, with the two new journeys (a batch whose second item fails, and a draft saved with an effect) |
+
+The checks reviewer also confirmed by mutation, on an export of the tree,
+that raising the concurrency to three, accepting an effect the run never
+listed, reading a non-portable effect, dropping the name rule and dropping
+the override check each fail a test; that the override validator is the
+save path's own function object; and what the page's tests for Save all,
+the frame-request queue and per-draft run state assert.
+
+Not run: the full pre-push suite, the `@complete-anima` journeys, a browser
+look, a live model on a batch or with effects (G1), and the package-set
+`compare`.
+
+#### Code Review #1 Findings
+
+Independent review at the high-risk tier of working tree
+`61a867004e8d6949efbdef309008d9b385dddc05` against `b02b2cab4`. Result:
+blocked by F1 and F2.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P6-R1-F1 | Required | A batch item the person discarded while it waited still got its write pass, up to eight model responses each. |
+| P6-R1-F2 | Required | An effect event could carry a second alias field the backend ignored and the page read, so the page and the backend disagreed about the draft's effect. |
+| P6-R1-F3 | Optional | With the Library unreadable, an event of another kind could be added under an alias the draft kept. |
+| P6-R1-F4 | Optional | An alias a draft keeps can differ from what a later run's `read_effect` describes after the Library changes. |
+| P6-R1-F5 | Optional | A planned item not yet listed counted as finished in the progress line. |
+| P6-R1-F6 | Optional | A failure every item would meet was reported per item, with no run failure and so no sign-in or usage action. |
+
+The implementer also reported that a draft's name was not held to the
+Library's save rule, so a draft named with punctuation could not be saved.
+
+#### Code Review #1 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P6-R1-F1 | Fixed: an item's draft is looked for before its first request and after each model response. |
+| P6-R1-F2 | Fixed: an event may carry only the alias field of its kind. All 448 effect events in the Included content have that shape. |
+| P6-R1-F3 | Fixed: the kept dependency's kind is checked. |
+| P6-R1-F4 | Not acted on: no wrong item is resolved. |
+| P6-R1-F5 | Fixed. |
+| P6-R1-F6 | Fixed: such a failure ends the batch as a failed run. |
+| Name rule | Fixed by the coordinator's instruction: names the assistant writes pass the save path's own check. Seven Included Gesture names (for example "Chef's Kiss") would not, because Save refuses them for a Local item; that rule is the Library's and is left for the owner. |
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `d1ae3c817159fd0e742a652f0aa746c1bc9a5852`,
+with the independent checks rerun above. Result: pass. One repair round of
+the two allowed was used.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P6-R2-F1 | Optional | A rate limit ends a whole batch on the first refusal on the Anthropic and ChatGPT plan routes, which do not retry. |
+| P6-R2-F2 | Optional | After a failure that ends a batch with no draft kept, the notice offers no Try again. |
+
+#### Code Review #2 Revisions
+
+Both are carried into Phase 7's changes: a rate limit becomes an item's own
+failure, and Try again is offered when a failed batch kept no draft.
+
+Phase commit: this commit (`feat(generate)[p6]`).
 
 ### Phase 7: References and presets
 

@@ -15,6 +15,7 @@ import { emotionLabel } from "@/lib/emotion/presentation";
 import { cn } from "@/lib/utils";
 import { reactionIntensityLabel } from "@/ui/animas/ActionLoadoutRows";
 import { Button } from "@/ui/components/button";
+import { Checkbox } from "@/ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/components/dialog";
+import type { DraftEffectsInfo } from "./draftEffects";
 import {
   draftRemarks,
   type DraftNote,
@@ -33,7 +35,8 @@ import {
   draftName,
   draftReactionPlacement,
 } from "./generationDrafts";
-import { draftFailureText } from "./generationFailure";
+import type { DraftBatchInfo } from "./generationBatch";
+import { draftFailureText, generationFailureLine } from "./generationFailure";
 import type { DraftCheckFailure, DraftValidation } from "./useDraftWorker";
 
 /** How many remarks a card shows before the rest fold away. */
@@ -59,6 +62,30 @@ function statusText(
       return t("drafts.status.warnings");
     case "failed":
       return t("drafts.status.failed");
+  }
+}
+
+/**
+ * Where the run in flight stands with one item of its batch, in the words a
+ * draft's status uses: the item's own step, or that it waits its turn.
+ */
+function stepText(
+  t: TFunction<"generate">,
+  step: NonNullable<DraftBatchInfo["step"]>,
+): string {
+  switch (step) {
+    case "waiting":
+      return t("drafts.status.waiting");
+    case "thinking":
+      return t("drafts.status.thinking");
+    case "writing":
+      return t("drafts.status.writing");
+    case "checking":
+      return t("drafts.status.checking");
+    case "repairing":
+      return t("drafts.status.repairing");
+    case "reviewing_frames":
+      return t("drafts.status.reviewing");
   }
 }
 
@@ -285,12 +312,35 @@ export type GenerateDraftCardProps = {
   onRestore: () => void;
   /** Called once the person confirmed. */
   onDiscard: () => void;
+  /**
+   * The batch the draft was planned in (R7.4): its brief, the step the run in
+   * flight is at for it, and why the item failed. Absent for a draft that no
+   * batch planned.
+   */
+  batch?: DraftBatchInfo;
+  /**
+   * The draft is marked for "Save selected". The mark is offered, on a draft
+   * the page can load, only where `onMarkedChange` is given.
+   */
+  marked?: boolean;
+  onMarkedChange?: (marked: boolean) => void;
+  /** Why saving this draft with others failed, worded, until it is saved. */
+  saveFailure?: string | null;
+  /**
+   * The existing effects the draft's timeline plays (R7.3), by alias, and the
+   * ones the Library no longer holds. Absent for a draft that plays none.
+   */
+  effects?: DraftEffectsInfo;
 };
 
 /**
  * One draft: its name, where it stands, what its checks left as warnings, and
  * the person's actions on it. Save and Open in creator are offered only for a
- * draft the page can load (R4.1); warnings never block Save (R4.3).
+ * draft the page can load (R4.1); warnings never block Save (R4.3). A draft
+ * planned in a batch also shows its brief, its own step while the run works
+ * through the batch, and why its item failed. A draft that plays effects
+ * names them; while one of them is gone from the Library the card says which,
+ * and Save waits for a revision.
  */
 export function GenerateDraftCard({
   draft,
@@ -307,9 +357,18 @@ export function GenerateDraftCard({
   onSave,
   onRestore,
   onDiscard,
+  batch,
+  marked = false,
+  onMarkedChange,
+  saveFailure = null,
+  effects,
 }: GenerateDraftCardProps) {
   const { t } = useTranslation("generate");
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const missingEffectsId = useId();
+  // An effect the draft plays is gone: saving waits until a run revised it.
+  const missingEffects = effects?.missing ?? [];
+  const saveHeldForEffects = missingEffects.length > 0;
   const name = draftName(draft) || t("drafts.unnamed");
   const placement = draftReactionPlacement(draft);
   const validated = validation?.version === draft.version;
@@ -333,6 +392,17 @@ export function GenerateDraftCard({
     // While a run is in flight an unchecked version's checks are the run's.
     !(leftUnchecked && running);
   const failureText = draftFailureText(draft);
+  // What the run is doing with this item of its batch; `waiting` before its turn.
+  const step = batch?.step ?? null;
+  const itemFailureText = batch?.failure
+    ? generationFailureLine(batch.failure)
+    : null;
+  // The draft failed for its item's own reason: said once, in the wording
+  // that can name the connection.
+  const failedAsItem =
+    draft.status === "failed" &&
+    batch?.failure != null &&
+    draft.failure_reason === batch.failure.code;
 
   const waitsForRun = running
     ? { disabled: true, title: t("drafts.waitForRun") }
@@ -350,16 +420,37 @@ export function GenerateDraftCard({
       )}
     >
       <div className="space-y-1">
-        <button
-          type="button"
-          aria-pressed={selected}
-          aria-label={t("drafts.select", { name })}
-          data-testid="generate-draft-select"
-          onClick={onSelect}
-          className="focus-visible:ring-ring/50 block w-full truncate rounded-md py-0.5 text-left text-sm font-medium outline-none focus-visible:ring-[3px]"
-        >
-          {name}
-        </button>
+        <div className="flex items-center gap-2">
+          {onMarkedChange && loadable && !saveHeldForEffects ? (
+            <Checkbox
+              checked={marked}
+              aria-label={t("drafts.markForSaving", { name })}
+              data-testid="generate-draft-mark"
+              disabled={busy || saving}
+              onCheckedChange={(checked) => onMarkedChange(checked === true)}
+            />
+          ) : null}
+          <button
+            type="button"
+            aria-pressed={selected}
+            aria-label={t("drafts.select", { name })}
+            data-testid="generate-draft-select"
+            onClick={onSelect}
+            className="focus-visible:ring-ring/50 block min-w-0 flex-1 truncate rounded-md py-0.5 text-left text-sm font-medium outline-none focus-visible:ring-[3px]"
+          >
+            {name}
+          </button>
+        </div>
+        {batch?.brief ? (
+          // What was asked of this item: the assistant's words, shown as text.
+          <p
+            className="line-clamp-2 text-xs"
+            data-testid="generate-draft-brief"
+            title={batch.brief}
+          >
+            {batch.brief}
+          </p>
+        ) : null}
         <p
           className="text-muted-foreground text-xs"
           data-testid="generate-draft-kind"
@@ -374,14 +465,34 @@ export function GenerateDraftCard({
                 })
               : t("drafts.kind.reaction")}
         </p>
+        {effects && effects.aliases.length > 0 ? (
+          // An alias is the draft's own name for an effect, shown as written.
+          <p
+            className="text-muted-foreground line-clamp-2 text-xs break-words"
+            data-testid="generate-draft-effects"
+            data-count={effects.aliases.length}
+          >
+            {t("drafts.effects", {
+              count: effects.aliases.length,
+              names: effects.aliases,
+            })}
+          </p>
+        ) : null}
         {/* Beside the button, not inside it, so a change of status is read out. */}
         <p
           className="text-muted-foreground flex items-center gap-1.5 text-xs"
           role="status"
           data-testid="generate-draft-status"
           data-status={draft.status}
+          data-step={step ?? undefined}
         >
-          {(inProgress || pageChecking) && !checksStuck ? (
+          {step === "waiting" && !checksStuck ? (
+            // Planned, not started: nothing is working on it yet.
+            <span
+              aria-hidden="true"
+              className="border-muted-foreground/60 size-2 shrink-0 rounded-full border"
+            />
+          ) : (inProgress || pageChecking) && !checksStuck ? (
             <LoaderCircleIcon
               className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
               aria-hidden="true"
@@ -399,7 +510,9 @@ export function GenerateDraftCard({
           )}
           {checksStuck
             ? t("drafts.checksUnavailable")
-            : statusText(t, pageChecking ? "checking" : draft.status)}
+            : step
+              ? stepText(t, step)
+              : statusText(t, pageChecking ? "checking" : draft.status)}
         </p>
       </div>
 
@@ -416,11 +529,35 @@ export function GenerateDraftCard({
       ) : null}
 
       {failureText ? (
-        <p className="text-destructive text-xs">{failureText}</p>
+        <p
+          className="text-destructive text-xs"
+          data-testid="generate-draft-failure"
+        >
+          {failedAsItem ? itemFailureText : failureText}
+        </p>
+      ) : null}
+      {itemFailureText && !failedAsItem ? (
+        // The item failed after it had a version that loads, which is kept.
+        <p className="text-xs" data-testid="generate-draft-item-failed">
+          <span className="block">{t("drafts.itemFailed")}</span>
+          <span className="text-muted-foreground block">{itemFailureText}</span>
+        </p>
       ) : null}
       {unplayable ? (
         <p className="text-xs" data-testid="generate-draft-unplayable">
           {t("drafts.unplayable")}
+        </p>
+      ) : null}
+      {saveHeldForEffects ? (
+        <p
+          id={missingEffectsId}
+          className="text-destructive text-xs break-words"
+          data-testid="generate-draft-missing-effects"
+        >
+          {t("drafts.missingEffects", {
+            count: missingEffects.length,
+            names: missingEffects,
+          })}
         </p>
       ) : null}
 
@@ -460,6 +597,16 @@ export function GenerateDraftCard({
         </p>
       ) : null}
 
+      {saveFailure ? (
+        <p
+          className="text-destructive text-xs"
+          role="alert"
+          data-testid="generate-draft-save-failed"
+        >
+          {saveFailure}
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-1.5">
         {loadable ? (
           <Button
@@ -467,8 +614,16 @@ export function GenerateDraftCard({
             size="sm"
             variant={selected ? "default" : "outline"}
             data-testid="generate-draft-save"
-            disabled={busy || saving || running}
-            title={running ? t("drafts.waitForRun") : undefined}
+            disabled={busy || saving || running || saveHeldForEffects}
+            title={
+              running
+                ? t("drafts.waitForRun")
+                : saveHeldForEffects
+                  ? t("drafts.missingEffectsSave")
+                  : undefined
+            }
+            // The card's own sentence names the effects that are gone.
+            aria-describedby={saveHeldForEffects ? missingEffectsId : undefined}
             onClick={onSave}
           >
             {saving ? (

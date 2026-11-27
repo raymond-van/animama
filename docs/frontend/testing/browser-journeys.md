@@ -99,7 +99,9 @@ review and recovery controls, and `animaPoseClip/2.0` creator round trips (a
 generated Gesture retimed, posed, saved and reopened with its detail; 1.0
 Gestures and Reactions saved as 2.0), the Generate page (a request, a
 revision, Save, the saved Gesture in the creator, Stop, a reload and
-discarding), and the creators' Generate control (a Local Gesture and a Local
+discarding; a batch of three in which one item fails and Save all saves the
+other two; a Gesture that plays an existing Avatar Effect, saved with its
+dependency), and the creators' Generate control (a Local Gesture and a Local
 Reaction written on Generate, revised through the panel in their creators,
 saved with their identity, and the item's conversation found after a reload).
 The separate `pseudo` project runs only through

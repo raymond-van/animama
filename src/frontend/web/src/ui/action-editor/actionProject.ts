@@ -98,7 +98,11 @@ const COMPONENT_TYPES = new Set<ActionComponentType>([
   "sound_effect",
 ]);
 
-function parseDependencies(value: unknown): PyContentDependency[] {
+/**
+ * Read a project's exact dependencies as the Import does. Throws a worded
+ * error for anything but a list of well-formed, uniquely aliased entries.
+ */
+export function parseActionDependencies(value: unknown): PyContentDependency[] {
   const t = getI18n().getFixedT(null, "actionEditor");
   if (!Array.isArray(value))
     throw new WordedError(t("project.errors.dependenciesNotArray"));
@@ -192,7 +196,7 @@ export function parseActionImport(
       suggestedIntensity: intensity,
       notes: optionalString(value.notes),
       sequence: parseAnimaPoseClip(value.sequence),
-      dependencies: parseDependencies(value.dependencies),
+      dependencies: parseActionDependencies(value.dependencies),
     },
   };
 }

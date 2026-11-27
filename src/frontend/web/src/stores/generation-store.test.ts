@@ -11,7 +11,9 @@ import {
   dismissGenerationFailure,
   endGenerationRun,
   forgetGenerationRun,
+  forgetGenerationRunDraft,
   generationRunDraftIds,
+  generationRunWorkingDraftIds,
   generationRunState,
   reduceGenerationRunEvent,
   useGenerationStore,
@@ -122,7 +124,7 @@ describe("a conversation's run state", () => {
     expect(generationRunState("conversation-1")).toMatchObject({
       running: false,
       phase: null,
-      framesRequest: null,
+      framesRequests: [],
       stopped: false,
       failure: { code: "openai_rate_limit", request: REQUEST },
     });
@@ -157,15 +159,14 @@ describe("a conversation's run state", () => {
       draftId: "draft-1",
       version: 1,
     });
-    expect(generationRunState("conversation-1").framesRequest).toEqual({
-      draftId: "draft-1",
-      version: 2,
-    });
+    expect(generationRunState("conversation-1").framesRequests).toEqual([
+      { draftId: "draft-1", version: 2 },
+    ]);
     clearGenerationFramesRequest("conversation-1", {
       draftId: "draft-1",
       version: 2,
     });
-    expect(generationRunState("conversation-1").framesRequest).toBeNull();
+    expect(generationRunState("conversation-1").framesRequests).toEqual([]);
   });
 
   it("is forgotten with its conversation and with the session", () => {
@@ -289,16 +290,17 @@ describe("reduceGenerationRunEvent", () => {
         waiting,
         { type: "draft.updated", draft: generationDraft(overrides) },
         REQUEST,
-      ).framesRequest;
+      ).framesRequests;
+    const asked = [{ draftId: "draft-1", version: 2 }];
 
     // Another draft, or the same version still waiting, changes nothing.
-    expect(update({ id: "draft-2", version: 2, status: "ready" })).not.toBe(
-      null,
+    expect(update({ id: "draft-2", version: 2, status: "ready" })).toEqual(
+      asked,
     );
-    expect(update({ version: 2, status: "checking" })).not.toBeNull();
-    expect(update({ version: 2, status: "reviewing" })).toBeNull();
-    expect(update({ version: 2, status: "warnings" })).toBeNull();
-    expect(update({ version: 3, status: "checking" })).toBeNull();
+    expect(update({ version: 2, status: "checking" })).toEqual(asked);
+    expect(update({ version: 2, status: "reviewing" })).toEqual([]);
+    expect(update({ version: 2, status: "warnings" })).toEqual([]);
+    expect(update({ version: 3, status: "checking" })).toEqual([]);
   });
 
   it("remembers that the run stored a draft, until the next run starts", () => {
@@ -354,5 +356,215 @@ describe("reduceGenerationRunEvent", () => {
         REQUEST,
       ).usage,
     ).toBeNull();
+  });
+});
+
+describe("a batch's run state", () => {
+  const ITEMS = [
+    { draftId: "draft-1", intent: "gesture", brief: "A shy wave", error: null },
+    { draftId: "draft-2", intent: "gesture", brief: "A deep bow", error: null },
+    { draftId: "draft-3", intent: "reaction", brief: "A grin", error: null },
+  ] as const;
+  const event = (next: Parameters<typeof reduceGenerationRunEvent>[1]) =>
+    applyGenerationRunEvent("conversation-1", next, REQUEST);
+  const run = () => generationRunState("conversation-1");
+  const planned = () => {
+    beginGenerationRun("conversation-1", REQUEST);
+    event({ type: "batch.planned", items: [...ITEMS] });
+  };
+
+  it("has no batch and no per-draft step for a run that writes one draft", () => {
+    beginGenerationRun("conversation-1", REQUEST);
+    expect(run()).toMatchObject({
+      batch: null,
+      draftPhases: {},
+      itemFailures: {},
+      framesRequests: [],
+    });
+    // A single draft's step is the run's one step, as before.
+    event({ type: "progress", phase: "checking", draftId: "draft-1" });
+    expect(run()).toMatchObject({
+      batch: null,
+      phase: "checking",
+      phaseDraftId: "draft-1",
+      draftPhases: { "draft-1": "checking" },
+    });
+  });
+
+  it("keeps the planned items in order, each waiting until its own step arrives", () => {
+    planned();
+    expect(run().batch).toEqual(ITEMS);
+    expect(run().draftPhases).toEqual({});
+
+    event({ type: "progress", phase: "writing", draftId: "draft-1" });
+    event({ type: "progress", phase: "thinking", draftId: "draft-2" });
+    event({ type: "progress", phase: "checking", draftId: "draft-1" });
+    // Two items are in flight, each at its own step; the third still waits.
+    expect(run().draftPhases).toEqual({
+      "draft-1": "checking",
+      "draft-2": "thinking",
+    });
+  });
+
+  it("ends an item's step when its draft settles, leaving the others", () => {
+    planned();
+    event({ type: "progress", phase: "checking", draftId: "draft-1" });
+    event({ type: "progress", phase: "writing", draftId: "draft-2" });
+    event({
+      type: "draft.updated",
+      draft: generationDraft({ id: "draft-1", status: "checking" }),
+    });
+    expect(Object.keys(run().draftPhases)).toEqual(["draft-1", "draft-2"]);
+    event({
+      type: "draft.updated",
+      draft: generationDraft({ id: "draft-1", status: "warnings" }),
+    });
+    expect(run().draftPhases).toEqual({ "draft-2": "writing" });
+  });
+
+  it("records one item's failure and goes on with the others", () => {
+    planned();
+    event({ type: "progress", phase: "writing", draftId: "draft-1" });
+    event({ type: "progress", phase: "repairing", draftId: "draft-2" });
+    event({ type: "frames.requested", draftId: "draft-2", version: 1 });
+    event({
+      type: "item.failed",
+      draftId: "draft-2",
+      code: "openai_rate_limit",
+      category: "rate_limited",
+      details: { connection_name: "OpenAI" },
+    });
+    expect(run()).toMatchObject({
+      running: true,
+      // The run itself did not fail.
+      failure: null,
+      itemFailures: {
+        "draft-2": {
+          code: "openai_rate_limit",
+          category: "rate_limited",
+          details: { connection_name: "OpenAI" },
+        },
+      },
+      draftPhases: { "draft-1": "writing" },
+      // Nothing is drawn for an item that failed.
+      framesRequests: [],
+    });
+  });
+
+  it("adds every item's note to the run's one reply, in arrival order", () => {
+    planned();
+    event({ type: "message.delta", text: "Three drafts. " });
+    event({ type: "message.delta", text: "A wave. ", draftId: "draft-1" });
+    event({ type: "message.delta", text: "A bow.", draftId: "draft-2" });
+    expect(run().pendingTurn?.text).toBe("Three drafts. A wave. A bow.");
+  });
+
+  it("holds a request for sheets per draft, two at once, and answers each alone", () => {
+    planned();
+    event({ type: "frames.requested", draftId: "draft-1", version: 1 });
+    event({ type: "frames.requested", draftId: "draft-2", version: 3 });
+    expect(run().framesRequests).toEqual([
+      { draftId: "draft-1", version: 1 },
+      { draftId: "draft-2", version: 3 },
+    ]);
+    // One draft moving on leaves the other's request standing.
+    event({
+      type: "draft.updated",
+      draft: generationDraft({ id: "draft-1", status: "reviewing" }),
+    });
+    expect(run().framesRequests).toEqual([{ draftId: "draft-2", version: 3 }]);
+    // A draft has one request outstanding: a newer one takes its place.
+    event({ type: "frames.requested", draftId: "draft-2", version: 4 });
+    expect(run().framesRequests).toEqual([{ draftId: "draft-2", version: 4 }]);
+    clearGenerationFramesRequest("conversation-1", {
+      draftId: "draft-2",
+      version: 4,
+    });
+    expect(run().framesRequests).toEqual([]);
+  });
+
+  it("keeps the plan and the failures for the person once the run ends, not the steps", () => {
+    planned();
+    event({ type: "progress", phase: "writing", draftId: "draft-1" });
+    event({
+      type: "item.failed",
+      draftId: "draft-3",
+      code: "generation_run_failed",
+      category: "internal",
+      details: {},
+    });
+    endGenerationRun("conversation-1", { stopped: true });
+    expect(run()).toMatchObject({
+      running: false,
+      batch: ITEMS,
+      draftPhases: {},
+      itemFailures: { "draft-3": { code: "generation_run_failed" } },
+    });
+    // The next run starts without them.
+    beginGenerationRun("conversation-1", REQUEST);
+    expect(run()).toMatchObject({ batch: null, itemFailures: {} });
+  });
+
+  it("never holds a batch item's Discard, and says which drafts are being worked on", () => {
+    planned();
+    event({ type: "progress", phase: "writing", draftId: "draft-1" });
+    event({ type: "progress", phase: "checking", draftId: "draft-2" });
+    // The backend ends only a discarded item, so no item's Discard waits.
+    expect([...generationRunDraftIds(run())]).toEqual([]);
+    expect([...generationRunWorkingDraftIds(run())].sort()).toEqual([
+      "draft-1",
+      "draft-2",
+    ]);
+    endGenerationRun("conversation-1");
+    expect([...generationRunWorkingDraftIds(run())]).toEqual([]);
+  });
+
+  it("forgets one discarded item and ignores what the run still says of it", () => {
+    planned();
+    event({ type: "progress", phase: "writing", draftId: "draft-1" });
+    event({ type: "progress", phase: "checking", draftId: "draft-2" });
+    event({ type: "frames.requested", draftId: "draft-1", version: 1 });
+    event({ type: "frames.requested", draftId: "draft-2", version: 1 });
+    event({
+      type: "item.failed",
+      draftId: "draft-3",
+      code: "generation_run_failed",
+      category: null,
+      details: {},
+    });
+
+    forgetGenerationRunDraft("conversation-1", "draft-2");
+    // The other items stand exactly as they did.
+    expect(run()).toMatchObject({
+      running: true,
+      batch: ITEMS,
+      draftPhases: { "draft-1": "writing" },
+      framesRequests: [{ draftId: "draft-1", version: 1 }],
+      itemFailures: { "draft-3": { code: "generation_run_failed" } },
+    });
+
+    // Late events about the discarded draft change nothing.
+    const before = run();
+    event({ type: "progress", phase: "repairing", draftId: "draft-2" });
+    event({ type: "frames.requested", draftId: "draft-2", version: 2 });
+    event({
+      type: "item.failed",
+      draftId: "draft-2",
+      code: "generation_not_found",
+      category: "generation",
+      details: {},
+    });
+    event({
+      type: "draft.updated",
+      draft: generationDraft({ id: "draft-2", status: "failed" }),
+    });
+    expect(run()).toBe(before);
+    expect(run().discardedDraftIds).toEqual(["draft-2"]);
+
+    // A conversation no run has touched keeps no state for a discard.
+    forgetGenerationRunDraft("conversation-9", "draft-1");
+    expect(
+      useGenerationStore.getState().runs["conversation-9"],
+    ).toBeUndefined();
   });
 });

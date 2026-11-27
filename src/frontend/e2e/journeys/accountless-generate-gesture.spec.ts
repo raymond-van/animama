@@ -7,8 +7,11 @@ import type { Locator, Page, Response } from "playwright/test";
 import {
   expect,
   test,
+  type AnimaLoadoutSnapshot,
+  type CreatorContentFixture,
   type CreatorContentPlan,
   type EvidenceAttachment,
+  type LocalCatalogSnapshot,
 } from "../fixtures/animama";
 import { authoredExpressionThresholds } from "../helpers/authored-expressions";
 import { attachPlaybackCheckpoint } from "../helpers/checkpoints";
@@ -21,18 +24,29 @@ import {
 import { selectAnnieFromSidebar } from "../helpers/preview-surfaces";
 
 /**
- * The Generate page from a request to the Library: ask the content assistant
- * for a Gesture, watch the draft settle and play on the chosen Avatar and on
- * each Included Avatar, revise it, save it and open the saved item in the
- * Gesture creator; then stop a run, reload, and discard the unsaved draft and
- * the conversation.
+ * The Generate page from a request to the Library, in three journeys:
+ *
+ * - `generate-gesture-conversation`: ask the content assistant for a Gesture,
+ *   watch the draft settle and play on the chosen Avatar and on each Included
+ *   Avatar, revise it, save it and open the saved item in the Gesture
+ *   creator; then stop a run, reload, and discard the unsaved draft and the
+ *   conversation.
+ * - `generate-batch-partial-save`: ask for a batch of three of which one item
+ *   fails, and save the others with Save all.
+ * - `generate-gesture-effect-save`: ask for a Gesture that plays an existing
+ *   Avatar Effect, and save it with its dependency.
  *
  * Needs a stack started with `ANIMAMA_LLM_SKIP`: the backend's deterministic
  * author stands in for the model. It names a draft after its request, writes
  * the packaged example Gesture, lengthens the ending on a revision and accepts
- * on review. The page's validation, motion checks and review sheets are real.
+ * on review. A request that says `batch of N` is planned as N items, `item K
+ * fails` makes item K fail, and `with an effect` places the first Avatar
+ * Effect the Library lists. The page's validation, motion checks and review
+ * sheets are real.
  */
 const JOURNEY_KEY = "generate-gesture-conversation";
+const BATCH_JOURNEY_KEY = "generate-batch-partial-save";
+const EFFECT_JOURNEY_KEY = "generate-gesture-effect-save";
 
 const RUN_PATH = /^\/v1\/generation\/conversations\/([^/]+)\/runs:sse$/;
 const CHECK_REPORT_ROUTE = "**/v1/generation/drafts/*/check-report";
@@ -44,6 +58,13 @@ const SETTLED = /^(?:ready|warnings)$/;
  * draft unchecked, with a warning. A draft that settles sooner was checked.
  */
 const SETTLE_TIMEOUT_MS = 90_000;
+/**
+ * A batch works on two items at a time, each with its own checks and review
+ * sheets, so the last item settles later than a single draft does.
+ */
+const BATCH_SETTLE_TIMEOUT_MS = 180_000;
+/** The names the Library saves an item under: its own rule for an entry's name. */
+const LIBRARY_ENTRY_NAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$/;
 /** The deterministic author's account of a draft it wrote. */
 const AUTHOR_NOTE = "This is the packaged example Gesture: no model was asked.";
 const STOPPED_TEXT = "Stopped. Drafts finished so far are kept.";
@@ -51,11 +72,33 @@ const REVISION_TEXT = "Hold the ending a little longer";
 
 type OwnedGesture = { itemId: string; revisionSha256: string };
 type DraftBeat = { id: string; label: string; time: number };
-type DraftClip = { id: string; duration: number; beats: DraftBeat[] };
+type DraftEvent = {
+  id: string;
+  kind: string;
+  time: number;
+  duration?: number;
+  effectId?: string;
+};
+type DraftClip = {
+  id: string;
+  duration: number;
+  beats: DraftBeat[];
+  events?: DraftEvent[];
+};
+/** An effect a draft's project pins, in the creator's dependency shape. */
+type DraftDependency = {
+  alias: string;
+  content_type: string;
+  source: {
+    type: string;
+    catalog_item_id?: string;
+    logical_key?: string | null;
+  };
+};
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is required for ${JOURNEY_KEY}.`);
+  if (!value) throw new Error(`${name} is required for the Generate journeys.`);
   return value;
 }
 
@@ -63,8 +106,35 @@ function requiredEnvironment(name: string): string {
 function runDigits(runId: string): string {
   const match = /(\d{10})$/.exec(runId);
   if (!match?.[1])
-    throw new Error(`${JOURNEY_KEY} requires a timestamped run; got ${runId}.`);
+    throw new Error(
+      `The Generate journeys require a timestamped run; got ${runId}.`,
+    );
   return match[1];
+}
+
+/**
+ * The logical key the page gives a new Local Gesture saved under `name`:
+ * the name in lower case, with every run of other characters as one hyphen.
+ */
+function gestureLogicalKey(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `local:gesture:${slug}`;
+}
+
+/**
+ * Where the Library keeps a Gesture saved under `name`, below its Local
+ * root: spaces and underscores become hyphens, in lower case.
+ */
+function gestureRelativePath(name: string): string {
+  const entry = name
+    .trim()
+    .replace(/[ _]+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .toLowerCase();
+  return `gestures/${entry}`;
 }
 
 function escapeRegExp(value: string): string {
@@ -89,6 +159,24 @@ function draftClip(draft: PyGenerationDraft | undefined): DraftClip {
   if (!sequence || !Array.isArray(sequence.beats))
     throw new Error("The draft holds no clip with beats.");
   return sequence;
+}
+
+/** A draft's name, as its project holds it. */
+function draftProjectName(draft: PyGenerationDraft | undefined): string {
+  const name = (draft?.project as { name?: unknown } | null | undefined)?.name;
+  if (typeof name !== "string" || !name.trim())
+    throw new Error("The draft has no name.");
+  return name;
+}
+
+/** The effects a draft's project pins, by the aliases its events name. */
+function draftDependencies(
+  draft: PyGenerationDraft | undefined,
+): DraftDependency[] {
+  const dependencies = (
+    draft?.project as { dependencies?: unknown } | null | undefined
+  )?.dependencies;
+  return Array.isArray(dependencies) ? (dependencies as DraftDependency[]) : [];
 }
 
 /** A clip's beats as the creator keeps them through import and Save. */
@@ -119,6 +207,28 @@ async function readConversation(
       `The conversation read failed with HTTP ${response.status()}.`,
     );
   return (await response.json()) as PyGenerationConversationSnapshot;
+}
+
+/**
+ * Delete an assistant conversation with its messages and drafts, and return
+ * the HTTP status. A request made outside the page needs the headers the
+ * page's own requests carry, or admission refuses it.
+ */
+async function deleteConversation(
+  page: Page,
+  conversationId: string,
+): Promise<number> {
+  const response = await page.request.delete(
+    `/v1/generation/conversations/${encodeURIComponent(conversationId)}`,
+    {
+      headers: {
+        Origin: new URL(page.url()).origin,
+        "Sec-Fetch-Site": "same-origin",
+        "X-Animama-CSRF": "1",
+      },
+    },
+  );
+  return response.status();
 }
 
 /** The names the Avatar picker lists for the Included Avatars. */
@@ -158,6 +268,111 @@ async function sendRequest(
     conversationId: decodeURIComponent(conversationId),
     body: request.postDataJSON() as Record<string, unknown>,
   };
+}
+
+/** Follow the Create page's entry, offered only with `content_generation`. */
+async function openGenerate(page: Page): Promise<void> {
+  const createLink = page.getByRole("link", { name: "Create", exact: true });
+  await expect(createLink).toHaveCount(1);
+  await createLink.click();
+  await expect(page).toHaveURL(/\/create(?:[/?#]|$)/);
+  const entry = page.getByRole("link", { name: "Open Generate", exact: true });
+  await expect(
+    entry,
+    "the local runtime offers the content assistant",
+  ).toHaveCount(1);
+  await entry.click();
+  await expect(page).toHaveURL(/\/generate(?:[/?#]|$)/);
+}
+
+/**
+ * Open Generate, choose the assistant's model if none is chosen yet, and
+ * start from an empty conversation with the preview Avatar on stage. Returns
+ * the chosen model's id.
+ */
+async function openEmptyConversation(
+  page: Page,
+  evidence: EvidenceAttachment,
+  journeyKey: string,
+): Promise<string> {
+  const conversation = page.getByTestId("generate-conversation");
+  const modelControl = page.getByTestId("generate-model-control");
+  await openGenerate(page);
+  const setup = page.getByTestId("generate-setup");
+  await expect(setup.or(conversation)).toBeVisible({ timeout: 30_000 });
+  // A fresh installation has no saved choice and shows setup; a stack an
+  // earlier run used opens on the model chosen then.
+  let chosenInSetup: string | null = null;
+  if (await setup.isVisible()) {
+    const option = setup.getByTestId("generate-model-option").first();
+    await expect(
+      option,
+      "the stack lists a visible chat model that calls tools",
+    ).toBeVisible();
+    chosenInSetup = await option.getAttribute("data-model-id");
+    await option.click();
+  }
+  await expect(conversation).toBeVisible({ timeout: 30_000 });
+  await expect(modelControl).toHaveAttribute(
+    "data-model-id",
+    chosenInSetup ?? /.+/,
+  );
+  const chosen = await modelControl.getAttribute("data-model-id");
+  if (!chosen) throw new Error("The assistant has no model.");
+  await evidence.attachJson(`${journeyKey}-model`, {
+    modelProviderId: chosen,
+    chosenInSetup: chosenInSetup !== null,
+  });
+
+  // Start from an empty conversation, whatever an earlier run left.
+  const draftsEmpty = page.getByTestId("generate-drafts-empty");
+  await expect(draftsEmpty.or(page.getByTestId("generate-drafts"))).toBeVisible(
+    { timeout: 30_000 },
+  );
+  const newConversation = page.getByTestId("generate-new-conversation");
+  if (await newConversation.isEnabled()) {
+    const created = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/v1/generation/conversations" &&
+        response.ok(),
+    );
+    await newConversation.click();
+    await created;
+  }
+  await expect(
+    conversation.getByText("Describe a Gesture", { exact: true }),
+  ).toBeVisible();
+  await expect(draftsEmpty).toBeVisible();
+  await expect(page.getByTestId("generate-draft-card")).toHaveCount(0);
+  // Stop takes Send's place only while a run is in flight.
+  await expect(page.getByTestId("generate-send")).toBeVisible();
+  await expect(page.getByTestId("generate-stop")).toHaveCount(0);
+  // With the Avatar on stage, the run's checks and review sheets do not
+  // wait for it.
+  await waitForPreviewAvatar(page.getByTestId("generate-preview"));
+  return chosen;
+}
+
+/** A save response's item, as the ledger records one. */
+async function savedGesture(response: Response): Promise<OwnedGesture> {
+  const body = (await response.json()) as Record<string, unknown>;
+  return {
+    itemId: String(body.item_id ?? ""),
+    revisionSha256: String(body.revision_sha256 ?? ""),
+  };
+}
+
+/** The clip file among a verified item's registered files. */
+function savedClip(verified: { files: Record<string, unknown> }): DraftClip {
+  const files = verified.files as unknown as {
+    parsedJson: Record<string, unknown>;
+  };
+  const clip = Object.entries(files.parsedJson).find(
+    ([path]) => path.endsWith(".json") && !path.endsWith(".meta.json"),
+  )?.[1] as DraftClip | undefined;
+  if (!clip) throw new Error("The saved Gesture has no clip file.");
+  return clip;
 }
 
 /** Send is back in place of Stop, and the run left no failure. */
@@ -377,84 +592,10 @@ test(`${JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes-local`
   const stop = page.getByTestId("generate-stop");
   const modelControl = page.getByTestId("generate-model-control");
 
-  /** Follow the Create page's entry, offered only with `content_generation`. */
-  const openGenerate = async () => {
-    const createLink = page.getByRole("link", { name: "Create", exact: true });
-    await expect(createLink).toHaveCount(1);
-    await createLink.click();
-    await expect(page).toHaveURL(/\/create(?:[/?#]|$)/);
-    const entry = page.getByRole("link", {
-      name: "Open Generate",
-      exact: true,
-    });
-    await expect(
-      entry,
-      "the local runtime offers the content assistant",
-    ).toHaveCount(1);
-    await entry.click();
-    await expect(page).toHaveURL(/\/generate(?:[/?#]|$)/);
-  };
-
   try {
     const modelId =
-      await test.step("Open Generate from the Create page and choose a model", async () => {
-        await openGenerate();
-        const setup = page.getByTestId("generate-setup");
-        await expect(setup.or(conversation)).toBeVisible({ timeout: 30_000 });
-        // A fresh installation has no saved choice and shows setup; a stack
-        // an earlier run used opens on the model chosen then.
-        let chosenInSetup: string | null = null;
-        if (await setup.isVisible()) {
-          const option = setup.getByTestId("generate-model-option").first();
-          await expect(
-            option,
-            "the stack lists a visible chat model that calls tools",
-          ).toBeVisible();
-          chosenInSetup = await option.getAttribute("data-model-id");
-          await option.click();
-        }
-        await expect(conversation).toBeVisible({ timeout: 30_000 });
-        await expect(modelControl).toHaveAttribute(
-          "data-model-id",
-          chosenInSetup ?? /.+/,
-        );
-        const chosen = await modelControl.getAttribute("data-model-id");
-        if (!chosen) throw new Error("The assistant has no model.");
-        await animamaEvidence.attachJson(`${JOURNEY_KEY}-model`, {
-          modelProviderId: chosen,
-          chosenInSetup: chosenInSetup !== null,
-        });
-
-        // Start from an empty conversation, whatever an earlier run left.
-        const draftsEmpty = page.getByTestId("generate-drafts-empty");
-        await expect(
-          draftsEmpty.or(page.getByTestId("generate-drafts")),
-        ).toBeVisible({ timeout: 30_000 });
-        const newConversation = page.getByTestId("generate-new-conversation");
-        if (await newConversation.isEnabled()) {
-          const created = page.waitForResponse(
-            (response) =>
-              response.request().method() === "POST" &&
-              new URL(response.url()).pathname ===
-                "/v1/generation/conversations" &&
-              response.ok(),
-          );
-          await newConversation.click();
-          await created;
-        }
-        await expect(
-          conversation.getByText("Describe a Gesture", { exact: true }),
-        ).toBeVisible();
-        await expect(draftsEmpty).toBeVisible();
-        await expect(cards).toHaveCount(0);
-        // Stop takes Send's place only while a run is in flight.
-        await expect(send).toBeVisible();
-        await expect(stop).toHaveCount(0);
-        // With the Avatar on stage, the run's checks and review sheets do
-        // not wait for it.
-        await waitForPreviewAvatar(stage);
-        return chosen;
-      });
+      await test.step("Open Generate from the Create page and choose a model", () =>
+        openEmptyConversation(page, animamaEvidence, JOURNEY_KEY));
 
     const first =
       await test.step("Ask for a Gesture and watch the draft settle", async () => {
@@ -647,11 +788,7 @@ test(`${JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes-local`
         response.ok(),
         `the Gesture save answered HTTP ${response.status()}`,
       ).toBe(true);
-      const body = (await response.json()) as Record<string, unknown>;
-      const identity: OwnedGesture = {
-        itemId: String(body.item_id ?? ""),
-        revisionSha256: String(body.revision_sha256 ?? ""),
-      };
+      const identity = await savedGesture(response);
       // Recorded before anything else can fail, so cleanup owns the item.
       await creatorContent.recordOwnedContent(plan, identity);
       return identity;
@@ -678,7 +815,7 @@ test(`${JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes-local`
     const stoppedDraftId =
       await test.step("Back on Generate, stop a run in flight", async () => {
         // Nothing was edited, so the creator lets go without a discard prompt.
-        await openGenerate();
+        await openGenerate(page);
         await expect(card).toBeVisible({ timeout: 45_000 });
         // Opening a conversation selects its latest draft; the next request
         // is for a new one.
@@ -836,14 +973,9 @@ test(`${JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes-local`
 
     await test.step("Find the saved Gesture still in the Library", async () => {
       // Discarding a conversation removes its drafts, never a saved item.
-      const verified = await creatorContent.verifyOwnedContent(plan, item);
-      const files = verified.files as unknown as {
-        parsedJson: Record<string, unknown>;
-      };
-      const saved = Object.entries(files.parsedJson).find(
-        ([path]) => path.endsWith(".json") && !path.endsWith(".meta.json"),
-      )?.[1] as DraftClip | undefined;
-      if (!saved) throw new Error("The saved Gesture has no clip file.");
+      const saved = savedClip(
+        await creatorContent.verifyOwnedContent(plan, item),
+      );
       // What was saved is the revised draft.
       expect(beatFacts(saved)).toEqual(beatFacts(revised));
       expect(saved.duration).toBeCloseTo(revised.duration, 3);
@@ -871,5 +1003,531 @@ test(`${JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes-local`
       failure ??= error;
     }
   }
+  if (failure) throw failure;
+});
+
+/**
+ * A Gesture this journey means to save: the draft it comes from, and the
+ * ledger's plan for the Local item its Save creates.
+ */
+type PlannedSave = {
+  draftId: string;
+  name: string;
+  plan: CreatorContentPlan;
+};
+
+/**
+ * Plan the Local Gesture a draft's Save creates, before anything is saved:
+ * the name must be one the Library saves under, and nothing may hold its
+ * logical key or its place below the Local root yet.
+ */
+async function planDraftSave(args: {
+  creatorContent: CreatorContentFixture;
+  draft: PyGenerationDraft | undefined;
+  evidence: EvidenceAttachment;
+  journeyKey: string;
+}): Promise<PlannedSave> {
+  const { creatorContent, draft, evidence, journeyKey } = args;
+  if (!draft) throw new Error(`${journeyKey} found no draft to save.`);
+  const name = draftProjectName(draft);
+  // Checked here, where it reads plainly, and not left to a refused save.
+  expect(
+    name,
+    "the Library can save an item under the name the draft was given",
+  ).toMatch(LIBRARY_ENTRY_NAME);
+  const logicalKey = gestureLogicalKey(name);
+  const preflight = await creatorContent.preflightContentAbsence({
+    logicalKey,
+    expectedRelativePath: gestureRelativePath(name),
+  });
+  await evidence.attachJson(`${journeyKey}-preflight`, preflight);
+  const plan = await creatorContent.planContent({
+    journeyKey,
+    kind: "gesture",
+    entryName: name,
+    logicalKey,
+  });
+  return { draftId: draft.id, name, plan };
+}
+
+/**
+ * What every journey here leaves behind is removed: the Local items the
+ * ledger owns, exactly, then the conversation with its drafts. Returns the
+ * first failure, so the journey's own failure can be reported ahead of it.
+ */
+async function cleanUpJourney(args: {
+  animamaEvidence: EvidenceAttachment;
+  catalogBefore: LocalCatalogSnapshot;
+  conversationId: string | null;
+  creatorContent: CreatorContentFixture;
+  journeyKey: string;
+  loadoutBefore: AnimaLoadoutSnapshot;
+  owned: ReadonlyArray<{ plan: CreatorContentPlan; identity: OwnedGesture }>;
+  page: Page;
+}): Promise<unknown> {
+  const { animamaEvidence, creatorContent, journeyKey, owned, page } = args;
+  let failure: unknown = null;
+  try {
+    const cleanup = await creatorContent.cleanupOwnedContent();
+    if (owned.length > 0) {
+      expect(cleanup).toMatchObject({
+        attempted: owned.length,
+        deleted: owned.length,
+        failed: 0,
+      });
+      for (const { plan, identity } of owned)
+        await creatorContent.assertDeletedContent(plan, identity);
+    }
+    await creatorContent.assertLocalCatalogUnchanged(
+      args.catalogBefore,
+      animamaEvidence,
+      journeyKey,
+    );
+    await creatorContent.assertAnimaLoadoutUnchanged(
+      args.loadoutBefore,
+      animamaEvidence,
+    );
+  } catch (error) {
+    failure = error;
+  }
+  // After the Library items, and on its own: a conversation that cannot be
+  // removed must not keep the items from being cleaned up.
+  try {
+    if (args.conversationId) {
+      const status = await deleteConversation(page, args.conversationId);
+      await animamaEvidence.attachJson(`${journeyKey}-conversation-removed`, {
+        conversationId: args.conversationId,
+        status,
+      });
+      expect([204, 404]).toContain(status);
+    }
+  } catch (error) {
+    failure ??= error;
+  }
+  return failure;
+}
+
+test(`${BATCH_JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes-local`, async ({
+  animamaEvidence,
+  creatorContent,
+  page,
+}) => {
+  // Three items, two at a time, each with the page's checks and review
+  // sheets, then two saves.
+  test.setTimeout(480_000);
+  const digits = runDigits(requiredEnvironment("ANIMAMA_E2E_RUN_ID"));
+  const apiOrigin = new URL(requiredEnvironment("ANIMAMA_E2E_API_URL")).origin;
+  // The deterministic author plans the three items and fails the second.
+  const request = `Waves-${digits} batch of 3 and item 2 fails`;
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const animaId = await selectAnnieFromSidebar(page);
+  const loadoutBefore = await creatorContent.snapshotAnimaLoadout(animaId);
+  const owned: Array<{ plan: CreatorContentPlan; identity: OwnedGesture }> = [];
+  let conversationId: string | null = null;
+  let failure: unknown = null;
+
+  const cards = page.getByTestId("generate-draft-card");
+  const send = page.getByTestId("generate-send");
+  const stop = page.getByTestId("generate-stop");
+
+  try {
+    const modelId =
+      await test.step("Open Generate on an empty conversation", () =>
+        openEmptyConversation(page, animamaEvidence, BATCH_JOURNEY_KEY));
+
+    const draftIds =
+      await test.step("Ask for a batch of three and watch each item", async () => {
+        const run = await sendRequest(page, request);
+        conversationId = run.conversationId;
+        expect(run.body).toMatchObject({
+          message: request,
+          model_provider_id: modelId,
+          intent: "gesture",
+        });
+        expect(run.body).not.toHaveProperty("draft_id");
+
+        // Every planned item is listed at once, with its own brief.
+        await expect(cards).toHaveCount(3, { timeout: 30_000 });
+        const ids: string[] = [];
+        for (const index of [0, 1, 2]) {
+          const card = cards.nth(index);
+          await expect(card.getByTestId("generate-draft-brief")).toContainText(
+            `Item ${index + 1}`,
+          );
+          const id = await card.getAttribute("data-draft-id");
+          if (!id) throw new Error("A planned draft card names no draft.");
+          ids.push(id);
+        }
+        expect(new Set(ids).size).toBe(3);
+
+        // The second item fails; the others go on and settle.
+        await expect(draftStatus(draftCard(page, ids[1]!))).toHaveAttribute(
+          "data-status",
+          "failed",
+          { timeout: BATCH_SETTLE_TIMEOUT_MS },
+        );
+        for (const id of [ids[0]!, ids[2]!])
+          await expect(draftStatus(draftCard(page, id))).toHaveAttribute(
+            "data-status",
+            SETTLED,
+            { timeout: BATCH_SETTLE_TIMEOUT_MS },
+          );
+        // One run for the whole batch: it has ended.
+        await expect(send).toBeVisible({ timeout: 30_000 });
+        await expect(stop).toHaveCount(0);
+        return ids;
+      });
+    const failedCard = draftCard(page, draftIds[1]!);
+    const writtenIds = [draftIds[0]!, draftIds[2]!];
+
+    const planned =
+      await test.step("Find two drafts that load and one that failed", async () => {
+        if (!conversationId) throw new Error("No conversation was opened.");
+        const snapshot = await readConversation(page, conversationId);
+        expect(snapshot.drafts).toHaveLength(3);
+        const byId = new Map(snapshot.drafts.map((draft) => [draft.id, draft]));
+        // The failed item never had a clip: nothing of it can be saved.
+        expect(byId.get(draftIds[1]!)).toMatchObject({
+          status: "failed",
+          project: null,
+          failure_reason: "generation_no_valid_draft",
+          saved_item_id: null,
+        });
+        await expect(
+          failedCard.getByTestId("generate-draft-failure"),
+        ).toBeVisible();
+        await expect(failedCard.getByTestId("generate-draft-save")).toHaveCount(
+          0,
+        );
+        await expect(failedCard.getByTestId("generate-draft-mark")).toHaveCount(
+          0,
+        );
+        for (const id of writtenIds) {
+          const draft = byId.get(id);
+          expect(draft).toMatchObject({
+            checked_version: draft?.version,
+            check_report: { loadable: true },
+            saved_item_id: null,
+          });
+          await expect(
+            draftCard(page, id).getByTestId("generate-draft-save"),
+          ).toBeEnabled();
+        }
+        await animamaEvidence.attachJson(`${BATCH_JOURNEY_KEY}-drafts`, {
+          conversationId,
+          drafts: snapshot.drafts.map((draft) => ({
+            id: draft.id,
+            status: draft.status,
+            failureReason: draft.failure_reason,
+            version: draft.version,
+          })),
+        });
+        // Each saved draft is its own Local item, planned on its own.
+        const plans: PlannedSave[] = [];
+        for (const [index, id] of writtenIds.entries())
+          plans.push(
+            await planDraftSave({
+              creatorContent,
+              draft: byId.get(id),
+              evidence: animamaEvidence,
+              journeyKey: `${BATCH_JOURNEY_KEY}-item-${index === 0 ? 1 : 3}`,
+            }),
+          );
+        expect(new Set(plans.map(({ plan }) => plan.logicalKey)).size).toBe(2);
+        return plans;
+      });
+
+    await test.step("Save all: the two drafts are saved and the failed item is skipped", async () => {
+      // Nothing the assistant did wrote to the Library.
+      await creatorContent.assertLocalCatalogUnchanged(
+        catalogBefore,
+        animamaEvidence,
+        `${BATCH_JOURNEY_KEY}-before-save`,
+      );
+      const saves = planned.map(({ name }) =>
+        page.waitForResponse(
+          (response) => isGestureSave(response, apiOrigin, name),
+          { timeout: 60_000 },
+        ),
+      );
+      await page.getByTestId("generate-drafts-save-all").click();
+      const answers = await Promise.allSettled(saves);
+      // Every item the Library took is recorded before anything is asserted,
+      // so cleanup owns it whatever fails next.
+      const refused: string[] = [];
+      for (const [index, answer] of answers.entries()) {
+        const { name, plan } = planned[index]!;
+        if (answer.status !== "fulfilled" || !answer.value.ok()) {
+          refused.push(
+            answer.status === "fulfilled"
+              ? `${name}: HTTP ${answer.value.status()}`
+              : `${name}: no save request`,
+          );
+          continue;
+        }
+        const identity = await savedGesture(answer.value);
+        await creatorContent.recordOwnedContent(plan, identity);
+        owned.push({ plan, identity });
+      }
+      expect(refused, "the Library saved both drafts").toEqual([]);
+
+      const summary = page.getByTestId("generate-drafts-save-summary");
+      await expect(summary).toBeVisible({ timeout: 60_000 });
+      await expect(summary).toHaveAttribute("data-saved", "2");
+      await expect(summary).toHaveAttribute("data-failed", "0");
+      // The failed item is the one draft that cannot be saved as it stands.
+      await expect(summary).toHaveAttribute("data-skipped", "1");
+      for (const id of writtenIds)
+        await expect(
+          draftCard(page, id).getByTestId("generate-draft-saved-link"),
+        ).toBeVisible({ timeout: 15_000 });
+      await expect(failedCard.getByTestId("generate-draft-saved")).toHaveCount(
+        0,
+      );
+      await expect(
+        failedCard.getByTestId("generate-draft-save-failed"),
+      ).toHaveCount(0);
+      await expect(
+        failedCard.getByTestId("generate-draft-failure"),
+      ).toBeVisible();
+    });
+
+    await test.step("Find exactly the two Gestures in the Library", async () => {
+      if (!conversationId) throw new Error("No conversation was opened.");
+      for (const { plan, identity } of owned)
+        await creatorContent.verifyOwnedContent(plan, identity);
+      const catalogAfter = await creatorContent.snapshotLocalCatalog();
+      const before = new Set(catalogBefore.items.map(({ itemId }) => itemId));
+      const added = catalogAfter.items.filter(
+        ({ itemId }) => !before.has(itemId),
+      );
+      // Two Local Gestures, and nothing for the item that failed.
+      expect(added.map(({ kind }) => kind)).toEqual(["gesture", "gesture"]);
+      expect(added.map(({ itemId }) => itemId).sort()).toEqual(
+        owned.map(({ identity }) => identity.itemId).sort(),
+      );
+      expect(catalogAfter.itemCount).toBe(catalogBefore.itemCount + 2);
+      // Each draft records the item it was saved as; the failed one none.
+      const snapshot = await readConversation(page, conversationId);
+      const savedAs = new Map(
+        snapshot.drafts.map((draft) => [draft.id, draft.saved_item_id]),
+      );
+      for (const [index, { draftId }] of planned.entries())
+        expect(savedAs.get(draftId)).toBe(owned[index]!.identity.itemId);
+      expect(savedAs.get(draftIds[1]!)).toBeNull();
+    });
+  } catch (error) {
+    // Report the journey's own failure ahead of any cleanup failure.
+    failure = error;
+  }
+  const cleanupFailure = await cleanUpJourney({
+    animamaEvidence,
+    catalogBefore,
+    conversationId,
+    creatorContent,
+    journeyKey: BATCH_JOURNEY_KEY,
+    loadoutBefore,
+    owned,
+    page,
+  });
+  failure ??= cleanupFailure;
+  if (failure) throw failure;
+});
+
+test(`${EFFECT_JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes-local`, async ({
+  animamaEvidence,
+  creatorContent,
+  page,
+}) => {
+  // One run with the page's checks and review sheets, and one save.
+  test.setTimeout(300_000);
+  const digits = runDigits(requiredEnvironment("ANIMAMA_E2E_RUN_ID"));
+  const apiOrigin = new URL(requiredEnvironment("ANIMAMA_E2E_API_URL")).origin;
+  // The deterministic author names the draft after its request and places
+  // the first Avatar Effect the Library lists.
+  const name = `Sparkle-${digits} with an effect`;
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const animaId = await selectAnnieFromSidebar(page);
+  const loadoutBefore = await creatorContent.snapshotAnimaLoadout(animaId);
+  const owned: Array<{ plan: CreatorContentPlan; identity: OwnedGesture }> = [];
+  let conversationId: string | null = null;
+  let failure: unknown = null;
+
+  const cards = page.getByTestId("generate-draft-card");
+
+  try {
+    const modelId =
+      await test.step("Open Generate on an empty conversation", () =>
+        openEmptyConversation(page, animamaEvidence, EFFECT_JOURNEY_KEY));
+
+    const written =
+      await test.step("Ask for a Gesture with an effect and watch the draft settle", async () => {
+        const run = await sendRequest(page, name);
+        conversationId = run.conversationId;
+        expect(run.body).toMatchObject({
+          message: name,
+          model_provider_id: modelId,
+          intent: "gesture",
+        });
+        await expect(cards).toHaveCount(1, { timeout: 30_000 });
+        const draftId = await cards.getAttribute("data-draft-id");
+        if (!draftId) throw new Error("The draft card names no draft.");
+        const card = draftCard(page, draftId);
+        await expect(draftStatus(card)).toHaveAttribute(
+          "data-status",
+          SETTLED,
+          { timeout: SETTLE_TIMEOUT_MS },
+        );
+        await expectRunEnded(page);
+
+        const snapshot = await readConversation(page, run.conversationId);
+        const draft = snapshot.drafts.find((entry) => entry.id === draftId);
+        expect(draft).toMatchObject({
+          checked_version: draft?.version,
+          check_report: { loadable: true },
+          saved_item_id: null,
+        });
+        // Whichever Avatar Effect the Library lists first: the draft says
+        // which, so nothing here names one.
+        const dependencies = draftDependencies(draft);
+        expect(
+          dependencies,
+          "the stack's Library lists a portable Avatar Effect to place",
+        ).toHaveLength(1);
+        const dependency = dependencies[0]!;
+        expect(dependency).toMatchObject({
+          content_type: "avatar_effect",
+          source: { type: "catalog" },
+        });
+        expect(dependency.alias).toBeTruthy();
+        expect(dependency.source.catalog_item_id).toBeTruthy();
+        // One event from the clip's start plays that effect, by its alias.
+        const events = draftClip(draft).events ?? [];
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({
+          kind: "avatar_vfx",
+          effectId: dependency.alias,
+          time: 0,
+        });
+        await animamaEvidence.attachJson(`${EFFECT_JOURNEY_KEY}-draft`, {
+          conversationId: run.conversationId,
+          draftId,
+          status: draft?.status,
+          dependency,
+          event: events[0],
+        });
+
+        // The card says what the draft plays, and the effect is still there.
+        await expect(card.getByTestId("generate-draft-effects")).toContainText(
+          dependency.alias,
+        );
+        await expect(
+          card.getByTestId("generate-draft-missing-effects"),
+        ).toHaveCount(0);
+        await expect(card.getByTestId("generate-draft-save")).toBeEnabled();
+        const planned = await planDraftSave({
+          creatorContent,
+          draft,
+          evidence: animamaEvidence,
+          journeyKey: EFFECT_JOURNEY_KEY,
+        });
+        expect(planned.name).toBe(name);
+        return { card, dependency, event: events[0]!, planned };
+      });
+
+    await test.step("Save the draft and find its effect saved with it", async () => {
+      const { card, dependency, event, planned } = written;
+      await creatorContent.assertLocalCatalogUnchanged(
+        catalogBefore,
+        animamaEvidence,
+        `${EFFECT_JOURNEY_KEY}-before-save`,
+      );
+      const saved = page.waitForResponse(
+        (response) => isGestureSave(response, apiOrigin, planned.name),
+        { timeout: 30_000 },
+      );
+      await card.getByTestId("generate-draft-save").click();
+      const response = await saved;
+      expect(
+        response.ok(),
+        `the Gesture save answered HTTP ${response.status()}`,
+      ).toBe(true);
+      const identity = await savedGesture(response);
+      // Recorded before anything else can fail, so cleanup owns the item.
+      await creatorContent.recordOwnedContent(planned.plan, identity);
+      owned.push({ plan: planned.plan, identity });
+      await expect(card.getByTestId("generate-draft-saved-link")).toBeVisible({
+        timeout: 15_000,
+      });
+
+      // The saved clip still plays the effect from its start.
+      const clip = savedClip(
+        await creatorContent.verifyOwnedContent(planned.plan, identity),
+      );
+      expect(clip.events ?? []).toHaveLength(1);
+      expect(clip.events![0]).toMatchObject({
+        kind: "avatar_vfx",
+        effectId: dependency.alias,
+        time: event.time,
+        // As long as the draft's event said the effect shows.
+        ...(event.duration === undefined ? {} : { duration: event.duration }),
+      });
+
+      // And the saved Gesture depends on that Avatar Effect, under the alias
+      // its event names.
+      const read = await page.request.get(
+        `/v1/gestures/${encodeURIComponent(identity.itemId)}`,
+      );
+      expect(
+        read.ok(),
+        `the saved Gesture read answered HTTP ${read.status()}`,
+      ).toBe(true);
+      const gesture = (await read.json()) as {
+        source?: string;
+        dependencies?: Array<{
+          alias?: string | null;
+          kind?: string;
+          ref?: string;
+          item_id?: string | null;
+        }>;
+      };
+      await animamaEvidence.attachJson(`${EFFECT_JOURNEY_KEY}-saved`, {
+        itemId: identity.itemId,
+        dependencies: gesture.dependencies ?? [],
+        events: clip.events ?? [],
+      });
+      expect(gesture.source).toBe("local");
+      expect(gesture.dependencies ?? []).toHaveLength(1);
+      const savedDependency = gesture.dependencies![0]!;
+      expect(savedDependency).toMatchObject({
+        alias: dependency.alias,
+        kind: "avatar_effect",
+      });
+      // It names the very effect the draft pinned: by the Library item, or
+      // by the reference the save wrote for it.
+      expect(
+        savedDependency.item_id === dependency.source.catalog_item_id ||
+          [
+            dependency.source.logical_key,
+            dependency.source.catalog_item_id,
+          ].includes(savedDependency.ref),
+        "the saved dependency names the Avatar Effect the draft pinned",
+      ).toBe(true);
+    });
+  } catch (error) {
+    // Report the journey's own failure ahead of any cleanup failure.
+    failure = error;
+  }
+  const cleanupFailure = await cleanUpJourney({
+    animamaEvidence,
+    catalogBefore,
+    conversationId,
+    creatorContent,
+    journeyKey: EFFECT_JOURNEY_KEY,
+    loadoutBefore,
+    owned,
+    page,
+  });
+  failure ??= cleanupFailure;
   if (failure) throw failure;
 });

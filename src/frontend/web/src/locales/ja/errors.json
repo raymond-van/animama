@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "利用可能な PocketTTS の音声を選んでください。"
   },
   "generation": {
+    "generation_batch_time_limit": "このリクエストの制限時間を超えました。完了した下書きは保持されます。",
     "generation_document_invalid": "このアイテムは現在の状態ではアシスタントで扱えません。タイムラインに問題がないか確認して、もう一度お試しください。",
     "generation_document_invalid_details": "名前、説明、セレクター ID、または推奨の感情に問題があるため、アシスタントはこのアイテムを扱えません。確認してからもう一度お試しください。",
     "generation_document_invalid_timeline": "このアイテムのタイムラインは現在の状態ではアシスタントで扱えません。タイムラインに問題がないか確認して、もう一度お試しください。",

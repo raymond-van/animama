@@ -47,6 +47,34 @@ describe("runDraftChecks", () => {
     });
   }, 30000);
 
+  it("measures a clip that plays effects as the same clip without them", () => {
+    // Timeline events are part of the clip format and move nothing.
+    const withEffects = {
+      ...wave,
+      events: [
+        {
+          id: "effect-1",
+          time: 0,
+          kind: "avatar_vfx",
+          effectId: "sparkle",
+          duration: 0.5,
+          override: { appearance: { opacity: 0.5 } },
+        },
+        { id: "effect-2", time: 0.5, kind: "particle_vfx", effectId: "rain" },
+        {
+          id: "effect-3",
+          time: 1,
+          kind: "scene_vfx",
+          sceneKind: "background_layers",
+          presetId: "backdrop",
+        },
+      ],
+    };
+    expect(runDraftChecks(withEffects, avatars)).toEqual(
+      runDraftChecks(wave, avatars),
+    );
+  }, 30000);
+
   it("reports the validation issue and the motion findings of a clip that still plays", () => {
     // 60° is past the head's anatomical limit of 25°, yet the app loads it.
     const clip = headClip("flexion", 60);

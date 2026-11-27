@@ -16,10 +16,12 @@ import {
 import { ActionDocumentIncompleteError } from "@/ui/action-editor/useSaveActionDocument";
 import { createGestureDocument } from "@/ui/gesture-editor/gestureDocument";
 import {
+  effectGestureProject,
   generationDraft,
   generationSnapshot,
   gestureProject,
   jsonResponse,
+  sparkleDependency,
   waveHelloClip,
 } from "./testing/generationFixtures";
 import {
@@ -132,6 +134,33 @@ describe("draftActionDocument", () => {
     );
   });
 
+  it("keeps a draft's effects: its timeline events and the dependencies that pin them", () => {
+    const draft = generationDraft({
+      project: effectGestureProject({
+        dependencies: [
+          sparkleDependency(),
+          // Declared but played by no event: left out, as the creator's Save does.
+          {
+            alias: "unused",
+            content_type: "particle_effect",
+            source: { type: "catalog", catalog_item_id: "effect-item-9" },
+          },
+        ],
+      }),
+    });
+    const document = draftActionDocument(draft);
+    expect(document.dependencies).toEqual([sparkleDependency()]);
+    expect(document.sequence.events).toEqual([
+      {
+        id: "effect-1",
+        time: 0,
+        kind: "avatar_vfx",
+        effectId: "sparkle",
+        duration: 0.5,
+      },
+    ]);
+  });
+
   it("refuses what the creator's Import would refuse", () => {
     // A bare clip is not a draft's project.
     expect(() =>
@@ -183,6 +212,53 @@ describe("useSaveGenerationDraft", () => {
     ).toBe("item-1");
     await settle();
     expect(result()).toMatchObject({ savingDraftId: null, stage: "idle" });
+  });
+
+  it("saves a draft's effects with it: the dependencies in its descriptor, the events in its clip", async () => {
+    const draft = readyDraft({ project: effectGestureProject() });
+    const result = mount([draft]);
+
+    await act(async () => {
+      await result().save(draft, validateDraft(draft));
+    });
+
+    expect(library.saves).toHaveLength(1);
+    const { descriptor, file } = library.saves[0]!;
+    // The creator's own dependency record (R7.3): the alias the events name,
+    // pinned to the Library item.
+    expect(descriptor.dependencies).toEqual([
+      {
+        ref: "local:avatar-effect:sparkle",
+        alias: "sparkle",
+        content_type: "avatar_effect",
+        source: sparkleDependency().source,
+        config: {},
+      },
+    ]);
+    expect(file.clip.events).toEqual([
+      {
+        id: "effect-1",
+        time: 0,
+        kind: "avatar_vfx",
+        effectId: "sparkle",
+        duration: 0.5,
+      },
+    ]);
+    expect(marks.requests).toEqual([{ draftId: draft.id, itemId: "item-1" }]);
+  });
+
+  it("refuses, in the creator's words, a draft whose event names an effect it never pinned", async () => {
+    const draft = readyDraft({
+      project: effectGestureProject({ dependencies: [] }),
+    });
+    const result = mount([draft]);
+    await act(async () => {
+      await expect(
+        result().save(draft, validateDraft(draft)),
+      ).rejects.toBeInstanceOf(ActionDocumentIncompleteError);
+    });
+    expect(library.saves).toEqual([]);
+    expect(marks.requests).toEqual([]);
   });
 
   it("saves nothing for a draft the page did not validate as loadable", async () => {

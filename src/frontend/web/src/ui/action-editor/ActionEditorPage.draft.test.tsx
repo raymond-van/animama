@@ -5,10 +5,12 @@ import type { RuntimeCapabilities } from "@animama/runtime-contracts";
 
 import { privateStateResets } from "@/app/runtime/private-module-state";
 import {
+  effectGestureProject,
   generationDraft,
   generationSnapshot,
   gestureProject,
   jsonResponse,
+  sparkleDependency,
   waveHelloClip,
 } from "@/ui/generate/testing/generationFixtures";
 import {
@@ -30,6 +32,12 @@ type BlockerOptions = {
 
 const workspace = vi.hoisted(() => ({
   value: null as unknown,
+}));
+const preview = vi.hoisted(() => ({
+  /** The dependencies the page last asked the component previews for. */
+  dependencies: [] as readonly unknown[],
+  /** The sandbox entries the preview provider was last given. */
+  sandboxEntries: [] as readonly Record<string, unknown>[],
 }));
 const router = vi.hoisted(() => ({
   /** What the page last gave the router's blocker. */
@@ -55,8 +63,16 @@ vi.mock("./ActionEditorWorkspace", () => ({
   },
 }));
 vi.mock("./ActionEditorPreviewProvider", () => ({
-  ActionEditorPreviewProvider: ({ children }: { children: unknown }) =>
+  ActionEditorPreviewProvider: ({
     children,
+    sandboxEntries,
+  }: {
+    children: unknown;
+    sandboxEntries: readonly Record<string, unknown>[];
+  }) => {
+    preview.sandboxEntries = sandboxEntries;
+    return children;
+  },
 }));
 vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({
   ContentPreviewExclusiveCanvasGate: ({ children }: { children: unknown }) =>
@@ -83,9 +99,42 @@ vi.mock("@/query/hooks/useEffects", () => ({
 vi.mock("@/query/hooks/useActions", () => ({
   useAction: () => ({ data: undefined }),
 }));
-vi.mock("@/query/hooks/useActionComponentPreviews", () => ({
-  useActionComponentPreviews: () => ({ previews: [], pending: false }),
-}));
+// Every dependency resolves to a preview of its own kind, as the Library's
+// preview route answers for content it holds.
+vi.mock("@/query/hooks/useActionComponentPreviews", async () => {
+  const { useMemo } = await import("react");
+  return {
+    useActionComponentPreviews: (
+      dependencies: readonly {
+        alias: string;
+        content_type: string;
+        source: { catalog_item_id?: string };
+      }[],
+    ) => {
+      preview.dependencies = dependencies;
+      const previews = useMemo(
+        () =>
+          dependencies.map((dependency) => ({
+            dependency,
+            preview: {
+              preview_id: `preview-${dependency.alias}`,
+              revision: "revision-1",
+              revision_sha256: "revision-1",
+              expires_at: "2026-11-27T12:00:00Z",
+              files: [],
+              metadata: {
+                content_type: dependency.content_type,
+                item_id: dependency.source.catalog_item_id,
+                name: dependency.alias,
+              },
+            },
+          })),
+        [dependencies],
+      );
+      return { previews, pending: false, diagnostics: [], errors: [] };
+    },
+  };
+});
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
@@ -129,6 +178,8 @@ const BLANK: Location = { pathname: NEW_GESTURE, search: {} };
 
 beforeEach(() => {
   workspace.value = null;
+  preview.dependencies = [];
+  preview.sandboxEntries = [];
   router.blocker = null;
   router.navigate = () => Promise.resolve();
   server.snapshot = generationSnapshot({ drafts: [generationDraft()] });
@@ -178,6 +229,46 @@ describe("opening an assistant draft in the Gesture creator", () => {
     expect(current().itemId).toBeUndefined();
     expect(current().identityExists).toBe(false);
     expect(current().error).toBeNull();
+  });
+
+  it("arrives with a draft's effects and plays them through the creator's own sandbox entries", async () => {
+    server.snapshot = generationSnapshot({
+      drafts: [generationDraft({ project: effectGestureProject() })],
+    });
+    await open(DRAFT);
+
+    // The document holds the draft's events and the dependencies that pin them.
+    const { document } = current();
+    expect(document.sequence.events).toEqual([
+      {
+        id: "effect-1",
+        time: 0,
+        kind: "avatar_vfx",
+        effectId: "sparkle",
+        duration: 0.5,
+      },
+    ]);
+    expect(document.dependencies).toEqual([sparkleDependency()]);
+    expect(current().error).toBeNull();
+    expect(current().dirty).toBe(true);
+    // Nothing is unresolved: every alias an event names is declared.
+    expect(current().issues.map(({ field }) => field)).not.toContain(
+      "dependencies",
+    );
+
+    // The creator resolves those dependencies itself and mounts each effect
+    // in its preview under the alias the events name.
+    expect(preview.dependencies).toEqual([sparkleDependency()]);
+    expect(preview.sandboxEntries).toMatchObject([
+      { slot: "avatar_vfx", runtime_id: "sparkle" },
+    ]);
+  });
+
+  it("opens a draft without effects with nothing mounted for them", async () => {
+    await open(DRAFT);
+    expect(current().document.dependencies).toEqual([]);
+    expect(preview.dependencies).toEqual([]);
+    expect(preview.sandboxEntries).toEqual([]);
   });
 
   it("imports the draft once, keeping later edits", async () => {

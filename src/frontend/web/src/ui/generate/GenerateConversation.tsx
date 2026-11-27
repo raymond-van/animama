@@ -30,6 +30,7 @@ import {
 import { Input } from "@/ui/components/input";
 import MessageLoaderV2 from "@/ui/components/message-loader-v2";
 import { PromptSuggestion } from "@/ui/main/chat/PromptSuggestion";
+import { generationBatchProgress } from "./generationBatch";
 import {
   draftCanBeRevised,
   draftName,
@@ -555,6 +556,9 @@ export function GenerateConversation({
         : undefined,
   });
   const lastEntry = entries.at(-1);
+  // A batch works on two items at once, so no one step describes the run:
+  // this line counts the items finished, and each draft's card says its own.
+  const batchProgress = generationBatchProgress(run, snapshot?.drafts ?? []);
   const overLimit = input.length > MAX_GENERATION_MESSAGE_LENGTH;
   const hasDrafts = (snapshot?.drafts.length ?? 0) > 0;
   const ready = Boolean(snapshot) && !loadFailed;
@@ -624,9 +628,15 @@ export function GenerateConversation({
               role="status"
               data-testid="generate-progress"
               data-phase={run.phase ?? "starting"}
+              data-batch-total={batchProgress?.total}
+              data-batch-done={batchProgress?.done}
             >
               <MessageLoaderV2 />
-              <span>{phaseText(t, run.phase)}</span>
+              <span>
+                {batchProgress
+                  ? t("progress.batch", batchProgress)
+                  : phaseText(t, run.phase)}
+              </span>
             </div>
           ) : null}
           {run.running &&

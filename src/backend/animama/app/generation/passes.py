@@ -60,7 +60,7 @@ from .tools import (
 
 _log = get_logger("app.generation.passes")
 
-PassEnd = Literal["submitted", "edited", "accepted", "asked", "no_tool_call", "round_limit"]
+PassEnd = Literal["submitted", "edited", "accepted", "asked", "planned", "no_tool_call", "round_limit"]
 """How a pass ended: a tool call's ``tools.Outcome``, an answer without a tool call, or the round limit."""
 
 _TOOL_CALL_EVENTS: Final = frozenset({"function_tool_call_delta", "function_tool_call_done"})
@@ -72,6 +72,8 @@ class PassSpec:
 
     ``sheets`` are a review pass's contact sheets. ``can_ask`` is false once
     the person has answered or skipped the questions about their request.
+    ``can_plan`` lets a write pass answer with a batch plan (``plan_batch``).
+    ``effects`` offers the effect tools, for a draft that may place effects.
     ``reasoning_effort`` is the run's chosen level, already checked against
     the row; ``None`` leaves the model's default. ``stored_responses`` is
     false once an earlier pass of the run found that the provider could not
@@ -90,6 +92,8 @@ class PassSpec:
     stored_responses: bool = True
     sheets: tuple[ReviewSheet, ...] = ()
     can_ask: bool = True
+    can_plan: bool = False
+    effects: bool = False
     selector_in_use: SelectorInUse | None = None
     example_reader: ExampleReader | None = None
 
@@ -163,7 +167,12 @@ def pass_request(spec: PassSpec, intent: Intent, held: frozenset[str] = frozense
         model_provider=spec.model_provider,
         prompt=DirectChatPrompt(
             messages=({"role": "system", "content": spec.instructions}, {"role": "user", "content": content}),
-            tools=cast(Any, tool_definitions(spec.kind, intent, can_ask=spec.can_ask, held=held)),
+            tools=cast(
+                Any,
+                tool_definitions(
+                    spec.kind, intent, can_ask=spec.can_ask, can_plan=spec.can_plan, effects=spec.effects, held=held
+                ),
+            ),
             tool_choice="auto",
             parallel_tool_calls=False,
             prompt_cache_key=spec.prompt_cache_key,
@@ -192,7 +201,7 @@ async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> 
     pass names no stored response from its start.
     """
 
-    offered = offered_tools(spec.kind, can_ask=spec.can_ask)
+    offered = offered_tools(spec.kind, can_ask=spec.can_ask, can_plan=spec.can_plan, effects=spec.effects)
     request = pass_request(spec, draft.intent, draft.held)
     text = ""
     cursorless = not spec.stored_responses

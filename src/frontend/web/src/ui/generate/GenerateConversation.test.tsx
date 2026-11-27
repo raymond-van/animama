@@ -330,6 +330,51 @@ describe("the conversation with the assistant", () => {
     expect(progress.textContent).toBe(text);
   });
 
+  it("counts a batch's finished drafts instead of naming one step", () => {
+    const item = (draftId: string) => ({
+      draftId,
+      intent: "gesture" as const,
+      brief: "A greeting",
+      error: null,
+    });
+    conversation(
+      controller({
+        run: {
+          running: true,
+          // The step named last is one item's, not the run's.
+          phase: "repairing",
+          phaseDraftId: "draft-2",
+          batch: [item("draft-1"), item("draft-2"), item("draft-3")],
+          pendingTurn: { message: "three greetings", draftId: null, text: "" },
+        },
+      }),
+      {
+        snapshot: generationSnapshot({
+          drafts: [
+            generationDraft({ id: "draft-1", status: "ready" }),
+            generationDraft({
+              id: "draft-2",
+              position: 1,
+              status: "repairing",
+            }),
+            generationDraft({
+              id: "draft-3",
+              position: 2,
+              status: "writing",
+              project: null,
+            }),
+          ],
+        }),
+      },
+    );
+    const progress = find("generate-progress")!;
+    expect(progress.textContent).toBe(
+      "Working on 3 drafts. 1 finished so far…",
+    );
+    expect(progress.dataset.batchTotal).toBe("3");
+    expect(progress.dataset.batchDone).toBe("1");
+  });
+
   it("offers Stop only while a run is in flight", async () => {
     const idle = controller();
     conversation(idle);

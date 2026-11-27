@@ -1,8 +1,11 @@
 import {
+  chatFailureCopy,
   describeChatFailure,
   type ChatFailure,
 } from "@animama/product-ui/chat";
+import { PRODUCT_NAMESPACE } from "@animama/product-ui/i18n";
 import type { PyGenerationDraft } from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
 
 import {
   apiErrorText,
@@ -23,6 +26,9 @@ import type { GenerationRunFailure } from "@/stores/generation-store";
  * catalog's `generation` area. Everything here is worded when called, so call
  * it at render and the text follows the UI Locale.
  */
+
+/** The translator of product UI's own catalog, as its wording functions take it. */
+type ProductTranslate = Parameters<typeof chatFailureCopy>[0];
 
 /** Categories of failures that are the assistant's or this page's own. */
 const OWN_CATEGORIES = new Set(["generation", "internal", "request"]);
@@ -129,16 +135,49 @@ export function describeGenerationActionFailure(error: unknown): ApiErrorText {
 }
 
 /**
+ * A failure as one line, for places that show no notice of their own: a
+ * draft's card, one item of a batch. A model, plan or connection failure
+ * reads as the title of chat's notice for it, naming the connection where
+ * `details` carry it; the assistant's own failure reads as its message; a
+ * code nothing words reads as the general failure, never as the code.
+ */
+export function generationFailureLine(failure: {
+  code: string;
+  category: string | null;
+  details?: Record<string, unknown>;
+}): string {
+  const described = describeGenerationFailure({
+    code: failure.code,
+    category: failure.category,
+    details: failure.details ?? {},
+    reason: null,
+    status: null,
+    network: false,
+    request: { message: "", draftId: null, answers: null },
+  });
+  if (described.source === "assistant") return described.message;
+  const { copy, title } = described.failure;
+  if (!copy) return title;
+  // Chat's failures are worded in product UI's catalog, a namespace of the
+  // application's instance that this application's typed keys do not list.
+  const i18n = getI18n() as unknown as {
+    getFixedT(language: null, namespace: string): ProductTranslate;
+  };
+  return chatFailureCopy(i18n.getFixedT(null, PRODUCT_NAMESPACE), copy.title);
+}
+
+/**
  * Why a draft is `failed`, from its `failure_reason`; `null` for a draft that
- * did not fail. A reason this page does not know reads as the general failure.
+ * did not fail. The reason is one of the assistant's own codes, or the model
+ * client's code when a batch item failed on a model error; one this page does
+ * not know reads as the general failure.
  */
 export function draftFailureText(
   draft: Pick<PyGenerationDraft, "status" | "failure_reason">,
 ): string | null {
   if (draft.status !== "failed") return null;
-  return (
-    (draft.failure_reason
-      ? errorWording("generation", draft.failure_reason)
-      : null) ?? errorWording("generation", FALLBACK_CODE)
-  );
+  return generationFailureLine({
+    code: draft.failure_reason ?? FALLBACK_CODE,
+    category: null,
+  });
 }

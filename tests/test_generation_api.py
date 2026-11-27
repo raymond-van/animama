@@ -2094,7 +2094,8 @@ async def test_the_deterministic_author_drives_a_run_under_llm_skip(
     assert stream.status == 200 and stream.names()[-1] == "run.completed"
     assert _statuses(stream) == [("checking", 2), ("reviewing", 2), ("ready", 2)]
     draft = stream.of("draft.updated")[-1]["draft"]
-    assert draft["project"]["name"] == "A slow nod, please"
+    # The request's comma is not the name's: the Library saves no name that holds one.
+    assert draft["project"]["name"] == "A slow nod please"
     assert draft["project"]["sequence"]["joints"] == example_gesture_clip()["joints"]
     assert stream.of("run.completed")[0]["usage"]["requests"] == 0
     assert studio.uploads == [204] and studio.model.seen == []

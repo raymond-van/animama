@@ -17,14 +17,14 @@
     "writesNew": "下一条消息将写一份新草稿。"
   },
   "creator": {
-    "appliesPose": "发送请求会切换到片段，结果将在那里播放。你修改过的关键帧姿势会先被应用。尚未保存的独立姿势需要先保存、丢弃或添加到时间轴。",
+    "appliesPose": "发送请求会切换到片段，结果将在那里播放。你修改过的关键帧姿势会先被应用。尚未保存的独立姿势需要先保存或丢弃。",
     "changedMeanwhile": "助手工作期间时间轴发生了变化，因此未应用其结果，并已停止助手。请重新发送请求，以便基于当前的时间轴工作。",
     "close": "关闭助手",
     "keepsEffects": "时间轴上的特效和音效保持不变。",
     "notApplied": "无法将助手的结果应用到此项目。",
     "open": "生成",
     "openGenerate": "打开生成",
-    "poseDraft": "姿势模式中有尚未保存的姿势，助手的结果会将其替换，因此没有发送或应用任何内容。请保存该姿势、将其丢弃或添加到时间轴，然后重新发送请求。",
+    "poseDraft": "姿势模式中有尚未保存的姿势，助手的结果会将其替换，因此没有发送或应用任何内容。请保存或丢弃该姿势，然后重新发送请求。",
     "revises": {
       "gesture": "你的请求会修改此处打开的动作。撤销可恢复原样。",
       "reaction": "你的请求会修改此处打开的反应。撤销可恢复原样。"
@@ -56,8 +56,10 @@
       "savedDescription": "将从此对话中删除此草稿。你已保存的项目仍保留在资源库中。",
       "title": "要丢弃“{{name}}”吗？"
     },
+    "effects_other": "播放 {{count}} 个特效：{{names, list}}",
     "emptyDescription": "请助手写一个动作。每份草稿都会连同检查结果显示在这里，可以播放、修改或保存。",
     "emptyTitle": "还没有草稿",
+    "itemFailed": "助手未能完成这份草稿。",
     "kind": {
       "gesture": "动作",
       "reaction": "反应",
@@ -65,8 +67,19 @@
     },
     "loadFailed": "无法加载草稿。",
     "loading": "正在加载草稿…",
+    "markForSaving": "将“{{name}}”标记为待保存",
+    "missingEffects_other": "此草稿播放的特效已不在资源库中：{{names, list}}。保存前请让助手修改这份草稿。",
+    "missingEffectsSave": "此草稿在修改前无法保存：它播放的特效已不在资源库中。",
     "openSaved": "打开已保存的项目",
     "saved": "已保存到资源库",
+    "saveMany": {
+      "all": "全部保存",
+      "failed_other": "有 {{count}} 份草稿无法保存，原因见各自的卡片。",
+      "saved_other": "已将 {{count}} 份草稿保存到资源库。",
+      "saving": "正在保存草稿（{{position}}/{{total}}）…",
+      "selected": "保存所选（{{selected}}）",
+      "skipped_other": "已跳过 {{count}} 份目前无法保存的草稿。"
+    },
     "select": "选择草稿“{{name}}”",
     "showAll": "显示全部 {{total}} 条",
     "showFewer": "收起",
@@ -76,6 +89,8 @@
       "ready": "已就绪",
       "repairing": "正在修复…",
       "reviewing": "正在查看帧…",
+      "thinking": "正在思考…",
+      "waiting": "等待轮到它…",
       "warnings": "已就绪（有警告）",
       "writing": "正在编写…"
     },
@@ -152,6 +167,7 @@
     "unplayable": "此草稿无法播放。"
   },
   "progress": {
+    "batch": "正在处理 {{total}} 份草稿，目前已完成 {{done}} 份…",
     "checking": "正在检查草稿…",
     "framesUnavailable": "无法绘制帧，因此助手将不查看帧并继续。",
     "repairing": "正在修复检查发现的问题…",

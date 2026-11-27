@@ -8,6 +8,7 @@ import {
   draftName,
   draftReactionPlacement,
   draftSequence,
+  parseGenerationBatch,
   parseGenerationQuestions,
   pendingGenerationQuestions,
 } from "./generationDrafts";
@@ -43,6 +44,53 @@ describe("parseGenerationQuestions", () => {
     ).toEqual([{ question: "Mood?", options: ["Shy"] }]);
     expect(parseGenerationQuestions(undefined)).toEqual([]);
     expect(parseGenerationQuestions({ question: "Mood?" })).toEqual([]);
+  });
+});
+
+describe("parseGenerationBatch", () => {
+  it("reads a stored batch with each item's failure", () => {
+    expect(
+      parseGenerationBatch([
+        { draft_id: "draft-1", intent: "gesture", brief: "A shy wave" },
+        {
+          draft_id: "draft-2",
+          intent: "reaction",
+          brief: "A soft smile",
+          error: { code: "openai_rate_limit", category: "rate_limited" },
+        },
+        // A failure without a category, and one that names no code.
+        { draft_id: "draft-3", brief: "A bow", error: { code: "boom" } },
+        { draft_id: "draft-4", brief: "A nod", error: { category: "x" } },
+      ]),
+    ).toEqual([
+      {
+        draftId: "draft-1",
+        intent: "gesture",
+        brief: "A shy wave",
+        error: null,
+      },
+      {
+        draftId: "draft-2",
+        intent: "reaction",
+        brief: "A soft smile",
+        error: { code: "openai_rate_limit", category: "rate_limited" },
+      },
+      {
+        draftId: "draft-3",
+        intent: "gesture",
+        brief: "A bow",
+        error: { code: "boom", category: null },
+      },
+      { draftId: "draft-4", intent: "gesture", brief: "A nod", error: null },
+    ]);
+  });
+
+  it("drops what names no draft, and reads anything else as no batch", () => {
+    expect(
+      parseGenerationBatch([null, 3, { brief: "A wave" }, { draft_id: 9 }]),
+    ).toEqual([]);
+    for (const value of [undefined, null, "draft-1", { draft_id: "draft-1" }])
+      expect(parseGenerationBatch(value)).toEqual([]);
   });
 });
 

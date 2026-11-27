@@ -32,6 +32,7 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.generation.check_report import MAX_REPORT_BYTES, final_status
 from animama.app.generation.deterministic_author import DeterministicAuthor
 from animama.app.generation.draft_validation import MAX_CLIP_BYTES, Intent
+from animama.app.generation.effects import EffectKind, EffectLibrary, EffectSource
 from animama.app.generation.review_frames import (
     MAX_REVIEW_SHEET_BYTES,
     MAX_REVIEW_SHEETS,
@@ -42,9 +43,11 @@ from animama.app.generation.review_frames import (
 from animama.app.generation.run import (
     RUN_FAILED,
     RUN_STATUSES,
+    BatchPlanned,
     DraftUpdated,
     FramesRequested,
     GenerationRun,
+    ItemFailed,
     MessageDelta,
     Progress,
     Questions,
@@ -108,6 +111,12 @@ _EXAMPLE_KINDS: Final[Mapping[str, tuple[ContentKind, str]]] = {
 }
 """The catalog kind and logical-key prefix of the Included items each intent's ``read_example`` may return."""
 _CLIP_FILE_ROLE: Final = "sequence"
+_EFFECT_KINDS: Final[Mapping[EffectKind, ContentKind]] = {
+    "avatar_effect": ContentKind.AVATAR_EFFECT,
+    "particle_effect": ContentKind.PARTICLE_EFFECT,
+    "scene_effect": ContentKind.SCENE_EFFECT,
+}
+"""The catalog kind of each kind of effect a draft may place."""
 
 
 def refusal(code: str, status_code: int, **fields: str) -> HTTPException:
@@ -356,11 +365,14 @@ class AuthoringLibrary:
     ``selector_ids`` are the Selector IDs of the owner's Gestures, without
     the draft's own saved item; a Reaction has no Selector ID, so its run
     reads none. ``examples`` are the clips of the allowlisted Included items
-    of the run's kind that could be read.
+    of the run's kind that could be read. ``effects`` are the portable
+    effects a Gesture drafted on the Generate page may place; ``None`` for a
+    run that places none.
     """
 
     selector_ids: frozenset[str] = frozenset()
     examples: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    effects: EffectLibrary | None = None
 
     def selector_in_use(self, selector_id: str) -> bool:
         return selector_id in self.selector_ids
@@ -390,8 +402,40 @@ async def _example_clip(
     return clip if isinstance(clip, dict) else None
 
 
+async def read_effect_library(content: ProductContent, owner_user_id: str) -> EffectLibrary:
+    """The portable Avatar, Particle and Scene Effects the owner can use, Included and their own.
+
+    Only usable items are read (the typed lists leave out an invalid one),
+    and a non-portable item is never among them, whatever it is called
+    (threat T4): its name, description and definition reach no model.
+    """
+
+    sources: list[EffectSource] = []
+    for kind, content_kind in _EFFECT_KINDS.items():
+        for item in await content.typed.list_kind(user_id=owner_user_id, kind=content_kind):
+            if is_non_portable(item.item):
+                continue
+            definition = getattr(item.document, "definition", None)
+            sources.append(
+                EffectSource(
+                    kind=kind,
+                    name=item.document.name,
+                    description=item.document.description,
+                    catalog_item_id=item.item.id,
+                    logical_key=item.item.logical_key,
+                    definition=definition if isinstance(definition, dict) else None,
+                )
+            )
+    return EffectLibrary(sources)
+
+
 async def read_authoring_library(
-    content: ProductContent, owner_user_id: str, *, saved_item_id: str | None, intent: Intent = "gesture"
+    content: ProductContent,
+    owner_user_id: str,
+    *,
+    saved_item_id: str | None,
+    intent: Intent = "gesture",
+    effects: bool = False,
 ) -> AuthoringLibrary:
     """Read what a run of ``intent`` may ask of the Library: Gesture Selector IDs in use, and example clips.
 
@@ -399,7 +443,9 @@ async def read_authoring_library(
     of that kind. A non-portable item is never read, whatever it is called
     (threat T4), and an example that cannot be read as a clip is left out.
     ``saved_item_id`` is the Library item the draft was saved as or the
-    creator has open, whose own Selector ID is not a clash.
+    creator has open, whose own Selector ID is not a clash. With ``effects``
+    the portable effects are read too (``read_effect_library``); effects
+    that cannot be read leave the run with a Library that lists none.
     """
 
     kind, key_prefix = _EXAMPLE_KINDS[intent]
@@ -427,30 +473,50 @@ async def read_authoring_library(
             continue
         if clip is not None:
             examples[name] = clip
-    return AuthoringLibrary(selector_ids=selector_ids, examples=examples)
+    effect_library: EffectLibrary | None = None
+    if effects:
+        try:
+            effect_library = await read_effect_library(content, owner_user_id)
+        except Exception as error:
+            _log.warning(
+                "Generation effects could not be read", exc_type=type(error).__name__, site=failure_site(error)
+            )
+            effect_library = EffectLibrary(available=False)
+    return AuthoringLibrary(selector_ids=selector_ids, examples=examples, effects=effect_library)
 
 
 async def _authoring_library(
-    app: FastAPI, session: AsyncSession, principal: RequestPrincipal, *, saved_item_id: str | None, intent: Intent
+    app: FastAPI,
+    session: AsyncSession,
+    principal: RequestPrincipal,
+    *,
+    saved_item_id: str | None,
+    intent: Intent,
+    effects: bool,
 ) -> AuthoringLibrary:
     """The Library for a run, or an empty one when content is unavailable.
 
-    A run then checks no Selector ID clash and reads no example. Neither is
-    needed to author a draft, so a content root that failed to start does not
-    stop the assistant.
+    A run then checks no Selector ID clash, reads no example and lists no
+    effect. None is needed to author a draft, so a content root that failed
+    to start does not stop the assistant. A draft that already plays
+    effects keeps them, unchecked: the effect library is marked unavailable,
+    not empty, so nothing is taken for deleted.
     """
 
+    without = AuthoringLibrary(effects=EffectLibrary(available=False) if effects else None)
     ports = getattr(app.state, "product_ports", None)
     if ports is None:
-        return AuthoringLibrary()
+        return without
     try:
         async with ports.content(session, principal) as content:
-            return await read_authoring_library(content, principal.id, saved_item_id=saved_item_id, intent=intent)
+            return await read_authoring_library(
+                content, principal.id, saved_item_id=saved_item_id, intent=intent, effects=effects
+            )
     except Exception as error:
         _log.warning(
             "Generation run starts without its Library", exc_type=type(error).__name__, site=failure_site(error)
         )
-        return AuthoringLibrary()
+        return without
 
 
 # --- Starting a run -------------------------------------------------------------------------
@@ -545,7 +611,9 @@ async def start_generation_run(
         # has open.
         own_item = plan.draft.saved_item_id if plan.draft is not None else None
         own_item = own_item or snapshot.conversation.scope.get("catalog_item_id")
-        library = await _authoring_library(app, session, principal, saved_item_id=own_item, intent=plan.intent)
+        library = await _authoring_library(
+            app, session, principal, saved_item_id=own_item, intent=plan.intent, effects=plan.effects
+        )
     except GenerationError as error:
         release()
         raise generation_refusal(error) from error
@@ -561,6 +629,7 @@ async def start_generation_run(
         frames=runtime.frames,
         selector_in_use=library.selector_in_use,
         example_reader=library.example,
+        effect_library=library.effects,
     )
     _log.info(
         "Generation run admitted",
@@ -568,6 +637,7 @@ async def start_generation_run(
         conversation_id=conversation_id,
         selector_id_count=len(library.selector_ids),
         example_count=len(library.examples),
+        effect_count=len(library.effects) if library.effects is not None else None,
         expression_family_count=len(body.avatar_expressions or {}),
         with_document=plan.document is not None,
     )
@@ -578,7 +648,14 @@ async def start_generation_run(
 
 
 def event_frame(event: RunEvent) -> str:
-    """One run event as an SSE frame: its name, and its payload as JSON."""
+    """One run event as an SSE frame: its name, and its payload as JSON.
+
+    Events name their draft, so the page can tell the items of a batch
+    apart: ``progress``, ``draft.updated`` and ``frames.requested`` always
+    did, ``message.delta`` does for one item's note, and ``batch.planned``
+    and ``item.failed`` exist only for a batch. A run for one draft sends
+    the frames it always sent.
+    """
 
     data: dict[str, Any]
     if isinstance(event, RunStarted):
@@ -589,6 +666,25 @@ def event_frame(event: RunEvent) -> str:
             data["draft_id"] = event.draft_id
     elif isinstance(event, MessageDelta):
         name, data = "message.delta", {"text": event.text}
+        if event.draft_id is not None:
+            data["draft_id"] = event.draft_id
+    elif isinstance(event, BatchPlanned):
+        name, data = (
+            "batch.planned",
+            {
+                "items": [
+                    {"draft_id": item.draft_id, "intent": item.intent, "brief": item.brief} for item in event.items
+                ]
+            },
+        )
+    elif isinstance(event, ItemFailed):
+        name = "item.failed"
+        data = {
+            "draft_id": event.draft_id,
+            "code": event.code,
+            "category": event.category,
+            "details": dict(event.details),
+        }
     elif isinstance(event, Questions):
         name, data = "questions", {"questions": [dict(question) for question in event.questions]}
     elif isinstance(event, DraftUpdated):
@@ -855,6 +951,7 @@ __all__ = [
     "list_owner_conversations",
     "read_authoring_library",
     "read_conversation",
+    "read_effect_library",
     "record_check_report",
     "refusal",
     "run_frames",

@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "請選擇可用的 PocketTTS 語音。"
   },
   "generation": {
+    "generation_batch_time_limit": "這次請求已超出時間限制。已完成的草稿會保留。",
     "generation_document_invalid": "助理無法處理此項目目前的內容。請檢查時間軸是否有問題，然後重試。",
     "generation_document_invalid_details": "此項目的名稱、描述、選擇器 ID 或建議情緒有問題，助理無法處理。請檢查後重試。",
     "generation_document_invalid_timeline": "助理無法處理此項目目前的時間軸。請檢查時間軸是否有問題，然後重試。",

@@ -49,6 +49,62 @@ export function parseGenerationQuestions(value: unknown): GenerationQuestion[] {
   });
 }
 
+/**
+ * One item of a batch: a request that asked for several items is planned as
+ * up to ten, each with its own draft. The run's stream names them when the
+ * plan is made, and the run's stored assistant turn keeps them
+ * (`data.batch`), so a draft's brief can be shown during the run and after a
+ * reload.
+ */
+export type GenerationBatchItem = {
+  /** The item's draft. A stop removes the draft of an item it had not written. */
+  draftId: string;
+  intent: "gesture" | "reaction";
+  /** What the item is to be, in the assistant's words; empty when none was sent. */
+  brief: string;
+  /**
+   * Why the item failed on a model error or an internal failure, as its
+   * stored turn records it. Always `null` on the stream, where a failure
+   * arrives as its own event.
+   */
+  error: { code: string; category: string | null } | null;
+};
+
+/**
+ * Read a batch's items, from the stream's plan or a stored turn. An entry
+ * that names no draft cannot be placed and is dropped, as is a second entry
+ * for the same draft; a missing brief is empty and an unknown kind is a
+ * Gesture, as for a draft.
+ */
+export function parseGenerationBatch(value: unknown): GenerationBatchItem[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap((entry): GenerationBatchItem[] => {
+    if (!isRecord(entry)) return [];
+    const draftId = entry.draft_id;
+    if (typeof draftId !== "string" || !draftId || seen.has(draftId)) return [];
+    seen.add(draftId);
+    const error = isRecord(entry.error) ? entry.error : null;
+    return [
+      {
+        draftId,
+        intent: entry.intent === "reaction" ? "reaction" : "gesture",
+        brief: typeof entry.brief === "string" ? entry.brief.trim() : "",
+        error:
+          typeof error?.code === "string" && error.code
+            ? {
+                code: error.code,
+                category:
+                  typeof error.category === "string" && error.category
+                    ? error.category
+                    : null,
+              }
+            : null,
+      },
+    ];
+  });
+}
+
 /** How an assistant turn that did no work ended. */
 const NO_WORK_OUTCOMES: ReadonlySet<unknown> = new Set(["failed", "stopped"]);
 

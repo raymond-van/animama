@@ -7,6 +7,7 @@ import { prepareContentPreviews } from "@animama/runtime-contracts/sdk";
 import type {
   PyContentPreviewsPrepareResponse,
   PyPreparedPreviewRoot,
+  PyTypedBatchDiagnostic,
   PyTypedContentPreview,
 } from "@animama/runtime-contracts/api-types";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
@@ -20,6 +21,8 @@ import { queryKeys } from "@/query/keys";
 
 const PREVIEW_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 const PREVIEW_REFRESH_MARGIN_MS = 60 * 1000;
+
+const NO_DIAGNOSTICS: readonly PyTypedBatchDiagnostic[] = [];
 
 type ExpiringPreview = { expires_at: string };
 
@@ -51,6 +54,16 @@ function exactSourceKey(
   return source.type === "builtin"
     ? `builtin:${kind}:${source.content_id}@${source.version}`
     : `catalog:${source.catalog_item_id}`;
+}
+
+/**
+ * The key one dependency's source has in a preview batch: its request root,
+ * the resolved root's `root_key`, and the `root_key` of a diagnostic about it.
+ */
+export function actionComponentPreviewRootKey(
+  dependency: Pick<PyContentDependency, "content_type" | "source">,
+): string {
+  return exactSourceKey(dependency.content_type, dependency.source);
 }
 
 /** Canonical unique source set used by both the cache and root-preview reuse. */
@@ -133,10 +146,16 @@ function previewFromBundle(
   return typedPreviewTransport(typed);
 }
 
-/** Resolve every current component root through one shared preview capability. */
+/**
+ * Resolve every current component root through one shared preview capability.
+ *
+ * `refetchOnMount: "always"` asks again each time its caller mounts, even
+ * while an earlier answer is still fresh: for a caller that must notice a
+ * component deleted from the Library while it was away.
+ */
 export function useActionComponentPreviews(
   dependencies: readonly PyContentDependency[],
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; refetchOnMount?: "always" } = {},
 ) {
   const apiClient = useProductApiClient();
 
@@ -161,6 +180,7 @@ export function useActionComponentPreviews(
     staleTime: 60_000,
     gcTime: 120_000,
     placeholderData: keepPreviousData,
+    refetchOnMount: options.refetchOnMount ?? true,
     refetchInterval: ({ state }) =>
       actionComponentPreviewRefreshInterval(state.data?.lease ?? undefined),
     refetchOnWindowFocus: ({ state }) =>
@@ -203,6 +223,13 @@ export function useActionComponentPreviews(
   return {
     previews,
     pending: enabled && (query.isPending || query.isPlaceholderData),
+    /**
+     * What the last answer at hand said about roots it could not resolve,
+     * each by its `root_key` and a code (`source_unavailable` for a source
+     * the owner's Library does not hold). Empty until an answer arrives, so
+     * a root without a diagnostic is not thereby known to resolve.
+     */
+    diagnostics: (enabled && query.data?.diagnostics) || NO_DIAGNOSTICS,
     errors: [
       ...(query.data?.diagnostics ?? []).map((item) => item.message),
       ...(query.error instanceof Error ? [query.error.message] : []),

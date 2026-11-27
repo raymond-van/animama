@@ -3559,6 +3559,7 @@ export default interface Resources {
       "voice_preset_unavailable": "Choose an available PocketTTS voice."
     },
     "generation": {
+      "generation_batch_time_limit": "The assistant ran out of time for this request. Drafts finished so far are kept.",
       "generation_document_invalid": "The assistant cannot work on this item as it stands. Check the timeline for problems, then try again.",
       "generation_document_invalid_details": "The assistant cannot work on this item because of its name, description, Selector ID or suggested emotion. Check them, then try again.",
       "generation_document_invalid_timeline": "The assistant cannot work on this item's timeline as it stands. Check the timeline for problems, then try again.",
@@ -3775,14 +3776,14 @@ export default interface Resources {
       "writesNew": "Your next message writes a new draft."
     },
     "creator": {
-      "appliesPose": "Sending a request switches to Clip, where the result plays. A keyframe's pose you changed is applied first. An unsaved pose of its own has to be saved, discarded or added to the timeline before.",
+      "appliesPose": "Sending a request switches to Clip, where the result plays. A keyframe's pose you changed is applied first. An unsaved pose of its own has to be saved or discarded before.",
       "changedMeanwhile": "The timeline changed while the assistant worked, so its result was not applied and the assistant was stopped. Send your request again to work from the timeline as it is now.",
       "close": "Close the assistant",
       "keepsEffects": "Effects and sounds on the timeline stay as they are.",
       "notApplied": "The assistant's result could not be applied to this item.",
       "open": "Generate",
       "openGenerate": "Open Generate",
-      "poseDraft": "Pose mode holds an unsaved pose that the assistant's result would replace, so nothing was sent or applied. Save the pose, discard it or add it to the timeline, then send your request again.",
+      "poseDraft": "Pose mode holds an unsaved pose that the assistant's result would replace, so nothing was sent or applied. Save the pose or discard it, then send your request again.",
       "revises": {
         "gesture": "Your request changes the Gesture open here. Undo puts it back.",
         "reaction": "Your request changes the Reaction open here. Undo puts it back."
@@ -3815,8 +3816,11 @@ export default interface Resources {
         "savedDescription": "The draft is removed from this conversation. The item you saved stays in your Library.",
         "title": "Discard “{{name}}”?"
       },
+      "effects_one": "Plays {{count}} effect: {{names, list}}",
+      "effects_other": "Plays {{count}} effects: {{names, list}}",
       "emptyDescription": "Ask the assistant for a Gesture. Each draft appears here with its checks, ready to play, revise or save.",
       "emptyTitle": "No drafts yet",
+      "itemFailed": "The assistant could not finish this draft.",
       "kind": {
         "gesture": "Gesture",
         "reaction": "Reaction",
@@ -3824,7 +3828,22 @@ export default interface Resources {
       },
       "loadFailed": "The drafts could not be loaded.",
       "loading": "Loading drafts…",
+      "markForSaving": "Mark “{{name}}” for saving",
+      "missingEffectsSave": "This draft cannot be saved until it is revised: an effect it plays is no longer in your Library.",
+      "missingEffects_one": "This draft plays an effect that is no longer in your Library: {{names, list}}. Ask the assistant to revise the draft before you save it.",
+      "missingEffects_other": "This draft plays effects that are no longer in your Library: {{names, list}}. Ask the assistant to revise the draft before you save it.",
       "openSaved": "Open the saved item",
+      "saveMany": {
+        "all": "Save all",
+        "failed_one": "{{count}} draft could not be saved. Its card says why.",
+        "failed_other": "{{count}} drafts could not be saved. Their cards say why.",
+        "saved_one": "Saved {{count}} draft to your Library.",
+        "saved_other": "Saved {{count}} drafts to your Library.",
+        "saving": "Saving draft {{position}} of {{total}}…",
+        "selected": "Save selected ({{selected}})",
+        "skipped_one": "Skipped {{count}} draft that cannot be saved as it stands.",
+        "skipped_other": "Skipped {{count}} drafts that cannot be saved as they stand."
+      },
       "saved": "Saved to your Library",
       "select": "Select draft {{name}}",
       "showAll": "Show all {{total}}",
@@ -3835,6 +3854,8 @@ export default interface Resources {
         "ready": "Ready",
         "repairing": "Repairing…",
         "reviewing": "Reviewing frames…",
+        "thinking": "Thinking…",
+        "waiting": "Waiting for its turn…",
         "warnings": "Ready, with warnings",
         "writing": "Writing…"
       },
@@ -3911,6 +3932,7 @@ export default interface Resources {
       "unplayable": "This draft cannot be played."
     },
     "progress": {
+      "batch": "Working on {{total}} drafts. {{done}} finished so far…",
       "checking": "Checking the draft…",
       "framesUnavailable": "Frames could not be drawn, so the assistant continues without looking at them.",
       "repairing": "Repairing what the checks found…",

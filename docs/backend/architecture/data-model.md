@@ -818,7 +818,7 @@ drafts.
 | `conversation_id` | Foreign key, cascading delete; indexed |
 | `role` | `user` or `assistant` (CHECK) |
 | `text` | The turn's text; empty for a turn that only asked questions |
-| `data` | JSONB. The person's turn: `draft_id`, `answers`. The assistant's turn: `run_id`, `outcome` (`draft`, `questions`, `reply`, `failed` or `stopped`), `usage`, `model`, and where they apply `cost`, `draft_id`, `questions`, `error` |
+| `data` | JSONB. The person's turn: `draft_id`, `answers`. The assistant's turn: `run_id`, `outcome` (`draft`, `questions`, `reply`, `failed` or `stopped`), `usage`, `model`, and where they apply `cost`, `draft_id`, `questions`, `error`, and for a batch `batch`: every planned item as `{draft_id, intent, brief, error?}` in plan order, with `draft_id` naming the first item whose draft was kept |
 | `created_at` | Wall-clock time of the insert; messages read back in `created_at`, `id` order |
 
 `generation_drafts`:
@@ -832,7 +832,7 @@ drafts.
 | `position` | Order within the conversation: a new draft takes one more than the highest, so a deleted draft leaves a gap unless it was the last |
 | `status` | `writing`, `checking`, `repairing`, `reviewing`, `ready`, `warnings` or `failed` (CHECK) |
 | `version` | Starts at 1 with no project; grows by one with every stored project |
-| `project` | JSONB, nullable: the `animamaActionProject/1.0` document, stored only after server validation |
+| `project` | JSONB, nullable: the `animamaActionProject/1.0` document, stored only after server validation. Its `dependencies` pin the effects its timeline events play, by catalog item |
 | `previous_project` | JSONB, nullable: the project from before the person's last revising message, which a restore puts back once |
 | `check_report` | JSONB, nullable: the page's bounded report, or `{"unchecked": true}` |
 | `checked_version` | The version `check_report` is for; may be older than `version` |

@@ -16,7 +16,7 @@ from typing import Any, get_args
 
 import pytest
 
-from animama.app.generation import clip_edits, draft_validation as validation, prompts, tools
+from animama.app.generation import clip_edits, draft_validation as validation, tools
 from animama.app.generation.deterministic_author import (
     EXAMPLE_REACTION_EMOTION,
     EXAMPLE_REACTION_INTENSITY,
@@ -26,6 +26,8 @@ from animama.app.generation.deterministic_author import (
 )
 from animama.app.model_clients import ModelClientToolCall
 from animama.app.services.content_kind_registry import SEMANTIC_KEY_PATTERN
+from animama.app.services.content_save_service import readable_entry_name
+from animama.domain.content_catalog import ContentConflictError
 from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.domain.generation import GENERATION_INTENTS
 from animama.logging import failure_site
@@ -142,12 +144,12 @@ def test_a_failure_beneath_the_packages_code_is_located_at_the_packages_own_line
         raise AssertionError("nothing failed")
 
     # Raised in a library the package called (the standard library's JSON encoder, on a value it cannot write).
-    in_library = site_of(lambda: prompts.data_json({"clip": object()}))
+    in_library = site_of(lambda: validation.data_json({"clip": object()}))
     # Raised in code the package was handed, here this module's.
     in_callback = site_of(lambda: validation.bounded_text(_Unmeasurable("text"), 10))
 
     module, line = in_library.rsplit(":", 1)
-    assert module == "animama.app.generation.prompts" and int(line) in _lines_of(prompts.data_json)
+    assert module == "animama.app.generation.draft_validation" and int(line) in _lines_of(validation.data_json)
     module, line = in_callback.rsplit(":", 1)
     assert module == "animama.app.generation.draft_validation" and int(line) in _lines_of(validation.bounded_text)
     # Still a module and a line, and nothing of the failure's wording or of any path.
@@ -455,6 +457,137 @@ def test_a_gesture_needs_a_name_an_ai_description_and_a_selector_id() -> None:
         assert validation.detail_problems("gesture", {**GESTURE_DETAILS, "ai_description": description}) == [
             "ai_description must be a non-empty string of at most 1000 characters"
         ], description
+
+
+NAME_RULE = (
+    "name must be one the Library can save: letters, digits, spaces, dots, underscores and hyphens, starting with "
+    "a letter or digit (a name in another script is fine)"
+)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Oh, Hello!", "Item 1: wave", "Rock 'n' Roll", "Q&A", "!!!", "-dash", ".dot", "...", "wave/hello", "✨", "…"],
+)
+@pytest.mark.parametrize(("intent", "details"), [("gesture", GESTURE_DETAILS), ("reaction", REACTION_DETAILS)])
+def test_a_name_the_library_would_not_save_is_a_problem_the_model_can_fix(
+    name: str, intent: Any, details: dict[str, Any]
+) -> None:
+    """Save names an item's folder after it and refuses the rest; the Generate page cannot rename a draft."""
+
+    with pytest.raises(ContentConflictError):
+        readable_entry_name(name)
+    assert validation.detail_problems(intent, {**details, "name": name}) == [NAME_RULE]
+    # Every tool path runs the same check.
+    clip = VALID_CLIP if intent == "gesture" else REACTION_CLIP
+    draft = tools.WorkingDraft(intent=intent)
+    submit = ModelClientToolCall(
+        id="c", name="submit_draft", arguments=json.dumps({"clip": clip, **details, "name": name, "note": NOTE})
+    )
+    assert tools.run_tool(draft, submit, tools.offered_tools("write")).problems == [NAME_RULE]
+    assert draft.outcome is None
+    stored = tools.WorkingDraft(intent=intent, clip=copy.deepcopy(clip), details=dict(details))
+    edit = ModelClientToolCall(id="c", name="edit_draft", arguments=json.dumps({"name": name, "note": NOTE}))
+    assert tools.run_tool(stored, edit, tools.offered_tools("revise")).problems == [NAME_RULE]
+    assert stored.details["name"] == details["name"]
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Shy Wave", "Wave 2.0 - soft_one", "a", "x" * 80, "はにかみ手振り", "Café wave", "Ünïcödé wave ✨", "수줍은 인사"],
+)
+def test_a_name_the_library_saves_is_accepted_in_any_script(name: str) -> None:
+    assert readable_entry_name(name)
+    assert validation.detail_problems("gesture", {**GESTURE_DETAILS, "name": name}) == []
+    assert validation.detail_problems("reaction", {**REACTION_DETAILS, "name": name}) == []
+
+
+def test_the_name_rule_is_for_names_the_assistant_writes_not_one_an_item_already_has() -> None:
+    details = {**GESTURE_DETAILS, "name": "Oh, Hello!"}
+    # An item open in a creator keeps its name, which no pass may change.
+    assert validation.detail_problems("gesture", details, held={"name"}) == []
+    assert validation.held_detail_problems("gesture", details) == []
+    # A blank name is the assistant's to write, under the rule.
+    assert validation.detail_problems("gesture", details, held={"ai_description", "selector_id"}) == [NAME_RULE]
+    assert validation.detail_problems("reaction", {**REACTION_DETAILS, "name": "Oh, Hello!"}, held={"emotion"}) == [
+        NAME_RULE
+    ]
+
+
+def _saves(name: str) -> bool:
+    try:
+        readable_entry_name(name)
+    except ContentConflictError:
+        return False
+    return True
+
+
+def test_included_names_are_judged_exactly_as_save_judges_them() -> None:
+    """The rule is the Library's own, so a draft's name passes when, and only when, Save would take it.
+
+    Seven Included Gestures have names Save refuses for a Local item (an
+    apostrophe, ``!``, ``&``, a comma or ``?``). A draft cannot take such a
+    name either, since it could then never be saved; an Included item open
+    in a creator keeps its name, which is held and not judged here.
+    """
+
+    names: dict[str, list[str]] = {}
+    for folder in ("gestures", "reactions"):
+        paths = sorted((REPOSITORY / "content/included" / folder).glob("*/*.meta.json"))
+        names[folder] = [json.loads(path.read_text(encoding="utf-8"))["name"] for path in paths]
+    assert len(names["gestures"]) > 100 and len(names["reactions"]) > 100
+    for name in names["gestures"] + names["reactions"]:
+        assert validation.is_library_name(name) is _saves(name), name
+    assert [name for name in names["reactions"] if not validation.is_library_name(name)] == []
+    assert [name for name in names["gestures"] if not validation.is_library_name(name)] == [
+        "Chef's Kiss",
+        "Fighting! Fist Pump",
+        "Hair Tuck & Settle",
+        "On One Hand, On the Other",
+        "Pon!",
+        "This Big!",
+        "Who, Me?",
+    ]
+    for name in ("Chef's Kiss", "Who, Me?"):
+        assert validation.detail_problems("gesture", {**GESTURE_DETAILS, "name": name}, held={"name"}) == []
+
+
+@pytest.mark.parametrize("intent", ["gesture", "reaction"])
+def test_the_tools_say_what_a_name_may_hold(intent: Any) -> None:
+    for tool in ("submit_draft", "edit_draft"):
+        name = tools.tool_definition(tool, intent)["function"]["parameters"]["properties"]["name"]
+        assert "letters, digits, spaces, dots, underscores and hyphens" in name["description"]
+
+
+@pytest.mark.parametrize(
+    "request_text",
+    ["Oh, hello! A wave?", "Waves: three (3) of them", "!!! wave", "'quoted' & more", "…and a bow", "a/b\\c"],
+)
+@pytest.mark.parametrize("intent", ["gesture", "reaction"])
+def test_the_deterministic_author_names_a_draft_so_that_it_can_be_saved(request_text: str, intent: Any) -> None:
+    author = DeterministicAuthor()
+    draft = tools.WorkingDraft(intent=intent)
+
+    reply = tools.run_tool(draft, author.write(request_text, intent=intent), tools.offered_tools("write"))
+
+    assert reply.problems == [] and draft.outcome == "submitted"
+    assert validation.is_library_name(draft.details["name"])
+    # A planned item's brief, which is the request again, gives a name that saves too.
+    planned = json.loads(cast_arguments(author.plan(f"batch of 2 {request_text}")))
+    for item in planned["items"]:
+        item_draft = tools.WorkingDraft(intent=intent)
+        assert (
+            tools.run_tool(
+                item_draft, author.write(item["brief"], intent=intent), tools.offered_tools("write")
+            ).problems
+            == []
+        )
+        assert validation.is_library_name(item_draft.details["name"])
+
+
+def cast_arguments(call: ModelClientToolCall | None) -> str:
+    assert call is not None
+    return call.arguments
 
 
 @pytest.mark.parametrize("selector", ["shy_wave", "wave", "wave_2", "laugh_mild", "2_thumbs_up", "x" * 64])

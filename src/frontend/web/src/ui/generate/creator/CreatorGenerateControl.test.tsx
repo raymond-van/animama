@@ -371,7 +371,7 @@ describe("the creator's Generate control", () => {
     render();
     await click(find("creator-generate-toggle"));
     expect(find("creator-generate-pose-note")!.textContent).toBe(
-      "Sending a request switches to Clip, where the result plays. A keyframe's pose you changed is applied first. An unsaved pose of its own has to be saved, discarded or added to the timeline before.",
+      "Sending a request switches to Clip, where the result plays. A keyframe's pose you changed is applied first. An unsaved pose of its own has to be saved or discarded before.",
     );
 
     const source = (stage.runInput as RunInput).creatorSource!();
@@ -424,7 +424,7 @@ describe("the creator's Generate control", () => {
     )!;
     expect(notice.getAttribute("data-notice")).toBe("pose_draft");
     expect(notice.textContent).toBe(
-      "Pose mode holds an unsaved pose that the assistant's result would replace, so nothing was sent or applied. Save the pose, discard it or add it to the timeline, then send your request again.",
+      "Pose mode holds an unsaved pose that the assistant's result would replace, so nothing was sent or applied. Save the pose or discard it, then send your request again.",
     );
   });
 

@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { PyGenerationDraft } from "@animama/runtime-contracts/api-types";
+import type {
+  PyGenerationDraft,
+  PyGenerationMessage,
+} from "@animama/runtime-contracts/api-types";
 
 import { useGenerationConversation } from "@/query/hooks/useGeneration";
-import { generationRunDraftIds } from "@/stores/generation-store";
+import {
+  generationRunDraftIds,
+  generationRunWorkingDraftIds,
+} from "@/stores/generation-store";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
 import {
@@ -24,6 +30,8 @@ import {
   useGeneratePreviewPlayer,
 } from "./GeneratePreview";
 import { GenerateSetup } from "./GenerateSetup";
+import { draftBatchInfo } from "./generationBatch";
+import { useDraftEffects, type DraftEffectsView } from "./useDraftEffects";
 import { useDraftWorker } from "./useDraftWorker";
 import {
   useGenerationConversationChoice,
@@ -46,6 +54,39 @@ const STAGE_PAGE = {
 
 /** One array for every render without drafts, so their readers stay still. */
 const NO_DRAFTS: readonly PyGenerationDraft[] = [];
+const NO_MESSAGES: readonly PyGenerationMessage[] = [];
+
+/** What the workspace takes from the page above its preview. */
+type GenerateWorkspaceProps = {
+  modelChoice: GenerationModelChoice;
+  conversations: GenerationConversationChoice;
+  onOpenSetup: () => void;
+};
+
+/**
+ * One conversation's workspace inside the preview that plays its drafts. The
+ * conversation and the selection are read here, above the preview provider:
+ * the provider mounts the selected draft's effects (R5.3), so it has to know
+ * the selection that the workspace inside it shows and changes.
+ */
+function GenerateConversationWorkspace(props: GenerateWorkspaceProps) {
+  const { conversationId } = props.conversations;
+  const conversation = useGenerationConversation(conversationId);
+  const snapshot = conversation.data;
+  const drafts = snapshot?.drafts ?? NO_DRAFTS;
+  const selection = useSelectedDraft(conversationId, snapshot);
+  const effects = useDraftEffects(drafts, selection[0]);
+  return (
+    <GeneratePreviewProvider sandboxEntries={effects.sandboxEntries}>
+      <GenerateWorkspace
+        {...props}
+        conversation={conversation}
+        selection={selection}
+        effects={effects.byDraft}
+      />
+    </GeneratePreviewProvider>
+  );
+}
 
 /**
  * The three areas around the stage: the conversation, the preview and the
@@ -57,14 +98,19 @@ function GenerateWorkspace({
   modelChoice,
   conversations,
   onOpenSetup,
-}: {
-  modelChoice: GenerationModelChoice;
-  conversations: GenerationConversationChoice;
-  onOpenSetup: () => void;
+  conversation,
+  selection,
+  effects,
+}: GenerateWorkspaceProps & {
+  /** The open conversation, as read above the preview provider. */
+  conversation: ReturnType<typeof useGenerationConversation>;
+  /** The selected draft and how to change the selection (`useSelectedDraft`). */
+  selection: ReturnType<typeof useSelectedDraft>;
+  /** What each draft that plays effects shows of them, by draft id. */
+  effects: DraftEffectsView["byDraft"];
 }) {
   const { t } = useTranslation("generate");
   const { conversationId } = conversations;
-  const conversation = useGenerationConversation(conversationId);
   const snapshot = conversation.data;
   const drafts = snapshot?.drafts ?? NO_DRAFTS;
   const expressions = useGeneratePreviewAvatarExpressions();
@@ -88,15 +134,24 @@ function GenerateWorkspace({
     // `undefined` while the Avatar loads; `null` when none can be shown.
     avatarExpressionNames: expressions ? expressions.names : expressions,
   });
-  const [selectedDraft, selectDraft] = useSelectedDraft(
-    conversationId,
-    snapshot,
-  );
+  const [selectedDraft, selectDraft] = selection;
   const validation = selectedDraft
     ? worker.validations[selectedDraft.id]
     : undefined;
   const player = useGeneratePreviewPlayer(selectedDraft, validation);
-  const { running } = controller.run;
+  const { running, batch, draftPhases, itemFailures } = controller.run;
+  // Each batch draft's brief, step and failure: from the run in flight, and
+  // from the stored turns after a reload.
+  const messages = snapshot?.messages ?? NO_MESSAGES;
+  const batchInfo = useMemo(
+    () =>
+      draftBatchInfo({
+        drafts,
+        messages,
+        run: { running, batch, draftPhases, itemFailures },
+      }),
+    [drafts, messages, running, batch, draftPhases, itemFailures],
+  );
   // A run closes the model control for good: left open in state, it would
   // open again by itself when the run ends.
   if (running && modelControlOpen) setModelControlOpen(false);
@@ -177,6 +232,9 @@ function GenerateWorkspace({
             onSelect={selectDraft}
             running={running}
             runDraftIds={generationRunDraftIds(controller.run)}
+            workingDraftIds={generationRunWorkingDraftIds(controller.run)}
+            batchInfo={batchInfo}
+            effects={effects}
           />
         </CreatorFloatingPanel>
       }
@@ -233,13 +291,11 @@ function GenerateConversations({
   return (
     <AppShellPage {...STAGE_PAGE}>
       {conversations.conversationId ? (
-        <GeneratePreviewProvider>
-          <GenerateWorkspace
-            modelChoice={modelChoice}
-            conversations={conversations}
-            onOpenSetup={onOpenSetup}
-          />
-        </GeneratePreviewProvider>
+        <GenerateConversationWorkspace
+          modelChoice={modelChoice}
+          conversations={conversations}
+          onOpenSetup={onOpenSetup}
+        />
       ) : (
         <CreatorLoading message={t("page.loading")} />
       )}

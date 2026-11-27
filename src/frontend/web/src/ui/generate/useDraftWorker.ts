@@ -29,8 +29,10 @@ import { isRecord } from "@/lib/records";
 import { writeGenerationDraft } from "@/query/hooks/useGeneration";
 import {
   clearGenerationFramesRequest,
-  useGenerationFramesRequest,
+  generationRunState,
+  useGenerationFramesRequests,
   useGenerationRunning,
+  type GenerationFramesRequest,
 } from "@/stores/generation-store";
 import { buildCheckReport } from "./checkReport";
 import {
@@ -89,7 +91,8 @@ export type DraftCheckFailure = {
  * Where the review sheets of the run in flight stand. `unavailable`: the run
  * asked for sheets but no preview canvas is mounted to draw them, so the
  * review will be skipped unless one appears. `failed`: drawing or uploading
- * them failed.
+ * them failed. With requests for several drafts outstanding (a batch), the
+ * worst of them is reported, with its draft.
  */
 export type DraftFramesStatus = "idle" | "rendering" | "unavailable" | "failed";
 
@@ -142,7 +145,16 @@ export function draftExpressionNames(
   };
 }
 
-type FramesAttempt = { key: string; status: DraftFramesStatus };
+/** One request for sheets as a key: its draft and that draft's version. */
+const framesKey = ({ draftId, version }: GenerationFramesRequest) =>
+  `${draftId}:${version}`;
+
+/** How outstanding requests for sheets read together, worst first. */
+const FRAMES_STATUS_ORDER: readonly DraftFramesStatus[] = [
+  "failed",
+  "unavailable",
+  "rendering",
+];
 
 /**
  * The page's side of a run: validates every draft, checks the ones the
@@ -156,13 +168,19 @@ type FramesAttempt = { key: string; status: DraftFramesStatus };
  *   one report to the backend. That holds during a run, after a restore, and
  *   after a reload for a draft a stopped run left unchecked. Each version is
  *   checked once; a failure is kept for `retryCheck` instead of looping.
+ *   Several drafts can wait at once (a batch has two items in flight): they
+ *   are checked one after another, and each report is built from, and sent
+ *   for, its own draft id and version.
  * - A version a run stopped waiting for (its stored report says only "not
  *   checked") is checked the same way once no run is in flight on the
  *   conversation, so the report replaces that placeholder.
  * - When the run in flight requests review sheets, they are drawn on the
  *   preview's renderer and uploaded, only then and only while a preview
  *   canvas has registered its renderer. A Gesture's sheets show the body and
- *   the face; a Reaction's show the face only.
+ *   the face; a Reaction's show the face only. The canvas draws one thing at
+ *   a time, so requests for several drafts are answered one after another,
+ *   each with its own draft's clip and uploaded under its own draft id and
+ *   version.
  *
  * The checks worker is stopped on unmount and when the runtime session is
  * replaced.
@@ -182,7 +200,7 @@ export function useDraftWorker(input: {
   const apiClient = useProductApiClient();
   const queryClient = useQueryClient();
   const ownerKey = useRuntimeCacheKey() ?? "__anon__";
-  const framesRequest = useGenerationFramesRequest(conversationId);
+  const framesRequests = useGenerationFramesRequests(conversationId);
   const running = useGenerationRunning(conversationId);
   const renderSheets = usePreviewSheetRenderer();
 
@@ -391,40 +409,71 @@ export function useDraftWorker(input: {
   }, []);
 
   // --- Review sheets ----------------------------------------------------------
-  const [framesAttempt, setFramesAttempt] = useState<FramesAttempt | null>(
-    null,
-  );
-  const framesKey = framesRequest
-    ? `${framesRequest.draftId}:${framesRequest.version}`
-    : null;
-  const framesSequence =
-    framesRequest &&
-    validations[framesRequest.draftId]?.version === framesRequest.version
-      ? validations[framesRequest.draftId]!.sequence
-      : null;
-  // A Reaction moves no body: its sheets hold face views only.
-  const framesView =
-    framesRequest &&
-    drafts.find(({ id }) => id === framesRequest.draftId)?.intent === "reaction"
-      ? "face"
-      : "body";
+  /**
+   * How each outstanding request was answered, by its key: `rendering` while
+   * its sheets are drawn, `failed` when they could not be drawn or sent. An
+   * answered request leaves the run's state, and its entry leaves with it.
+   */
+  const [framesAttempts, setFramesAttempts] = useState<
+    Readonly<Record<string, DraftFramesStatus>>
+  >({});
+  /** The request whose sheets are being drawn; the canvas draws one at a time. */
+  const [framesBusy, setFramesBusy] = useState<string | null>(null);
   useEffect(() => {
-    if (!framesRequest || !framesKey || !conversationId) return;
-    // Each request is answered once, and only with a clip this page validated.
-    if (framesAttempt?.key === framesKey || !framesSequence || !renderSheets)
-      return;
+    // An entry outlives its request only while that request is being drawn.
+    setFramesAttempts((current) => {
+      const outstanding = new Set(framesRequests.map(framesKey));
+      const kept = Object.entries(current).filter(([key]) =>
+        outstanding.has(key),
+      );
+      return kept.length === Object.keys(current).length
+        ? current
+        : Object.fromEntries(kept);
+    });
+  }, [framesRequests]);
+  useEffect(() => {
+    if (!conversationId || framesBusy !== null || !renderSheets) return;
     const avatarBytes = tools.current?.avatarBytes;
     if (!avatarBytes) return;
-    setFramesAttempt({ key: framesKey, status: "rendering" });
-    const request = framesRequest;
+    // The first request, in the order asked, that was not answered yet and
+    // names a clip this page validated at that very version. One that cannot
+    // be drawn never holds up another draft's.
+    let next: {
+      request: GenerationFramesRequest;
+      sequence: Record<string, unknown>;
+      view: "body" | "face";
+    } | null = null;
+    for (const request of framesRequests) {
+      if (framesKey(request) in framesAttempts) continue;
+      const validation = validations[request.draftId];
+      if (validation?.version !== request.version || !validation.sequence)
+        continue;
+      next = {
+        request,
+        sequence: validation.sequence,
+        // A Reaction moves no body: its sheets hold face views only.
+        view:
+          drafts.find(({ id }) => id === request.draftId)?.intent === "reaction"
+            ? "face"
+            : "body",
+      };
+      break;
+    }
+    if (!next) return;
+    // Everything the answer uses is fixed here, for this draft and version:
+    // nothing below reads another request's clip, id or version.
+    const { request, sequence, view } = next;
+    const key = framesKey(request);
+    setFramesBusy(key);
+    setFramesAttempts((current) => ({ ...current, [key]: "rendering" }));
     void (async () => {
-      let status: DraftFramesStatus = "idle";
+      let failed = false;
       try {
         const sheets = await renderSheets({
-          clip: framesSequence,
-          times: reviewSheetTimes(framesSequence),
+          clip: sequence,
+          times: reviewSheetTimes(sequence),
           avatarFile: avatarBytes,
-          view: framesView,
+          view,
         });
         const frames = sheets
           .filter(
@@ -459,7 +508,7 @@ export function useDraftWorker(input: {
         });
         clearGenerationFramesRequest(conversationId, request);
       } catch (error) {
-        status = "failed";
+        failed = true;
         // The run skips its review when no sheets arrive; nothing is retried.
         logger.warn("Frames", "Review sheets were not uploaded", {
           draftId: request.draftId,
@@ -468,26 +517,45 @@ export function useDraftWorker(input: {
           reason: error instanceof Error ? error.name : "unknown",
         });
       }
-      if (mounted.current) setFramesAttempt({ key: framesKey, status });
+      if (!mounted.current) return;
+      // A request the run has left meanwhile (its draft moved on, failed or
+      // was discarded) has nothing more to say.
+      const outstanding = generationRunState(
+        conversationId,
+      ).framesRequests.some((asked) => framesKey(asked) === key);
+      setFramesAttempts((current) =>
+        failed && outstanding
+          ? { ...current, [key]: "failed" }
+          : Object.fromEntries(
+              Object.entries(current).filter(([id]) => id !== key),
+            ),
+      );
+      setFramesBusy(null);
     })();
   }, [
     apiClient,
     conversationId,
-    framesAttempt?.key,
-    framesKey,
-    framesRequest,
-    framesSequence,
-    framesView,
+    drafts,
+    framesAttempts,
+    framesBusy,
+    framesRequests,
     renderSheets,
+    validations,
   ]);
 
   const frames = useMemo<DraftWorker["frames"]>(() => {
-    if (!framesRequest || !framesKey) return { status: "idle", draftId: null };
-    const { draftId } = framesRequest;
-    if (framesAttempt?.key === framesKey)
-      return { status: framesAttempt.status, draftId };
-    return { status: renderSheets ? "idle" : "unavailable", draftId };
-  }, [framesAttempt, framesKey, framesRequest, renderSheets]);
+    const states = framesRequests.map((request) => ({
+      draftId: request.draftId,
+      status:
+        framesAttempts[framesKey(request)] ??
+        (renderSheets ? ("idle" as const) : ("unavailable" as const)),
+    }));
+    for (const status of FRAMES_STATUS_ORDER) {
+      const found = states.find((state) => state.status === status);
+      if (found) return found;
+    }
+    return { status: "idle", draftId: states[0]?.draftId ?? null };
+  }, [framesAttempts, framesRequests, renderSheets]);
 
   return { validations, checkingDraftId, failures, retryCheck, frames };
 }

@@ -5,7 +5,10 @@ import type { PyGenerationConversationSnapshot } from "@animama/runtime-contract
 
 import { privateStateResets } from "@/app/runtime/private-module-state";
 import { queryKeys } from "@/query/keys";
-import { generationRunState } from "@/stores/generation-store";
+import {
+  forgetGenerationRunDraft,
+  generationRunState,
+} from "@/stores/generation-store";
 import {
   controlledSseResponse,
   generationDraft,
@@ -302,14 +305,13 @@ describe("useGenerationRun", () => {
     await emit(
       sseFrame("frames.requested", { draft_id: draft.id, version: 1 }),
     );
-    expect(result().run.framesRequest).toEqual({
-      draftId: draft.id,
-      version: 1,
-    });
+    expect(result().run.framesRequests).toEqual([
+      { draftId: draft.id, version: 1 },
+    ]);
     // The run moving on answers the request for sheets.
     const reviewing = { ...draft, status: "reviewing", checked_version: 1 };
     await emit(sseFrame("draft.updated", { draft: reviewing }));
-    expect(result().run.framesRequest).toBeNull();
+    expect(result().run.framesRequests).toEqual([]);
     expect(cachedSnapshot()?.drafts).toEqual([reviewing]);
 
     // The server stored both turns; the run's last frame reads them.
@@ -348,6 +350,146 @@ describe("useGenerationRun", () => {
     expect(server.signals[0]!.aborted).toBe(true);
   });
 
+  it("follows a batch item by item, as one run with one reply", async () => {
+    const { result } = await mount();
+    act(() => {
+      void result().send("three greetings");
+    });
+    await settle();
+    const item = (id: string, position: number) =>
+      generationDraft({ id, position, status: "writing", project: null });
+    await emit(
+      sseFrame("run.started", { run_id: "run-1" }),
+      sseFrame("progress", { phase: "thinking" }),
+      sseFrame("batch.planned", {
+        items: [
+          { draft_id: "draft-1", intent: "gesture", brief: "A shy wave" },
+          { draft_id: "draft-2", intent: "gesture", brief: "A deep bow" },
+          { draft_id: "draft-3", intent: "reaction", brief: "A grin" },
+        ],
+      }),
+      sseFrame("draft.updated", { draft: item("draft-1", 0) }),
+      sseFrame("draft.updated", { draft: item("draft-2", 1) }),
+      sseFrame("draft.updated", { draft: item("draft-3", 2) }),
+    );
+    // Every planned item is a draft in the list at once, before it is written.
+    expect(cachedSnapshot()?.drafts.map(({ id }) => id)).toEqual([
+      "draft-1",
+      "draft-2",
+      "draft-3",
+    ]);
+    expect(result().run.batch?.map(({ brief }) => brief)).toEqual([
+      "A shy wave",
+      "A deep bow",
+      "A grin",
+    ]);
+    expect(result().run.draftPhases).toEqual({});
+
+    await emit(
+      sseFrame("progress", { phase: "writing", draft_id: "draft-1" }),
+      sseFrame("progress", { phase: "writing", draft_id: "draft-2" }),
+      sseFrame("message.delta", { text: "A wave. ", draft_id: "draft-1" }),
+      sseFrame("progress", { phase: "checking", draft_id: "draft-1" }),
+      sseFrame("message.delta", { text: "A bow.", draft_id: "draft-2" }),
+      sseFrame("frames.requested", { draft_id: "draft-1", version: 1 }),
+      sseFrame("frames.requested", { draft_id: "draft-2", version: 1 }),
+    );
+    expect(result().run).toMatchObject({
+      running: true,
+      draftPhases: { "draft-1": "checking", "draft-2": "writing" },
+      pendingTurn: { text: "A wave. A bow." },
+      framesRequests: [
+        { draftId: "draft-1", version: 1 },
+        { draftId: "draft-2", version: 1 },
+      ],
+    });
+
+    // One item fails; the run and the other items go on.
+    await emit(
+      sseFrame("item.failed", {
+        draft_id: "draft-2",
+        code: "openai_rate_limit",
+        category: "rate_limited",
+        details: { connection_name: "OpenAI" },
+      }),
+      sseFrame("draft.updated", {
+        draft: {
+          ...item("draft-2", 1),
+          status: "failed",
+          failure_reason: "openai_rate_limit",
+        },
+      }),
+      sseFrame("progress", { phase: "writing", draft_id: "draft-3" }),
+    );
+    expect(result().run).toMatchObject({
+      running: true,
+      failure: null,
+      itemFailures: { "draft-2": { code: "openai_rate_limit" } },
+      draftPhases: { "draft-1": "checking", "draft-3": "writing" },
+      framesRequests: [{ draftId: "draft-1", version: 1 }],
+    });
+    expect(cachedSnapshot()?.drafts[1]).toMatchObject({
+      status: "failed",
+      failure_reason: "openai_rate_limit",
+    });
+  });
+
+  it("keeps a batch item the person discarded out of the list, and the others in", async () => {
+    const { result, queryClient } = await mount();
+    act(() => {
+      void result().send("two greetings");
+    });
+    await settle();
+    const first = generationDraft({ id: "draft-1", status: "checking" });
+    const second = generationDraft({
+      id: "draft-2",
+      position: 1,
+      status: "writing",
+      project: null,
+    });
+    await emit(
+      sseFrame("batch.planned", {
+        items: [
+          { draft_id: "draft-1", brief: "A shy wave" },
+          { draft_id: "draft-2", brief: "A deep bow" },
+        ],
+      }),
+      sseFrame("draft.updated", { draft: first }),
+      sseFrame("draft.updated", { draft: second }),
+      sseFrame("progress", { phase: "checking", draft_id: "draft-1" }),
+      sseFrame("progress", { phase: "writing", draft_id: "draft-2" }),
+    );
+
+    // As the discard does once the server has removed the draft.
+    act(() => {
+      forgetGenerationRunDraft(CONVERSATION, "draft-2");
+      queryClient.setQueryData<PyGenerationConversationSnapshot>(
+        queryKeys.generation.conversation("session", CONVERSATION),
+        (snapshot) =>
+          snapshot && {
+            ...snapshot,
+            drafts: snapshot.drafts.filter(({ id }) => id !== "draft-2"),
+          },
+      );
+    });
+    // What the run still sends about it does not bring it back.
+    await emit(
+      sseFrame("draft.updated", { draft: { ...second, status: "failed" } }),
+      sseFrame("item.failed", {
+        draft_id: "draft-2",
+        code: "generation_not_found",
+      }),
+      sseFrame("draft.updated", { draft: { ...first, status: "ready" } }),
+    );
+    expect(cachedSnapshot()?.drafts).toEqual([{ ...first, status: "ready" }]);
+    expect(result().run).toMatchObject({
+      running: true,
+      failure: null,
+      itemFailures: {},
+      draftPhases: {},
+    });
+  });
+
   it("tolerates partial events and events it does not know", async () => {
     const { result } = await mount();
     act(() => void result().send("a wave"));
@@ -369,7 +511,7 @@ describe("useGenerationRun", () => {
       runId: null,
       // An unknown step keeps the last known one.
       phase: "starting",
-      framesRequest: null,
+      framesRequests: [],
       failure: null,
       pendingTurn: { text: "Still here." },
     });

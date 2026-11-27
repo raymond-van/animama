@@ -6,6 +6,7 @@ import {
   describeGenerationActionFailure,
   describeGenerationFailure,
   draftFailureText,
+  generationFailureLine,
   generationFailureSuggestsAnotherModel,
 } from "./generationFailure";
 
@@ -331,6 +332,64 @@ describe("describeGenerationActionFailure", () => {
   });
 });
 
+describe("generationFailureLine", () => {
+  it("words a batch item's model failure as the title chat gives it", () => {
+    expect(
+      generationFailureLine({
+        code: "chatgpt_plan_usage_limit",
+        category: "rate_limited",
+        details: { connection_name: "ChatGPT plan" },
+      }),
+    ).toBe("You've reached your ChatGPT plan's usage limit.");
+    // The connection is named where the failure carries it.
+    expect(
+      generationFailureLine({
+        code: "openai_connection_error",
+        category: "connection",
+        details: { connection_name: "My Ollama" },
+      }),
+    ).toBe("Animama couldn't reach My Ollama.");
+  });
+
+  it("words the assistant's own failure, and anything unknown as the general one", () => {
+    expect(
+      generationFailureLine({
+        code: "generation_no_valid_draft",
+        category: "generation",
+      }),
+    ).toContain("did not produce a draft");
+    for (const code of ["provider_melted", "generation_from_the_future"])
+      expect(generationFailureLine({ code, category: null })).toBe(
+        "The assistant ran into an unexpected problem. Try again.",
+      );
+  });
+
+  it("follows the UI Locale, also for a model failure", async () => {
+    const english = generationFailureLine({
+      code: "chatgpt_plan_usage_limit",
+      category: "rate_limited",
+    });
+    await getI18n().changeLanguage("ja");
+    getI18n().addResourceBundle(
+      "ja",
+      "product",
+      {
+        chatFailure: {
+          codes: { chatgpt_plan_usage_limit: { title: "上限です。" } },
+        },
+      },
+      true,
+      true,
+    );
+    const japanese = generationFailureLine({
+      code: "chatgpt_plan_usage_limit",
+      category: "rate_limited",
+    });
+    expect(japanese).toBe("上限です。");
+    expect(japanese).not.toBe(english);
+  });
+});
+
 describe("draftFailureText", () => {
   it("says why a draft failed, from its reason", () => {
     expect(
@@ -350,6 +409,18 @@ describe("draftFailureText", () => {
       expect(draftFailureText({ status: "failed", failure_reason })).toBe(
         "The assistant ran into an unexpected problem. Try again.",
       );
+  });
+
+  it("words a model error's code, which a failed batch item's draft keeps as its reason", () => {
+    const text = draftFailureText({
+      status: "failed",
+      failure_reason: "chatgpt_plan_usage_limit",
+    });
+    expect(text).toBe("You've reached your ChatGPT plan's usage limit.");
+    // A code nothing words never shows as the code itself.
+    expect(
+      draftFailureText({ status: "failed", failure_reason: "provider_melted" }),
+    ).toBe("The assistant ran into an unexpected problem. Try again.");
   });
 
   it("says nothing for a draft that did not fail", () => {

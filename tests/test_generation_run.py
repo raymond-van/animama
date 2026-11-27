@@ -1398,13 +1398,15 @@ async def test_every_pass_of_a_run_is_a_fresh_request_built_by_the_backend(studi
         system, user = _messages(request)
         # The same bytes in every pass, so a provider's prompt cache can serve them.
         assert system == {"role": "system", "content": instructions}
-        assert _tool_names(request) == list(tools.offered_tools(cast(tools.PassKind, kind)))
+        # A new draft's write pass on the Generate page may also plan a batch.
+        offered = tools.offered_tools(cast(tools.PassKind, kind), can_plan=kind == "write")
+        assert _tool_names(request) == list(offered)
         assert request.continuation is None and request.model_provider is row
         assert request.prompt.reasoning_effort is None and request.prompt.tool_choice == "auto"
         assert request.prompt.prompt_cache_key == write.prompt.prompt_cache_key
     assert write.prompt.prompt_cache_key and len(write.prompt.prompt_cache_key) == 64
     assert studio.owner not in write.prompt.prompt_cache_key
-    assert _user_text(write) == _canonical(prompts.write_message(REQUEST, [], None))
+    assert _user_text(write) == _canonical(prompts.write_message(REQUEST, [], None, can_plan=True))
     # The repair pass gets the stored clip and the page's findings, and the review the sheets and what they hide.
     assert _user_text(repair) == _canonical(prompts.repair_message(PROJECT, faulty))
     assert "FAIL intersection [Andrew] rightHand/head" in _user_text(repair)
@@ -1463,7 +1465,7 @@ async def test_an_expression_name_worded_as_an_instruction_changes_nothing_a_pas
     assert system.count(order) == 1 and system.index(opening) < system.index(order) < system.index(closing)
     assert json.loads(system.split(opening)[1].split(closing)[0]) == {"custom": [order, "cheekPuff"]}
     # The tools are the write pass's fixed set, whatever the names say.
-    assert _tool_names(request) == ["submit_draft", "read_example", "ask_questions"]
+    assert _tool_names(request) == ["submit_draft", "plan_batch", "read_example", "ask_questions"]
     assert order not in _user_text(request)
 
 
@@ -1754,7 +1756,7 @@ async def test_questions_end_the_run_and_are_asked_once(studio: _Studio) -> None
     events, answered = await studio.go([_submit()], plan={"answers": answers})
 
     [request] = answered.seen
-    assert _tool_names(request) == ["submit_draft", "read_example"]
+    assert _tool_names(request) == ["submit_draft", "plan_batch", "read_example"]
     assert '{"question":"Which hand waves?","answer":"Left"}' in _user_text(request)
     assert "`ask_questions`" not in _user_text(request)
     assert _statuses(events)[-1] == ("ready", 2)
@@ -1813,7 +1815,7 @@ async def test_a_retry_after_an_answering_run_that_did_no_work_still_answers_the
     # The questions were asked once and are still the ones this request answers: they are not asked again.
     assert plan.can_ask is False and plan.answers == ANSWERS
     [request] = client.seen
-    assert _tool_names(request) == ["submit_draft", "read_example"]
+    assert _tool_names(request) == ["submit_draft", "plan_batch", "read_example"]
     assert '{"question":"Which hand waves?","answer":"Left"}' in _user_text(request)
     assert _statuses(events)[-1] == ("ready", 2)
     # Once a run has used the answers, the next request may be asked about again.
@@ -1916,7 +1918,7 @@ async def test_questions_the_stream_closed_on_are_still_the_ones_the_next_reques
     assert plan.can_ask is False and plan.answers == ANSWERS
     assert skipped.can_ask is False and skipped.answers == {"skipped": True}
     [request] = client.seen
-    assert _tool_names(request) == ["submit_draft", "read_example"]
+    assert _tool_names(request) == ["submit_draft", "plan_batch", "read_example"]
     assert '{"question":"Which hand waves?","answer":"Left"}' in _user_text(request)
     assert (await studio.plan("now a bow")).can_ask is True
 
@@ -3275,9 +3277,10 @@ async def test_the_deterministic_author_drives_a_whole_run_without_a_model(studi
     draft = await studio.draft()
     assert _statuses(events) == [("checking", 2), ("reviewing", 2), ("ready", 2)]
     assert _phases(events) == ["thinking", "writing", "checking", "reviewing_frames"]
-    assert draft.project is not None and draft.project["name"] == "A slow nod, please"
+    # The request's comma is not the name's: the Library saves no name that holds one.
+    assert draft.project is not None and draft.project["name"] == "A slow nod please"
     assert draft.project["semanticKey"] == "a_slow_nod_please"
-    expected = {**example_gesture_clip(), "id": "a-slow-nod-please", "name": "A slow nod, please"}
+    expected = {**example_gesture_clip(), "id": "a-slow-nod-please", "name": "A slow nod please"}
     assert draft.project["sequence"] == expected
     assert isinstance(events[-1], pipeline.RunCompleted) and events[-1].usage == pipeline.RunUsage()
     assert studio.frame_requests == [(draft.id, 2)] and studio.frames.held() == 0

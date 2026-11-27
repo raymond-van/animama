@@ -22,7 +22,10 @@ import {
   writeGenerationDraft,
 } from "@/query/hooks/useGeneration";
 import { queryKeys } from "@/query/keys";
-import { forgetGenerationRun } from "@/stores/generation-store";
+import {
+  forgetGenerationRun,
+  forgetGenerationRunDraft,
+} from "@/stores/generation-store";
 
 /**
  * The person's own actions on assistant conversations and drafts. Each
@@ -127,7 +130,12 @@ export function useRestoreGenerationDraft() {
   });
 }
 
-/** Discard a draft. A run that was working on it ends. */
+/**
+ * Discard a draft. A run that was writing or revising it ends; a batch ends
+ * only that item and goes on with the others. What the run in flight holds
+ * about the draft is forgotten with it, so nothing the run still says of it
+ * brings it back.
+ */
 export function useDiscardGenerationDraft() {
   const apiClient = useProductApiClient();
   const queryClient = useQueryClient();
@@ -145,13 +153,16 @@ export function useDiscardGenerationDraft() {
         throwOnError: true,
       });
     },
-    onSuccess: (_result, draft) =>
+    onSuccess: (_result, draft) => {
+      // Before the draft leaves the list, so no late event can put it back.
+      forgetGenerationRunDraft(draft.conversation_id, draft.id);
       removeGenerationDraft(
         queryClient,
         ownerKey,
         draft.conversation_id,
         draft.id,
-      ),
+      );
+    },
   });
 }
 

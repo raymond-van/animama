@@ -5,6 +5,13 @@ returns the tool call a model would have made in that kind of pass, so the
 same tool code validates it: a write submits a packaged example Gesture or
 Reaction with details taken from the request, a revision or repair makes one
 fixed valid change, and a review accepts.
+
+Request text chooses what else a journey needs, in words a person would not
+write by accident: ``batch of N`` makes the write pass plan N items, and
+``item K fails`` makes item K of that plan submit a clip that does not
+validate, so that one item fails and the others do not. ``with an effect``
+makes a Gesture's write list the Library's Avatar Effects and place the
+first of them on the timeline.
 """
 
 from __future__ import annotations
@@ -19,7 +26,8 @@ from typing import Any, Final
 
 from animama.app.model_clients import ModelClientToolCall
 
-from .draft_validation import MAX_DRAFT_SECONDS, Intent, JsonObject, SelectorInUse
+from .draft_validation import MAX_DRAFT_SECONDS, Intent, JsonObject, SelectorInUse, is_library_name
+from .effects import EffectAccess
 
 EXAMPLE_GESTURE_RESOURCE: Final = "generation-example-gesture.json"
 """A short nod that passes validation and the motion checks, shipped in ``animama.resources``."""
@@ -35,10 +43,24 @@ MAX_QUOTED_REQUEST_LENGTH: Final = 300
 LENGTHEN_SECONDS: Final = 0.2
 """How much a revision or repair adds to the clip's duration and to its last beat's time."""
 
+BATCH_REQUEST: Final = re.compile(r"\bbatch of (\d{1,2})\b", re.IGNORECASE)
+"""A request that plans a batch: ``batch of 3``. The number is planned as written, so a plan over the limit is
+refused by the tool as a model's would be."""
+FAILING_ITEM_REQUEST: Final = re.compile(r"\bitem (\d{1,2}) fails\b", re.IGNORECASE)
+"""Names the planned item whose write fails: ``item 2 fails``."""
+FAILING_ITEM_MARK: Final = "[this item fails]"
+"""Ends the brief of the item that is to fail; a write for a brief that holds it submits an invalid clip."""
+
+EFFECT_REQUEST: Final = re.compile(r"\bwith an effect\b", re.IGNORECASE)
+"""A request whose Gesture plays an effect: ``a wave with an effect``."""
+EFFECT_EVENT_SECONDS: Final = 0.5
+"""How long the placed effect shows, from the clip's start."""
+
 _FALLBACK_NAME: Final = "Example Gesture"
 _FALLBACK_REACTION_NAME: Final = "Example Reaction"
 _FALLBACK_SELECTOR_ID: Final = "example_gesture"
 _NOT_SELECTOR_CHARACTERS = re.compile(r"[^a-z0-9]+")
+_NOT_PLAIN_NAME_CHARACTERS = re.compile(r"[^A-Za-z0-9._ -]+")
 # Far more than a journey makes; it only keeps the search for a free Selector ID finite.
 _MAX_SELECTOR_SUFFIX: Final = 1000
 
@@ -85,14 +107,28 @@ def _request_text(request: str) -> str:
     return " ".join("".join(character for character in " ".join(request.split()) if character.isprintable()).split())
 
 
+def _capitalized(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
 def _name(text: str, fallback: str = _FALLBACK_NAME) -> str:
-    """A display name from the request: its first words, with a capital first letter."""
+    """A display name from the request that the Library would save: its first words, with a capital first letter.
+
+    A request's punctuation is not a name's: where the Library would refuse
+    the words as they are (``is_library_name``), the name keeps only their
+    plain letters, digits, spaces, dots, underscores and hyphens, from the
+    first letter or digit on, and falls back when nothing is left.
+    """
 
     if len(text) > MAX_DERIVED_NAME_LENGTH:
         cut = text[: MAX_DERIVED_NAME_LENGTH + 1]
         # Cut at a word boundary when there is one.
         text = (cut.rsplit(" ", 1)[0] if " " in cut else cut)[:MAX_DERIVED_NAME_LENGTH].strip()
-    return text[:1].upper() + text[1:] if text else fallback
+    name = _capitalized(text) if text else fallback
+    if is_library_name(name):
+        return name
+    plain = _capitalized(" ".join(_NOT_PLAIN_NAME_CHARACTERS.sub(" ", name).split()).lstrip("._- "))
+    return plain if plain and is_library_name(plain) else fallback
 
 
 def _selector_id(name: str, selector_in_use: SelectorInUse | None) -> str:
@@ -117,16 +153,61 @@ def _selector_id(name: str, selector_in_use: SelectorInUse | None) -> str:
 class DeterministicAuthor:
     """Makes the tool call of each pass kind without a model, the same call for the same input."""
 
+    def plan(self, request: str) -> ModelClientToolCall | None:
+        """Plan a batch when the request asks for one (``batch of N``); ``None`` for any other request.
+
+        Each item's brief is its number and the request, so every item gets
+        a name and a Selector ID of its own. The brief adds no punctuation
+        of its own, because a draft's name is its start and the Library
+        saves only names of letters, digits, spaces, dots, underscores and
+        hyphens. The item ``item K fails`` names gets ``FAILING_ITEM_MARK``.
+        """
+
+        text = _request_text(request)
+        asked = BATCH_REQUEST.search(text)
+        if asked is None:
+            return None
+        count = int(asked.group(1))
+        failing = FAILING_ITEM_REQUEST.search(text)
+        fails = int(failing.group(1)) if failing is not None else None
+        quoted = text[:MAX_QUOTED_REQUEST_LENGTH]
+        items = [
+            {"brief": f"Item {number} {quoted}" + (f" {FAILING_ITEM_MARK}" if number == fails else "")}
+            for number in range(1, count + 1)
+        ]
+        return _call("write", "plan_batch", {"items": items, "note": f"Planned {count} items without a model."})
+
+    def places_effect(self, request: str) -> bool:
+        """Whether the request asks for a draft that plays an effect (``with an effect``)."""
+
+        return EFFECT_REQUEST.search(_request_text(request)) is not None
+
+    def list_effects(self) -> ModelClientToolCall:
+        """List the Library's Avatar Effects, as a model does before it places one."""
+
+        return _call("write", "list_effects", {"kind": "avatar_effect"})
+
     def write(
-        self, request: str, *, intent: Intent = "gesture", selector_in_use: SelectorInUse | None = None
+        self,
+        request: str,
+        *,
+        intent: Intent = "gesture",
+        selector_in_use: SelectorInUse | None = None,
+        effects: EffectAccess | None = None,
     ) -> ModelClientToolCall:
         """Submit the packaged example clip of ``intent``, named after ``request``.
 
         A Gesture gets a Selector ID not in use; a Reaction gets the example's
-        own emotion and intensity.
+        own emotion and intensity. A request that holds
+        ``FAILING_ITEM_MARK`` submits a clip that does not validate. With
+        ``effects``, a Gesture also plays the first Avatar Effect the
+        Library lists, for ``EFFECT_EVENT_SECONDS`` from its start; a
+        Library without one leaves the Gesture as it is.
         """
 
         text = _request_text(request)
+        if FAILING_ITEM_MARK in text:
+            return _call("write", "submit_draft", {"clip": {}, "name": _name(text), "note": "Not a valid clip."})
         if intent == "reaction":
             return _call(
                 "write",
@@ -141,11 +222,23 @@ class DeterministicAuthor:
             )
         name = _name(text)
         quoted = text[:MAX_QUOTED_REQUEST_LENGTH]
+        clip = example_gesture_clip()
+        placed = effects.library.listed("avatar_effect")[:1] if effects is not None else []
+        for effect in placed:
+            clip["events"] = [
+                {
+                    "id": "effect-1",
+                    "time": 0,
+                    "kind": "avatar_vfx",
+                    "effectId": effect.id,
+                    "duration": min(EFFECT_EVENT_SECONDS, clip["duration"]),
+                }
+            ]
         return _call(
             "write",
             "submit_draft",
             {
-                "clip": example_gesture_clip(),
+                "clip": clip,
                 "name": name,
                 "ai_description": f"Example draft written without a model for the request: {quoted}"
                 if quoted
@@ -193,6 +286,11 @@ class DeterministicAuthor:
 
 
 __all__ = [
+    "BATCH_REQUEST",
+    "EFFECT_EVENT_SECONDS",
+    "EFFECT_REQUEST",
+    "FAILING_ITEM_MARK",
+    "FAILING_ITEM_REQUEST",
     "EXAMPLE_GESTURE_RESOURCE",
     "EXAMPLE_REACTION_EMOTION",
     "EXAMPLE_REACTION_INTENSITY",
