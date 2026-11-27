@@ -229,6 +229,33 @@ V2_LIMITS = {
     "labelLength": 80,
 }
 V2_VALUE_BOUNDS = {"jointDegrees": 360, "hipsMetres": 1, "minQuaternionLength": 1e-6}
+V2_CLIP_FIELDS = (
+    "schema",
+    "id",
+    "name",
+    "role",
+    "duration",
+    "loop",
+    "playback",
+    "basePose",
+    "fadeIn",
+    "fadeOut",
+    "mutedProceduralLayers",
+    "plantFeet",
+    "beats",
+    "joints",
+    "rotations",
+    "hipsPosition",
+    "hands",
+    "expressions",
+    "contacts",
+    "events",
+)
+"""The top-level fields the 2.0 format defines, as the frontend parser's known fields.
+
+A clip file may carry other fields, which the creator passes through. A clip
+that is not a file (one a page sends with a request) keeps only these.
+"""
 
 
 def _v2_joint_components() -> dict[str, tuple[str, ...]]:

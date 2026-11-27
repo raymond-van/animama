@@ -161,7 +161,8 @@ type FramesAttempt = { key: string; status: DraftFramesStatus };
  *   conversation, so the report replaces that placeholder.
  * - When the run in flight requests review sheets, they are drawn on the
  *   preview's renderer and uploaded, only then and only while a preview
- *   canvas has registered its renderer.
+ *   canvas has registered its renderer. A Gesture's sheets show the body and
+ *   the face; a Reaction's show the face only.
  *
  * The checks worker is stopped on unmount and when the runtime session is
  * replaced.
@@ -401,6 +402,12 @@ export function useDraftWorker(input: {
     validations[framesRequest.draftId]?.version === framesRequest.version
       ? validations[framesRequest.draftId]!.sequence
       : null;
+  // A Reaction moves no body: its sheets hold face views only.
+  const framesView =
+    framesRequest &&
+    drafts.find(({ id }) => id === framesRequest.draftId)?.intent === "reaction"
+      ? "face"
+      : "body";
   useEffect(() => {
     if (!framesRequest || !framesKey || !conversationId) return;
     // Each request is answered once, and only with a clip this page validated.
@@ -417,6 +424,7 @@ export function useDraftWorker(input: {
           clip: framesSequence,
           times: reviewSheetTimes(framesSequence),
           avatarFile: avatarBytes,
+          view: framesView,
         });
         const frames = sheets
           .filter(
@@ -469,6 +477,7 @@ export function useDraftWorker(input: {
     framesKey,
     framesRequest,
     framesSequence,
+    framesView,
     renderSheets,
   ]);
 

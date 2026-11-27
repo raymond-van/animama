@@ -26,6 +26,8 @@ export type GenerationRunRequest = {
   message: string;
   /** The draft the message revises, or `null` for a new draft. */
   draftId: string | null;
+  /** The kind of a new draft; a Gesture when left out. A revision keeps its draft's kind. */
+  intent?: "gesture" | "reaction";
   /** Answers to the previous run's questions (or that they were skipped). */
   answers: PyGenerationAnswers | null;
 };

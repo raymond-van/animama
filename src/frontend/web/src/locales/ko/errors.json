@@ -104,9 +104,11 @@
     "voice_preset_unavailable": "사용 가능한 PocketTTS 음성을 선택하세요."
   },
   "generation": {
+    "generation_document_invalid": "현재 상태로는 어시스턴트가 이 항목을 작업할 수 없습니다. 타임라인에 문제가 없는지 확인한 후 다시 시도하세요.",
+    "generation_document_invalid_details": "이름, 설명, 선택자 ID 또는 추천 감정에 문제가 있어 어시스턴트가 이 항목을 작업할 수 없습니다. 확인한 후 다시 시도하세요.",
+    "generation_document_invalid_timeline": "현재 상태로는 어시스턴트가 이 항목의 타임라인을 작업할 수 없습니다. 타임라인에 문제가 없는지 확인한 후 다시 시도하세요.",
     "generation_draft_empty": "이 초안에는 아직 수정할 내용이 없습니다. 새 요청을 보내 주세요.",
     "generation_draft_unloadable": "이 초안은 재생할 수 없어 저장할 수 없습니다. 다시 요청하거나 수정을 요청하세요.",
-    "generation_intent_unavailable": "현재 어시스턴트는 제스처만 만들 수 있습니다.",
     "generation_model_unusable": "선택한 모델은 어시스턴트에서 사용할 수 없습니다. 다른 모델을 선택하세요.",
     "generation_model_unusable_connection_inactive": "선택한 모델의 연결이 꺼져 있습니다. 앱 설정에서 켜거나 다른 모델을 선택하세요.",
     "generation_model_unusable_context_too_small": "선택한 모델의 컨텍스트 창이 어시스턴트에 쓰기에는 너무 작습니다. 다른 모델을 선택하세요.",

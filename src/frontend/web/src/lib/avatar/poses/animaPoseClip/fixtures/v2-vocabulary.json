@@ -126,5 +126,27 @@
     "jointDegrees": 360,
     "hipsMetres": 1,
     "minQuaternionLength": 0.000001
-  }
+  },
+  "clipFields": [
+    "schema",
+    "id",
+    "name",
+    "role",
+    "duration",
+    "loop",
+    "playback",
+    "basePose",
+    "fadeIn",
+    "fadeOut",
+    "mutedProceduralLayers",
+    "plantFeet",
+    "beats",
+    "joints",
+    "rotations",
+    "hipsPosition",
+    "hands",
+    "expressions",
+    "contacts",
+    "events"
+  ]
 }

@@ -186,6 +186,31 @@ describe("generationRunBody", () => {
       ).not.toHaveProperty("reasoning_effort");
   });
 
+  it("asks for the kind of a new draft, and sends a creator's document", () => {
+    expect(
+      generationRunBody({
+        request: { ...request, intent: "reaction" },
+        modelProviderId: "model-1",
+      }),
+    ).toEqual({
+      message: "a shy wave",
+      model_provider_id: "model-1",
+      intent: "reaction",
+    });
+    const document = { schema: "animamaActionProject/1.0", intent: "gesture" };
+    expect(
+      generationRunBody({ request, modelProviderId: "model-1", document }),
+    ).toMatchObject({ document });
+    // The Generate page sends none.
+    expect(
+      generationRunBody({
+        request,
+        modelProviderId: "model-1",
+        document: null,
+      }),
+    ).not.toHaveProperty("document");
+  });
+
   it("drops names that may not reach a model and sends no empty family", () => {
     const body = generationRunBody({
       request,
@@ -387,6 +412,63 @@ describe("useGenerationRun", () => {
     expect(await refused("x".repeat(4001))).toBe(false);
     expect(server.runs).toEqual([]);
     expect(result().run.running).toBe(false);
+  });
+
+  it("writes a new draft of the kind asked for", async () => {
+    const { result } = await mount();
+    act(() => {
+      void result().send("a soft smile", { intent: "reaction" });
+    });
+    await settle();
+    expect(server.runs[0]).toMatchObject({
+      message: "a soft smile",
+      intent: "reaction",
+    });
+  });
+
+  it("starts a creator's run from the item as it stands when the run starts", async () => {
+    type Source = {
+      document: Record<string, unknown> | null;
+      draftId: string | null;
+    };
+    const creatorSource = vi.fn(
+      (): Source => ({
+        document: { name: "as first edited" },
+        draftId: "draft-7",
+      }),
+    );
+    const { result } = await mount({ creatorSource });
+    act(() => {
+      void result().send("hold the end");
+    });
+    await settle();
+    expect(server.runs[0]).toMatchObject({
+      message: "hold the end",
+      draft_id: "draft-7",
+      document: { name: "as first edited" },
+    });
+    expect(result().run.pendingTurn).toMatchObject({ draftId: "draft-7" });
+    await emit(sseFrame("run.completed", { usage: {} }));
+
+    // An empty item is written anew: no document, and no draft to revise.
+    creatorSource.mockImplementation(() => ({ document: null, draftId: null }));
+    act(() => {
+      void result().send("write it");
+    });
+    await settle();
+    expect(server.runs[1]).not.toHaveProperty("document");
+    expect(server.runs[1]).not.toHaveProperty("draft_id");
+    expect(creatorSource).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not start a run its creator refuses", async () => {
+    const { result } = await mount({ creatorSource: () => false });
+    let started!: boolean;
+    await act(async () => {
+      started = await result().send("a wave");
+    });
+    expect(started).toBe(false);
+    expect(server.runs).toEqual([]);
   });
 
   it("stops a run by closing its request, keeping what it stored", async () => {

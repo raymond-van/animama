@@ -31,7 +31,7 @@ sys.meta_path.insert(0, RejectLocalImports())
 
 from animama.adapters.repositories.inmemory import InMemoryAnimaRepository, InMemoryUnitOfWork  # noqa: E402
 from animama.app.chat import DirectChatMemoryContext, DirectChatTurnExecutor, DirectChatTurnRequest  # noqa: E402
-from animama.app.generation.deterministic_author import example_gesture_clip  # noqa: E402
+from animama.app.generation.deterministic_author import example_gesture_clip, example_reaction_clip  # noqa: E402
 from animama.app.model_clients import (  # noqa: E402
     ModelClientDelta,
     ModelClientFinal,
@@ -50,7 +50,11 @@ from animama.domain import (  # noqa: E402
     RequestPrincipal,
 )
 from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory  # noqa: E402
-from animama.resources.authoring_guidance import GESTURE_GUIDANCE_FILES, gesture_authoring_guidance  # noqa: E402
+from animama.resources.authoring_guidance import (  # noqa: E402
+    GUIDANCE_FILES,
+    gesture_authoring_guidance,
+    reaction_authoring_guidance,
+)
 
 
 class Profiles:
@@ -260,17 +264,21 @@ async def exercise() -> dict:
     assert get_manifest_gesture_inventory()
     # Reading every guidance file proves the wheel carries the authoring Markdown.
     assert gesture_authoring_guidance()
-    # So does reading the clip the content assistant submits when a server runs without models.
+    assert reaction_authoring_guidance()
+    # So does reading the clips the content assistant submits when a server runs without models.
     example = example_gesture_clip()
     assert example["beats"]
+    example_reaction = example_reaction_clip()
+    assert example_reaction["beats"]
     return {
         "owners": len(owners),
         "chat_turns": len(client.requests),
         "events": event_count,
         "persisted_messages": len(messages.rows),
         "catalogs": 1,
-        "authoring_guidance_files": len(GESTURE_GUIDANCE_FILES),
+        "authoring_guidance_files": len(GUIDANCE_FILES),
         "generation_example_beats": len(example["beats"]),
+        "generation_example_reaction_beats": len(example_reaction["beats"]),
         "local_imports": 0,
     }
 

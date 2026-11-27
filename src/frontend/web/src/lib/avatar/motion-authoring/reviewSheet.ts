@@ -24,8 +24,10 @@ import { INCLUDED_AVATAR_FILES, type IncludedAvatarId } from "./headlessVrm";
 import { applyCanonicalPose } from "./kinematics";
 
 /**
- * Review sheets for a Gesture clip: a labelled grid of rendered tiles, one row
- * per sampled time and one column per view of each Avatar. A clip plays
+ * Review sheets for a Gesture or Reaction clip: a labelled grid of rendered
+ * tiles, one row per sampled time and one column per view of each Avatar. A
+ * Gesture's sheet shows the body and the face; a Reaction moves no body, so
+ * its sheet shows the face only. A clip plays
  * through the production sampler and VRM 0 conversion on textured Avatars.
  * Live procedural layers are not applied, matching the Gesture creator
  * preview.
@@ -38,6 +40,13 @@ import { applyCanonicalPose } from "./kinematics";
 
 /** The pixel size of one rendered tile. */
 export type ReviewSheetTile = { width: number; height: number };
+
+/**
+ * What a sheet's columns show: `body` (the whole Avatar from three sides, and
+ * the face), `hands` (close-ups of one hand) or `face` (the face from the
+ * front and from three-quarters, for a clip that moves no body).
+ */
+export type ReviewSheetView = "body" | "hands" | "face";
 
 /** An Avatar to draw: its header label and its VRM file, as bytes or a URL. */
 export type ReviewSheetAvatar = { label: string; file: ArrayBuffer | string };
@@ -56,15 +65,15 @@ export type ReviewSheetTilePainter = (
 
 export type ReviewSheetRequest = {
   clip: unknown;
-  /** Drawn side by side, each with its own four columns. */
+  /** Drawn side by side, each with its own columns (four, or two for `face`). */
   avatars: readonly ReviewSheetAvatar[];
   /** Seconds from the clip's start; one row each. */
   times: readonly number[];
   tile: ReviewSheetTile;
   /** Which of the Avatar's own sides the ¾ and side views look from. */
   side?: "left" | "right";
-  /** `body` (whole Avatar and face) or `hands` (close-ups of the `side` hand). */
-  view?: "body" | "hands";
+  /** `body` (whole Avatar and face), `hands` (close-ups of the `side` hand) or `face` (face close-ups only). */
+  view?: ReviewSheetView;
   paintTile: ReviewSheetTilePainter;
 };
 
@@ -74,8 +83,9 @@ export type ReviewSheet = {
   missingPoseRefs: string[];
 };
 
-type View = {
+export type ReviewSheetColumn = {
   name: string;
+  /** Radians around the Avatar, or around its face for a face close-up. */
   angle: number;
   face?: boolean;
   /** Hand close-ups: around the Avatar at `angle`, from below the front, or facing the palm. */
@@ -91,11 +101,16 @@ const BACKGROUND = "#f4f3ef";
  * Camera angles around the Avatar (0 = facing it). The Avatar's own left is
  * +X, so the front view shows its right hand on the viewer's left.
  */
-const viewsFor = (
+export const reviewSheetColumns = (
   side: "left" | "right",
-  view: "body" | "hands" = "body",
-): View[] => {
+  view: ReviewSheetView = "body",
+): ReviewSheetColumn[] => {
   const sign = side === "left" ? 1 : -1;
+  if (view === "face")
+    return [
+      { name: "face", angle: 0, face: true },
+      { name: `face 3/4 ${side}`, angle: (sign * Math.PI) / 4, face: true },
+    ];
   if (view === "hands")
     return [
       { name: `${side} hand front`, angle: 0, hand: "world" },
@@ -209,7 +224,7 @@ function applyExpressions(vrm: VRM, expressions: Record<string, number>) {
 
 /**
  * Draw a review sheet for `clip`: a header row, a column of time labels, then
- * four tiles per Avatar in each row. Each Avatar is loaded just before its
+ * one tile per view of each Avatar in each row (four, or two face close-ups). Each Avatar is loaded just before its
  * columns are drawn and disposed after them, so only one is held at a time,
  * and nothing is awaited while one Avatar's tiles are drawn.
  *
@@ -241,7 +256,7 @@ export async function drawReviewSheet(
       return null;
     }
   };
-  const VIEWS = viewsFor(side, request.view);
+  const VIEWS = reviewSheetColumns(side, request.view);
   const columns = request.avatars.length * VIEWS.length;
   const sheet = document.createElement("canvas");
   sheet.width = LABEL_WIDTH + columns * width;
@@ -319,11 +334,18 @@ export async function drawReviewSheet(
             camera.lookAt(palm);
           } else if (view.face) {
             // Close-up on the current head position so expressions are readable.
+            // At angle 0 this is the front view exactly: the sine is 0 and
+            // the cosine 1, so a Gesture's face tile is drawn as before.
             const face = vrm.humanoid
               .getRawBoneNode("head")!
               .getWorldPosition(new THREE.Vector3())
               .add(new THREE.Vector3(0, faceLength * 0.05, 0));
-            camera.position.set(face.x, face.y, face.z + faceLength * 0.6);
+            const reach = faceLength * 0.6;
+            camera.position.set(
+              face.x + Math.sin(view.angle) * reach,
+              face.y,
+              face.z + Math.cos(view.angle) * reach,
+            );
             camera.lookAt(face);
           } else {
             camera.position.set(
@@ -399,13 +421,19 @@ export type IncludedAvatarReviewSheetsRequest = {
   /** Seconds from the clip's start; one row each, at most six. */
   times: readonly number[];
   avatarFile: IncludedAvatarFile;
+  /**
+   * `body` (the default) for a Gesture; `face` for a Reaction, whose sheet
+   * holds face close-ups only.
+   */
+  view?: "body" | "face";
   tile?: ReviewSheetTile;
   encoding?: ReviewSheetEncoding;
 };
 
 /**
  * Render one review sheet per Included Avatar: a row per time with the front,
- * ¾, side and face views from the Avatar's right. There is no parameter for
+ * ¾, side and face views from the Avatar's right, or with `view: "face"` the
+ * face from the front and from three-quarters. There is no parameter for
  * another Avatar: the function draws each Included Avatar in turn and asks the
  * caller only for that Avatar's file. It draws the file it is given, so the
  * caller must answer with the Included Avatar's own bytes.
@@ -441,6 +469,7 @@ export async function renderIncludedAvatarReviewSheets(
         avatars: [{ label: avatar, file: await request.avatarFile(avatar) }],
         times,
         tile,
+        view: request.view,
         paintTile: painter.paintTile,
       });
       sheets.push({

@@ -63,6 +63,11 @@ import {
   captureActionDocumentForSave,
   canonicalizeActionComponentInsertion,
 } from "./actionPersistence";
+import { pendingActionEditorPoseEdit } from "./actionEditorSavedPose";
+import {
+  commitAssistantResult,
+  prepareCreatorForAssistantRun,
+} from "./assistantRun";
 import { ActionEditorPreviewProvider } from "./ActionEditorPreviewProvider";
 import { ActionEditorWorkspace } from "./ActionEditorWorkspace";
 import {
@@ -801,6 +806,46 @@ export function ActionEditorPage({
     },
     [identity, intent, t],
   );
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const prepareAssistantRun = useCallback(() => {
+    const prepared = prepareCreatorForAssistantRun({
+      document: documentRef.current,
+      mode: modeRef.current,
+      history: historyRef.current,
+    });
+    if (prepared.blocked) return null;
+    if (prepared.leftPoseMode) {
+      setMode("clip");
+      documentRef.current = prepared.document;
+    }
+    return prepared.document;
+  }, []);
+  const applyAssistantResult = useCallback(
+    (project: unknown, options?: { replace?: boolean }) => {
+      const applied = commitAssistantResult({
+        document: documentRef.current,
+        project,
+        identityExists: Boolean(identity),
+        history: historyRef.current,
+        replace: options?.replace,
+      });
+      const next = applied.document;
+      // Details the item lacked are filled in; they are no authoring change.
+      setDocument((documentState) => ({
+        ...documentState,
+        name: next.name,
+        aiDescription: next.aiDescription,
+        semanticKey: next.semanticKey,
+        suggestedEmotion: next.suggestedEmotion,
+        suggestedIntensity: next.suggestedIntensity,
+      }));
+      documentRef.current = next;
+      setTimelineSession((value) => value + 1);
+      return applied;
+    },
+    [identity],
+  );
   const startNew = useCallback(async () => {
     recoveryGeneration.current += 1;
     const next = createDocument();
@@ -1028,6 +1073,9 @@ export function ActionEditorPage({
     loadStarter,
     loadOwned,
     applyImport,
+    prepareAssistantRun,
+    pendingPoseEdit: pendingActionEditorPoseEdit,
+    applyAssistantResult,
     startNew,
     vrma,
     setVrma,

@@ -39,6 +39,58 @@ const HEADER_BUTTON_CLASS_NAME =
   "dark:bg-background dark:hover:bg-accent size-11 rounded-xl p-0 shadow-sm lg:size-12";
 
 /**
+ * The confirmation before a conversation is discarded with its messages and
+ * unsaved drafts. The Generate page's menu and a creator's assistant panel
+ * both ask through it.
+ */
+export function GenerateConversationDiscardDialog({
+  open,
+  onOpenChange,
+  running,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** A run is in flight on the conversation: it cannot be discarded now. */
+  running: boolean;
+  onConfirm: () => void;
+}) {
+  const { t } = useTranslation("generate");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-testid="generate-conversation-discard-dialog">
+        <DialogHeader>
+          <DialogTitle>{t("header.discard.title")}</DialogTitle>
+          <DialogDescription>
+            {t("header.discard.description")}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            {t("header.discard.cancel")}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            data-testid="generate-conversation-discard-confirm"
+            // A run started behind the open confirmation.
+            disabled={running}
+            title={running ? t("header.waitForRun") : undefined}
+            onClick={onConfirm}
+          >
+            {t("header.discard.confirm")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
  * Start a new conversation, reopen an earlier one, or discard the one on
  * screen with its messages and unsaved drafts (R6.4). All three wait for a
  * run in flight: leaving a conversation stops its run.
@@ -155,36 +207,12 @@ export function GenerateConversationMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Dialog open={confirmingDiscard} onOpenChange={setConfirmingDiscard}>
-        <DialogContent data-testid="generate-conversation-discard-dialog">
-          <DialogHeader>
-            <DialogTitle>{t("header.discard.title")}</DialogTitle>
-            <DialogDescription>
-              {t("header.discard.description")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setConfirmingDiscard(false)}
-            >
-              {t("header.discard.cancel")}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              data-testid="generate-conversation-discard-confirm"
-              // A run started behind the open confirmation.
-              disabled={running}
-              title={waitTitle}
-              onClick={() => void discard()}
-            >
-              {t("header.discard.confirm")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <GenerateConversationDiscardDialog
+        open={confirmingDiscard}
+        onOpenChange={setConfirmingDiscard}
+        running={running}
+        onConfirm={() => void discard()}
+      />
     </>
   );
 }

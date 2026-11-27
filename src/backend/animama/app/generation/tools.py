@@ -43,10 +43,20 @@ PassKind = Literal["write", "revise", "repair", "review"]
 Outcome = Literal["submitted", "edited", "accepted", "asked"]
 """How a tool call ended a pass."""
 ExampleReader = Callable[[str], Mapping[str, Any] | None]
-"""Returns the clip of one Included Gesture named in ``EXAMPLE_NAMES``, or ``None`` when it cannot."""
+"""Returns the clip of one Included item the run's intent may read (``example_names``), or ``None`` when it cannot."""
 
 EXAMPLE_NAMES: Final = ("wave-hello", "mild-laugh", "have-an-idea")
 """The portable Included Gestures ``read_example`` may return; the shared guidance names them."""
+REACTION_EXAMPLE_NAMES: Final = ("joy-1", "curiosity-1", "fear-2-b")
+"""The portable Included Reactions ``read_example`` may return: one mood on one beat, two moods blended,
+and a face that flashes on ``pop`` before it settles."""
+
+
+def example_names(intent: Intent) -> tuple[str, ...]:
+    """The Included items ``read_example`` may return for a draft of ``intent``."""
+
+    return REACTION_EXAMPLE_NAMES if intent == "reaction" else EXAMPLE_NAMES
+
 
 MAX_TOOL_ROUNDS: Final = 8
 """Model responses in one pass. The pass runner enforces it and the instructions tell the model."""
@@ -68,8 +78,9 @@ MAX_NOTE_LENGTH: Final = 1000
 MAX_ARGUMENTS_LENGTH: Final = 2 * MAX_CLIP_BYTES
 MAX_QUOTED_TOOL_NAME: Final = 64
 
-_EVENTS_FIELD: Final = "events"
-"""The clip field ``read_example`` leaves out: timeline events, which no draft may hold yet."""
+_HIDDEN_EXAMPLE_FIELDS: Final = frozenset({"events", "playback", "role"})
+"""The clip fields ``read_example`` leaves out: timeline events, which no draft may hold yet, and the playback
+lifetime and role an Included Reaction carries, which no draft authors (a draft's clip is refused a lifetime)."""
 
 TOOL_FAILED: Final = "the tool could not process these arguments"
 """The one problem of a call that failed unexpectedly. Fixed, because an exception's wording could quote the model."""
@@ -168,8 +179,11 @@ _QUESTIONS: Final[JsonObject] = {
 }
 
 
-def _definitions(intent: Intent) -> dict[str, JsonObject]:
-    details = {name: _DETAIL_PROPERTIES[name] for name in DETAIL_FIELDS[intent]}
+def _definitions(intent: Intent, held: frozenset[str] = frozenset()) -> dict[str, JsonObject]:
+    """Every tool's definition for a draft of ``intent``, without the details an open item already has."""
+
+    details = {name: _DETAIL_PROPERTIES[name] for name in DETAIL_FIELDS[intent] if name not in held}
+    kind = "Reaction" if intent == "reaction" else "Gesture"
     return {
         "submit_draft": _function_tool(
             "submit_draft",
@@ -203,8 +217,8 @@ def _definitions(intent: Intent) -> dict[str, JsonObject]:
         ),
         "read_example": _function_tool(
             "read_example",
-            "Read the clip of one Included Gesture as a worked example.",
-            {"name": {"type": "string", "enum": list(EXAMPLE_NAMES)}},
+            f"Read the clip of one Included {kind} as a worked example.",
+            {"name": {"type": "string", "enum": list(example_names(intent))}},
             ("name",),
         ),
         "ask_questions": _function_tool(
@@ -233,16 +247,25 @@ def offered_tools(kind: PassKind, *, can_ask: bool = True) -> tuple[str, ...]:
     return tuple(name for name in PASS_TOOLS[kind] if can_ask or name != "ask_questions")
 
 
-def tool_definition(name: str, intent: Intent) -> JsonObject:
-    """One tool's definition for a Gesture or a Reaction draft; ``KeyError`` for a name that is not a tool."""
+def tool_definition(name: str, intent: Intent, held: frozenset[str] = frozenset()) -> JsonObject:
+    """One tool's definition for a Gesture or a Reaction draft; ``KeyError`` for a name that is not a tool.
 
+    ``held`` names the details an item open in a creator already has: the
+    tools do not offer those, so a model is never asked for what it may not
+    change.
+    """
+
+    if held:
+        return _definitions(intent, held)[name]
     return copy.deepcopy(_TOOL_DEFINITIONS[intent][name])
 
 
-def tool_definitions(kind: PassKind, intent: Intent, *, can_ask: bool = True) -> tuple[JsonObject, ...]:
+def tool_definitions(
+    kind: PassKind, intent: Intent, *, can_ask: bool = True, held: frozenset[str] = frozenset()
+) -> tuple[JsonObject, ...]:
     """The definitions a pass sends with its request, matching ``offered_tools``."""
 
-    return tuple(tool_definition(name, intent) for name in offered_tools(kind, can_ask=can_ask))
+    return tuple(tool_definition(name, intent, held) for name in offered_tools(kind, can_ask=can_ask))
 
 
 # --- The working draft and a call's result ------------------------------------------
@@ -266,13 +289,17 @@ class WorkingDraft:
     """Set by ``ask_questions``: each ``{"question": ..., "options": [...]}``."""
     outcome: Outcome | None = None
     """Set by the call that ends the pass."""
+    held: frozenset[str] = frozenset()
+    """The details that are an open item's own (a creator's run): no call changes them, and a draft's rules do
+    not judge them."""
 
     @classmethod
-    def from_project(cls, project: Mapping[str, Any]) -> WorkingDraft:
-        """The working draft of a pass that starts from a stored project."""
+    def from_project(cls, project: Mapping[str, Any], *, held: frozenset[str] = frozenset()) -> WorkingDraft:
+        """The working draft of a pass that starts from a stored project, or from a creator's document."""
 
         clip, details = clip_and_details(project)
-        return cls(intent="reaction" if project.get("intent") == "reaction" else "gesture", clip=clip, details=details)
+        intent: Intent = "reaction" if project.get("intent") == "reaction" else "gesture"
+        return cls(intent=intent, clip=clip, details=details, held=held)
 
     def project(self) -> JsonObject:
         """The project to store. Raises ``ValueError`` while the draft holds no clip."""
@@ -324,13 +351,17 @@ def _note_text(arguments: Mapping[str, Any]) -> str:
     return note.strip()[:MAX_NOTE_LENGTH] if isinstance(note, str) and is_storable_text(note) else ""
 
 
-def _given_details(intent: Intent, arguments: Mapping[str, Any]) -> JsonObject:
-    """The details a call gives, with text trimmed. A detail left out or null is not given."""
+def _given_details(draft: WorkingDraft, arguments: Mapping[str, Any]) -> JsonObject:
+    """The details a call gives, with text trimmed. A detail left out or null is not given.
+
+    A detail the open item already has is never taken from a call, whatever
+    the call says: it is not offered, and stays the item's.
+    """
 
     given: JsonObject = {}
-    for name in DETAIL_FIELDS[intent]:
+    for name in DETAIL_FIELDS[draft.intent]:
         value = arguments.get(name)
-        if value is not None:
+        if value is not None and name not in draft.held:
             given[name] = value.strip() if isinstance(value, str) else value
     return given
 
@@ -338,8 +369,8 @@ def _given_details(intent: Intent, arguments: Mapping[str, Any]) -> JsonObject:
 def _submit_draft(draft: WorkingDraft, arguments: Mapping[str, Any], context: _Context) -> ToolReply:
     clip = arguments.get("clip")
     # A rewrite of an existing draft keeps the details it does not give again.
-    details = {**draft.details, **_given_details(draft.intent, arguments)}
-    problems = draft_problems(draft.intent, clip, details, selector_in_use=context.selector_in_use)
+    details = {**draft.details, **_given_details(draft, arguments)}
+    problems = draft_problems(draft.intent, clip, details, selector_in_use=context.selector_in_use, held=draft.held)
     if problems:
         return refused(problems)
     # A clip without problems is a JSON object.
@@ -351,7 +382,7 @@ def _submit_draft(draft: WorkingDraft, arguments: Mapping[str, Any], context: _C
 def _edit_draft(draft: WorkingDraft, arguments: Mapping[str, Any], context: _Context) -> ToolReply:
     if draft.clip is None:
         return refused(["there is no draft to edit; use submit_draft"])
-    given = _given_details(draft.intent, arguments)
+    given = _given_details(draft, arguments)
     operations = arguments.get("operations")
     if operations is None and not given:
         return refused(["edit_draft needs operations or a detail to change"])
@@ -361,7 +392,7 @@ def _edit_draft(draft: WorkingDraft, arguments: Mapping[str, Any], context: _Con
         if problems:
             return refused(problems)
     details = {**draft.details, **given}
-    problems = draft_problems(draft.intent, clip, details, selector_in_use=context.selector_in_use)
+    problems = draft_problems(draft.intent, clip, details, selector_in_use=context.selector_in_use, held=draft.held)
     if problems:
         return refused(problems)
     draft.clip, draft.details, draft.note, draft.outcome = clip, details, _note_text(arguments), "edited"
@@ -376,14 +407,15 @@ def _accept_draft(draft: WorkingDraft, arguments: Mapping[str, Any], context: _C
 
 
 def _read_example(draft: WorkingDraft, arguments: Mapping[str, Any], context: _Context) -> ToolReply:
-    """Return one allowlisted Included Gesture's clip, without its timeline events.
+    """Return one allowlisted Included item's clip of the draft's kind, without the fields no draft holds.
 
     The name is a key into a fixed list, never a path.
     """
 
     name = arguments.get("name")
-    if not isinstance(name, str) or name not in EXAMPLE_NAMES:
-        return refused([f"name must be one of: {', '.join(EXAMPLE_NAMES)}"])
+    names = example_names(draft.intent)
+    if not isinstance(name, str) or name not in names:
+        return refused([f"name must be one of: {', '.join(names)}"])
     unreadable = refused([f"the example {name} could not be read"])
     if context.example_reader is None:
         return unreadable
@@ -399,9 +431,9 @@ def _read_example(draft: WorkingDraft, arguments: Mapping[str, Any], context: _C
         return unreadable
     if not isinstance(clip, Mapping):
         return unreadable
-    # An Included Gesture may play effects or sounds, and a draft may not until its project can carry their
+    # An Included item may play effects or sounds, and a draft may not until its project can carry their
     # dependencies (see ``draft_validation``). The model is not shown a field it would be refused for copying.
-    shown = {key: value for key, value in clip.items() if key != _EVENTS_FIELD}
+    shown = {key: value for key, value in clip.items() if key not in _HIDDEN_EXAMPLE_FIELDS}
     return ToolReply(json.dumps(shown, ensure_ascii=False, separators=(",", ":")))
 
 
@@ -520,12 +552,14 @@ __all__ = [
     "MAX_TOOL_ROUNDS",
     "MIN_OPTIONS",
     "PASS_TOOLS",
+    "REACTION_EXAMPLE_NAMES",
     "TOOL_FAILED",
     "ExampleReader",
     "Outcome",
     "PassKind",
     "ToolReply",
     "WorkingDraft",
+    "example_names",
     "ignored_call_reply",
     "offered_tools",
     "refused",

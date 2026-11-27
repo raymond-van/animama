@@ -33,6 +33,7 @@ from animama.server.generation import (
     generation_runtime,
     generation_service,
     hold_generation_run,
+    list_owner_conversations,
     read_conversation,
     record_check_report,
     refusal,
@@ -82,9 +83,15 @@ def _require_no_run(request: Request, owner_user_id: str, conversation_id: str) 
 async def list_generation_conversations(
     request: Request, principal: Owner, session: Session
 ) -> PyGenerationConversationList:
-    """Return the caller's assistant conversations, the most recently written to first."""
+    """Return the caller's assistant conversations, the most recently written to first.
 
-    conversations = await generation_service(request.app, session).list_conversations(principal.id)
+    A creator's conversation that outlived what it belongs to is removed
+    first: one whose item is no longer in the caller's Library, and one about
+    an unsaved item that was not written to for seven days
+    (``list_owner_conversations``).
+    """
+
+    conversations = await list_owner_conversations(request.app, session, principal)
     # The wire schema names no owner field, so the stored owner id is not copied.
     return PyGenerationConversationList(
         conversations=[PyGenerationConversation.model_validate(item, from_attributes=True) for item in conversations]

@@ -126,12 +126,14 @@ suggestion is only a hint for where it fits.
 
 ## Content assistant
 
-The AI that authors content from a person's request on the Generate page of a
-local composition, at present Gestures; the interface and the documents call
+The AI that authors Gestures and Reactions from a person's request in a local
+composition, on the Generate page and from the Generate control of their
+creators; the interface and the documents call
 it **the assistant**. It has no persona and is not an **Anima**. Its
 conversations are not **Chats**: they appear in no chat list, and memory,
 episode processing, Reflection and chat search never read them. It writes
-only **drafts**, and saving one is always the person's action. Its model is
+only **drafts**, which a creator puts into its open document as an undoable
+change, and saving is always the person's action. Its model is
 its own remembered choice, not a **Model role**. Not the `assistant` role of
 a chat message, and not an agent skill that authors content from a source
 checkout. See
@@ -143,7 +145,8 @@ Content the assistant wrote that the person has not saved: held with its
 conversation, with a status, the warnings its checks left and, after a
 revision, the one version before it. It stays there across restarts until
 the person discards it or its conversation. Saving a draft makes a Local item
-that no longer depends on it. Not a creator's unsaved document, an agent
+that no longer depends on it. In a creator the draft is the assistant's last
+result for the open item, which the creator has already put into its document. Not a creator's unsaved document, an agent
 skill's clip file before it is saved, or the saved progress of creating an
 Anima, which code and documents also call drafts.
 

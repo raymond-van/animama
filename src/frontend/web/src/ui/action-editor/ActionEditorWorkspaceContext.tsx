@@ -71,6 +71,32 @@ export type ActionEditorWorkspaceValue = {
   /** Restore one owned valid catalog item directly into the workspace. */
   loadOwned: (item: PyGesture | PyReaction) => Promise<void>;
   applyImport: (value: ActionImport) => void;
+  /**
+   * Make the creator ready for a content assistant run and return the
+   * document the run starts from (`prepareCreatorForAssistantRun`): a
+   * keyframe's pose being edited in Pose mode is applied, and the creator
+   * moves to Clip. `null` when the run must not start: the pose editor holds
+   * an unsaved pose of its own, which the result would discard.
+   */
+  prepareAssistantRun: () => ActionDocument | null;
+  /**
+   * What the pose editor holds that an assistant result would lose
+   * (`pendingActionEditorPoseEdit`); a result is not applied over either.
+   */
+  pendingPoseEdit: () => "pose_draft" | "keyframe_edit" | null;
+  /**
+   * Put the content assistant's result (a draft's project) into the document,
+   * keeping the item's own details, effects and dependencies
+   * (`applyAssistantProject`). A run's first result is one new history entry;
+   * with `replace`, a later version of the same run takes that entry's place,
+   * so the whole run stays one undoable change. Returns the document it
+   * becomes and whether it differs from the one before; throws a worded
+   * error for a result that cannot be applied.
+   */
+  applyAssistantResult: (
+    project: unknown,
+    options?: { replace?: boolean },
+  ) => { document: ActionDocument; changed: boolean };
   /** Start a blank document and synchronize the canonical new-content route. */
   startNew: () => Promise<void>;
   vrma: File | null;

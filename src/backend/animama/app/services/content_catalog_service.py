@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -165,6 +166,18 @@ class ContentCatalogService:
         return [
             item for item in await self._catalog.list_visible(user_id=user_id) if item.kind not in RETIRED_CONTENT_KINDS
         ]
+
+    async def visible_items(self, *, item_ids: Iterable[str], user_id: str) -> dict[str, CatalogContentEntry]:
+        """The caller's visible rows among ``item_ids``, by id, whatever their scan status.
+
+        A narrow read of the rows themselves: nothing is parsed, and a row
+        that is invalid, missing its files or waiting for a rescan is still
+        returned, because it is still an item of the Library. Retired kinds
+        are left out, as in ``list_visible``.
+        """
+        self.require_owner(user_id)
+        found = await self._catalog.get_visible_items(item_ids=item_ids, user_id=user_id)
+        return {item_id: item for item_id, item in found.items() if item.kind not in RETIRED_CONTENT_KINDS}
 
     async def visible_revision(self, *, user_id: str) -> str:
         """Name the caller's visible catalog without listing it.

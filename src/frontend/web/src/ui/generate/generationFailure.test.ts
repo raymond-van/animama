@@ -104,6 +104,31 @@ describe("describeGenerationFailure", () => {
     ).toBe("assistant");
   });
 
+  it("says whether a creator's item was refused for its details or its timeline", () => {
+    const refused = (reason: string | null) =>
+      describeGenerationFailure(
+        failure({
+          code: "generation_document_invalid",
+          category: "request",
+          reason,
+          status: 422,
+        }),
+      );
+    expect(refused("details")).toMatchObject({
+      message: expect.stringContaining(
+        "name, description, Selector ID or suggested emotion",
+      ),
+    });
+    expect(refused("timeline")).toMatchObject({
+      message: expect.stringContaining("this item's timeline"),
+    });
+    // Another reason, or none, reads as the general refusal.
+    for (const reason of ["document", null])
+      expect(refused(reason)).toMatchObject({
+        message: expect.stringContaining("cannot work on this item"),
+      });
+  });
+
   it("says why a refused model cannot be used", () => {
     const refused = (reason: string | null) =>
       describeGenerationFailure(

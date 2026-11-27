@@ -307,10 +307,12 @@ provider, and, in Phase 8, an outside client and the backend.
   Targeted checks on the merged tree `554e9c05…`: 888 backend tests, the
   web unit suite (7,095), lint, types, i18n, the regenerated client, the CI
   policy tests and the licence record.
-- [ ] First pull request (Phases 0 to 3):
-  [#956](https://github.com/raymond-van/animama/pull/956), opened 2026-11-27
-  for the owner's review. The model list decision (INT-F2) and gates G4, G7
-  and G8 are open in it; hosted Validation waits for the `ci:full` label.
+- [x] First pull request (Phases 0 to 3):
+  [#956](https://github.com/raymond-van/animama/pull/956), merged on
+  2026-11-27 as `12e333c4a` at the owner's request, after hosted Validation
+  passed its full profile on the head `c6575e7bd`. The owner merged with
+  the model list as built (INT-F2). His checks G4, G7 and G8 and the
+  acceptance of ADR 0041 stay open and are listed in the next pull request.
 - [x] Phase 4: other Model connections, reasoning effort, usage and cost
   (2026-11-27). Raised to the high-risk tier in review; Code Review #2
   passed. The manual check on a key-based model (G2) waits for the owner's
@@ -320,7 +322,10 @@ provider, and, in Phase 8, an outside client and the backend.
   change takes `local-http` 28.0.0 and `runtime-contracts` 0.28.0 in turn.
   Targeted checks on the merged tree `961fff0f…`: 962 backend tests, the web
   unit suite (7,135), lint, types, i18n, the client and the licence record.
-- [ ] Phase 5: the creator control, revising and Reactions.
+- [x] Phase 5: the creator control, revising and Reactions (2026-11-27).
+  Reviewed at the high-risk tier; Code Review #3 passed after two repair
+  rounds. The Reaction guidance waits for the owner (G7), and the live check
+  from a creator and on a Reaction (G1) is not run yet.
 - [ ] Phase 6: batches and effects on the timeline.
 - [ ] Phase 7: references and presets (C3).
 - [ ] Phase 8: the connector (C4).
@@ -1827,8 +1832,162 @@ Gate: the owner reads the Reaction guidance before it ships (G7).
 
 Manual check (G1): one revision in each creator, at most ten runs.
 
-Records: no checks run, commits or reviews yet. Code Review #1 Findings and
-Revisions go here.
+Records. As built:
+
+- **Reactions (R7.2).** The assistant authors Reactions on both surfaces. A
+  Reaction draft is a face-only clip with an emotion and an intensity, and is
+  refused any body field on every tool path and in a creator's document. New
+  packaged guidance `resources/authoring/reaction.md` builds on the shared
+  faces guidance; each of its rules was taken from the runtime guide or the
+  168 Included Reactions (G7: the owner reads it). The frame review of a
+  Reaction gets a face-only sheet (front and three-quarters). The Gesture
+  sheet is unchanged.
+- **Generate page.** A Gesture or Reaction choice for a new draft; the draft
+  card shows the kind and a Reaction's emotion and intensity; Open in
+  creator reaches the Reaction creator.
+- **The creator's Generate control (R1.2).** A control at the bottom right of
+  the Gesture and Reaction creators opens the assistant in a floating panel
+  that sizes nothing. It is a labelled section, closes with Escape and
+  returns focus. It is not shown in the narrow layout or for VRMA items.
+- **Scope and the document (R7.1).** A conversation belongs to the open item
+  and kind. Each run sends the creator's current timeline as a document,
+  which the backend treats as untrusted input: only the clip fields the
+  format defines, bounded strings, the same validation a model's clip
+  passes, and only for a creator-scope conversation. A run started in Pose
+  mode first commits the pending pose edit and switches to Clip mode. The
+  page keeps the item's effects, sounds and dependencies off the request and
+  puts them back on the result.
+- **Applying (R5.2, R7.1).** A run's result is one undoable entry in the
+  creator's history; a repair's or review's later version replaces that
+  entry only while the document is what the run last applied. A result is
+  refused when the timeline changed during the run, and nothing is applied
+  after Stop. The assistant does not change details an item already has,
+  which are held to the catalog's rules, not a draft's. Nothing is saved:
+  the creator's Save keeps the item's identity.
+- **Every draft a model reads is data.** The draft sections of the revise,
+  repair and review messages are in a tagged, escaped block.
+- **Conversations do not outlive their item.** The panel can discard its
+  conversation. Listing conversations removes a creator conversation whose
+  item is gone and an unsaved one not written to for seven days, when no
+  run is in flight and the Library can be read.
+
+Review tier: high risk, for the same reason as Phase 4 (a request field in
+the API contract) and because a document from the page reaches a model.
+
+Threat model change: T3's mitigation said a caller supplies only the
+person's message and the page's reports. A creator-scope run now also takes
+the open item's timeline. It is validated and bounded as model output is,
+kept to the format's own fields, and reaches a model only as tagged data.
+Instructions and tools are still the backend's alone.
+
+For later phases and the owner:
+
+- The panel has no place in the narrow layout yet.
+- An unsaved item's conversation lasts while its creator stays mounted.
+- A result that ends before one of the item's effects starts cannot be
+  applied, and the panel says so; Phase 6 lets the assistant place effects.
+
+Check record, on working tree `d32d374781f52bbcc08f5b1c112f7c80fe6b844a`
+(the checks reviewer reran every suite on the tree before the last repair,
+`866434d9…`, with the same results there; the last repair's four test files
+were rerun by the final reviewer):
+
+| Check | Result |
+| --- | --- |
+| `uv run --no-sync pytest -q -p no:cacheprovider` on the six `tests/test_generation_*.py` files, `test_authoring_guidance.py`, `test_desktop_runtime_packaging.py`, `test_shared_backend_boundary.py`, `test_product_http_inventory.py`, `test_openapi_export.py`, `test_pose_clip_v2.py` | 1,085 passed |
+| `ruff check`; `ruff format --check src/backend/animama tests scripts`; `mypy src/backend/animama tests`; the import boundary; the CI policy tests; `check_source.py` | Clean; 976 files; no forbidden edge; 143 OK; every file covered |
+| From `src/frontend`: `pnpm openapi-ts:check`; `packages:build`; `pnpm web:test` through the heavy slot; `pnpm check`; `pnpm web:lint`; `pnpm prettier:check`; `pnpm e2e:check:source` | Current; exit 0; 742 files and 7,188 tests passed; clean |
+| `node --test --test-concurrency=1 scripts/animation-render.browser.test.mjs` (on `866434d9…`) | 2 passed |
+| `pnpm e2e:test:fast` on a disposable built stack, three runs | 43 of 43 on `866434d9…`; 42 of 43 on the tree before it and on this tree, the same journey failing each time (below) |
+
+The checks reviewer also built a wheel from an export of the tree, which
+carries `reaction.md` and the example Reaction, and ran the packed-artifact
+backend consumer against it; rendered a Gesture's body and hands sheets on
+this tree and on the baseline and found them byte-identical; and confirmed
+by mutation that keeping an undefined clip field, or skipping a Reaction
+document's body-field check, each fails two tests.
+
+The one failing journey is "accountless Library keeps Included files between
+visits", which expects the second visit to read every file from the browser
+cache. Run alone four times it failed twice on this tree, three times on
+`main` at `647973306`, and once on `main` at `9e90a610b`, before any of this
+plan's work merged. It is an existing intermittent failure, not from this
+phase.
+
+The first fast run on this phase failed 20 journeys: the new creator-panel
+journeys recorded their re-saved item wrongly in the test ledger, and the
+leftover items failed every later journey's cleanup. The journey was fixed
+(it also had not been deleting its conversations).
+
+Not run: the full pre-push suite, the `@complete-anima` journeys, a browser
+look at the panel, a live model on a Reaction or from a creator (G1), and
+the package-set `compare`.
+
+#### Code Review #1 Findings
+
+Independent review at the high-risk tier of working tree
+`001784e46790d24bf575e2bed291092d3edcc391` against `8803bedab`. Result:
+blocked by F1, F2 and F3.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P5-R1-F1 | Required | In Pose mode, a pending pose edit was neither sent to the assistant nor kept when its result was applied, and the result did not play. |
+| P5-R1-F2 | Required | The creator's document reached the model outside any data block, and could carry arbitrary text in unknown fields and long names. |
+| P5-R1-F3 | Required | A creator's conversation could not be discarded and outlived its item. |
+| P5-R1-F4 | Optional | An existing item's details were held to a draft's stricter rules, so 21 of 152 Included-shaped Gestures could not be revised. |
+| P5-R1-F5 | Optional | Hand edits made during a run were merged into the run's history entry. |
+| P5-R1-F6 | Optional | A result could still be applied after Stop. |
+| P5-R1-F7 | Optional | Two unsaved creators of one kind deleted each other's conversation. |
+| P5-R1-F8 | Optional | A stale notice and an unused prop. |
+| P5-R1-F9 | Optional | `reaction.md` stated as general three things true of single Included Reactions. |
+
+#### Code Review #1 Revisions
+
+All nine were accepted and fixed, each verified against the code or the
+reviewer's probe: a run commits a pending keyframe edit and switches to Clip
+mode; drafts reach a model in a tagged block and a document keeps only the
+format's fields; the panel discards its conversation and stale ones are
+removed on listing; an item's own details follow the catalog's rules; no
+history group is held open; nothing is applied after Stop; a creator deletes
+only its own tab's unsaved conversations; the three sentences of
+`reaction.md` say what the Included Reactions do.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `866434d95e4adb669dfbc0ed41cd2f2f5aa1911e`, with the
+independent checks rerun. Seven fixes confirmed. Result: blocked by F1 and
+F2.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P5-R2-F1 | Required | The cleanup decided "item is gone" from the list of usable items, so an item that still exists but awaits a rescan or lacks a dependency lost its conversation. |
+| P5-R2-F2 | Required | A pose drafted on a new Gesture (the standalone pose editor, with no keyframe) was still not sent and was dropped when a result was applied. |
+| P5-R2-F3 to F7 | Optional | A run from Pose mode added a history entry with nothing edited; the cleanup checked for a run once, before a slow read; a docstring overstated the seven-day rule; the whole catalog was read per listing; an unstorable name was reported as a timeline fault. |
+
+#### Code Review #2 Revisions
+
+All fixed: existence comes from the item's catalog row at any status,
+through a narrow read; a dirty standalone pose draft blocks a run and a
+result, with a worded notice, and survives; an unchanged keyframe edit adds
+no entry; the cleanup rechecks before each delete; the wording and the
+fault's reason are corrected.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of `d32d374781f52bbcc08f5b1c112f7c80fe6b844a`.
+Result: pass. Both repair rounds were used.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P5-R3-F1 | Optional | A conversation scoped to a withdrawn Included item's id is kept, because the by-id read does not hide Included tombstones. |
+| P5-R3-F2 | Optional | The pose-draft notice offers "add it to the timeline", which an unsaved pose cannot do directly. |
+
+#### Code Review #3 Revisions
+
+F1 is left: it errs toward keeping data. F2's wording is corrected with
+Phase 6's changes.
+
+Phase commit: this commit (`feat(generate)[p5]`).
 
 ### Phase 6: Batches and effects on the timeline
 

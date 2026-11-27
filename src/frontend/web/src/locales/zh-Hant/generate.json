@@ -1,14 +1,41 @@
 {
   "composer": {
+    "kind": {
+      "gesture": "動作",
+      "reaction": "反應"
+    },
+    "kindLabel": "新草稿的類型",
     "label": "給助理的請求",
     "newDraftInstead": "改為寫一份新草稿",
     "placeholder": "描述一個動作…",
+    "placeholderReaction": "描述一個反應…",
     "revisePlaceholder": "說說要改什麼…",
     "revises": "下一則訊息將修改「{{name}}」。",
     "send": "傳送請求",
     "stop": "停止助理",
     "tooLong": "請將請求縮短到 {{max}} 個字元以內。",
     "writesNew": "下一則訊息將寫一份新草稿。"
+  },
+  "creator": {
+    "appliesPose": "傳送請求會切換到片段，結果將在那裡播放。你修改過的關鍵影格姿勢會先被套用。尚未儲存的獨立姿勢需要先儲存、捨棄或加入時間軸。",
+    "changedMeanwhile": "助理工作期間時間軸發生了變化，因此未套用其結果，並已停止助理。請重新傳送請求，以便根據目前的時間軸工作。",
+    "close": "關閉助理",
+    "keepsEffects": "時間軸上的特效和音效保持不變。",
+    "notApplied": "無法將助理的結果套用到此項目。",
+    "open": "生成",
+    "openGenerate": "開啟生成",
+    "poseDraft": "姿勢模式中有尚未儲存的姿勢，助理的結果會將其取代，因此沒有傳送或套用任何內容。請儲存該姿勢、將其捨棄或加入時間軸，然後重新傳送請求。",
+    "revises": {
+      "gesture": "你的請求會修改此處開啟的動作。復原可恢復原樣。",
+      "reaction": "你的請求會修改此處開啟的反應。復原可恢復原樣。"
+    },
+    "running": "助理工作期間請保持時間軸不變。如果時間軸在此期間發生變化，結果將不會被套用。",
+    "setup": "助理需要先有模型才能在這裡工作。請在生成頁面選擇一個模型。",
+    "title": "助理",
+    "writes": {
+      "gesture": "你的請求將寫出這個新動作。",
+      "reaction": "你的請求將寫出這個新反應。"
+    }
   },
   "drafts": {
     "actions": {
@@ -31,6 +58,11 @@
     },
     "emptyDescription": "請助理寫一個動作。每份草稿都會連同檢查結果顯示在這裡，可以播放、修改或儲存。",
     "emptyTitle": "還沒有草稿",
+    "kind": {
+      "gesture": "動作",
+      "reaction": "反應",
+      "reactionPlaced": "反應 · {{emotion}} · {{intensity}}"
+    },
     "loadFailed": "無法載入草稿。",
     "loading": "正在載入草稿…",
     "openSaved": "開啟已儲存的項目",

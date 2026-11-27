@@ -116,7 +116,7 @@ export default defineConfig({
       : {
           name: "chromium",
           testMatch:
-            /accountless-(?:library|journeys|vfx-layout|pose-content|content-sharing|imported-playback|numeric-input|creator-discard(?:-local)?|effect-template-picker|avatar-effect-direct-manipulation|creator-generated-gesture|generate-gesture|particle-texture-import|scene-layers)\.spec\.ts/,
+            /accountless-(?:library|journeys|vfx-layout|pose-content|content-sharing|imported-playback|numeric-input|creator-discard(?:-local)?|effect-template-picker|avatar-effect-direct-manipulation|creator-generated-gesture|creator-generate-panel|generate-gesture|particle-texture-import|scene-layers)\.spec\.ts/,
           dependencies: ["installation-setup"],
           use: chromiumUse,
         },

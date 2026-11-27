@@ -7,7 +7,7 @@ import {
   GenerateDraftCard,
   type GenerateDraftCardProps,
 } from "./GenerateDraftCard";
-import { generationDraft } from "./testing/generationFixtures";
+import { generationDraft, reactionProject } from "./testing/generationFixtures";
 import {
   click,
   mountInDocument,
@@ -208,6 +208,44 @@ describe("a draft card", () => {
       draft: draft.id,
       conversation: draft.conversation_id,
     });
+  });
+
+  it("says a draft's kind, and where a Reaction suggests it fits", () => {
+    const gesture = card(generationDraft({ status: "ready" }));
+    const kind = find(gesture, "generate-draft-kind")!;
+    expect([kind.textContent, kind.dataset.intent]).toEqual([
+      "Gesture",
+      "gesture",
+    ]);
+    mounted?.unmount();
+
+    const reaction = generationDraft({
+      status: "ready",
+      intent: "reaction",
+      project: reactionProject(),
+    });
+    const root = card(reaction);
+    expect(find(root, "generate-draft-kind")!.textContent).toBe(
+      "Reaction · Joy · Moderate",
+    );
+    // A Reaction opens in the Reaction creator, and saves like any draft.
+    const open = find(root, "generate-draft-open")!;
+    expect(open.getAttribute("href")).toBe("/reactions/new");
+    expect(JSON.parse(open.dataset.search!)).toEqual({
+      draft: reaction.id,
+      conversation: reaction.conversation_id,
+    });
+    expect(find(root, "generate-draft-save")!.textContent).toBe("Save");
+    mounted?.unmount();
+
+    const unplaced = card(
+      generationDraft({
+        status: "ready",
+        intent: "reaction",
+        project: reactionProject({ suggestedEmotion: "" }),
+      }),
+    );
+    expect(find(unplaced, "generate-draft-kind")!.textContent).toBe("Reaction");
   });
 
   it("offers neither Save nor Open in creator for a draft that does not load", () => {

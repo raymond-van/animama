@@ -137,7 +137,7 @@ class PassEnded:
 PassItem = PassText | PassWriting | PassRound | PassCursorLost | PassEnded
 
 
-def pass_request(spec: PassSpec, intent: Intent) -> ModelClientRequest:
+def pass_request(spec: PassSpec, intent: Intent, held: frozenset[str] = frozenset()) -> ModelClientRequest:
     """The pass's first request: the instructions, one user message and the pass's tools.
 
     It names the run's reasoning effort in the prompt option chat uses, or
@@ -163,7 +163,7 @@ def pass_request(spec: PassSpec, intent: Intent) -> ModelClientRequest:
         model_provider=spec.model_provider,
         prompt=DirectChatPrompt(
             messages=({"role": "system", "content": spec.instructions}, {"role": "user", "content": content}),
-            tools=cast(Any, tool_definitions(spec.kind, intent, can_ask=spec.can_ask)),
+            tools=cast(Any, tool_definitions(spec.kind, intent, can_ask=spec.can_ask, held=held)),
             tool_choice="auto",
             parallel_tool_calls=False,
             prompt_cache_key=spec.prompt_cache_key,
@@ -193,7 +193,7 @@ async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> 
     """
 
     offered = offered_tools(spec.kind, can_ask=spec.can_ask)
-    request = pass_request(spec, draft.intent)
+    request = pass_request(spec, draft.intent, draft.held)
     text = ""
     cursorless = not spec.stored_responses
     for round_number in range(1, MAX_TOOL_ROUNDS + 1):

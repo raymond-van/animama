@@ -1,9 +1,12 @@
 # Content generation
 
-On the Generate page a person asks for a Gesture in words. The content
-assistant, an AI with no persona that is not an Anima, writes it as a draft.
-The app checks the draft and has the assistant repair what fails; the person
-previews it on an Avatar, revises it by chat and saves it as Local content.
+On the Generate page a person asks for a Gesture or a Reaction in words. The
+content assistant, an AI with no persona that is not an Anima, writes it as a
+draft. The app checks the draft and has the assistant repair what fails; the
+person previews it on an Avatar, revises it by chat and saves it as Local
+content. The same assistant opens from the
+[Generate control of the Gesture and Reaction creators](#in-a-creator), where
+it revises the item open there.
 
 The page and its routes exist only in local compositions (desktop and
 self-hosted web). They need the runtime capability `content_generation: true`,
@@ -11,7 +14,7 @@ which the hosted composition never reports. The reasons for the design are in
 [ADR 0041](../../adr/0041-backend-built-content-assistant-runs.md).
 
 Code: `web/src/ui/generate/` (the page, a run's stream and the page's draft
-checks), hooks in `web/src/query/hooks/useGeneration.ts`, mutations in
+checks; `creator/` holds the creators' control), hooks in `web/src/query/hooks/useGeneration.ts`, mutations in
 `web/src/query/mutations/useGenerationMutations.ts` and the state of a run in
 flight in `web/src/stores/generation-store.ts`. Validation, the motion checks
 and the review sheets are the authoring code in
@@ -19,9 +22,14 @@ and the review sheets are the authoring code in
 commands also run. The backend half is `app/generation/` behind the
 [`/v1/generation` routes](../../backend/architecture/http-api.md#content-assistant).
 
-The assistant authors Gestures. A request for a Reaction is refused
-(`generation_intent_unavailable`), and a draft cannot place effects or sounds
-on its timeline.
+The assistant authors Gestures and Reactions. A draft cannot place effects or
+sounds on its timeline.
+
+A Reaction draft is a face only: expression tracks on beats, with a suggested
+emotion and an intensity from 1 to 4. The server refuses it any field that
+moves the body, which the Reaction creator would strip. The assistant writes
+it from the packaged Reaction guidance (`resources/authoring/reaction.md`),
+which builds on the faces guidance Gestures also use.
 
 ## Opening Generate
 
@@ -127,7 +135,10 @@ estimate and says that the amount covers only those.
 
 ## Asking
 
-A message says what the Avatar should do, in at most 4,000 characters. It
+A message says what the Avatar should do, in at most 4,000 characters. While
+the next message writes a new draft, a choice above the request field says
+whether that draft is a Gesture or a Reaction; a conversation's drafts may be
+of both kinds, and a revision keeps its draft's kind. The message
 starts a run: one streamed request that the page follows, showing the
 assistant's text as it arrives and what the run is doing in words (thinking,
 writing, checking, repairing, looking at rendered frames).
@@ -210,24 +221,98 @@ valid change leaves the draft and its restore point as they were.
 
 ## Saving and opening in the creator
 
-**Save** stores a draft that loads as a Local Gesture through the Gesture
-creator's own save, with the name, AI description and Selector ID the
-assistant wrote, and then records the saved item on the draft. Saving is
+**Save** stores a draft that loads as a Local Gesture or Reaction through its
+creator's own save, with the details the assistant wrote (a Gesture's name,
+AI description and Selector ID; a Reaction's name, suggested emotion and
+intensity), and then records the saved item on the draft. Saving is
 always the person's action; the assistant never saves. The saved draft stays
-in its conversation with a link that opens the item in the Gesture creator,
+in its conversation with a link that opens the item in its creator,
 where its beats are editable. Saving the same draft again, for example after
 another revision, replaces that item while the Library still holds it. The
 saved item does not depend on the draft or its conversation: discarding
 either leaves it in the Library.
 
-**Open in creator** opens the Gesture creator on a new, unsaved document that
+**Open in creator** opens the draft's creator on a new, unsaved document that
 holds the draft's project, loaded as the creator's Import loads a project
-file (`/gestures/new?draft=<id>&conversation=<id>`). The creator then works
+file (`/gestures/new?draft=<id>&conversation=<id>`, or `/reactions/new` with
+the same search). The creator then works
 on its own copy, and the draft stays in its conversation.
 
 **Discard** removes a draft with the version kept for restoring. Save and
 restore wait until a run in flight has finished, and so does Discard for the
 draft that run is working on.
+
+## In a creator
+
+The Gesture and Reaction creators show a **Generate** control at the bottom
+right, above the timeline, on a runtime with the capability. It opens the
+assistant's conversation in a panel that floats over the creator's other
+panels without resizing them. The panel does not trap focus: Escape closes it
+and returns focus to the control, and a run in flight goes on while it is
+closed. The narrow layout and VRMA items have no control.
+
+- **One conversation for each item.** The conversation is stored with the
+  scope `creator`, the creator's kind and the item's catalog id, and is found
+  again whenever that item is opened. It is started the first time the panel
+  is used with a model chosen. An unsaved item has no id: it gets a
+  conversation for as long as the creator stays open. Starting one deletes
+  the conversations this browser tab's earlier unsaved items of that kind
+  left behind (the tab remembers the ones it started for its session);
+  another tab's are never touched. An Included item opened to customize
+  counts as unsaved. These conversations are not listed on the Generate page.
+- **Discarding it.** The panel's header discards the item's conversation
+  with its messages and drafts, after the same confirmation as on the
+  Generate page and never while a run is in flight. The panel then starts an
+  empty conversation for the item, which the next request uses. The creator's
+  document is not touched.
+- **Conversations do not outlive their item.** When conversations are
+  listed, the backend removes a creator's conversation whose item is no
+  longer in the Library, and one about an unsaved item that was not written
+  to for seven days
+  ([`GET /v1/generation/conversations`](../../backend/architecture/http-api.md#content-assistant)).
+  An item that cannot be used at the moment (it is invalid, misses a file
+  or an effect, or waits for a rescan) is still in the Library and keeps its
+  conversation. A creator left open for those seven days starts an empty
+  conversation at its next request.
+- **A run starts from the document.** With each run the creator sends the
+  item as it stands, hand edits included, as a project (`document`). A run
+  started in Pose mode switches the creator to Clip, where the result plays
+  and Undo is the clip's. A keyframe's pose that was changed there is first
+  applied to its keyframe, as the Clip tab does, so that edit is sent and is
+  an entry of its own in the history; an unchanged one adds nothing. An
+  unsaved pose of its own (a new pose, or a changed Library Pose) is on no
+  keyframe and would be discarded by the result, so while one exists no run
+  starts and no result is applied, in any mode: the panel says to save it,
+  discard it or add it to the timeline first. The
+  server validates the document's clip as it validates a model's before any
+  pass reads it, and the run revises that document, not a stored draft. An
+  item with no beat yet sends none, and the run writes it anew.
+- **What the assistant leaves alone.** Effects and sounds on the timeline, a
+  Reaction's playback lifetime, any field the clip format does not define
+  and the item's dependencies are not sent and are put back on the result.
+  The item's name, AI description, Selector ID and suggested emotion and
+  intensity stay the person's: the model is not offered the ones the item
+  has, and they are checked by the Library's own rules for a saved item, not
+  a draft's stricter ones. A result fills only the ones the item lacks.
+- **One undoable change.** The result replaces the timeline. A run's first
+  result is one entry in the creator's history, and a later version of the
+  same run (a repair, a review's edit) takes that entry's place, so Undo
+  returns to the document from before the request and Redo to the result.
+  The result plays in the creator's own preview, and the review sheets are
+  drawn on its canvas.
+- **Edits made during a run.** A hand edit is an entry of its own, and a
+  result is never put over a timeline that changed while the assistant
+  worked. If the timeline is not what the run started from, or what its last
+  result left, the result is refused, the run is stopped and the panel says
+  so; the person's edits stay, and sending the request again works from the
+  timeline as it is then. Nothing is applied after Stop or after a run has
+  ended.
+- **Nothing is saved.** Warnings show in the panel. The creator's own Save
+  keeps the item's identity, and an Included item becomes a new Local item
+  at its first Save, as without the assistant.
+
+The assistant's model is the one chosen on the Generate page; with none
+chosen the panel points there.
 
 ## What a run does
 
@@ -243,7 +328,8 @@ Each step below is a fresh request, a *pass*:
    check. Findings that only warn are passed along but start no repair.
 4. One frame review, when the model accepts images: the page draws one
    contact sheet for each Included Avatar, with a row for each beat (at most
-   six) showing the front, three-quarter, side and face views. A sheet
+   six) showing the front, three-quarter, side and face views. A Reaction's
+   sheet shows the face only, from the front and from three-quarters. A sheet
    reaches the model at the size it was drawn, up to 2,048 pixels on its
    longer edge. The assistant accepts the draft or makes one edit, which the
    page checks once more.
@@ -324,12 +410,16 @@ Requests go only to the provider of the chosen model. A run sends:
 - the person's message, their answers, and up to 20 earlier text turns of the
   same conversation;
 - the draft being revised or repaired, with the page's check findings as
-  text;
+  text; in a creator, the open item's timeline and details instead of a
+  stored draft, without its effects and sounds. A draft always reaches the
+  model inside a tagged data block that nothing in it can close, and a
+  creator's document keeps only the clip fields the format defines;
 - the names of the chosen Avatar's expressions and blendshapes, at most 400
   names of at most 64 characters, listed as data;
 - for a frame review, the two contact sheets, which show only the Included
   Avatars;
-- one of three Included Gestures, when the model asks to read an example.
+- one of three Included Gestures, or for a Reaction one of three Included
+  Reactions, when the model asks to read an example.
 
 A run does not send the person's own Avatar: not its file, its textures or
 any picture of it. Checks and review frames use the Included Avatars alone,

@@ -21,6 +21,7 @@ ids, counts and codes, never text.
 from __future__ import annotations
 
 import asyncio
+import copy
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, aclosing
 from dataclasses import asdict, dataclass, field
@@ -34,9 +35,12 @@ from animama.app.chat.options import DirectChatOptions
 from animama.app.model_clients import ModelClient, ModelClientError, ModelClientToolCall
 from animama.app.model_clients.error_categories import model_error_category
 from animama.app.model_clients.prompt import scoped_prompt_cache_key
+from animama.app.services.idle_clip_validation import V2_CLIP_FIELDS
 from animama.app.util.json_values import json_safe_dict
 from animama.domain import ModelProvider
 from animama.domain.generation import (
+    GENERATION_INTENTS,
+    GENERATION_SCOPE_CREATOR,
     GenerationConversationSnapshot,
     GenerationDraft,
     GenerationDraftStatus,
@@ -56,7 +60,18 @@ from .check_report import (
     unchecked_report,
 )
 from .deterministic_author import DeterministicAuthor
-from .draft_validation import Intent, SelectorInUse
+from .draft_validation import (
+    ACTION_PROJECT_SCHEMA,
+    CATALOG_STRING_LENGTH,
+    Intent,
+    JsonObject,
+    SelectorInUse,
+    clip_and_details,
+    clip_id,
+    held_detail_problems,
+    held_details,
+    timeline_problems,
+)
 from .passes import PassCursorLost, PassEnd, PassRound, PassSpec, PassText, PassWriting, run_pass
 from .review_frames import MAX_REVIEW_SHEETS, ReviewFrameStore, ReviewSheet
 from .service import CheckReportSignal, GenerationService
@@ -109,10 +124,21 @@ _DRAFT_ENDS: Final[frozenset[PassEnd]] = frozenset({"submitted", "edited"})
 # --- What a run may be asked to do ----------------------------------------------------
 
 
-class GenerationIntentUnavailableError(GenerationError):
-    """The request names a kind of content the assistant does not author yet."""
+class GenerationDocumentInvalidError(GenerationError):
+    """The document sent with a run cannot be what a pass starts from.
 
-    code = "generation_intent_unavailable"
+    ``reason`` says what is wrong: ``document`` (it is not a creator's
+    conversation, or the document is of another kind than the conversation's
+    item), ``timeline`` (its clip fails the validation every draft's clip
+    passes) or ``details`` (a detail the item has is not one a saved item
+    may have).
+    """
+
+    code = "generation_document_invalid"
+
+    def __init__(self, reason: Literal["document", "timeline", "details"] = "document") -> None:
+        super().__init__()
+        self.reason = reason
 
 
 class GenerationDraftEmptyError(GenerationError):
@@ -199,7 +225,9 @@ class RunInput:
     the person said to the questions, as ``prompts.write_message`` takes it.
     ``recent_turns`` are the conversation's last text turns before this
     request. ``reasoning_effort`` is the level every pass names, or ``None``
-    for the model's default.
+    for the model's default. ``document`` is the project a creator sent as
+    the item open in it, already checked (``creator_document``): the run then
+    revises it instead of the draft's stored project.
     """
 
     owner_user_id: str
@@ -213,6 +241,15 @@ class RunInput:
     recent_turns: tuple[Mapping[str, str], ...]
     avatar_expressions: Mapping[str, object] | None
     reasoning_effort: str | None = None
+    document: Mapping[str, Any] | None = None
+
+    @property
+    def held_details(self) -> frozenset[str]:
+        """The details that are the open item's own, which no pass of a creator's run changes."""
+
+        if self.document is None:
+            return frozenset()
+        return held_details(self.intent, clip_and_details(self.document)[1])
 
     @property
     def can_ask(self) -> bool:
@@ -276,6 +313,96 @@ def _given_answers(answers: Mapping[str, Any] | None) -> Mapping[str, Any]:
     return {"answers": given}
 
 
+DocumentFault = Literal["document", "timeline", "details"]
+"""What is wrong with a creator's document: its shape or place, its clip, or its details."""
+
+
+def _has_overlong_string(value: object, limit: int) -> bool:
+    """Whether a JSON value holds a string, or an object key, longer than ``limit``.
+
+    Walked without recursion; the caller has already bounded the value's depth
+    and size.
+    """
+
+    pending = [value]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, str):
+            if len(current) > limit:
+                return True
+        elif isinstance(current, dict):
+            if any(isinstance(key, str) and len(key) > limit for key in current):
+                return True
+            pending.extend(current.values())
+        elif isinstance(current, list | tuple):
+            pending.extend(current)
+    return False
+
+
+def creator_document(intent: Intent, document: Mapping[str, Any]) -> JsonObject:
+    """The project a creator's run starts from, or ``GenerationDocumentInvalidError`` saying what is wrong.
+
+    The page sends the item open in a creator as an
+    ``animamaActionProject/1.0`` project. It is untrusted input (threat T1),
+    and it reaches a model, so nothing of it is kept that this backend does
+    not know:
+
+    - **The clip** keeps only the fields the 2.0 format defines
+      (``V2_CLIP_FIELDS``), and then passes exactly the validation a model's
+      clip passes: size, depth, structure, a draft's length, no body field in
+      a Reaction, no timeline event, no playback lifetime. No string in it
+      may be longer than the catalog allows a saved item's
+      (``CATALOG_STRING_LENGTH``). Its ``id`` and ``name`` are not the
+      caller's: they are derived from the item's name, as the creator does.
+    - **The details** the item already has (``held_details``) are the
+      person's. They are held to the catalog's own rules for a saved item
+      (``held_detail_problems``), not a draft's stricter ones, since no pass
+      may change them. A blank detail is not the item's yet: a pass writes
+      it, and the tools then judge it as a draft's.
+
+    What is returned is rebuilt from the kept clip fields and those details
+    alone.
+    """
+
+    if document.get("schema") != ACTION_PROJECT_SCHEMA or document.get("intent") != intent:
+        raise GenerationDocumentInvalidError("document")
+    sent = document.get("sequence")
+    if not isinstance(sent, dict):
+        raise GenerationDocumentInvalidError("timeline")
+    gesture = intent == "gesture"
+    # The details first: a name that cannot be stored is a fault of the details, though the clip carries the
+    # name too.
+    details: JsonObject = {"name": document.get("name", "")}
+    if gesture:
+        details |= {"ai_description": document.get("aiDescription", ""), "selector_id": document.get("semanticKey", "")}
+    else:
+        details |= {"emotion": document.get("suggestedEmotion", ""), "intensity": document.get("suggestedIntensity", 1)}
+    if held_detail_problems(intent, details):
+        raise GenerationDocumentInvalidError("details")
+    name = details["name"].strip()
+    # A shallow selection: nothing outside the format's own fields is walked, sized or kept.
+    clip = {field: sent[field] for field in V2_CLIP_FIELDS if field in sent}
+    # The clip's own name and id are the item's name and its slug, as the creator keeps them; what the caller
+    # put there is not read.
+    clip["name"] = name or f"New {'Gesture' if gesture else 'Reaction'}"
+    clip["id"] = clip_id(name, intent)
+    if timeline_problems(intent, clip) or _has_overlong_string(clip, CATALOG_STRING_LENGTH):
+        raise GenerationDocumentInvalidError("timeline")
+    sequence = copy.deepcopy(clip)
+    return {
+        "schema": ACTION_PROJECT_SCHEMA,
+        "intent": intent,
+        "name": name,
+        "aiDescription": details["ai_description"].strip() if gesture else "",
+        "semanticKey": details["selector_id"].strip() if gesture else "",
+        "suggestedEmotion": "" if gesture else details["emotion"].strip(),
+        "suggestedIntensity": 1 if gesture else details["intensity"],
+        "notes": "",
+        "sequence": sequence,
+        "dependencies": [],
+    }
+
+
 def plan_run(
     snapshot: GenerationConversationSnapshot,
     *,
@@ -287,45 +414,61 @@ def plan_run(
     answers: Mapping[str, Any] | None = None,
     avatar_expressions: Mapping[str, object] | None = None,
     reasoning_effort: str | None = None,
+    document: Mapping[str, Any] | None = None,
 ) -> RunInput:
     """Plan a run on the owner's conversation, or refuse it with a ``GenerationError``.
 
-    ``draft_id`` must be a draft of this conversation that holds a project,
-    and a revision takes its draft's intent. Reactions are refused until
-    their guidance exists (the plan's Phase 5). ``reasoning_effort`` must be
-    a level the model can run a pass at (``accepted_reasoning_effort``); a
-    blank one counts as none. Questions are asked once for a
-    request whatever the caller sends: while the assistant's questions are
-    outstanding (no run has used answers to them yet, however many failed or
-    were stopped before they stored a draft), this run answers them, with
-    ``answers`` or as skipped; answers to questions nobody asked are ignored.
+    ``draft_id`` must be a draft of this conversation, and a revision takes
+    its draft's intent. A creator's conversation authors its item's kind
+    whatever the caller names. ``document`` is the item open in that creator
+    (``creator_document``): only a creator's conversation takes one, and the
+    run revises it instead of a stored project, into the draft ``draft_id``
+    names or a new one. Without a document the draft to revise must hold a
+    project. ``reasoning_effort`` must be a level the model can run a pass at
+    (``accepted_reasoning_effort``); a blank one counts as none. Questions
+    are asked once for a request whatever the caller sends: while the
+    assistant's questions are outstanding (no run has used answers to them
+    yet, however many failed or were stopped before they stored a draft),
+    this run answers them, with ``answers`` or as skipped; answers to
+    questions nobody asked are ignored.
     """
 
+    conversation = snapshot.conversation
+    in_creator = conversation.scope.get("kind") == GENERATION_SCOPE_CREATOR
+    if in_creator:
+        intent = str(conversation.scope.get("intent"))
     draft: GenerationDraft | None = None
     if draft_id is not None:
         draft = next((candidate for candidate in snapshot.drafts if candidate.id == draft_id), None)
         if draft is None:
             raise GenerationNotFoundError
-        if draft.project is None:
+        if draft.project is None and document is None:
             raise GenerationDraftEmptyError
+        if in_creator and draft.intent != intent:
+            raise GenerationDocumentInvalidError("document")
         intent = draft.intent
-    if intent != "gesture":
-        raise GenerationIntentUnavailableError
+    if intent not in GENERATION_INTENTS:
+        raise GenerationDocumentInvalidError("document")
+    kind = cast(Intent, intent)
+    if document is not None:
+        if not in_creator:
+            raise GenerationDocumentInvalidError("document")
+        document = creator_document(kind, document)
     effort = accepted_reasoning_effort(model_provider, reasoning_effort)
-    conversation = snapshot.conversation
     turns = tuple({"role": turn.role, "text": turn.text} for turn in snapshot.messages[-prompts.MAX_RECENT_TURNS :])
     return RunInput(
         owner_user_id=conversation.owner_user_id,
         conversation_id=conversation.id,
         message=message,
         model_provider=model_provider,
-        intent="gesture",
+        intent=kind,
         draft=draft,
         ui_locale=ui_locale,
         answers=_given_answers(answers) if _questions_outstanding(snapshot.messages) else None,
         recent_turns=turns,
         avatar_expressions=avatar_expressions,
         reasoning_effort=effort,
+        document=document,
     )
 
 
@@ -600,13 +743,16 @@ class GenerationRun:
             await service.add_message(owner, plan.conversation_id, "user", plan.message, self._user_data())
         self._request_stored = True
 
-        if revised is not None and revised.project is not None:
+        # A creator's run revises the item as it stands in the creator, hand edits included; any other
+        # revision starts from the draft's stored project.
+        base = plan.document if plan.document is not None else (revised.project if revised is not None else None)
+        if base is not None:
             kind: PassKind = "revise"
-            working = WorkingDraft.from_project(revised.project)
-            message = prompts.revise_message(plan.message, revised.project, plan.recent_turns, plan.answers)
+            working = WorkingDraft.from_project(base, held=plan.held_details)
+            message = prompts.revise_message(plan.message, base, plan.recent_turns, plan.answers)
         else:
             kind, working = "write", WorkingDraft(intent=plan.intent)
-            message = prompts.write_message(plan.message, plan.recent_turns, plan.answers)
+            message = prompts.write_message(plan.message, plan.recent_turns, plan.answers, plan.intent)
         async with aclosing(self._pass(kind, working, message, draft_id=revised.id if revised else None)) as events:
             async for event in events:
                 yield event
@@ -620,9 +766,10 @@ class GenerationRun:
             self._outcome = "reply"
             return
         if self._pass_end not in _DRAFT_ENDS:
-            if revised is not None:
-                # Nothing was stored, so the draft and what a restore returns to are as they were.
-                raise _RunFailure(NO_VALID_DRAFT, {"draft_id": revised.id})
+            if base is not None:
+                # Nothing was stored, so the draft and what a restore returns to are as they were, and so is
+                # the creator's document.
+                raise _RunFailure(NO_VALID_DRAFT, {"draft_id": revised.id} if revised is not None else {})
             async with self._storage() as service:
                 self._draft_id = (await service.create_draft(owner, plan.conversation_id, plan.intent)).id
                 failed = await service.set_status(owner, self._draft_id, "failed", NO_VALID_DRAFT)
@@ -660,7 +807,7 @@ class GenerationRun:
                 draft = await service.set_status(owner, draft.id, "repairing")
             yield DraftUpdated(draft)
             yield Progress("repairing", draft.id)
-            working = WorkingDraft.from_project(cast(Mapping[str, Any], draft.project))
+            working = WorkingDraft.from_project(cast(Mapping[str, Any], draft.project), held=plan.held_details)
             repair = prompts.repair_message(cast(Mapping[str, Any], draft.project), report)
             async with aclosing(self._pass("repair", working, repair, draft_id=draft.id)) as events:
                 async for event in events:
@@ -683,7 +830,7 @@ class GenerationRun:
                         draft = await service.set_status(owner, draft.id, "reviewing")
                     yield DraftUpdated(draft)
                     yield Progress("reviewing_frames", draft.id)
-                    working = WorkingDraft.from_project(cast(Mapping[str, Any], draft.project))
+                    working = WorkingDraft.from_project(cast(Mapping[str, Any], draft.project), held=plan.held_details)
                     review = prompts.review_message(
                         cast(Mapping[str, Any], draft.project), len(sheets), names_not_on_review_sheets(report)
                     )
@@ -786,7 +933,7 @@ class GenerationRun:
 
         author = cast(DeterministicAuthor, self._author)
         if kind == "write":
-            return author.write(self._plan.message, selector_in_use=self._selector_in_use)
+            return author.write(self._plan.message, intent=self._plan.intent, selector_in_use=self._selector_in_use)
         if kind == "review":
             return author.review()
         return author.revise(working.project()) if kind == "revise" else author.repair(working.project())
@@ -851,7 +998,8 @@ class GenerationRun:
         """What the person's turn carried besides its text."""
 
         plan = self._plan
-        data: dict[str, Any] = {}
+        # The kind asked for, so questions about a new Reaction are answered as one after a reload.
+        data: dict[str, Any] = {"intent": plan.intent}
         if plan.draft is not None:
             data["draft_id"] = plan.draft.id
         if plan.answers is not None:
@@ -933,8 +1081,8 @@ __all__ = [
     "RUN_STATUSES",
     "DraftUpdated",
     "FramesRequested",
+    "GenerationDocumentInvalidError",
     "GenerationDraftEmptyError",
-    "GenerationIntentUnavailableError",
     "GenerationReasoningEffortUnsupportedError",
     "GenerationRun",
     "MessageDelta",
@@ -949,6 +1097,7 @@ __all__ = [
     "RunUsage",
     "Storage",
     "accepted_reasoning_effort",
+    "creator_document",
     "model_unusable_reason",
     "plan_run",
 ]

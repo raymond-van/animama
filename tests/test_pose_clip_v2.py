@@ -13,6 +13,7 @@ import pytest
 
 from animama.app.services.content_package_capabilities import derive_capabilities
 from animama.app.services.idle_clip_validation import (
+    V2_CLIP_FIELDS,
     V2_CONTACT_POINTS,
     V2_CONTACT_SOLVE,
     V2_EASES,
@@ -52,6 +53,7 @@ def test_vocabulary_matches_the_frontend_joint_model() -> None:
     assert V2_MIN_SPACING_SECONDS == vocabulary["minSpacingSeconds"]
     assert V2_LIMITS == vocabulary["limits"]
     assert V2_VALUE_BOUNDS == vocabulary["valueBounds"]
+    assert list(V2_CLIP_FIELDS) == vocabulary["clipFields"]
 
 
 def test_shared_valid_clip_is_admitted() -> None:

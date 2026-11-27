@@ -61,6 +61,15 @@ vi.mock("./ActionEditorScene", () => ({
   ActionEditorScene: () => <div data-scene />,
 }));
 vi.mock("./ActionEditorHeader", () => ({ ActionEditorHeader: () => null }));
+// The assistant's control reads the runtime and draws on a WebGL canvas.
+vi.mock("@/ui/generate/creator/CreatorGenerateControl", () => ({
+  CreatorGenerateControl: ({ bottom }: { bottom: number }) => (
+    <div data-generate-control={bottom} />
+  ),
+}));
+vi.mock("@/ui/generate/GenerationPreviewRendererBridge", () => ({
+  GenerationPreviewRendererBridge: () => null,
+}));
 vi.mock("./ActionEditorEffectsPanel", () => ({
   ActionEditorEffectsPanel: () => null,
 }));
@@ -154,6 +163,12 @@ describe("Action editor viewport ownership", () => {
       expect(html.match(/data-scene=/g)).toHaveLength(1);
       expect(html.match(/data-timeline=/g)).toHaveLength(1);
       expect(html).not.toContain("data-bones=");
+      // One Generate control in each creator, 8px above the open timeline
+      // (170px tall, 20px from the edge); the narrow layout has none.
+      expect(html.match(/data-generate-control=/g) ?? []).toHaveLength(
+        desktop ? 1 : 0,
+      );
+      if (desktop) expect(html).toContain('data-generate-control="198"');
     },
   );
 

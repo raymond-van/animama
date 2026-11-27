@@ -104,9 +104,11 @@
     "voice_preset_unavailable": "Choose an available PocketTTS voice."
   },
   "generation": {
+    "generation_document_invalid": "The assistant cannot work on this item as it stands. Check the timeline for problems, then try again.",
+    "generation_document_invalid_details": "The assistant cannot work on this item because of its name, description, Selector ID or suggested emotion. Check them, then try again.",
+    "generation_document_invalid_timeline": "The assistant cannot work on this item's timeline as it stands. Check the timeline for problems, then try again.",
     "generation_draft_empty": "This draft has nothing to revise yet. Send a new request instead.",
     "generation_draft_unloadable": "This draft cannot be played, so it cannot be saved. Ask for it again or ask for a revision.",
-    "generation_intent_unavailable": "The assistant writes Gestures only for now.",
     "generation_model_unusable": "The assistant cannot use the chosen model. Choose another model.",
     "generation_model_unusable_connection_inactive": "The chosen model's connection is turned off. Turn it on in App Settings or choose another model.",
     "generation_model_unusable_context_too_small": "The chosen model's context window is too small for the assistant. Choose another model.",

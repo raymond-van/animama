@@ -63,6 +63,8 @@ function conversation(
     onStartNewDraft?: () => void;
     onChooseModel?: () => void;
     framesStatus?: "idle" | "rendering" | "unavailable" | "failed";
+    newDraftKind?: Parameters<typeof GenerateConversation>[0]["newDraftKind"];
+    composerNote?: Parameters<typeof GenerateConversation>[0]["composerNote"];
   } = {},
 ) {
   const node = (
@@ -73,6 +75,8 @@ function conversation(
       onStartNewDraft={options.onStartNewDraft ?? (() => {})}
       onChooseModel={options.onChooseModel}
       framesStatus={options.framesStatus}
+      newDraftKind={options.newDraftKind}
+      composerNote={options.composerNote}
     />
   );
   if (mounted) mounted.rerender(node);
@@ -197,6 +201,64 @@ describe("the conversation with the assistant", () => {
     type("a bow");
     await click(find("generate-send"));
     expect(control.send).toHaveBeenCalledWith("a bow", { draftId: null });
+  });
+
+  it("offers a Gesture or a Reaction for a new draft, and sends the kind chosen", async () => {
+    const control = controller();
+    const onChange = vi.fn();
+    conversation(control, { newDraftKind: { value: "gesture", onChange } });
+    // No draft yet: the choice is there, the line about revising is not.
+    expect(find("generate-revision-target")).toBeNull();
+    const kind = find("generate-draft-kind")!;
+    expect(kind.getAttribute("role")).toBe("group");
+    expect(kind.getAttribute("aria-label")).toBe("Kind of new draft");
+    expect(find("generate-kind-gesture")!.getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(find("generate-kind-reaction")!.textContent).toBe("Reaction");
+    await click(find("generate-kind-reaction"));
+    expect(onChange).toHaveBeenCalledWith("reaction");
+
+    conversation(control, { newDraftKind: { value: "reaction", onChange } });
+    expect(find("generate-request")!.getAttribute("placeholder")).toBe(
+      "Describe a Reaction…",
+    );
+    type("a soft smile");
+    await click(find("generate-send"));
+    expect(control.send).toHaveBeenCalledWith("a soft smile", {
+      draftId: null,
+      intent: "reaction",
+    });
+  });
+
+  it("offers no kind while the next message revises a draft, which keeps its own", async () => {
+    const control = controller();
+    const draft = generationDraft({ status: "ready" });
+    conversation(control, {
+      snapshot: generationSnapshot({ drafts: [draft] }),
+      selectedDraft: draft,
+      newDraftKind: { value: "reaction", onChange: vi.fn() },
+    });
+    expect(find("generate-draft-kind")).toBeNull();
+    type("friendlier");
+    await click(find("generate-send"));
+    expect(control.send).toHaveBeenCalledWith("friendlier", {
+      draftId: draft.id,
+    });
+  });
+
+  it("shows a creator's note in place of the line about drafts", () => {
+    const draft = generationDraft({ status: "ready" });
+    conversation(controller(), {
+      snapshot: generationSnapshot({ drafts: [draft] }),
+      composerNote: <p data-testid="creator-note">Changes the open item.</p>,
+    });
+    expect(find("creator-note")!.textContent).toBe("Changes the open item.");
+    expect(find("generate-revision-target")).toBeNull();
+    expect(find("generate-draft-kind")).toBeNull();
+    expect(find("generate-request")!.getAttribute("placeholder")).toBe(
+      "Say what to change…",
+    );
   });
 
   it("never revises a draft that has no project, though it is selected", async () => {

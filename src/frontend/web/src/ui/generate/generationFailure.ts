@@ -56,6 +56,16 @@ const MODEL_DEPENDENT_CODES = new Set([
 ]);
 
 /**
+ * Refusals that say why in a `reason`: a model that cannot be used, and a
+ * creator's document that cannot be worked on (its details, or its timeline).
+ * The reason is worded before the general code.
+ */
+const REASONED_CODES: ReadonlySet<string> = new Set([
+  "generation_model_unusable",
+  "generation_document_invalid",
+]);
+
+/**
  * Whether a failure is one that choosing another model could get past (R2.4):
  * any model, plan or connection failure, and the assistant's own failures
  * that depend on the model. A request that never arrived, a stream that
@@ -72,7 +82,7 @@ export function generationFailureSuggestsAnotherModel(
 function ownFailureText(info: ApiErrorInfo): ApiErrorText {
   // A refused model says why; that reason is worded before the general code.
   const reasoned =
-    info.code === "generation_model_unusable" && info.reason
+    info.code && REASONED_CODES.has(info.code) && info.reason
       ? errorWording("generation", `${info.code}_${info.reason}`)
       : null;
   if (reasoned) return { message: reasoned, detail: null };

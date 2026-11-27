@@ -11,7 +11,9 @@ import { useTranslation } from "react-i18next";
 import { useFormatters, type LocaleFormatters } from "@animama/product-ui/i18n";
 import type { PyGenerationDraft } from "@animama/runtime-contracts/api-types";
 
+import { emotionLabel } from "@/lib/emotion/presentation";
 import { cn } from "@/lib/utils";
+import { reactionIntensityLabel } from "@/ui/animas/ActionLoadoutRows";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -26,7 +28,11 @@ import {
   type DraftNote,
   type DraftWarning,
 } from "./draftWarnings";
-import { draftLeftUnchecked, draftName } from "./generationDrafts";
+import {
+  draftLeftUnchecked,
+  draftName,
+  draftReactionPlacement,
+} from "./generationDrafts";
 import { draftFailureText } from "./generationFailure";
 import type { DraftCheckFailure, DraftValidation } from "./useDraftWorker";
 
@@ -224,6 +230,37 @@ function DraftRemarks({ remarks }: { remarks: readonly Remark[] }) {
   );
 }
 
+/**
+ * What a draft's checks left, in words: its warnings, then its notes. The
+ * draft card lists them, and so does a creator's assistant panel for the
+ * result it applied.
+ */
+export function GenerateDraftRemarks({
+  draft,
+}: {
+  draft: Pick<
+    PyGenerationDraft,
+    "check_report" | "checked_version" | "version"
+  >;
+}) {
+  const { t } = useTranslation("generate");
+  const formatters = useFormatters();
+  const report = draftRemarks(draft);
+  const remarks: Remark[] = [
+    ...report.warnings.map((warning) => ({
+      tone: "warning" as const,
+      text: warningText(t, warning),
+      detail: warningDetail(t, formatters, warning),
+    })),
+    ...report.notes.map((note) => ({
+      tone: "note" as const,
+      text: noteText(t, note),
+      detail: null,
+    })),
+  ];
+  return <DraftRemarks remarks={remarks} />;
+}
+
 export type GenerateDraftCardProps = {
   draft: PyGenerationDraft;
   /** The page's own validation of the draft's current version. */
@@ -272,9 +309,9 @@ export function GenerateDraftCard({
   onDiscard,
 }: GenerateDraftCardProps) {
   const { t } = useTranslation("generate");
-  const formatters = useFormatters();
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const name = draftName(draft) || t("drafts.unnamed");
+  const placement = draftReactionPlacement(draft);
   const validated = validation?.version === draft.version;
   const loadable = validated && Boolean(validation?.sequence);
   const unplayable =
@@ -297,19 +334,6 @@ export function GenerateDraftCard({
     !(leftUnchecked && running);
   const failureText = draftFailureText(draft);
 
-  const report = draftRemarks(draft);
-  const remarks: Remark[] = [
-    ...report.warnings.map((warning) => ({
-      tone: "warning" as const,
-      text: warningText(t, warning),
-      detail: warningDetail(t, formatters, warning),
-    })),
-    ...report.notes.map((note) => ({
-      tone: "note" as const,
-      text: noteText(t, note),
-      detail: null,
-    })),
-  ];
   const waitsForRun = running
     ? { disabled: true, title: t("drafts.waitForRun") }
     : {};
@@ -336,6 +360,20 @@ export function GenerateDraftCard({
         >
           {name}
         </button>
+        <p
+          className="text-muted-foreground text-xs"
+          data-testid="generate-draft-kind"
+          data-intent={draft.intent}
+        >
+          {draft.intent === "gesture"
+            ? t("drafts.kind.gesture")
+            : placement
+              ? t("drafts.kind.reactionPlaced", {
+                  emotion: emotionLabel(placement.emotion),
+                  intensity: reactionIntensityLabel(placement.intensity),
+                })
+              : t("drafts.kind.reaction")}
+        </p>
         {/* Beside the button, not inside it, so a change of status is read out. */}
         <p
           className="text-muted-foreground flex items-center gap-1.5 text-xs"
@@ -386,7 +424,7 @@ export function GenerateDraftCard({
         </p>
       ) : null}
 
-      <DraftRemarks remarks={remarks} />
+      <GenerateDraftRemarks draft={draft} />
 
       {draft.saved_item_id ? (
         <p
@@ -446,10 +484,12 @@ export function GenerateDraftCard({
                 : t("drafts.actions.save")}
           </Button>
         ) : null}
-        {loadable && draft.intent === "gesture" ? (
+        {loadable ? (
           <Button asChild size="sm" variant="outline">
             <Link
-              to="/gestures/new"
+              to={
+                draft.intent === "gesture" ? "/gestures/new" : "/reactions/new"
+              }
               search={{ draft: draft.id, conversation: draft.conversation_id }}
               data-testid="generate-draft-open"
             >

@@ -18,7 +18,7 @@ import copy
 import json
 import re
 import unicodedata
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from typing import Any, Final, Literal
 
 from animama.app.services.clip_format import ANIMA_POSE_CLIP_SCHEMA
@@ -228,7 +228,11 @@ def _is_selector_id(value: str) -> bool:
 
 
 def detail_problems(
-    intent: Intent, details: Mapping[str, Any], *, selector_in_use: SelectorInUse | None = None
+    intent: Intent,
+    details: Mapping[str, Any],
+    *,
+    selector_in_use: SelectorInUse | None = None,
+    held: Collection[str] = (),
 ) -> list[str]:
     """Why ``details`` cannot be a draft's details; empty when they can.
 
@@ -237,17 +241,24 @@ def detail_problems(
     ``selector_in_use`` is asked only about a well-formed id. A Reaction
     needs a tracked emotion and an intensity from 1 to 4, and has no Selector
     ID. Details of the other kind are ignored.
+
+    ``held`` names the details an item open in a creator already has. They
+    are the person's, already checked by the catalog's own rules
+    (``held_detail_problems``), and no pass may change them, so a draft's
+    stricter rules are not applied to them.
     """
 
     problems: list[str] = []
-    if not _is_text(details.get("name"), MAX_NAME_LENGTH):
+    if "name" not in held and not _is_text(details.get("name"), MAX_NAME_LENGTH):
         problems.append(f"name must be a non-empty string of at most {MAX_NAME_LENGTH} characters")
     if intent == "gesture":
-        if not _is_text(details.get("ai_description"), MAX_AI_DESCRIPTION_LENGTH):
+        if "ai_description" not in held and not _is_text(details.get("ai_description"), MAX_AI_DESCRIPTION_LENGTH):
             problems.append(
                 f"ai_description must be a non-empty string of at most {MAX_AI_DESCRIPTION_LENGTH} characters"
             )
         selector_id = details.get("selector_id")
+        if "selector_id" in held:
+            return problems
         if not isinstance(selector_id, str) or not _is_selector_id(selector_id):
             problems.append(
                 "selector_id must be lower-case snake_case (letters, digits and single underscores) of at most "
@@ -257,10 +268,64 @@ def detail_problems(
             problems.append(f"selector_id {selector_id} is already used by another Gesture; choose a different one")
         return problems
     emotion, intensity = details.get("emotion"), details.get("intensity")
-    if not isinstance(emotion, str) or emotion not in TRACKED_EMOTION_SET:
+    if "emotion" not in held and (not isinstance(emotion, str) or emotion not in TRACKED_EMOTION_SET):
         problems.append(f"emotion must be one of: {', '.join(TRACKED_EMOTIONS)}")
-    if type(intensity) is not int or intensity not in REACTION_INTENSITIES:
+    if "intensity" not in held and (type(intensity) is not int or intensity not in REACTION_INTENSITIES):
         problems.append(f"intensity must be {_one_of(REACTION_INTENSITIES)}")
+    return problems
+
+
+CATALOG_NAME_LENGTH: Final = 120
+"""The longest name the content catalog reads for a saved item (``content_kind_registry``)."""
+CATALOG_DESCRIPTION_LENGTH: Final = 4096
+"""The longest AI description the content catalog reads for a saved item."""
+CATALOG_STRING_LENGTH: Final = 512
+"""The longest any other string of a saved item's document may be, by the catalog's default."""
+
+
+def held_details(intent: Intent, details: Mapping[str, Any]) -> frozenset[str]:
+    """The details an item open in a creator already has: the ones that are not blank.
+
+    A Reaction's intensity goes with its emotion: without an emotion the
+    item has no placement yet, whatever number its document carries.
+    """
+
+    names = ("name", "ai_description", "selector_id") if intent == "gesture" else ("name", "emotion")
+    held = {name for name in names if isinstance(details.get(name), str) and details[name].strip()}
+    if "emotion" in held:
+        held.add("intensity")
+    return frozenset(held)
+
+
+def held_detail_problems(intent: Intent, details: Mapping[str, Any]) -> list[str]:
+    """Why an item's own details cannot be a saved item's, by the catalog's rules; empty when they can.
+
+    These are the rules the content catalog itself applies when it reads a
+    saved Gesture or Reaction: a name of at most 120 characters, a
+    description of at most 4,096, a Selector ID matching the catalog's
+    pattern (dots and hyphens included), a tracked emotion and an intensity
+    from 1 to 4. A blank detail is not the item's yet and is not judged here.
+    Every detail must be storable text of bounded length, or a whole number.
+    """
+
+    limits = {"name": CATALOG_NAME_LENGTH, "ai_description": CATALOG_DESCRIPTION_LENGTH}
+    problems: list[str] = []
+    for name in DETAIL_FIELDS[intent]:
+        value = details.get(name)
+        if name == "intensity":
+            if type(value) is not int or value not in REACTION_INTENSITIES:
+                problems.append(f"intensity must be {_one_of(REACTION_INTENSITIES)}")
+            continue
+        if not isinstance(value, str) or not is_storable_text(value):
+            problems.append(f"{name} must be text")
+            continue
+        text = value.strip()
+        if len(text) > limits.get(name, CATALOG_STRING_LENGTH):
+            problems.append(f"{name} is longer than a saved item's may be")
+        elif text and name == "selector_id" and SEMANTIC_KEY_PATTERN.fullmatch(text) is None:
+            problems.append("selector_id is not a Selector ID the Library accepts")
+        elif text and name == "emotion" and text not in TRACKED_EMOTION_SET:
+            problems.append(f"emotion must be one of: {', '.join(TRACKED_EMOTIONS)}")
     return problems
 
 
@@ -271,13 +336,11 @@ def _one_of(values: tuple[int, ...]) -> str:
     return f"{', '.join(first)} or {last}"
 
 
-def draft_problems(
-    intent: Intent, clip: object, details: Mapping[str, Any], *, selector_in_use: SelectorInUse | None = None
-) -> list[str]:
-    """Why ``clip`` with ``details`` cannot be a draft of ``intent``: the clip's problems, then the details'.
+def timeline_problems(intent: Intent, clip: object) -> list[str]:
+    """Why ``clip`` cannot be the clip of a draft of ``intent``, whatever its details; empty when it can.
 
     Beyond ``clip_problems``, a Reaction's clip may hold no body field, and no
-    draft may hold timeline events yet. The list is bounded.
+    draft may hold timeline events yet.
     """
 
     problems = clip_problems(clip)
@@ -285,7 +348,25 @@ def draft_problems(
         if intent == "reaction":
             problems += reaction_body_problems(clip)
         problems += _event_problems(clip)
-    problems += detail_problems(intent, details, selector_in_use=selector_in_use)
+    return problems
+
+
+def draft_problems(
+    intent: Intent,
+    clip: object,
+    details: Mapping[str, Any],
+    *,
+    selector_in_use: SelectorInUse | None = None,
+    held: Collection[str] = (),
+) -> list[str]:
+    """Why ``clip`` with ``details`` cannot be a draft of ``intent``: the clip's problems, then the details'.
+
+    ``held`` names the details that are an open item's own, which a draft's
+    rules do not judge (``detail_problems``). The list is bounded.
+    """
+
+    problems = timeline_problems(intent, clip)
+    problems += detail_problems(intent, details, selector_in_use=selector_in_use, held=held)
     return bounded_problems(problems)
 
 
@@ -347,6 +428,9 @@ def clip_and_details(project: Mapping[str, Any]) -> tuple[JsonObject, JsonObject
 
 __all__ = [
     "ACTION_PROJECT_SCHEMA",
+    "CATALOG_DESCRIPTION_LENGTH",
+    "CATALOG_NAME_LENGTH",
+    "CATALOG_STRING_LENGTH",
     "DETAIL_FIELDS",
     "MAX_AI_DESCRIPTION_LENGTH",
     "MAX_CLIP_BYTES",
@@ -369,7 +453,10 @@ __all__ = [
     "clip_problems",
     "detail_problems",
     "draft_problems",
+    "held_detail_problems",
+    "held_details",
     "is_storable_text",
     "nests_deeper_than",
     "reaction_body_problems",
+    "timeline_problems",
 ]

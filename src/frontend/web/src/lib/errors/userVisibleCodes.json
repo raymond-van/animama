@@ -71,9 +71,11 @@
     "voice_preset_unavailable"
   ],
   "generation": [
+    "generation_document_invalid",
+    "generation_document_invalid_details",
+    "generation_document_invalid_timeline",
     "generation_draft_empty",
     "generation_draft_unloadable",
-    "generation_intent_unavailable",
     "generation_model_unusable",
     "generation_model_unusable_connection_inactive",
     "generation_model_unusable_context_too_small",

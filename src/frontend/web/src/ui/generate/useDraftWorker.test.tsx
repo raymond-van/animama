@@ -22,6 +22,7 @@ import {
   generationSnapshot,
   gestureProject,
   jsonResponse,
+  reactionProject,
   waveHelloClip,
 } from "./testing/generationFixtures";
 import {
@@ -731,6 +732,37 @@ describe("useDraftWorker", () => {
       expect(generationRunState(CONVERSATION).framesRequest).toBeNull();
       await settle();
       expect(render).toHaveBeenCalledTimes(1);
+    });
+
+    it("show the body for a Gesture and only the face for a Reaction", async () => {
+      const render = vi.fn<PreviewSheetRenderer>(async () => [sheet("Andrew")]);
+      preview.render = render;
+      const gesture = readyDraft();
+      const reaction = generationDraft({
+        id: "draft-2",
+        intent: "reaction",
+        position: 1,
+        status: "checking",
+        checked_version: 1,
+        project: reactionProject(),
+      });
+      await mount([gesture, reaction]);
+
+      requestFrames(gesture);
+      await settle();
+      requestFrames(reaction);
+      await settle();
+
+      expect(render.mock.calls.map(([request]) => request.view)).toEqual([
+        "body",
+        "face",
+      ]);
+      // A Reaction's rows are its beats too: the flash and the held face.
+      expect(render.mock.calls[1]![0].times).toEqual([0, 0.25]);
+      expect(server.frames.map(({ draftId }) => draftId)).toEqual([
+        "draft-1",
+        "draft-2",
+      ]);
     });
 
     it("are not drawn without a preview canvas, and the page can say so", async () => {

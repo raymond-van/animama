@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@animama/product-ui/chat";
@@ -394,6 +394,94 @@ function GenerateFailure({
 }
 
 /**
+ * What the next message does, above the request field: which draft it
+ * revises, with the way to a new draft instead, or that it writes a new one,
+ * with the choice of a Gesture or a Reaction where the page offers both.
+ */
+function GenerateComposerTarget({
+  hasDrafts,
+  revisedDraft,
+  onStartNewDraft,
+  newDraftKind,
+  disabled,
+}: {
+  hasDrafts: boolean;
+  revisedDraft: PyGenerationDraft | null;
+  onStartNewDraft: () => void;
+  newDraftKind?: {
+    value: "gesture" | "reaction";
+    onChange: (kind: "gesture" | "reaction") => void;
+  };
+  disabled: boolean;
+}) {
+  const { t } = useTranslation("generate");
+  const offersKind = Boolean(newDraftKind) && !revisedDraft;
+  if (!hasDrafts && !offersKind) return null;
+  return (
+    <div className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 px-1">
+      {hasDrafts ? (
+        <p
+          className="text-muted-foreground flex min-w-0 flex-1 items-center gap-2 text-xs"
+          data-testid="generate-revision-target"
+        >
+          {revisedDraft ? (
+            <>
+              <span className="min-w-0 flex-1 truncate">
+                {t("composer.revises", {
+                  name: draftName(revisedDraft) || t("drafts.unnamed"),
+                })}
+              </span>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto shrink-0 p-0 text-xs"
+                data-testid="generate-new-draft"
+                onClick={onStartNewDraft}
+              >
+                {t("composer.newDraftInstead")}
+              </Button>
+            </>
+          ) : (
+            <span>{t("composer.writesNew")}</span>
+          )}
+        </p>
+      ) : null}
+      {offersKind && newDraftKind ? (
+        <div
+          role="group"
+          aria-label={t("composer.kindLabel")}
+          data-testid="generate-draft-kind"
+          data-kind={newDraftKind.value}
+          className="border-border/70 ml-auto flex shrink-0 overflow-hidden rounded-md border"
+        >
+          {(["gesture", "reaction"] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={newDraftKind.value === kind}
+              disabled={disabled}
+              data-testid={`generate-kind-${kind}`}
+              onClick={() => newDraftKind.onChange(kind)}
+              className={cn(
+                "focus-visible:ring-ring/50 px-2 py-0.5 text-xs outline-none focus-visible:ring-[3px] disabled:opacity-60",
+                newDraftKind.value === kind
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {kind === "gesture"
+                ? t("composer.kind.gesture")
+                : t("composer.kind.reaction")}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * The conversation with the assistant: the transcript, what the run in flight
  * is doing, its questions and failure, and the request field with Send and,
  * during a run, Stop.
@@ -409,6 +497,8 @@ export function GenerateConversation({
   onChooseModel,
   framesStatus = "idle",
   autoFocus = false,
+  newDraftKind,
+  composerNote,
 }: {
   snapshot: PyGenerationConversationSnapshot | undefined;
   /** The conversation is being read for the first time. */
@@ -428,6 +518,21 @@ export function GenerateConversation({
   /** Where the review sheets of the run in flight stand. */
   framesStatus?: DraftFramesStatus;
   autoFocus?: boolean;
+  /**
+   * The kind of draft a new request writes, with its choice (R7.2). Offered
+   * while the next message writes a new draft; a revision keeps its draft's
+   * kind. Without it every new draft is a Gesture and no choice is shown.
+   */
+  newDraftKind?: {
+    value: "gesture" | "reaction";
+    onChange: (kind: "gesture" | "reaction") => void;
+  };
+  /**
+   * What stands above the request field in place of the line about which
+   * draft the next message revises: a creator's panel says what its requests
+   * work on.
+   */
+  composerNote?: ReactNode;
 }) {
   const { t } = useTranslation("generate");
   const { run, questions } = controller;
@@ -453,13 +558,18 @@ export function GenerateConversation({
   const overLimit = input.length > MAX_GENERATION_MESSAGE_LENGTH;
   const hasDrafts = (snapshot?.drafts.length ?? 0) > 0;
   const ready = Boolean(snapshot) && !loadFailed;
+  // A new draft is the kind chosen; a revision keeps its draft's own.
+  const writesKind = revisedDraft ? null : (newDraftKind?.value ?? null);
 
   const submit = () => {
     const message = input.trim();
     if (!message || overLimit || run.running || !ready) return;
     setInput("");
     void controller
-      .send(message, { draftId: revisedDraft?.id ?? null })
+      .send(message, {
+        draftId: revisedDraft?.id ?? null,
+        ...(writesKind ? { intent: writesKind } : {}),
+      })
       .then((started) => {
         // A request that was not taken goes back into the field.
         if (!started) setInput((current) => current || message);
@@ -567,34 +677,17 @@ export function GenerateConversation({
       </ChatTranscript>
 
       <div className="shrink-0 space-y-1.5 p-3 pt-2">
-        {hasDrafts ? (
-          <p
-            className="text-muted-foreground flex min-h-5 items-center gap-2 px-1 text-xs"
-            data-testid="generate-revision-target"
-          >
-            {revisedDraft ? (
-              <>
-                <span className="min-w-0 flex-1 truncate">
-                  {t("composer.revises", {
-                    name: draftName(revisedDraft) || t("drafts.unnamed"),
-                  })}
-                </span>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto shrink-0 p-0 text-xs"
-                  data-testid="generate-new-draft"
-                  onClick={onStartNewDraft}
-                >
-                  {t("composer.newDraftInstead")}
-                </Button>
-              </>
-            ) : (
-              <span>{t("composer.writesNew")}</span>
-            )}
-          </p>
-        ) : null}
+        {composerNote !== undefined ? (
+          composerNote
+        ) : (
+          <GenerateComposerTarget
+            hasDrafts={hasDrafts}
+            revisedDraft={revisedDraft}
+            onStartNewDraft={onStartNewDraft}
+            newDraftKind={newDraftKind}
+            disabled={run.running}
+          />
+        )}
         <ChatInput
           variant="default"
           value={input}
@@ -620,9 +713,11 @@ export function GenerateConversation({
             className="bg-transparent"
             aria-label={t("composer.label")}
             placeholder={
-              revisedDraft
+              revisedDraft || composerNote !== undefined
                 ? t("composer.revisePlaceholder")
-                : t("composer.placeholder")
+                : writesKind === "reaction"
+                  ? t("composer.placeholderReaction")
+                  : t("composer.placeholder")
             }
             data-testid="generate-request"
           />

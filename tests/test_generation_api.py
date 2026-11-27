@@ -17,6 +17,7 @@ import tempfile
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, MutableMapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,7 +28,7 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.requests import ClientDisconnect
 
@@ -38,7 +39,7 @@ from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.generation import check_report as report_limits, review_frames, run as pipeline, tools
-from animama.app.generation.deterministic_author import example_gesture_clip
+from animama.app.generation.deterministic_author import example_gesture_clip, example_reaction_clip
 from animama.app.generation.service import GenerationService
 from animama.app.model_clients import (
     ModelClientFinal,
@@ -63,7 +64,7 @@ from animama.domain.generation import GenerationConversation, GenerationDraft
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMMemoryEpisodeItem
 from animama.orm.content_catalog import ORMContentCatalogItem
-from animama.orm.generation import ORMGenerationConversation
+from animama.orm.generation import ORMGenerationConversation, ORMGenerationDraft
 from animama.orm.model_provider import ORMModelProvider
 from animama.orm.user_file import ORMUserFile
 from animama.product_http.inventory import ROUTES
@@ -75,7 +76,7 @@ from animama.server.model_clients import build_model_client_registry
 from animama.server.routers import generation as generation_routes, router as shared_router
 from animama.server.schemas.chat_history import PyChatSearchRequest
 from tests.anthropic_fakes import captured_anima_log_records
-from tests.content_package_helpers import package_services
+from tests.content_package_helpers import package_services, save_wave
 from tests.local_http_client import local_client
 from tests.route_support import served_routes
 from tests.test_generation_run import (
@@ -483,6 +484,9 @@ def test_no_generation_route_takes_instructions_tools_or_model_output(studio: _S
             "answer",
             "avatar_expressions",
             "reasoning_effort",
+            # The item open in a creator, which the run revises. It is the person's content, validated as a
+            # model's clip is; the instructions and the tools stay the backend's own.
+            "document",
         },
         ("PUT", "/v1/generation/drafts/{draft_id}/check-report"): {
             "version",
@@ -592,6 +596,204 @@ async def test_the_owner_lists_their_own_conversations_newest_first(studio: _Stu
     assert body["conversations"][1]["scope"] == {"kind": "page"}
     # The owner is the caller; no route names or returns one.
     assert studio.owner not in response.text and stranger not in response.text
+
+
+# --- Creator conversations that outlived their item (R6.4) -------------------------------------
+
+
+class _ShownLibrary:
+    """Product ports whose catalog holds, for each owner, a fixed set of Gesture and Reaction rows by id.
+
+    Enough for the rules about owners, runs and an unreadable Library; which
+    rows count as "still in the Library" is tested on the real catalog below.
+    """
+
+    def __init__(self, shown: dict[str, dict[ContentKind, set[str]]], *, broken: bool = False) -> None:
+        self.shown, self.broken = shown, broken
+        self.asked: list[tuple[str, tuple[str, ...]]] = []
+        self.catalog = self
+        self.before_answer: Callable[[], object] | None = None
+
+    @asynccontextmanager
+    async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[Any]:
+        if self.broken:
+            raise RuntimeError("the content root failed to start")
+        yield self
+
+    async def visible_items(self, *, item_ids: Any, user_id: str) -> dict[str, Any]:
+        self.asked.append((user_id, tuple(sorted(item_ids))))
+        if self.before_answer is not None:
+            self.before_answer()
+        rows = {item_id: kind for kind, ids in self.shown[user_id].items() for item_id in ids}
+        return {item_id: SimpleNamespace(kind=rows[item_id]) for item_id in item_ids if item_id in rows}
+
+
+async def _listed(studio: _Studio, owner: str | None = None, **options: Any) -> list[str]:
+    async with studio.factory() as session:
+        conversations = await composition.list_owner_conversations(
+            studio.app, session, RequestPrincipal(id=owner or studio.owner), **options
+        )
+    return [conversation.id for conversation in conversations]
+
+
+def _creator_scope(intent: str, item_id: str | None) -> dict[str, Any]:
+    return {"kind": "creator", "intent": intent, "catalog_item_id": item_id}
+
+
+async def test_listing_removes_a_creator_conversation_whose_item_is_gone(studio: _Studio) -> None:
+    async with studio.service() as service:
+        page = await service.create_conversation(studio.owner, PAGE)
+        kept = await service.create_conversation(studio.owner, _creator_scope("gesture", "wave"))
+        gone = await service.create_conversation(studio.owner, _creator_scope("gesture", "deleted-item"))
+        # An id is an item of its own kind: a Gesture's id is no Reaction.
+        other_kind = await service.create_conversation(studio.owner, _creator_scope("reaction", "wave"))
+        await service.create_draft(studio.owner, gone.id, "gesture")
+    studio.app.state.product_ports = _ShownLibrary({studio.owner: {ContentKind.GESTURE: {"wave"}}})
+
+    listed = await _listed(studio)
+
+    assert set(listed) == {page.id, kept.id}
+    async with local_client(studio.app) as client:
+        assert (await client.get(f"/v1/generation/conversations/{gone.id}")).status_code == 404
+        assert (await client.get(f"/v1/generation/conversations/{other_kind.id}")).status_code == 404
+        # The route lists what is left, and its drafts went with the conversation.
+        body = (await client.get("/v1/generation/conversations")).json()
+    assert {item["id"] for item in body["conversations"]} == {page.id, kept.id}
+    async with studio.factory() as session:
+        left = await session.execute(
+            select(func.count()).select_from(ORMGenerationDraft).where(ORMGenerationDraft.conversation_id == gone.id)
+        )
+    assert left.scalar_one() == 0
+
+
+async def test_listing_removes_an_unsaved_item_s_conversation_after_seven_days(studio: _Studio) -> None:
+    async with studio.service() as service:
+        page = await service.create_conversation(studio.owner, PAGE)
+        unsaved = await service.create_conversation(studio.owner, _creator_scope("reaction", None))
+    studio.app.state.product_ports = _ShownLibrary({studio.owner: {}})
+    now = datetime.now(UTC)
+
+    assert composition.UNSAVED_CONVERSATION_DAYS == 7
+    assert set(await _listed(studio, now=now + timedelta(days=6, hours=23))) == {page.id, unsaved.id}
+    assert await _listed(studio, now=now + timedelta(days=7, minutes=1)) == [page.id]
+    # The Generate page's own conversations are never removed for their age.
+    assert await _listed(studio, now=now + timedelta(days=400)) == [page.id]
+
+
+async def test_another_owner_s_item_does_not_keep_a_conversation_and_their_own_is_untouched(
+    studio: _Studio,
+) -> None:
+    neighbour = f"owner-{uuid4().hex}"
+    async with studio.service() as service:
+        mine = await service.create_conversation(studio.owner, _creator_scope("gesture", "their-wave"))
+        theirs = await service.create_conversation(neighbour, _creator_scope("gesture", "their-wave"))
+    library = _ShownLibrary({studio.owner: {}, neighbour: {ContentKind.GESTURE: {"their-wave"}}})
+    studio.app.state.product_ports = library
+
+    # The item is in the neighbour's Library, not in this owner's.
+    assert mine.id not in await _listed(studio)
+    assert await _listed(studio, neighbour) == [theirs.id]
+    assert {owner for owner, _ in library.asked} == {studio.owner, neighbour}
+
+
+@pytest.mark.parametrize("status", [ContentStatus.INVALID, ContentStatus.SCAN_REQUIRED, ContentStatus.MISSING])
+async def test_an_item_that_is_not_valid_now_keeps_its_conversation_and_a_deleted_one_loses_it(
+    studio: _Studio, async_session: AsyncSession, tmp_path: Path, status: ContentStatus
+) -> None:
+    """On the real catalog: a row that cannot be used now is still an item of the Library."""
+
+    owner = "package-owner"
+    _, _, content, saves, _ = package_services(async_session, tmp_path)
+
+    class _RealLibrary:
+        @asynccontextmanager
+        async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[Any]:
+            yield SimpleNamespace(catalog=content)
+
+    async def clean() -> None:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == owner))
+        await async_session.execute(
+            delete(ORMGenerationConversation).where(ORMGenerationConversation.owner_user_id == owner)
+        )
+        await async_session.commit()
+
+    await clean()
+    studio.app.state.product_ports = _RealLibrary()
+    try:
+        saved = await save_wave(saves)
+        await async_session.commit()
+        item_id = saved.item.id
+        async with studio.service() as service:
+            conversation = await service.create_conversation(owner, _creator_scope("gesture", item_id))
+            await service.add_message(owner, conversation.id, "user", "hold the end longer")
+            # The same id is no Reaction: that conversation belongs to nothing.
+            stray = await service.create_conversation(owner, _creator_scope("reaction", item_id))
+        assert await _listed(studio, owner) == [conversation.id]
+        assert stray.id not in await _listed(studio, owner)
+
+        # The Gesture's effect was deleted, a file is missing, or a change waits for a rescan: the row stays.
+        await async_session.execute(
+            update(ORMContentCatalogItem).where(ORMContentCatalogItem.id == item_id).values(status=status.value)
+        )
+        await async_session.commit()
+        usable = await TypedContentService(catalog=content._catalog, content=content).list_kind(
+            user_id=owner, kind=ContentKind.GESTURE
+        )
+        assert item_id not in {item.item.id for item in usable}
+        assert await _listed(studio, owner) == [conversation.id]
+        async with studio.service() as service:
+            assert len((await service.get_conversation(owner, conversation.id)).messages) == 1
+
+        # Deleted from the Library: now the conversation belongs to nothing.
+        await async_session.execute(
+            update(ORMContentCatalogItem).where(ORMContentCatalogItem.id == item_id).values(status="valid")
+        )
+        await async_session.commit()
+        await content.delete_item(item_id=item_id, user_id=owner, expected_revision=saved.item.revision_sha256)
+        await async_session.commit()
+        assert await _listed(studio, owner) == []
+    finally:
+        await clean()
+
+
+async def test_a_run_that_starts_while_the_library_is_read_keeps_every_conversation(studio: _Studio) -> None:
+    async with studio.service() as service:
+        page = await service.create_conversation(studio.owner, PAGE)
+        gone = await service.create_conversation(studio.owner, _creator_scope("gesture", "deleted-item"))
+    library = _ShownLibrary({studio.owner: {}})
+    studio.app.state.product_ports = library
+    runs = composition.generation_runtime(studio.app).runs
+    # The person sends a request while the listing waits on the Library.
+    library.before_answer = lambda: runs.start(studio.owner, gone.id)
+
+    assert set(await _listed(studio)) == {page.id, gone.id}
+    runs.finish(studio.owner, gone.id)
+    library.before_answer = None
+    assert await _listed(studio) == [page.id]
+
+
+async def test_listing_removes_nothing_during_a_run_or_without_the_library(studio: _Studio) -> None:
+    async with studio.service() as service:
+        page = await service.create_conversation(studio.owner, PAGE)
+        gone = await service.create_conversation(studio.owner, _creator_scope("gesture", "deleted-item"))
+        unsaved = await service.create_conversation(studio.owner, _creator_scope("gesture", None))
+    everything = {page.id, gone.id, unsaved.id}
+    later = datetime.now(UTC) + timedelta(days=30)
+
+    # This app has no content services, as a server whose content root failed to start has none.
+    assert set(await _listed(studio, now=later)) == everything
+    studio.app.state.product_ports = _ShownLibrary({studio.owner: {}}, broken=True)
+    assert set(await _listed(studio, now=later)) == everything
+
+    library = _ShownLibrary({studio.owner: {}})
+    studio.app.state.product_ports = library
+    runs = composition.generation_runtime(studio.app).runs
+    assert runs.start(studio.owner, page.id)
+    # A run is in flight on one of the owner's conversations: nothing is removed, and the Library is not asked.
+    assert set(await _listed(studio, now=later)) == everything and library.asked == []
+    runs.finish(studio.owner, page.id)
+    assert await _listed(studio, now=later) == [page.id]
 
 
 async def test_an_owner_without_conversations_gets_an_empty_list(studio: _Studio) -> None:
@@ -931,7 +1133,7 @@ async def test_questions_end_a_run_and_the_next_run_answers_them(studio: _Studio
     assert "ask_questions" not in _tool_names(request)
     snapshot = await studio.snapshot(conversation_id)
     assert snapshot["messages"][1]["data"]["questions"] == QUESTIONS
-    assert snapshot["messages"][2]["data"] == {"answers": answers}
+    assert snapshot["messages"][2]["data"] == {"intent": "gesture", "answers": answers}
 
 
 async def test_a_follow_up_run_revises_the_selected_draft_and_restore_returns_to_it(studio: _Studio) -> None:
@@ -1163,8 +1365,8 @@ class _SlowClosingSessions(_CountingSessions):
 
 @pytest.mark.parametrize(
     "body",
-    [{}, {"model_provider_id": "no-such-model"}, {"intent": "reaction"}],
-    ids=["no such conversation", "no such model", "an intent not offered"],
+    [{}, {"model_provider_id": "no-such-model"}, {"document": {"schema": "animamaActionProject/1.0"}}],
+    ids=["no such conversation", "no such model", "a document it may not take"],
 )
 async def test_a_refused_run_frees_its_conversation_once_and_never_another_requests_claim(
     studio: _Studio, body: dict[str, Any]
@@ -1347,13 +1549,47 @@ async def test_a_model_whose_client_this_server_does_not_have_is_refused(studio:
     assert (stream.status, stream.error()) == (422, {"code": "generation_model_unusable", "reason": "no_model_client"})
 
 
-async def test_a_reaction_is_refused_until_it_can_be_authored(studio: _Studio) -> None:
+async def test_a_reaction_run_and_a_creator_s_document_through_the_routes(
+    studio: _Studio, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANIMAMA_LLM_SKIP", "1")
+    studio.app.state.model_client_registry = build_model_client_registry()
     conversation = await studio.conversation()
 
-    stream = await studio.run(conversation.id, studio.body(intent="reaction"))
+    stream = await studio.run(
+        conversation.id,
+        studio.body(message="A happy little gasp", intent="reaction", model_provider_id=studio.rows["images"].id),
+    )
 
-    assert (stream.status, stream.error()) == (422, {"code": "generation_intent_unavailable"})
-    assert studio.model.seen == []
+    assert stream.status == 200 and _statuses(stream)[-1] == ("ready", 2)
+    draft = stream.of("draft.updated")[-1]["draft"]
+    assert (draft["intent"], draft["project"]["intent"]) == ("reaction", "reaction")
+    assert draft["project"]["sequence"]["expressions"] == example_reaction_clip()["expressions"]
+    assert draft["project"]["suggestedEmotion"] and draft["project"]["suggestedIntensity"] in (1, 2, 3, 4)
+
+    # The same Reaction, open in the Reaction creator and edited by hand, sent with a run on that item's
+    # conversation: the result starts from the document, not from anything stored.
+    async with studio.service() as service:
+        creator = await service.create_conversation(
+            studio.owner, {"kind": "creator", "intent": "reaction", "catalog_item_id": "item-9"}
+        )
+    edited = {**draft["project"], "sequence": {**draft["project"]["sequence"], "duration": 3.5}}
+    revised = await studio.run(creator.id, studio.body(message="Longer", document=edited))
+
+    assert revised.status == 200 and _statuses(revised)[-1] == ("ready", 2)
+    result = revised.of("draft.updated")[-1]["draft"]
+    assert result["intent"] == "reaction" and result["project"]["sequence"]["duration"] == pytest.approx(3.7)
+    # A document no draft could be is refused with its own code, before any run starts.
+    with_body = {**edited, "sequence": {**edited["sequence"], "plantFeet": True}}
+    refused = await studio.run(creator.id, studio.body(document=with_body))
+    # The refusal says which part is wrong: here, the timeline.
+    assert (refused.status, refused.error()) == (422, {"code": "generation_document_invalid", "reason": "timeline"})
+    unplaced = {**edited, "suggestedEmotion": "not-an-emotion"}
+    refused = await studio.run(creator.id, studio.body(document=unplaced))
+    assert (refused.status, refused.error()) == (422, {"code": "generation_document_invalid", "reason": "details"})
+    # So is a document on the Generate page's own conversation, which revises its stored drafts.
+    refused = await studio.run(conversation.id, studio.body(document=edited))
+    assert (refused.status, refused.error()) == (422, {"code": "generation_document_invalid", "reason": "document"})
 
 
 async def test_a_run_revises_only_a_draft_of_its_own_conversation(studio: _Studio) -> None:
@@ -2021,6 +2257,40 @@ async def test_the_library_reads_the_real_included_examples_through_the_catalog(
     finally:
         scanned = [f"builtin:gesture:{name}" for name in tools.EXAMPLE_NAMES] + [
             "builtin:avatar-effect:idea_bulb_fingertip"
+        ]
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.logical_key.in_(scanned)))
+        await async_session.commit()
+
+
+async def test_a_reaction_run_reads_the_real_included_reaction_examples(
+    async_session: AsyncSession, tmp_path: Path
+) -> None:
+    """A Reaction run's examples against the real content services, on the repository's own Reactions."""
+
+    owner = f"owner-{uuid4().hex}"
+    paths, catalog, content, _, _ = package_services(async_session, tmp_path)
+    included = REPOSITORY / "content/included"
+    (paths.included_root / "licenses").mkdir(parents=True, exist_ok=True)
+    shutil.copy(included / "licenses/inventory.json", paths.included_root / "licenses/inventory.json")
+    # The three examples, and the effect one of them plays: an item is listed only with its dependencies.
+    folders = [f"reactions/{name}" for name in tools.REACTION_EXAMPLE_NAMES] + ["vfx/avatar/pale_blue_shade"]
+    for folder in folders:
+        shutil.copytree(included / folder, paths.included_root / folder)
+    try:
+        await content.rescan(user_id=owner)
+        services = SimpleNamespace(typed=TypedContentService(catalog=catalog, content=content), catalog=content)
+
+        reaction_run = {"saved_item_id": None, "intent": "reaction"}
+        found = await composition.read_authoring_library(services, owner, **reaction_run)  # type: ignore[arg-type]
+
+        for name in tools.REACTION_EXAMPLE_NAMES:
+            assert found.example(name) == json.loads((included / "reactions" / name / f"{name}.json").read_text())
+        # A Reaction has no Selector ID, and a Gesture's example is not offered to a Reaction run.
+        assert found.selector_ids == frozenset() and found.example("wave-hello") is None
+    finally:
+        scanned = [f"builtin:reaction:{name}" for name in tools.REACTION_EXAMPLE_NAMES] + [
+            "builtin:avatar-effect:pale_blue_shade"
         ]
         await async_session.rollback()
         await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.logical_key.in_(scanned)))

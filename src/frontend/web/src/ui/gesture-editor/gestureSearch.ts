@@ -8,8 +8,8 @@ const componentTypes = new Set<ActionComponentType>([
 ]);
 
 /**
- * The new-Gesture route's search. `component` with `componentType` starts the
- * Gesture with an effect. `draft` with `conversation` opens a content
+ * The new-Gesture and new-Reaction routes' search. `component` with
+ * `componentType` starts the item with an effect. `draft` with `conversation` opens a content
  * assistant draft in the creator ("Open in creator"): a draft is read with
  * its conversation, so the link names both, and one without the other is
  * ignored.

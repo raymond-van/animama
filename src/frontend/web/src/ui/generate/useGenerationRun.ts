@@ -70,6 +70,12 @@ export function generationRunBody(input: {
   avatarExpressionNames?: readonly string[] | null;
   /** The names that count as ARKit shapes; the canonical 52 by default. */
   arkitNames?: Iterable<string>;
+  /**
+   * The item open in a creator, as an `animamaActionProject/1.0` project: the
+   * run revises it instead of a stored draft. Only a creator's conversation
+   * sends one.
+   */
+  document?: Record<string, unknown> | null;
 }): PyGenerationRunRequest {
   const { request } = input;
   const families = input.avatarExpressionNames
@@ -87,13 +93,14 @@ export function generationRunBody(input: {
       ? { reasoning_effort: input.reasoningEffort }
       : {}),
     ...(request.draftId ? { draft_id: request.draftId } : {}),
-    // A revision takes its draft's own kind; a new draft is a Gesture.
-    intent: "gesture",
+    // A revision takes its draft's own kind; a new draft is the kind asked for.
+    intent: request.intent ?? "gesture",
     ...(input.uiLocale ? { ui_locale: input.uiLocale } : {}),
     ...(request.answers ? { answers: request.answers } : {}),
     ...(families && Object.keys(families).length > 0
       ? { avatar_expressions: families }
       : {}),
+    ...(input.document ? { document: input.document } : {}),
   };
 }
 
@@ -148,7 +155,11 @@ export type GenerationRunController = {
    */
   send: (
     message: string,
-    options?: { draftId?: string | null },
+    options?: {
+      draftId?: string | null;
+      /** The kind of a new draft; a Gesture when left out. */
+      intent?: "gesture" | "reaction";
+    },
   ) => Promise<boolean>;
   /** Answer the pending questions, or skip them with `null`. */
   answer: (answers: readonly PyGenerationAnswer[] | null) => Promise<boolean>;
@@ -183,6 +194,16 @@ export function useGenerationRun(input: {
   avatarExpressionNames?: readonly string[] | null;
   /** The names that count as ARKit shapes on that Avatar. */
   arkitNames?: Iterable<string>;
+  /**
+   * What a creator's run starts from, read when the run starts (so a retry
+   * and an answer to questions send the item as it stands then): the item
+   * open in the creator as a project, or `null` for an empty one, and the
+   * conversation's draft the result is stored into. Returning `false` keeps
+   * the run from starting. The Generate page passes none.
+   */
+  creatorSource?: () =>
+    | { document: Record<string, unknown> | null; draftId: string | null }
+    | false;
 }): GenerationRunController {
   const { conversationId } = input;
   const apiClient = useProductApiClient();
@@ -219,15 +240,20 @@ export function useGenerationRun(input: {
   );
 
   const start = useCallback(
-    async (request: GenerationRunRequest): Promise<boolean> => {
+    async (asked: GenerationRunRequest): Promise<boolean> => {
       const { conversationId, modelProviderId, reasoningEffort, ...avatar } =
         inputRef.current;
       if (!conversationId || !modelProviderId) return false;
       if (
-        !request.message.trim() ||
-        request.message.length > MAX_GENERATION_MESSAGE_LENGTH
+        !asked.message.trim() ||
+        asked.message.length > MAX_GENERATION_MESSAGE_LENGTH
       )
         return false;
+      // A creator's run revises the item as it stands now, into the
+      // conversation's own draft.
+      const source = avatar.creatorSource?.();
+      if (source === false) return false;
+      const request = source ? { ...asked, draftId: source.draftId } : asked;
       if (!beginGenerationRun(conversationId, request)) return false;
       // The late reads of the run before would land in this one, where a
       // read can put back an older draft than the stream has delivered.
@@ -255,6 +281,7 @@ export function useGenerationRun(input: {
             uiLocale: activeUiLocale(),
             avatarExpressionNames: avatar.avatarExpressionNames,
             arkitNames: avatar.arkitNames,
+            document: source ? source.document : null,
           }),
           signal: controller.signal,
         });
@@ -356,6 +383,7 @@ export function useGenerationRun(input: {
       start({
         message: message.trim(),
         draftId: options?.draftId ?? null,
+        ...(options?.intent ? { intent: options.intent } : {}),
         answers: null,
       }),
     [start],

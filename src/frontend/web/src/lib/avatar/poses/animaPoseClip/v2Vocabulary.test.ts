@@ -13,6 +13,7 @@ import vocabulary from "./fixtures/v2-vocabulary.json";
 import {
   ANIMA_POSE_CLIP_EASES,
   ANIMA_POSE_CLIP_V2_CONTACT_SOLVE,
+  ANIMA_POSE_CLIP_V2_FIELDS,
   ANIMA_POSE_CLIP_V2_LIMITS,
   ANIMA_POSE_CLIP_V2_MIN_SPACING,
   ANIMA_POSE_CLIP_V2_VALUE_BOUNDS,
@@ -50,6 +51,7 @@ describe("animaPoseClip/2.0 shared vocabulary", () => {
       labelLength: ANIMA_POSE_CLIP_V2_LIMITS.labelLength,
     });
     expect(vocabulary.valueBounds).toEqual(ANIMA_POSE_CLIP_V2_VALUE_BOUNDS);
+    expect(vocabulary.clipFields).toEqual(ANIMA_POSE_CLIP_V2_FIELDS);
   });
 
   it("offsets only components of each digit's finger joints", () => {

@@ -1,14 +1,41 @@
 {
   "composer": {
+    "kind": {
+      "gesture": "动作",
+      "reaction": "反应"
+    },
+    "kindLabel": "新草稿的类型",
     "label": "给助手的请求",
     "newDraftInstead": "改为写一份新草稿",
     "placeholder": "描述一个动作…",
+    "placeholderReaction": "描述一个反应…",
     "revisePlaceholder": "说说要改什么…",
     "revises": "下一条消息将修改“{{name}}”。",
     "send": "发送请求",
     "stop": "停止助手",
     "tooLong": "请将请求缩短到 {{max}} 个字符以内。",
     "writesNew": "下一条消息将写一份新草稿。"
+  },
+  "creator": {
+    "appliesPose": "发送请求会切换到片段，结果将在那里播放。你修改过的关键帧姿势会先被应用。尚未保存的独立姿势需要先保存、丢弃或添加到时间轴。",
+    "changedMeanwhile": "助手工作期间时间轴发生了变化，因此未应用其结果，并已停止助手。请重新发送请求，以便基于当前的时间轴工作。",
+    "close": "关闭助手",
+    "keepsEffects": "时间轴上的特效和音效保持不变。",
+    "notApplied": "无法将助手的结果应用到此项目。",
+    "open": "生成",
+    "openGenerate": "打开生成",
+    "poseDraft": "姿势模式中有尚未保存的姿势，助手的结果会将其替换，因此没有发送或应用任何内容。请保存该姿势、将其丢弃或添加到时间轴，然后重新发送请求。",
+    "revises": {
+      "gesture": "你的请求会修改此处打开的动作。撤销可恢复原样。",
+      "reaction": "你的请求会修改此处打开的反应。撤销可恢复原样。"
+    },
+    "running": "助手工作期间请保持时间轴不变。如果时间轴在此期间发生变化，结果将不会被应用。",
+    "setup": "助手需要先有模型才能在这里工作。请在生成页面选择一个模型。",
+    "title": "助手",
+    "writes": {
+      "gesture": "你的请求将写出这个新动作。",
+      "reaction": "你的请求将写出这个新反应。"
+    }
   },
   "drafts": {
     "actions": {
@@ -31,6 +58,11 @@
     },
     "emptyDescription": "请助手写一个动作。每份草稿都会连同检查结果显示在这里，可以播放、修改或保存。",
     "emptyTitle": "还没有草稿",
+    "kind": {
+      "gesture": "动作",
+      "reaction": "反应",
+      "reactionPlaced": "反应 · {{emotion}} · {{intensity}}"
+    },
     "loadFailed": "无法加载草稿。",
     "loading": "正在加载草稿…",
     "openSaved": "打开已保存的项目",

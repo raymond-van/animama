@@ -1291,13 +1291,23 @@ reasons for the split are in
   written to first. Each is `{id, title, scope, style_preset, created_at,
   updated_at}`; `scope` is `{kind: "page"}` or `{kind: "creator", intent,
   catalog_item_id}`, and `title` is the person's first message on one line,
-  cut to 80 characters (empty until they send one).
+  cut to 80 characters (empty until they send one). A creator's conversation
+  that outlived what it belongs to is removed first, with its messages and
+  drafts: one whose `catalog_item_id` is no longer the id of a Gesture or
+  Reaction (by its `intent`) among the caller's catalog rows, and one with no
+  `catalog_item_id` (an unsaved item) that was not written to for seven days.
+  The row's scan status does not matter: an item that is invalid, misses a
+  file or a dependency, or waits for a rescan still exists and keeps its
+  conversation. Nothing is removed while a run is in flight on any of the
+  caller's conversations (checked again before each removal), or while the
+  Library cannot be read, and a `page` conversation is never removed this
+  way.
 - `POST /v1/generation/conversations` (`201`): `{scope}` starts an empty
   conversation.
 - `GET /v1/generation/conversations/{conversation_id}`: `{conversation,
   messages, drafts, usage}`. A message is `{id, role, text, data,
-  created_at}`; `data` holds what the turn carried besides text (`draft_id`
-  and `answers` on the person's turn; `run_id`, `outcome`, `usage`, `model`,
+  created_at}`; `data` holds what the turn carried besides text (`intent`,
+  `draft_id` and `answers` on the person's turn; `run_id`, `outcome`, `usage`, `model`,
   and where they apply `cost`, `draft_id`, `questions` and `error` on the
   assistant's). A draft is described under [Drafts](#drafts) and `usage`
   under [Token use and cost](#token-use-and-cost). With no run in flight, a
@@ -1348,10 +1358,41 @@ the status.
 ### Runs
 
 The run body is `{message, model_provider_id, draft_id?, intent?, ui_locale?,
-answers?, avatar_expressions?, reasoning_effort?}`. `message` is 1 to 4,000
-characters. With
-`draft_id` the run revises that draft; without it, it writes a new draft of
-`intent` (`gesture`; `reaction` returns `422 generation_intent_unavailable`).
+answers?, avatar_expressions?, reasoning_effort?, document?}`. `message` is 1
+to 4,000 characters. With
+`draft_id` the run revises that draft, keeping its kind; without it, it writes
+a new draft of `intent` (`gesture`, the default, or `reaction`). A Reaction's
+clip may hold no field that moves the body, and its details are `emotion` (a
+tracked emotion) and `intensity` (1 to 4).
+
+A conversation whose scope is `creator` authors its item's kind whatever
+`intent` says, and its run may carry `document`: the item open in the creator
+as an `animamaActionProject/1.0` project. The run then revises that document
+instead of a stored project, and stores the result in `draft_id`'s draft, or
+in a new draft without one. Nothing of the document is kept that the backend
+does not know:
+
+- **The clip** keeps only the fields the 2.0 format defines (`V2_CLIP_FIELDS`,
+  the list the frontend parser shares through the vocabulary fixture). Its
+  `id` and `name` are derived from the item's name, not taken from the
+  caller. It then passes the validation a model's clip passes (size, depth,
+  structure, at most 60 seconds, no body field in a Reaction, no timeline
+  event, no playback lifetime), and no string in it may exceed 512
+  characters.
+- **The details the item has** are held to the catalog's rules for a saved
+  item, not a draft's: a name of at most 120 characters, a description of at
+  most 4,096, a Selector ID the catalog accepts (dots and hyphens included),
+  a tracked emotion and an intensity from 1 to 4. No pass may change them:
+  the tools do not offer those fields and ignore them in a call. A blank
+  detail is not the item's yet; a pass writes it, under a draft's rules.
+
+Otherwise the answer is `422 generation_document_invalid` with `reason`:
+`timeline`, `details`, or `document` for a wrong project schema or kind and
+for a document on a conversation that is not a creator's.
+
+Every pass that works on a draft (revise, repair, review) gives the model the
+draft's details and clip inside one tagged data block with `<` escaped, which
+the instructions define as data and never as instructions.
 `answers` is `{skipped}` or `{answers: [{question, answer}]}` for the questions
 the assistant last asked, with the request they were about sent again as
 `message`; questions are asked once for a request, a request that follows them
@@ -1386,8 +1427,8 @@ No other model is used instead. `reasoning_effort` must be a level the model
 can run a pass at: one its row lists, and one its route takes with function
 tools (OpenAI's Chat Completions takes them on GPT-5.4 and later at `none`
 only). Otherwise the answer is `422 generation_reasoning_effort_unsupported`.
-A draft to revise must belong to the conversation (`404`) and hold a project
-(`409 generation_draft_empty`).
+A draft to revise must belong to the conversation (`404`) and, without a
+`document`, hold a project (`409 generation_draft_empty`).
 
 The response is `text/event-stream`. Each frame has an `event` name and JSON
 `data`; a comment line (`: heartbeat`) follows every 15 seconds of silence.

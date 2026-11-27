@@ -186,7 +186,12 @@ export const ANIMA_POSE_CLIP_V2_CONTACT_SOLVE = {
   maxBlendSeconds: 2,
 } as const;
 
-const KNOWN_FIELDS = new Set([
+/**
+ * The top-level fields the 2.0 format defines. The shared vocabulary fixture
+ * lists the same fields for the backend, which keeps only these of a clip
+ * that did not come from a file.
+ */
+export const ANIMA_POSE_CLIP_V2_FIELDS: readonly string[] = [
   "schema",
   "id",
   "name",
@@ -207,7 +212,9 @@ const KNOWN_FIELDS = new Set([
   "expressions",
   "contacts",
   "events",
-]);
+];
+
+const KNOWN_FIELDS = new Set(ANIMA_POSE_CLIP_V2_FIELDS);
 
 export const ANIMA_POSE_CLIP_EASES: ReadonlySet<string> = new Set<string>([
   "smooth",

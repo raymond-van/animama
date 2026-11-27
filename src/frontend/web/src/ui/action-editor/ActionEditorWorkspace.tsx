@@ -56,7 +56,6 @@ import {
   type CreatorHistoryController,
 } from "@/ui/creator-history/CreatorHistory";
 import {
-  buildActionEditorPose,
   ActionEditorBoneSection,
   ActionEditorClipInspector,
   ActionEditorClipPreviewSync,
@@ -65,6 +64,7 @@ import {
   replaceActionEditorPose,
 } from "./ActionEditorPrimitives";
 import {
+  commitActionEditorInlineKeyframe,
   editActionEditorSavedPose,
   insertActionEditorSavedPose,
   setActionEditorAuthoringMode,
@@ -96,6 +96,8 @@ import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreator
 import { samplePoseCreatorDraft } from "@/ui/pose-creator/poseCreatorClipMotion";
 import { samplePoseCreatorClipExpressions } from "@/ui/pose-creator/poseCreatorClipPreview";
 import { useActionEditorDesktopLayout } from "./useActionEditorDesktopLayout";
+import { CreatorGenerateControl } from "@/ui/generate/creator/CreatorGenerateControl";
+import { GenerationPreviewRendererBridge } from "@/ui/generate/GenerationPreviewRendererBridge";
 
 /** Capture a keyframe before entering inline editing at an unselected playhead. */
 export function captureActionEditorPoseAtPlayhead(): boolean {
@@ -414,20 +416,7 @@ function ActionEditorWorkspaceContent() {
   ]);
 
   const applyInlineKeyframe = () => {
-    const state = usePoseCreatorStore.getState();
-    const edit = state.clipInlineEdit;
-    if (!edit) return;
-    const pose = buildActionEditorPose(
-      state.boneDrafts,
-      state.expressionDrafts,
-      {
-        id: edit.alias,
-        name: `Keyframe ${edit.alias}`,
-        parentPose: state.clipDraft.basePose,
-      },
-    );
-    if (!pose) return;
-    state.commitClipInlinePoseEdit(pose);
+    commitActionEditorInlineKeyframe();
   };
 
   const updateTimeline = (sequence: Record<string, unknown>) => {
@@ -567,7 +556,11 @@ function ActionEditorWorkspaceContent() {
       {timelineBased ? (
         desktopLayout ? (
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            <ActionEditorScene capabilities={capabilities} />
+            <ActionEditorScene capabilities={capabilities}>
+              {/* Lends the canvas to the assistant's frame review sheets. */}
+              <GenerationPreviewRendererBridge />
+            </ActionEditorScene>
+            <CreatorGenerateControl bottom={timelinePanelBottom + 8} />
             {workspace.mode === "pose" ? (
               <div
                 ref={handStageRef}

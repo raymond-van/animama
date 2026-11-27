@@ -1538,6 +1538,11 @@ export const getGeminiVoiceSampleV1GeminiVoicesVoiceSampleGet = <ThrowOnError ex
  * List Generation Conversations
  *
  * Return the caller's assistant conversations, the most recently written to first.
+ *
+ * A creator's conversation that outlived what it belongs to is removed
+ * first: one whose item is no longer in the caller's Library, and one about
+ * an unsaved item that was not written to for seven days
+ * (``list_owner_conversations``).
  */
 export const listGenerationConversationsV1GenerationConversationsGet = <ThrowOnError extends boolean = false>(options?: Options<ListGenerationConversationsV1GenerationConversationsGetData, ThrowOnError>) => (options?.client ?? client).get<ListGenerationConversationsV1GenerationConversationsGetResponses, unknown, ThrowOnError>({
     requestValidator: async (data) => await zListGenerationConversationsV1GenerationConversationsGetData.parseAsync(data),

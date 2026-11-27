@@ -104,9 +104,11 @@
     "voice_preset_unavailable": "利用可能な PocketTTS の音声を選んでください。"
   },
   "generation": {
+    "generation_document_invalid": "このアイテムは現在の状態ではアシスタントで扱えません。タイムラインに問題がないか確認して、もう一度お試しください。",
+    "generation_document_invalid_details": "名前、説明、セレクター ID、または推奨の感情に問題があるため、アシスタントはこのアイテムを扱えません。確認してからもう一度お試しください。",
+    "generation_document_invalid_timeline": "このアイテムのタイムラインは現在の状態ではアシスタントで扱えません。タイムラインに問題がないか確認して、もう一度お試しください。",
     "generation_draft_empty": "この下書きにはまだ修正できる内容がありません。新しいリクエストを送ってください。",
     "generation_draft_unloadable": "この下書きは再生できないため、保存できません。もう一度依頼するか、修正を依頼してください。",
-    "generation_intent_unavailable": "現在、アシスタントが作成できるのはジェスチャーのみです。",
     "generation_model_unusable": "選択したモデルはアシスタントで使用できません。別のモデルを選んでください。",
     "generation_model_unusable_connection_inactive": "選択したモデルの接続がオフになっています。アプリ設定でオンにするか、別のモデルを選んでください。",
     "generation_model_unusable_context_too_small": "選択したモデルのコンテキストウィンドウは、アシスタントには小さすぎます。別のモデルを選んでください。",

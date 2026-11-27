@@ -11,6 +11,7 @@ import {
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import {
+  buildPoseCreatorBakedAnimaPose,
   createUniquePoseCreatorBranchName,
   replacePoseCreatorDraftWithAnimaPose,
 } from "@/ui/pose-creator/poseCreatorAuthoring";
@@ -159,4 +160,49 @@ export function setActionEditorAuthoringMode(mode: ActionEditorMode): void {
       state.isDirty ||
       state.clipDraft.keyframes.length === 0);
   state.setAuthoringMode(resumePose ? "pose" : "clip");
+}
+
+/**
+ * Commit the pose being edited in Pose mode into the timeline's keyframe, as
+ * leaving Pose mode does. Until then the edit lives only in the pose editor's
+ * drafts: the timeline, the document and the creator's history do not hold
+ * it. Returns whether there was an edit to commit.
+ */
+export function commitActionEditorInlineKeyframe(): boolean {
+  const state = usePoseCreatorStore.getState();
+  const edit = state.clipInlineEdit;
+  if (!edit) return false;
+  const pose = buildPoseCreatorBakedAnimaPose(
+    state.boneDrafts,
+    state.expressionDrafts,
+    {
+      id: edit.alias,
+      name: `Keyframe ${edit.alias}`,
+      parentPose: state.clipDraft.basePose,
+    },
+  );
+  if (!pose) return false;
+  state.commitClipInlinePoseEdit(pose);
+  return true;
+}
+
+/**
+ * What the pose editor holds that replacing the timeline would lose, if
+ * anything.
+ *
+ * - `pose_draft`: an unsaved pose of its own (the standalone pose editor: a
+ *   new pose, or a Library Pose being edited). It is on no keyframe, so it
+ *   cannot be committed to the timeline for the person; hydrating a new
+ *   timeline discards it.
+ * - `keyframe_edit`: a keyframe's pose that was changed and not yet applied.
+ *   It can be committed (`commitActionEditorInlineKeyframe`).
+ */
+export function pendingActionEditorPoseEdit():
+  | "pose_draft"
+  | "keyframe_edit"
+  | null {
+  const state = usePoseCreatorStore.getState();
+  if (state.clipInlineEdit)
+    return state.clipInlineEdit.isDirty ? "keyframe_edit" : null;
+  return state.isDirty ? "pose_draft" : null;
 }

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   MAX_REVIEW_SHEET_ROWS,
   renderIncludedAvatarReviewSheets,
+  reviewSheetColumns,
 } from "./reviewSheet";
 import wave from "../../../../../../../content/included/gestures/wave-hello/wave-hello.json";
 
@@ -52,5 +53,34 @@ describe("renderIncludedAvatarReviewSheets", () => {
     const refused = request([0, 1], { ...wave, beats: [] });
     await expect(refused.sheets).rejects.toThrow("animaPoseClip/2.0");
     expect(refused.avatarFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("reviewSheetColumns", () => {
+  it("keeps a Gesture's four views as they were", () => {
+    expect(reviewSheetColumns("right")).toEqual([
+      { name: "front", angle: 0, face: false },
+      { name: "3/4 right", angle: -Math.PI / 4, face: false },
+      { name: "right side", angle: -Math.PI / 2, face: false },
+      { name: "face", angle: 0, face: true },
+    ]);
+    expect(reviewSheetColumns("left", "body").map(({ name }) => name)).toEqual([
+      "front",
+      "3/4 left",
+      "left side",
+      "face",
+    ]);
+    expect(reviewSheetColumns("right", "hands")).toHaveLength(4);
+  });
+
+  it("gives a Reaction face close-ups only: the front and three-quarters", () => {
+    const columns = reviewSheetColumns("right", "face");
+    expect(columns).toEqual([
+      { name: "face", angle: 0, face: true },
+      { name: "face 3/4 right", angle: -Math.PI / 4, face: true },
+    ]);
+    // No column shows the body, and the front face is the Gesture sheet's own.
+    expect(columns.every((column) => column.face)).toBe(true);
+    expect(columns[0]).toEqual(reviewSheetColumns("right").at(-1));
   });
 });

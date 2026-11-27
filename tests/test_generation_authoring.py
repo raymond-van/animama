@@ -17,7 +17,13 @@ from typing import Any, get_args
 import pytest
 
 from animama.app.generation import clip_edits, draft_validation as validation, prompts, tools
-from animama.app.generation.deterministic_author import DeterministicAuthor, example_gesture_clip
+from animama.app.generation.deterministic_author import (
+    EXAMPLE_REACTION_EMOTION,
+    EXAMPLE_REACTION_INTENSITY,
+    DeterministicAuthor,
+    example_gesture_clip,
+    example_reaction_clip,
+)
 from animama.app.model_clients import ModelClientToolCall
 from animama.app.services.content_kind_registry import SEMANTIC_KEY_PATTERN
 from animama.domain.emotions import TRACKED_EMOTIONS
@@ -1173,6 +1179,85 @@ def test_a_working_draft_starts_from_a_stored_project() -> None:
 
 
 # --- The deterministic author -------------------------------------------------------
+
+
+def test_read_example_returns_only_the_listed_reactions_for_a_reaction() -> None:
+    included = REPOSITORY / "content/included/reactions"
+    asked: list[str] = []
+
+    def reader(name: str) -> dict[str, Any] | None:
+        asked.append(name)
+        clip: dict[str, Any] = json.loads((included / name / f"{name}.json").read_text(encoding="utf-8"))
+        return clip
+
+    draft = tools.WorkingDraft(intent="reaction")
+
+    def read(name: Any) -> tools.ToolReply:
+        return tools.run_tool(
+            draft, _call("read_example", {"name": name}), tools.offered_tools("write"), example_reader=reader
+        )
+
+    assert tools.REACTION_EXAMPLE_NAMES == ("joy-1", "curiosity-1", "fear-2-b")
+    assert tools.example_names("reaction") == tools.REACTION_EXAMPLE_NAMES
+    assert tools.example_names("gesture") == tools.EXAMPLE_NAMES
+    for name in tools.REACTION_EXAMPLE_NAMES:
+        reply = read(name)
+        shown = json.loads(reply.output)
+        assert reply.problems == []
+        # What is shown is a Reaction a draft could be: no effect, no lifetime, and nothing a draft is refused for.
+        assert not {"events", "playback", "role"} & set(shown) and shown["expressions"]
+        assert validation.draft_problems("reaction", shown, REACTION_DETAILS) == [], name
+    # The examples show both shapes the guidance names: one beat, and a pop that settles.
+    assert [beat["id"] for beat in json.loads(read("joy-1").output)["beats"]] == ["peak"]
+    assert [beat["id"] for beat in json.loads(read("fear-2-b").output)["beats"]] == ["pop", "settle"]
+    # A Gesture's example is not a Reaction's, and a name is never a path.
+    for refused in ("wave-hello", "joy-2", "../joy-1", "", None):
+        assert read(refused).problems == ["name must be one of: joy-1, curiosity-1, fear-2-b"]
+    assert tools.tool_definition("read_example", "reaction")["function"]["parameters"]["properties"]["name"] == {
+        "type": "string",
+        "enum": ["joy-1", "curiosity-1", "fear-2-b"],
+    }
+    assert "Included Reaction" in tools.tool_definition("read_example", "reaction")["function"]["description"]
+    assert draft.outcome is None and draft.clip is None
+
+
+def test_the_packaged_example_reaction_is_a_face_only_draft() -> None:
+    assert files("animama.resources").joinpath("generation-example-reaction.json").is_file()
+    clip = example_reaction_clip()
+    details = {"name": "Example", "emotion": EXAMPLE_REACTION_EMOTION, "intensity": EXAMPLE_REACTION_INTENSITY}
+
+    assert validation.draft_problems("reaction", clip, details) == []
+    assert validation.reaction_body_problems(clip) == [] and "events" not in clip and "loop" not in clip
+    # Parts only, as the guidance asks, and no whole-face preset.
+    assert all(name.startswith(("Fcl_BRW_", "Fcl_EYE_", "Fcl_MTH_")) for name in clip["expressions"])
+    assert [beat["id"] for beat in clip["beats"]] == ["pop", "settle"]
+    clip["duration"] = 99
+    assert example_reaction_clip()["duration"] != 99
+
+
+def test_the_deterministic_author_writes_a_valid_reaction_and_revises_it() -> None:
+    author = DeterministicAuthor()
+
+    call = author.write("  a happy little gasp ", intent="reaction")
+
+    draft = tools.WorkingDraft(intent="reaction")
+    assert tools.run_tool(draft, call, tools.offered_tools("write")).problems == []
+    assert draft.outcome == "submitted" and draft.clip == example_reaction_clip()
+    assert draft.details == {
+        "name": "A happy little gasp",
+        "emotion": EXAMPLE_REACTION_EMOTION,
+        "intensity": EXAMPLE_REACTION_INTENSITY,
+    }
+    assert json.loads(author.write("", intent="reaction").arguments)["name"] == "Example Reaction"
+    # A Gesture's write is unchanged by the new argument.
+    assert author.write("a nod", intent="gesture") == author.write("a nod")
+
+    revising = tools.WorkingDraft.from_project(draft.project())
+    assert tools.run_tool(revising, author.revise(draft.project()), tools.offered_tools("revise")).problems == []
+    assert revising.intent == "reaction" and revising.outcome == "edited" and revising.clip is not None
+    assert revising.clip["duration"] == pytest.approx(example_reaction_clip()["duration"] + 0.2)
+    assert revising.clip["beats"][-1]["time"] == pytest.approx(0.45)
+    assert validation.draft_problems("reaction", revising.clip, revising.details) == []
 
 
 def test_the_packaged_example_is_a_small_valid_gesture() -> None:

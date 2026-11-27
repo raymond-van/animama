@@ -284,7 +284,12 @@ class PyGenerationRunRequest(_Request):
 
     ``message`` is the person's own words. With ``answers``, it is the request
     the questions were about, sent again. ``draft_id`` names the draft to
-    revise; without it the run writes a new draft of ``intent``.
+    revise; without it the run writes a new draft of ``intent``. A creator's
+    conversation authors its item's kind whatever ``intent`` says, and may
+    send ``document``: the item open in the creator as an
+    ``animamaActionProject/1.0`` project, which the run then revises (into
+    ``draft_id``'s draft, or a new one). Its clip is validated as a model's
+    is before any pass reads it.
     ``avatar_expressions`` maps a family (as the page groups them) to the
     names of the chosen preview Avatar's expressions: names only, which reach
     the model as data. ``reasoning_effort`` is one of the model row's listed
@@ -310,6 +315,7 @@ class PyGenerationRunRequest(_Request):
     reasoning_effort: (
         Annotated[str, StringConstraints(min_length=1, max_length=MAX_REASONING_EFFORT_LENGTH), _Storable] | None
     ) = None
+    document: dict[str, Any] | None = None
 
 
 # --- What the page reports ------------------------------------------------------------

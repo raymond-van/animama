@@ -6,6 +6,7 @@ import {
   draftCanBeRevised,
   draftLeftUnchecked,
   draftName,
+  draftReactionPlacement,
   draftSequence,
   parseGenerationQuestions,
   pendingGenerationQuestions,
@@ -14,6 +15,7 @@ import {
   generationDraft,
   generationMessage,
   generationSnapshot,
+  reactionProject,
 } from "./testing/generationFixtures";
 
 describe("parseGenerationQuestions", () => {
@@ -331,5 +333,45 @@ describe("a draft's project", () => {
     expect(draftName(generationDraft({ project: null }))).toBe("");
     expect(draftSequence(generationDraft({ project: { name: 3 } }))).toBeNull();
     expect(draftName(generationDraft({ project: { name: 3 } }))).toBe("");
+  });
+});
+
+describe("a Reaction draft", () => {
+  it("answers questions about a new Reaction as a Reaction", () => {
+    const pending = pendingGenerationQuestions({
+      messages: [
+        generationMessage({ data: { intent: "reaction" } }),
+        generationMessage({
+          id: "message-2",
+          role: "assistant",
+          text: "",
+          data: {
+            outcome: "questions",
+            questions: [{ question: "How strong?", options: ["Mild"] }],
+          },
+        }),
+      ],
+    });
+    expect(pending?.request).toEqual({
+      message: generationMessage().text,
+      draftId: null,
+      intent: "reaction",
+    });
+  });
+
+  it("says where it suggests it fits, when its project names both", () => {
+    const reaction = (project: Record<string, unknown> | null) =>
+      draftReactionPlacement({ intent: "reaction", project });
+    expect(reaction(reactionProject())).toEqual({
+      emotion: "joy",
+      intensity: 2,
+    });
+    expect(reaction(reactionProject({ suggestedEmotion: "" }))).toBeNull();
+    expect(reaction(reactionProject({ suggestedEmotion: "alarm" }))).toBeNull();
+    expect(reaction(reactionProject({ suggestedIntensity: 5 }))).toBeNull();
+    expect(reaction(null)).toBeNull();
+    expect(
+      draftReactionPlacement({ intent: "gesture", project: reactionProject() }),
+    ).toBeNull();
   });
 });

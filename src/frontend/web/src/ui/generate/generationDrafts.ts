@@ -3,6 +3,11 @@ import type {
   PyGenerationDraft,
   PyGenerationMessage,
 } from "@animama/runtime-contracts/api-types";
+import {
+  REACTION_INTENSITIES,
+  type EmotionReactionIntensity,
+} from "@/lib/avatar/reactionPools";
+import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { isRecord } from "@/lib/records";
 
 /**
@@ -19,7 +24,12 @@ export type GenerationQuestion = { question: string; options: string[] };
 export type PendingGenerationQuestions = {
   questions: GenerationQuestion[];
   /** Sent again, with the answers, by the run that answers them. */
-  request: { message: string; draftId: string | null };
+  request: {
+    message: string;
+    draftId: string | null;
+    /** The kind the request asked for, where the turn recorded one. */
+    intent?: "gesture" | "reaction";
+  };
 };
 
 /** Read a `questions` payload; entries without question text are dropped. */
@@ -84,12 +94,17 @@ export function pendingGenerationQuestions(
     .slice(0, index)
     .findLast((message: PyGenerationMessage) => message.role === "user");
   if (!asked) return null;
-  const draftId = isRecord(asked.data) ? asked.data.draft_id : null;
+  const data = isRecord(asked.data) ? asked.data : {};
+  const draftId = data.draft_id;
   return {
     questions,
     request: {
       message: asked.text,
       draftId: typeof draftId === "string" && draftId ? draftId : null,
+      // The answering run writes the kind the questions were about.
+      ...(data.intent === "reaction" || data.intent === "gesture"
+        ? { intent: data.intent }
+        : {}),
     },
   };
 }
@@ -157,4 +172,22 @@ export function draftSequence(
 export function draftName(draft: Pick<PyGenerationDraft, "project">): string {
   const name = isRecord(draft.project) ? draft.project.name : null;
   return typeof name === "string" ? name.trim() : "";
+}
+
+/**
+ * Where a Reaction draft suggests it fits: its emotion and intensity, read
+ * from its project. `null` for a Gesture, and for a Reaction whose project
+ * names no tracked emotion or no intensity from 1 to 4.
+ */
+export function draftReactionPlacement(
+  draft: Pick<PyGenerationDraft, "project" | "intent">,
+): { emotion: TrackedEmotion; intensity: EmotionReactionIntensity } | null {
+  if (draft.intent !== "reaction" || !isRecord(draft.project)) return null;
+  const emotion = TRACKED_EMOTIONS.find(
+    (tracked) => tracked === draft.project!.suggestedEmotion,
+  );
+  const intensity = REACTION_INTENSITIES.find(
+    (level) => level === draft.project!.suggestedIntensity,
+  );
+  return emotion && intensity ? { emotion, intensity } : null;
 }

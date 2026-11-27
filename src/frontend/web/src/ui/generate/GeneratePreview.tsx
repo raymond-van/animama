@@ -4,7 +4,10 @@ import { useTranslation } from "react-i18next";
 import type { PyGenerationDraft } from "@animama/runtime-contracts/api-types";
 
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
-import { usePoseCreatorStore } from "@/stores/pose-creator-store";
+import {
+  DEFAULT_POSE_CREATOR_BASE_POSE,
+  usePoseCreatorStore,
+} from "@/stores/pose-creator-store";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { actionEditorCapabilities } from "@/ui/action-editor/actionEditorCapabilities";
 import { ActionEditorClipPreviewSync } from "@/ui/action-editor/ActionEditorPrimitives";
@@ -28,8 +31,15 @@ import {
 } from "./previewAvatarExpressions";
 import type { DraftValidation } from "./useDraftWorker";
 
-/** The preview plays Gestures on the creator's own stage. */
-const STAGE_CAPABILITIES = actionEditorCapabilities("gesture");
+/**
+ * The preview plays a draft on its own creator's stage: a Gesture as the
+ * Gesture creator plays one, and a Reaction as the Reaction creator does (its
+ * camera limits, and the rest pose under a clip that moves no body).
+ */
+const STAGE_CAPABILITIES = {
+  gesture: actionEditorCapabilities("gesture"),
+  reaction: actionEditorCapabilities("reaction"),
+};
 /** How many of a clip's problems the stage lists before it stops. */
 const MAX_STAGE_ISSUES = 3;
 
@@ -225,6 +235,7 @@ export function GeneratePreviewStage({
           ? ("playing" as const)
           : ("stopped" as const);
   const runtimeId = clipDraft.id.trim() || "generate-draft";
+  const stageIntent = draft?.intent === "reaction" ? "reaction" : "gesture";
 
   return (
     <div
@@ -232,6 +243,7 @@ export function GeneratePreviewStage({
       data-playback-surface="creator-stage"
       data-testid="generate-preview"
       data-draft-id={player.playable ? draft?.id : undefined}
+      data-draft-intent={player.playable ? stageIntent : undefined}
     >
       <PlaybackObservationOutput
         active
@@ -252,9 +264,15 @@ export function GeneratePreviewStage({
         surface="creator-stage"
         target={{ kind: "anima_pose_clip", runtimeId }}
       />
-      <ActionEditorClipPreviewSync />
+      <ActionEditorClipPreviewSync
+        previewBasePose={
+          stageIntent === "reaction"
+            ? DEFAULT_POSE_CREATOR_BASE_POSE
+            : undefined
+        }
+      />
       <ActionEditorScene
-        capabilities={STAGE_CAPABILITIES}
+        capabilities={STAGE_CAPABILITIES[stageIntent]}
         canvasTestId="generate-preview-canvas"
         showHumanoidTools={false}
       >

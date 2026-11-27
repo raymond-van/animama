@@ -2,9 +2,9 @@
 
 Journeys and tests run the whole pipeline without a provider. Each method
 returns the tool call a model would have made in that kind of pass, so the
-same tool code validates it: a write submits a packaged example Gesture with
-details taken from the request, a revision or repair makes one fixed valid
-change, and a review accepts. It writes Gestures only.
+same tool code validates it: a write submits a packaged example Gesture or
+Reaction with details taken from the request, a revision or repair makes one
+fixed valid change, and a review accepts.
 """
 
 from __future__ import annotations
@@ -19,10 +19,15 @@ from typing import Any, Final
 
 from animama.app.model_clients import ModelClientToolCall
 
-from .draft_validation import MAX_DRAFT_SECONDS, JsonObject, SelectorInUse
+from .draft_validation import MAX_DRAFT_SECONDS, Intent, JsonObject, SelectorInUse
 
 EXAMPLE_GESTURE_RESOURCE: Final = "generation-example-gesture.json"
 """A short nod that passes validation and the motion checks, shipped in ``animama.resources``."""
+EXAMPLE_REACTION_RESOURCE: Final = "generation-example-reaction.json"
+"""A surprised flash that settles into a smile, as an Included Reaction shapes one: two beats and face parts only."""
+EXAMPLE_REACTION_EMOTION: Final = "excitement"
+EXAMPLE_REACTION_INTENSITY: Final = 2
+"""Where the example Reaction fits; its fades are those of this intensity."""
 
 MAX_DERIVED_NAME_LENGTH: Final = 60
 MAX_DERIVED_SELECTOR_LENGTH: Final = 40
@@ -31,6 +36,7 @@ LENGTHEN_SECONDS: Final = 0.2
 """How much a revision or repair adds to the clip's duration and to its last beat's time."""
 
 _FALLBACK_NAME: Final = "Example Gesture"
+_FALLBACK_REACTION_NAME: Final = "Example Reaction"
 _FALLBACK_SELECTOR_ID: Final = "example_gesture"
 _NOT_SELECTOR_CHARACTERS = re.compile(r"[^a-z0-9]+")
 # Far more than a journey makes; it only keeps the search for a free Selector ID finite.
@@ -45,10 +51,25 @@ def _example_text() -> str:
     return resource.read_text(encoding="utf-8")
 
 
+@cache
+def _example_reaction_text() -> str:
+    resource = files("animama.resources").joinpath(EXAMPLE_REACTION_RESOURCE)
+    if not resource.is_file():
+        raise FileNotFoundError(f"Required packaged example Reaction is missing: {EXAMPLE_REACTION_RESOURCE}")
+    return resource.read_text(encoding="utf-8")
+
+
 def example_gesture_clip() -> JsonObject:
     """The packaged example Gesture clip, parsed anew for each caller."""
 
     clip: JsonObject = json.loads(_example_text())
+    return clip
+
+
+def example_reaction_clip() -> JsonObject:
+    """The packaged example Reaction clip, parsed anew for each caller."""
+
+    clip: JsonObject = json.loads(_example_reaction_text())
     return clip
 
 
@@ -64,14 +85,14 @@ def _request_text(request: str) -> str:
     return " ".join("".join(character for character in " ".join(request.split()) if character.isprintable()).split())
 
 
-def _name(text: str) -> str:
+def _name(text: str, fallback: str = _FALLBACK_NAME) -> str:
     """A display name from the request: its first words, with a capital first letter."""
 
     if len(text) > MAX_DERIVED_NAME_LENGTH:
         cut = text[: MAX_DERIVED_NAME_LENGTH + 1]
         # Cut at a word boundary when there is one.
         text = (cut.rsplit(" ", 1)[0] if " " in cut else cut)[:MAX_DERIVED_NAME_LENGTH].strip()
-    return text[:1].upper() + text[1:] if text else _FALLBACK_NAME
+    return text[:1].upper() + text[1:] if text else fallback
 
 
 def _selector_id(name: str, selector_in_use: SelectorInUse | None) -> str:
@@ -96,10 +117,28 @@ def _selector_id(name: str, selector_in_use: SelectorInUse | None) -> str:
 class DeterministicAuthor:
     """Makes the tool call of each pass kind without a model, the same call for the same input."""
 
-    def write(self, request: str, *, selector_in_use: SelectorInUse | None = None) -> ModelClientToolCall:
-        """Submit the packaged example clip, named after ``request``, under a Selector ID not in use."""
+    def write(
+        self, request: str, *, intent: Intent = "gesture", selector_in_use: SelectorInUse | None = None
+    ) -> ModelClientToolCall:
+        """Submit the packaged example clip of ``intent``, named after ``request``.
+
+        A Gesture gets a Selector ID not in use; a Reaction gets the example's
+        own emotion and intensity.
+        """
 
         text = _request_text(request)
+        if intent == "reaction":
+            return _call(
+                "write",
+                "submit_draft",
+                {
+                    "clip": example_reaction_clip(),
+                    "name": _name(text, _FALLBACK_REACTION_NAME),
+                    "emotion": EXAMPLE_REACTION_EMOTION,
+                    "intensity": EXAMPLE_REACTION_INTENSITY,
+                    "note": "This is the packaged example Reaction: no model was asked.",
+                },
+            )
         name = _name(text)
         quoted = text[:MAX_QUOTED_REQUEST_LENGTH]
         return _call(
@@ -153,4 +192,13 @@ class DeterministicAuthor:
         return _call(kind, "edit_draft", {"operations": operations, "note": note})
 
 
-__all__ = ["EXAMPLE_GESTURE_RESOURCE", "LENGTHEN_SECONDS", "DeterministicAuthor", "example_gesture_clip"]
+__all__ = [
+    "EXAMPLE_GESTURE_RESOURCE",
+    "EXAMPLE_REACTION_EMOTION",
+    "EXAMPLE_REACTION_INTENSITY",
+    "EXAMPLE_REACTION_RESOURCE",
+    "LENGTHEN_SECONDS",
+    "DeterministicAuthor",
+    "example_gesture_clip",
+    "example_reaction_clip",
+]

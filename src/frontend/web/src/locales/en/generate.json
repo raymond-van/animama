@@ -1,14 +1,41 @@
 {
   "composer": {
+    "kind": {
+      "gesture": "Gesture",
+      "reaction": "Reaction"
+    },
+    "kindLabel": "Kind of new draft",
     "label": "Request to the assistant",
     "newDraftInstead": "Write a new draft instead",
     "placeholder": "Describe a Gesture…",
+    "placeholderReaction": "Describe a Reaction…",
     "revisePlaceholder": "Say what to change…",
     "revises": "Your next message revises “{{name}}”.",
     "send": "Send request",
     "stop": "Stop the assistant",
     "tooLong": "Shorten your request to {{max}} characters or fewer.",
     "writesNew": "Your next message writes a new draft."
+  },
+  "creator": {
+    "appliesPose": "Sending a request switches to Clip, where the result plays. A keyframe's pose you changed is applied first. An unsaved pose of its own has to be saved, discarded or added to the timeline before.",
+    "changedMeanwhile": "The timeline changed while the assistant worked, so its result was not applied and the assistant was stopped. Send your request again to work from the timeline as it is now.",
+    "close": "Close the assistant",
+    "keepsEffects": "Effects and sounds on the timeline stay as they are.",
+    "notApplied": "The assistant's result could not be applied to this item.",
+    "open": "Generate",
+    "openGenerate": "Open Generate",
+    "poseDraft": "Pose mode holds an unsaved pose that the assistant's result would replace, so nothing was sent or applied. Save the pose, discard it or add it to the timeline, then send your request again.",
+    "revises": {
+      "gesture": "Your request changes the Gesture open here. Undo puts it back.",
+      "reaction": "Your request changes the Reaction open here. Undo puts it back."
+    },
+    "running": "Leave the timeline as it is while the assistant works. A result is not applied over a timeline that changed meanwhile.",
+    "setup": "The assistant needs a model before it can work here. Choose one on the Generate page.",
+    "title": "Assistant",
+    "writes": {
+      "gesture": "Your request writes this new Gesture.",
+      "reaction": "Your request writes this new Reaction."
+    }
   },
   "drafts": {
     "actions": {
@@ -32,6 +59,11 @@
     },
     "emptyDescription": "Ask the assistant for a Gesture. Each draft appears here with its checks, ready to play, revise or save.",
     "emptyTitle": "No drafts yet",
+    "kind": {
+      "gesture": "Gesture",
+      "reaction": "Reaction",
+      "reactionPlaced": "Reaction · {{emotion}} · {{intensity}}"
+    },
     "loadFailed": "The drafts could not be loaded.",
     "loading": "Loading drafts…",
     "openSaved": "Open the saved item",

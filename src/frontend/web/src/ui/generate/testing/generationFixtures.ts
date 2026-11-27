@@ -49,6 +49,55 @@ export function gestureProject(
   };
 }
 
+/** A face-only clip as an Included Reaction shapes one: a flash that settles into a smile. */
+export function softJoyClip(): Record<string, unknown> {
+  return {
+    schema: "animaPoseClip/2.0",
+    id: "soft-joy",
+    name: "Soft Joy",
+    duration: 2,
+    fadeIn: { duration: 0.18 },
+    fadeOut: { duration: 0.38 },
+    beats: [
+      { id: "pop", label: "Pop", time: 0 },
+      { id: "settle", label: "Settle", time: 0.25 },
+    ],
+    expressions: {
+      Fcl_BRW_Joy: [
+        { beat: "pop", v: 0 },
+        { beat: "settle", v: 0.75 },
+      ],
+      Fcl_EYE_Joy: [
+        { beat: "pop", v: 0 },
+        { beat: "settle", v: 0.75 },
+      ],
+      Fcl_MTH_Fun: [
+        { beat: "pop", v: 0 },
+        { beat: "settle", v: 0.75 },
+      ],
+    },
+  };
+}
+
+/** A Reaction draft's project, as the backend builds one. */
+export function reactionProject(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    schema: "animamaActionProject/1.0",
+    intent: "reaction",
+    name: "Soft Joy",
+    aiDescription: "",
+    semanticKey: "",
+    suggestedEmotion: "joy",
+    suggestedIntensity: 2,
+    notes: "",
+    sequence: softJoyClip(),
+    dependencies: [],
+    ...overrides,
+  };
+}
+
 export function generationConversation(
   overrides: Partial<PyGenerationConversation> = {},
 ): PyGenerationConversation {

@@ -104,9 +104,11 @@
     "voice_preset_unavailable": "请选择可用的 PocketTTS 语音。"
   },
   "generation": {
+    "generation_document_invalid": "助手无法处理此项目当前的内容。请检查时间轴是否有问题，然后重试。",
+    "generation_document_invalid_details": "此项目的名称、描述、选择器 ID 或建议情绪有问题，助手无法处理。请检查后重试。",
+    "generation_document_invalid_timeline": "助手无法处理此项目当前的时间轴。请检查时间轴是否有问题，然后重试。",
     "generation_draft_empty": "此草稿还没有可修改的内容。请发送新的请求。",
     "generation_draft_unloadable": "此草稿无法播放，因此无法保存。请重新请求或要求修改。",
-    "generation_intent_unavailable": "助手目前只能创作动作。",
     "generation_model_unusable": "助手无法使用所选模型。请选择其他模型。",
     "generation_model_unusable_connection_inactive": "所选模型的连接已关闭。请在应用设置中开启，或选择其他模型。",
     "generation_model_unusable_context_too_small": "所选模型的上下文窗口对助手来说太小。请选择其他模型。",

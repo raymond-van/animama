@@ -30,6 +30,8 @@ export type PreviewSheetRenderer = (request: {
   /** Seconds from the clip's start; one row each, at most six. */
   times: readonly number[];
   avatarFile: IncludedAvatarFile;
+  /** `face` for a Reaction, whose sheets hold face views only. */
+  view?: "body" | "face";
 }) => Promise<IncludedAvatarReviewSheet[]>;
 
 /** The preview canvas left, or its WebGL context was lost, before the sheets were done. */
@@ -69,6 +71,7 @@ export function registerPreviewSheetRenderer(
       renderer,
       clip: request.clip,
       times: request.times,
+      view: request.view,
       // Checked on both sides of each read: the canvas can leave while an
       // Avatar's file is fetched.
       avatarFile: async (avatar) => {

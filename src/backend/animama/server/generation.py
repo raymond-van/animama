@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Collection, Mapping
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any, BinaryIO, Final, cast
 
 import anyio
@@ -30,7 +31,7 @@ from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.generation.check_report import MAX_REPORT_BYTES, final_status
 from animama.app.generation.deterministic_author import DeterministicAuthor
-from animama.app.generation.draft_validation import MAX_CLIP_BYTES
+from animama.app.generation.draft_validation import MAX_CLIP_BYTES, Intent
 from animama.app.generation.review_frames import (
     MAX_REVIEW_SHEET_BYTES,
     MAX_REVIEW_SHEETS,
@@ -57,13 +58,15 @@ from animama.app.generation.run import (
     plan_run,
 )
 from animama.app.generation.service import CheckReportSignal, GenerationService, is_unsettled
-from animama.app.generation.tools import EXAMPLE_NAMES
+from animama.app.generation.tools import example_names
 from animama.app.model_clients import ModelClient
 from animama.app.services.content_portability import is_non_portable
 from animama.domain import ModelProvider
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource
 from animama.domain.content_documents import GestureDocumentV1
 from animama.domain.generation import (
+    GENERATION_SCOPE_CREATOR,
+    GenerationConversation,
     GenerationConversationSnapshot,
     GenerationDraft,
     GenerationError,
@@ -92,14 +95,18 @@ _STATUS_BY_CODE: Final[Mapping[str, int]] = {
     "generation_stale_version": 409,
     "generation_nothing_to_restore": 409,
     "generation_draft_empty": 409,
-    "generation_intent_unavailable": 422,
+    "generation_document_invalid": 422,
     "generation_reasoning_effort_unsupported": 422,
     "generation_frame_not_an_image": 422,
     "generation_frame_too_large": 413,
 }
 # Room for the multipart boundaries and part headers around the sheets.
 _FRAMES_BODY_LIMIT: Final = MAX_REVIEW_SHEETS * MAX_REVIEW_SHEET_BYTES + 64 * 1024
-_EXAMPLE_KEY_PREFIX: Final = "builtin:gesture:"
+_EXAMPLE_KINDS: Final[Mapping[str, tuple[ContentKind, str]]] = {
+    "gesture": (ContentKind.GESTURE, "builtin:gesture:"),
+    "reaction": (ContentKind.REACTION, "builtin:reaction:"),
+}
+"""The catalog kind and logical-key prefix of the Included items each intent's ``read_example`` may return."""
 _CLIP_FILE_ROLE: Final = "sequence"
 
 
@@ -110,9 +117,11 @@ def refusal(code: str, status_code: int, **fields: str) -> HTTPException:
 
 
 def generation_refusal(error: GenerationError) -> HTTPException:
-    """The HTTP answer to a refused assistant operation."""
+    """The HTTP answer to a refused assistant operation, with the error's ``reason`` where it has one."""
 
-    return refusal(error.code, _STATUS_BY_CODE.get(error.code, 400))
+    reason = getattr(error, "reason", None)
+    fields = {"reason": reason} if isinstance(reason, str) else {}
+    return refusal(error.code, _STATUS_BY_CODE.get(error.code, 400), **fields)
 
 
 # --- Process state ------------------------------------------------------------------------
@@ -158,6 +167,11 @@ class GenerationRuns:
 
     def running(self, owner_user_id: str, conversation_id: str) -> bool:
         return (owner_user_id, conversation_id) in self._running
+
+    def any_running(self, owner_user_id: str) -> bool:
+        """Whether a run is in flight on any of the owner's conversations."""
+
+        return any(owner == owner_user_id for owner, _ in self._running)
 
 
 @dataclass
@@ -232,6 +246,106 @@ async def read_conversation(
     return await service.get_conversation(owner_user_id, conversation_id)
 
 
+# --- Conversations that outlived what they belong to ------------------------------------------
+
+UNSAVED_CONVERSATION_DAYS: Final = 7
+"""How long a creator's conversation about an unsaved item is kept after it was last written to."""
+
+
+def _is_creator_scope(conversation: GenerationConversation) -> bool:
+    return conversation.scope.get("kind") == GENERATION_SCOPE_CREATOR
+
+
+async def _library_item_kinds(
+    app: FastAPI, session: AsyncSession, principal: RequestPrincipal, item_ids: Collection[str]
+) -> dict[str, ContentKind] | None:
+    """The kind of each of ``item_ids`` that is a row of the owner's Library; ``None`` when it cannot be read.
+
+    Read from the catalog rows themselves, whatever their scan status: an
+    item that is invalid, misses a file or a dependency, or waits for a
+    rescan is still in the Library, with the same id. Nothing is parsed.
+    """
+
+    ports = getattr(app.state, "product_ports", None)
+    if ports is None:
+        return None
+    try:
+        async with ports.content(session, principal) as content:
+            rows = await content.catalog.visible_items(item_ids=item_ids, user_id=principal.id)
+            return {item_id: row.kind for item_id, row in rows.items()}
+    except Exception as error:
+        _log.warning(
+            "Generation conversations kept: the Library could not be read",
+            exc_type=type(error).__name__,
+            site=failure_site(error),
+        )
+        return None
+
+
+async def list_owner_conversations(
+    app: FastAPI, session: AsyncSession, principal: RequestPrincipal, *, now: datetime | None = None
+) -> list[GenerationConversation]:
+    """The owner's conversations, without the creator conversations that outlived what they belong to.
+
+    A creator's conversation belongs to the item open in that creator, and
+    nothing lists it for the person once the item is gone, so it is removed
+    here, with its messages and drafts, when the conversations are listed:
+
+    - one about a saved item, when the owner's Library no longer holds a
+      Gesture or Reaction (by the conversation's kind) with that id. The
+      item's scan status does not matter: an item that is invalid, misses a
+      file or waits for a rescan is still there. Another owner's item is not
+      in this owner's Library;
+    - one about an unsaved item, ``UNSAVED_CONVERSATION_DAYS`` days after it
+      was last written to. Only a creator left open since then could still be
+      showing it; its panel then starts an empty conversation.
+
+    Nothing is removed while a run is in flight on any of the owner's
+    conversations (checked again before each removal, since the Library is
+    read in between), or while the Library cannot be read. The Generate
+    page's own conversations are never removed here.
+    """
+
+    service = generation_service(app, session)
+    owner = principal.id
+    runs = generation_runtime(app).runs
+    conversations = await service.list_conversations(owner)
+    creators = [conversation for conversation in conversations if _is_creator_scope(conversation)]
+    if not creators or runs.any_running(owner):
+        return conversations
+    item_ids = {
+        item_id for conversation in creators if isinstance(item_id := conversation.scope.get("catalog_item_id"), str)
+    }
+    kinds = await _library_item_kinds(app, session, principal, item_ids) if item_ids else {}
+    if kinds is None:
+        return conversations
+    expired_before = (now or datetime.now(UTC)) - timedelta(days=UNSAVED_CONVERSATION_DAYS)
+    removed: set[str] = set()
+    for conversation in creators:
+        item_id = conversation.scope.get("catalog_item_id")
+        if item_id is None:
+            written = conversation.updated_at
+            if written.tzinfo is None:
+                written = written.replace(tzinfo=UTC)
+            outlived = written < expired_before
+        else:
+            kind = _EXAMPLE_KINDS.get(str(conversation.scope.get("intent")), (None, ""))[0]
+            outlived = kind is None or kinds.get(item_id) is not kind
+        if not outlived:
+            continue
+        # A run may have started while the Library was read: it keeps what it works on.
+        if runs.any_running(owner):
+            break
+        try:
+            await service.delete_conversation(owner, conversation.id)
+        except GenerationNotFoundError:
+            pass
+        removed.add(conversation.id)
+    if removed:
+        _log.info("Generation conversations removed with their items", conversation_count=len(removed))
+    return [conversation for conversation in conversations if conversation.id not in removed]
+
+
 # --- The owner's Library, as the tools may ask of it ------------------------------------------
 
 
@@ -240,8 +354,9 @@ class AuthoringLibrary:
     """What a run's tools may know of the owner's Library, read once before the run starts.
 
     ``selector_ids`` are the Selector IDs of the owner's Gestures, without
-    the draft's own saved item. ``examples`` are the clips of the allowlisted
-    Included Gestures that could be read.
+    the draft's own saved item; a Reaction has no Selector ID, so its run
+    reads none. ``examples`` are the clips of the allowlisted Included items
+    of the run's kind that could be read.
     """
 
     selector_ids: frozenset[str] = frozenset()
@@ -262,7 +377,7 @@ def _read_all(handle: BinaryIO) -> bytes:
 async def _example_clip(
     content: ProductContent, item: CatalogContentEntry, owner_user_id: str
 ) -> Mapping[str, Any] | None:
-    """One Included Gesture's clip through the catalog's own verified read; ``None`` when it is not a clip."""
+    """One Included item's clip through the catalog's own verified read; ``None`` when it is not a clip."""
 
     clip_file = next((file for file in item.files if file.role == _CLIP_FILE_ROLE), None)
     if clip_file is None or clip_file.size_bytes > MAX_CLIP_BYTES:
@@ -276,29 +391,28 @@ async def _example_clip(
 
 
 async def read_authoring_library(
-    content: ProductContent, owner_user_id: str, *, saved_item_id: str | None
+    content: ProductContent, owner_user_id: str, *, saved_item_id: str | None, intent: Intent = "gesture"
 ) -> AuthoringLibrary:
-    """Read the owner's Gesture Selector IDs and the example clips ``read_example`` may return.
+    """Read what a run of ``intent`` may ask of the Library: Gesture Selector IDs in use, and example clips.
 
-    An example is one of ``EXAMPLE_NAMES`` among the Included Gestures. A
-    non-portable item is never read, whatever it is called (threat T4), and
-    an example that cannot be read as a clip is left out. ``saved_item_id``
-    is the Library item the draft was saved as, whose own Selector ID is not
-    a clash.
+    An example is one of ``example_names(intent)`` among the Included items
+    of that kind. A non-portable item is never read, whatever it is called
+    (threat T4), and an example that cannot be read as a clip is left out.
+    ``saved_item_id`` is the Library item the draft was saved as or the
+    creator has open, whose own Selector ID is not a clash.
     """
 
-    gestures = await content.typed.list_kind(user_id=owner_user_id, kind=ContentKind.GESTURE)
+    kind, key_prefix = _EXAMPLE_KINDS[intent]
+    items = await content.typed.list_kind(user_id=owner_user_id, kind=kind)
     selector_ids = frozenset(
-        gesture.document.semantic_key
-        for gesture in gestures
-        if isinstance(gesture.document, GestureDocumentV1) and gesture.item.id != saved_item_id
+        item.document.semantic_key
+        for item in items
+        if isinstance(item.document, GestureDocumentV1) and item.item.id != saved_item_id
     )
-    included = {
-        gesture.item.logical_key: gesture.item for gesture in gestures if gesture.item.source is ContentSource.INCLUDED
-    }
+    included = {item.item.logical_key: item.item for item in items if item.item.source is ContentSource.INCLUDED}
     examples: dict[str, Mapping[str, Any]] = {}
-    for name in EXAMPLE_NAMES:
-        item = included.get(f"{_EXAMPLE_KEY_PREFIX}{name}")
+    for name in example_names(intent):
+        item = included.get(f"{key_prefix}{name}")
         if item is None or is_non_portable(item):
             continue
         try:
@@ -317,7 +431,7 @@ async def read_authoring_library(
 
 
 async def _authoring_library(
-    app: FastAPI, session: AsyncSession, principal: RequestPrincipal, *, saved_item_id: str | None
+    app: FastAPI, session: AsyncSession, principal: RequestPrincipal, *, saved_item_id: str | None, intent: Intent
 ) -> AuthoringLibrary:
     """The Library for a run, or an empty one when content is unavailable.
 
@@ -331,7 +445,7 @@ async def _authoring_library(
         return AuthoringLibrary()
     try:
         async with ports.content(session, principal) as content:
-            return await read_authoring_library(content, principal.id, saved_item_id=saved_item_id)
+            return await read_authoring_library(content, principal.id, saved_item_id=saved_item_id, intent=intent)
     except Exception as error:
         _log.warning(
             "Generation run starts without its Library", exc_type=type(error).__name__, site=failure_site(error)
@@ -424,11 +538,14 @@ async def start_generation_run(
             answers=body.answers.model_dump() if body.answers is not None else None,
             avatar_expressions=body.avatar_expressions,
             reasoning_effort=body.reasoning_effort,
+            document=body.document,
         )
         client, author = _author_or_client(app, model_provider)
-        library = await _authoring_library(
-            app, session, principal, saved_item_id=plan.draft.saved_item_id if plan.draft is not None else None
-        )
+        # The item whose own Selector ID is no clash: the one the draft was saved as, or the one a creator
+        # has open.
+        own_item = plan.draft.saved_item_id if plan.draft is not None else None
+        own_item = own_item or snapshot.conversation.scope.get("catalog_item_id")
+        library = await _authoring_library(app, session, principal, saved_item_id=own_item, intent=plan.intent)
     except GenerationError as error:
         release()
         raise generation_refusal(error) from error
@@ -452,6 +569,7 @@ async def start_generation_run(
         selector_id_count=len(library.selector_ids),
         example_count=len(library.examples),
         expression_family_count=len(body.avatar_expressions or {}),
+        with_document=plan.document is not None,
     )
     return GenerationRunResponse(run_frames(run), release=release)
 
@@ -721,6 +839,7 @@ __all__ = [
     "MODEL_UNUSABLE",
     "REVIEW_FRAMES_REQUEST_BODY",
     "RUN_IN_PROGRESS",
+    "UNSAVED_CONVERSATION_DAYS",
     "AuthoringLibrary",
     "GenerationRunResponse",
     "GenerationRuns",
@@ -733,6 +852,7 @@ __all__ = [
     "generation_runtime",
     "generation_service",
     "hold_generation_run",
+    "list_owner_conversations",
     "read_authoring_library",
     "read_conversation",
     "record_check_report",

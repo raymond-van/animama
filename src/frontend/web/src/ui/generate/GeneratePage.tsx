@@ -70,6 +70,11 @@ function GenerateWorkspace({
   const expressions = useGeneratePreviewAvatarExpressions();
   // Opened from the header, and from a failed run's "Choose another model".
   const [modelControlOpen, setModelControlOpen] = useState(false);
+  // The kind a new draft is written as (R7.2); a conversation's drafts may
+  // be of both kinds.
+  const [newDraftKind, setNewDraftKind] = useState<"gesture" | "reaction">(
+    "gesture",
+  );
   const controller = useGenerationRun({
     conversationId,
     modelProviderId: modelChoice.model?.id ?? null,
@@ -153,6 +158,7 @@ function GenerateWorkspace({
             onStartNewDraft={() => selectDraft(null)}
             onChooseModel={() => setModelControlOpen(true)}
             framesStatus={worker.frames.status}
+            newDraftKind={{ value: newDraftKind, onChange: setNewDraftKind }}
           />
         </CreatorFloatingPanel>
       }

@@ -20,8 +20,9 @@ def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
     assert evidence["migration_count"] == len(list((resources.runtime_resource("alembic") / "versions").glob("*.py")))
     assert evidence["sql_count"] == 2
     assert evidence["gesture_count"] == 45
-    assert evidence["authoring_guidance_files"] == 9
+    assert evidence["authoring_guidance_files"] == 10
     assert evidence["generation_example_beats"] == 4
+    assert evidence["generation_example_reaction_beats"] == 2
     assert evidence["starter_policy"] == "builtin:starter-loadout"
     assert evidence["local_http_schema_version"] == 1
 
@@ -48,6 +49,31 @@ def test_resource_audit_rejects_a_missing_generation_example(tmp_path: Path, mon
             resources.audit_resources()
     finally:
         deterministic_author._example_text.cache_clear()
+
+
+def test_resource_audit_rejects_a_missing_reaction_guidance_or_example(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A frozen build that left out what a Reaction run reads fails its audit, naming the file."""
+
+    from importlib.resources import files as real_files
+
+    from animama.app.generation import deterministic_author
+    from animama.resources import authoring_guidance
+
+    packaged = real_files("animama.resources").joinpath("authoring")
+    (tmp_path / "authoring").mkdir()
+    for name in authoring_guidance.GESTURE_GUIDANCE_FILES:
+        (tmp_path / "authoring" / name).write_text(packaged.joinpath(name).read_text(encoding="utf-8"), "utf-8")
+    monkeypatch.setattr(authoring_guidance, "files", lambda package: tmp_path)
+    with pytest.raises(FileNotFoundError, match=r"authoring guidance is missing: reaction\.md"):
+        resources.audit_resources()
+    monkeypatch.setattr(authoring_guidance, "files", real_files)
+
+    deterministic_author._example_reaction_text.cache_clear()
+    monkeypatch.setattr(deterministic_author, "_example_reaction_text", lambda: '{"schema": "animaPoseClip/2.0"}')
+    with pytest.raises(ValueError, match="Packaged example Reaction is not a valid draft"):
+        resources.audit_resources()
 
 
 def test_resource_audit_rejects_a_generation_example_that_is_no_draft(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -876,7 +876,9 @@ from `src/frontend/web`:
 The authoring guidance lives in the backend package, under
 `src/backend/animama/resources/authoring/`: what a Gesture clip is and its
 rules, the clip format, movement, hands, faces, what each motion check finding
-means, and the joint table. The backend packages it for the app's authoring
+means, and the joint table, and `reaction.md` with the rules only a Reaction
+has (a face only, its emotion and intensity, a mostly closed mouth, one beat
+or a pop that settles, and its fades). The backend packages it for the app's authoring
 assistant (`animama.resources.authoring_guidance`), and the
 `animama-animation` agent skill reads the same files and adds the
 command-line workflow and review procedure. `joints.md` there is a copy of
@@ -899,8 +901,23 @@ Clip JSON is `animaPoseClip/2.0`; a separate versioned project envelope
 typed effect/sound dependencies with the sequence. Import accepts either
 format; the sequence must be `animaPoseClip/2.0`. The Generate page's **Open
 in creator** loads a content assistant draft's project through the same
-import, as a new unsaved Gesture
+import, as a new unsaved Gesture or Reaction
 ([Content generation](../features/content-generation.md#saving-and-opening-in-the-creator)).
+
+On a runtime with the `content_generation` capability, both creators show a
+**Generate** control at the bottom right of the desktop workspace, above the
+timeline (`ui/generate/creator/CreatorGenerateControl.tsx`). It opens the
+content assistant's conversation about the open item in a panel that floats
+over the other panels and takes no part in their sizing; Escape closes it and
+returns focus to the control. A request revises the document as it stands,
+and the result comes back through the workspace's `applyAssistantResult`
+(`ui/action-editor/assistantDocument.ts`): it replaces the timeline, keeps
+the item's events, playback lifetime, dependencies and details, and is
+committed to the creator's history inside one group for the whole run, so a
+single Undo returns to the document from before the request. A result is
+refused when the timeline changed while the assistant worked. Nothing is
+saved until the creator's own Save
+([Content generation](../features/content-generation.md#in-a-creator)).
 
 For an Action implemented by an Anima Pose Clip, the Action display name is
 the authoritative authoring name. The embedded clip `name` matches it, and the

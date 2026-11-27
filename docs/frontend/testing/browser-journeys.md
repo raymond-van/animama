@@ -85,7 +85,8 @@ The explicit allowlist selects `accountless-library`, `accountless-journeys`,
 `accountless-numeric-input`, `accountless-creator-discard(-local)`,
 `accountless-effect-template-picker`,
 `accountless-avatar-effect-direct-manipulation`,
-`accountless-creator-generated-gesture`, `accountless-generate-gesture`,
+`accountless-creator-generated-gesture`, `accountless-creator-generate-panel`,
+`accountless-generate-gesture`,
 `accountless-particle-texture-import` and `accountless-scene-layers` specs.
 They cover Library, companion
 selection, chat Stop/recovery, creator JSON import/preview, Save/reload revision
@@ -96,9 +97,11 @@ through the creator, Save, reopen, the preview dock and packages, responsive
 access to
 review and recovery controls, and `animaPoseClip/2.0` creator round trips (a
 generated Gesture retimed, posed, saved and reopened with its detail; 1.0
-Gestures and Reactions saved as 2.0), and the Generate page (a request, a
+Gestures and Reactions saved as 2.0), the Generate page (a request, a
 revision, Save, the saved Gesture in the creator, Stop, a reload and
-discarding).
+discarding), and the creators' Generate control (a Local Gesture and a Local
+Reaction written on Generate, revised through the panel in their creators,
+saved with their identity, and the item's conversation found after a reload).
 The separate `pseudo` project runs only through
 `pnpm e2e:test:pseudo`; see [Pseudo-locale smoke](#pseudo-locale-smoke).
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
