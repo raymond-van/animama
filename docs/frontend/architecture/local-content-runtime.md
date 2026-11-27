@@ -16,6 +16,7 @@ paths or a second storage URL.
 ```text
 GET    /v1/content/catalog
 GET    /v1/content/items/{item_id}
+GET    /v1/content/items/{item_id}/usage
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}
 GET    /v1/content/files/{file_ref}
@@ -54,8 +55,21 @@ semantic API.
 
 An explicit revision-fenced DELETE removes the owned Local files and catalog
 identity, so an exact follow-up GET returns 404. This differs from a manual
-host-file removal, whose `missing` catalog tombstone remains visible for repair.
-Items still referenced by an Avatar or Anima loadout must be unequipped first.
+host-file removal, whose `missing` catalog tombstone remains visible for repair;
+deleting that tombstone removes only its catalog row. Deleting a Local Avatar
+also deletes its unused portrait Appearance. An item with a null
+`revision_sha256` (none of its files could be read) cannot be deleted.
+
+Before offering Delete, a client can read `GET /v1/content/items/{item_id}/usage`
+(owned Local items only): `used_by` lists at most ten `{kind, id, name}` uses,
+Anima uses (`anima_avatar`, `anima_appearance`, `anima_voice`,
+`anima_gesture`, `anima_idle`, `anima_reaction`, `anima_music`) before
+dependent items (`content`). A DELETE of an item in use is refused with 409
+`catalog_item_in_use` and the same `used_by`. A DELETE whose registered files
+changed on disk is refused with 409 `catalog_item_changed` after the server
+rescans Local; refresh the catalog and retry with its `current_revision`.
+[Deleting Local content](../../backend/features/custom-animas-and-content.md#deleting-local-content)
+has the details.
 
 ## Protected preview preparation
 

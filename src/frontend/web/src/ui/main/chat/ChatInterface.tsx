@@ -88,6 +88,10 @@ import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useAppSettingsOpener } from "@/stores/app-settings-request-store";
 import {
+  isChatSendHeld,
+  useStreamingReplyRegistration,
+} from "@/stores/chat-delete-coordination-store";
+import {
   useRuntimeFeatureEnabled,
   useRuntimeFeatureUnavailableReason,
 } from "@/ui/app/RuntimeFeatureGate";
@@ -837,8 +841,8 @@ export const ChatInterface = ({
     isStreaming,
     isAwaitingStreamingAnimationFinalization,
     displayMessages,
-    handleSubmit,
-    handleSubmitText,
+    handleSubmit: submitComposer,
+    handleSubmitText: submitText,
     handleStop,
     restoreFailedMessage,
     handleSkipTts,
@@ -860,6 +864,27 @@ export const ChatInterface = ({
     replaceChatRoute,
     safety: companionSafety?.sessionEffects,
   });
+  // A chat or Anima delete in this window stops this chat's reply first, then
+  // holds sends to it until the page has left it (issue #950). The confirm
+  // dialog blocks typing; the hold also covers Voice Mode and Quick Chat.
+  const sessionChatId = activeChat?.id ?? chatId ?? null;
+  useStreamingReplyRegistration({
+    animaId,
+    chatId: sessionChatId,
+    isStreaming,
+    stop: handleStop,
+  });
+  const handleSubmit = useCallback(async () => {
+    if (isChatSendHeld({ animaId, chatId: sessionChatId })) return;
+    await submitComposer();
+  }, [animaId, sessionChatId, submitComposer]);
+  const handleSubmitText = useCallback(
+    async (args: Parameters<typeof submitText>[0]) =>
+      isChatSendHeld({ animaId, chatId: sessionChatId })
+        ? false
+        : submitText(args),
+    [animaId, sessionChatId, submitText],
+  );
   const reportSafetyStreaming = companionSafety?.reportStreaming;
   useEffect(() => {
     reportSafetyStreaming?.(isStreaming);

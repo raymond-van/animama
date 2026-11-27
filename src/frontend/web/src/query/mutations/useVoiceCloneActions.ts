@@ -3,16 +3,17 @@ import type { Client } from "@animama/runtime-contracts/sdk";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import {
-  deleteContentItemV1ContentItemsItemIdDelete,
   getContentItemV1ContentItemsItemIdGet,
   saveVoiceContent,
 } from "@animama/runtime-contracts/sdk";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
-import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import {
+  ContentSaveApiError,
+  toContentSaveApiError,
+} from "@/lib/content/contentSaveErrors";
 import {
   loadVoiceCloneFile,
   POCKET_VOICE_CLONE_CODEC,
-  toVoiceCloneError,
   voiceCloneName,
   type PreparedVoiceClone,
 } from "@/lib/speech/pocket/voice-clones";
@@ -45,12 +46,12 @@ export async function savePreparedVoiceClone(
     });
     if (result.error !== undefined || !result.data) {
       throw sdkResultError(result, (status, error) =>
-        toVoiceCloneError(error, status),
+        toContentSaveApiError(error, status),
       );
     }
     return result.data;
   } catch (error) {
-    throw toVoiceCloneError(error);
+    throw toContentSaveApiError(error);
   }
 }
 
@@ -131,35 +132,15 @@ export async function renameSavedVoiceClone(
       files: retainedFiles,
     });
   } catch (error) {
-    throw toVoiceCloneError(error);
+    throw toContentSaveApiError(error);
   }
 }
 
-/** The server guards both stale revisions and references from any Anima. */
-export async function deleteSavedVoiceClone(
-  apiClient: Client,
-  clone: PyVoiceContent,
-): Promise<void> {
-  requireEditableClone(clone);
-  try {
-    const result = await deleteContentItemV1ContentItemsItemIdDelete({
-      client: apiClient,
-      path: { item_id: clone.item_id },
-      query: { expected_revision: clone.revision_sha256 },
-      responseValidator: undefined,
-      throwOnError: false,
-    });
-    if (result.error !== undefined) {
-      throw sdkResultError(result, (status, error) =>
-        toVoiceCloneError(error, status),
-      );
-    }
-  } catch (error) {
-    throw toVoiceCloneError(error);
-  }
-}
-
-/** Shared library mutations never equip a clone or change provider preferences. */
+/**
+ * Shared library mutations never equip a clone or change provider
+ * preferences. A clone is deleted through the shared content delete
+ * (`useDeleteContentItem`).
+ */
 export function useVoiceCloneActions() {
   const apiClient = useProductApiClient();
 
@@ -187,10 +168,6 @@ export function useVoiceCloneActions() {
             : Promise.resolve(),
         ]);
       },
-    }),
-    deleteVoiceClone: useMutation({
-      mutationFn: deleteSavedVoiceClone.bind(null, apiClient),
-      onSuccess: refresh,
     }),
   };
 }

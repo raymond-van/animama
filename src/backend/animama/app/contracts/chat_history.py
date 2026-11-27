@@ -24,6 +24,10 @@ class PyChatUpdate(BaseModel):
 
     title: str | None = None
     metadata: dict[str, Any] | None = None
+    pinned: bool | None = Field(
+        default=None,
+        description="Pin (true) or unpin (false) the chat in the sidebar; omitted keeps the current state.",
+    )
 
 
 class PyChatResponse(BaseModel):
@@ -39,6 +43,7 @@ class PyChatResponse(BaseModel):
     metadata: dict[str, Any] | None = Field(default_factory=dict)
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    pinned_at: datetime | None = Field(default=None, description="When the chat was pinned; null when unpinned.")
     last_message_at: datetime | None = None
     usage: PyUsage | None = None
     active_context_tokens: int = 0

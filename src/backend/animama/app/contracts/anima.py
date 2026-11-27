@@ -97,6 +97,13 @@ class PyAnimaUpdateRequest(BaseModel):
     expected_aggregate_revision: int | None = Field(
         None, ge=1, description="Required for explicit name, Avatar, or profile edits."
     )
+    pinned: bool | None = Field(
+        None,
+        description=(
+            "Pin (true) or unpin (false) the Anima in the sidebar; omitted keeps the current state. "
+            "A pin is runtime state: it needs no expected_aggregate_revision and does not advance it."
+        ),
+    )
 
 
 class PyAnimaChatProfileResponse(BaseModel):
@@ -166,6 +173,7 @@ class PyAnimaResponse(BaseModel):
     chat_profile: PyAnimaChatProfileResponse | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    pinned_at: datetime | None = Field(None, description="When the Anima was pinned; null when unpinned.")
 
 
 class PyRuntimeImagePresentation(BaseModel):

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Literal
 
 
 class ContentSource(str, Enum):
@@ -271,6 +271,35 @@ class ContentNotFoundError(ContentError):
     """An opaque catalog registration was absent or unavailable."""
 
 
+ContentUsageKind = Literal[
+    "anima_avatar",
+    "anima_appearance",
+    "anima_voice",
+    "anima_gesture",
+    "anima_idle",
+    "anima_reaction",
+    "anima_music",
+    "content",
+]
+# The most uses a usage read or an in-use refusal names.
+CONTENT_USAGE_LIMIT = 10
+
+
+@dataclass(frozen=True, slots=True)
+class ContentUsage:
+    """One thing that keeps an owned item from being deleted, safe to show its owner.
+
+    An ``anima_*`` kind names the Anima (``id``, ``name``) and what it selects the
+    item as: its Avatar, a profile or background Appearance, its voice, an equipped
+    Gesture, an Idle pool member, a Reaction cell member or a retired music track.
+    ``content`` names the catalog item (``id``, ``name``) that depends on it.
+    """
+
+    kind: ContentUsageKind
+    id: str
+    name: str
+
+
 class ContentConflictError(ContentError):
     """A direct Save, preview, or Equip precondition no longer holds."""
 
@@ -281,6 +310,7 @@ class ContentConflictError(ContentError):
         current_revision: str | int | None = None,
         field: str | None = None,
         items: tuple[str, ...] = (),
+        used_by: tuple[ContentUsage, ...] = (),
     ) -> None:
         super().__init__(code)
         self.code = code
@@ -288,6 +318,8 @@ class ContentConflictError(ContentError):
         self.field = field
         # Display names of the items that caused the conflict, safe to show.
         self.items = items
+        # What keeps an item in use (``catalog_item_in_use``).
+        self.used_by = used_by
 
 
 __all__ = [
@@ -306,6 +338,9 @@ __all__ = [
     "ContentScope",
     "ContentSource",
     "ContentStatus",
+    "ContentUsage",
+    "ContentUsageKind",
+    "CONTENT_USAGE_LIMIT",
     "ContentValidationError",
     "ScannedContentEntry",
     "ScannedContentFile",

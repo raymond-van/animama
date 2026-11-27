@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import RowMapping, SQLColumnExpression, func, select, text
+from sqlalchemy import ColumnElement, RowMapping, SQLColumnExpression, and_, delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from animama.app.ports.memory_episode_port import (
     MemoryEpisodeRepositoryConflictError,
 )
 from animama.domain.memory_episode import MEMORY_EPISODE_STATUS_PENDING, MemoryEpisodeItem
+from animama.orm.chats import ORMChat
 from animama.orm.memory_episode import ORMMemoryEpisodeItem
 
 _MEMORY_EPISODE_CONFLICT_CONSTRAINTS = frozenset({"uq_memory_episode_items_chat_turn_run"})
@@ -332,6 +333,68 @@ class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
         )
         result = await self._s.execute(stmt)
         return [self._orm_to_domain(obj) for obj in result.scalars()]
+
+    async def list_pending_items_from_sources(
+        self,
+        *,
+        user_id: str,
+        source_chat_ids: Iterable[str] = (),
+        source_anima_id: str | None = None,
+    ) -> list[MemoryEpisodeItem]:
+        predicate = self._pending_from_sources(
+            user_id=user_id, source_chat_ids=source_chat_ids, source_anima_id=source_anima_id
+        )
+        if predicate is None:
+            return []
+        stmt = (
+            select(*self._item_columns())
+            .where(predicate)
+            .order_by(ORMMemoryEpisodeItem.occurred_at.asc(), ORMMemoryEpisodeItem.id.asc())
+        )
+        result = await self._s.execute(stmt)
+        return [self._row_to_domain(row._mapping) for row in result]
+
+    async def delete_pending_items(
+        self,
+        *,
+        user_id: str,
+        source_chat_ids: Iterable[str] = (),
+        source_anima_id: str | None = None,
+    ) -> list[MemoryEpisodeItem]:
+        predicate = self._pending_from_sources(
+            user_id=user_id, source_chat_ids=source_chat_ids, source_anima_id=source_anima_id
+        )
+        if predicate is None:
+            return []
+        result = await self._s.execute(delete(ORMMemoryEpisodeItem).where(predicate).returning(*self._item_columns()))
+        removed = [self._row_to_domain(row._mapping) for row in result]
+        return sorted(removed, key=lambda item: (item.occurred_at, item.id))
+
+    @staticmethod
+    def _pending_from_sources(
+        *, user_id: str, source_chat_ids: Iterable[str], source_anima_id: str | None
+    ) -> ColumnElement[bool] | None:
+        """The owner's pending items from these chats or this Anima, or ``None`` when no source is named."""
+
+        sources: list[ColumnElement[bool]] = []
+        chat_ids = tuple(dict.fromkeys(source_chat_ids))
+        if chat_ids:
+            sources.append(ORMMemoryEpisodeItem.source_chat_id.in_(chat_ids))
+        if source_anima_id is not None:
+            sources.append(ORMMemoryEpisodeItem.source_anima_id == source_anima_id)
+            # An item from one of the Anima's chats belongs to it even without its Anima id.
+            sources.append(
+                ORMMemoryEpisodeItem.source_chat_id.in_(
+                    select(ORMChat.id).where(ORMChat.user_id == user_id, ORMChat.anima_id == source_anima_id)
+                )
+            )
+        if not sources:
+            return None
+        return and_(
+            ORMMemoryEpisodeItem.user_id == user_id,
+            ORMMemoryEpisodeItem.status == MEMORY_EPISODE_STATUS_PENDING,
+            or_(*sources),
+        )
 
 
 __all__ = ["SQLAlchemyMemoryEpisodeRepository"]

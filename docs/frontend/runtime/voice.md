@@ -1246,10 +1246,12 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   catalog. The browser encoder uses the first ten seconds; encoding runs locally.
   Clone voice adds the clone to the library without selecting it. An optional
   name defaults to the recording filename without its extension. Clones appear
-  in the Pocket voice picker with original-recording preview and delete controls.
+  in the Pocket voice picker with original-recording preview and Delete, which
+  opens the shared [Library delete confirmation](../features/library.md#deleting-local-content).
   Clones imported with an Anima contain only the encoded voice; they remain
   selectable for speech, while original-recording Play is disabled and labeled
-  unavailable. Deletion is blocked while any Anima uses the clone.
+  unavailable. Deletion is blocked while any Anima uses the clone; the
+  confirmation names those Animas.
   Existing session-only `custom` selections cannot be recovered automatically:
   upload the original again and save a named clone to make it durable.
 - The 39,768,446-byte Mimi cloning encoder is optional. The first cloning action

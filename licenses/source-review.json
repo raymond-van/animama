@@ -12129,6 +12129,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "docs/plans/delete-and-pin/delete-and-pin-execplan.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "docs/plans/delete-and-pin/delete-and-pin-spec.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "docs/plans/electron-44-upgrade/electron-44-upgrade-execplan.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -17051,6 +17065,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/backend/animama/app/services/pending_episode_removal.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/backend/animama/app/services/pocket_voice_catalog.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -17932,6 +17953,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/backend/animama/product_http/chat/active_turns.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/backend/animama/product_http/chat/compaction.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -18052,6 +18080,13 @@
     },
     {
       "path": "src/backend/animama/product_http/routes/__init__.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/backend/animama/product_http/routes/_deletion.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -19018,6 +19053,13 @@
     },
     {
       "path": "src/backend/migrations/versions/0002_reasoning_effort.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/backend/migrations/versions/0003_sidebar_pins.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -31637,6 +31679,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/lib/content/contentDeletion.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/lib/content/contentEditorSource.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -35433,6 +35482,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/query/chatAndAnimaDeletion.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/query/contentCatalogInvalidation.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -35616,6 +35672,20 @@
     },
     {
       "path": "src/frontend/web/src/query/hooks/useContentCatalog.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/hooks/useContentDeletePreflight.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/hooks/useContentDeletePreflight.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -36028,6 +36098,34 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/query/mutations/useDeleteAnima.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/mutations/useDeleteChat.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/mutations/useDeleteContentItem.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/mutations/useDeleteContentItem.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/query/mutations/useDeleteMemoryEntry.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -36085,13 +36183,6 @@
     },
     {
       "path": "src/frontend/web/src/query/mutations/usePatchMemoryEntry.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/query/mutations/usePoseContentActions.delete.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -36162,6 +36253,13 @@
     },
     {
       "path": "src/frontend/web/src/query/mutations/useSearchChatMessages.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/mutations/useSidebarPins.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -36673,6 +36771,20 @@
     },
     {
       "path": "src/frontend/web/src/stores/avatar-runtime-store.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/stores/chat-delete-coordination-store.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/stores/chat-delete-coordination-store.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -37358,6 +37470,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/animas/AnimaPageActions.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/animas/AnimaPageActions.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/animas/AvatarDiagnosticsDialog.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -37450,6 +37576,13 @@
     },
     {
       "path": "src/frontend/web/src/ui/animas/LoadoutSectionDisclosure.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/animas/PocketVoicePicker.delete.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -38096,6 +38229,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/components/confirm-delete-dialog.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/components/confirm-delete-dialog.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/components/context-menu.tsx",
       "candidate_license": "MIT (upstream portions); AGPL-3.0-only for original local additions",
       "basis": "Adapted from shadcn/ui apps/www/registry/new-york/ui/context-menu.tsx: A subset of the context-menu primitives. Found by the 2026-11-03 provenance sweep (#823); attribution approved by the owner on 2026-11-03.",
@@ -38237,6 +38384,13 @@
     },
     {
       "path": "src/frontend/web/src/ui/components/logo.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/components/menu-classes.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -38483,6 +38637,13 @@
     },
     {
       "path": "src/frontend/web/src/ui/components/unavailable-action.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/components/useDeleteReturnFocus.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -38805,6 +38966,20 @@
     },
     {
       "path": "src/frontend/web/src/ui/content-creator/useCreatorTemplateStart.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/content-delete/ContentDeleteDialog.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/content-delete/ContentDeleteDialog.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -39616,6 +39791,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/library/LibraryItemMenu.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/library/LibraryItemMenu.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/library/LibraryPage.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -39729,6 +39918,20 @@
     },
     {
       "path": "src/frontend/web/src/ui/library/useLibraryLayout.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/library/useLibrarySearchNavigation.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/library/useLibrarySearchNavigation.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -40708,6 +40911,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/pose-creator/PoseCreatorLibrarySection.delete.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/pose-creator/PoseCreatorLibrarySection.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -41604,7 +41814,21 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/sidebar/AnimaDeleteDialog.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/sidebar/ApplicationSettingsModal.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/sidebar/ChatDeleteDialog.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -41625,7 +41849,21 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/sidebar/SidebarAnimas.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/sidebar/SidebarAnimas.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/sidebar/SidebarChats.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -41667,6 +41905,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/sidebar/SidebarRowMenu.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/sidebar/SidebarRowMenu.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/sidebar/SidebarSectionHeader.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -41696,6 +41948,34 @@
     },
     {
       "path": "src/frontend/web/src/ui/sidebar/index.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/sidebar/sidebarOrder.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/sidebar/sidebarOrder.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/sidebar/useConfirmedDelete.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/sidebar/useSidebarAnimaOrder.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -43525,6 +43805,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "tests/test_chat_and_anima_delete.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "tests/test_chat_compaction_repo.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -43701,6 +43988,13 @@
     },
     {
       "path": "tests/test_content_catalog_cursor.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_content_catalog_delete.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

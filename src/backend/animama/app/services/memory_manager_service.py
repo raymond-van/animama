@@ -90,6 +90,10 @@ _EPISODE_PROCESSING_BATCH_SIZE = 50
 AUTOMATIC_COMPLETION_PROCESSED = "automatic_processed"
 AUTOMATIC_COMPLETION_CLOSED = "automatic_closed"
 AUTOMATIC_COMPLETION_INTERRUPTED = "automatic_interrupted"
+# An episode-processing run ended because a chat or Anima it held notes from was deleted
+# (issue #950, D2). It is not a processing failure.
+SOURCE_DELETED_COMPLETION = "source_deleted"
+SOURCE_DELETED_RUN_ERROR = "Its source chat was deleted"
 # The change provenance of versions an automatic run writes (spec #775, R10).
 AUTOMATIC_EPISODE_PROCESSING_TRIGGER = "automatic_episode_processing"
 _AUTOMATIC_PROCESSING_IN_PROGRESS = "Automatic memory processing is in progress; try again shortly"
@@ -122,6 +126,44 @@ class MemoryManagerNotFoundError(MemoryManagerError):
 
 class MemoryManagerConflictError(MemoryManagerError):
     """Raised when a manager state transition is not allowed."""
+
+
+async def close_run_as_failed(
+    memory_manager: MemoryManagerRepository,
+    run: MemoryManagerRun,
+    *,
+    error: str,
+    completion_reason: str,
+    closed_reason: str,
+) -> None:
+    """Close a locked run as failed and its pending proposals as rejected, without resuming the runtime.
+
+    Changes the run already applied stay. ``closed_reason`` records why each
+    rejected proposal was closed unapplied.
+    """
+
+    decided_at = naive_utc_now()
+    approvals = await memory_manager.list_approvals_for_update(user_id=run.user_id, run_id=run.id)
+    for approval in approvals:
+        if approval.status != MEMORY_MANAGER_APPROVAL_STATUS_PENDING:
+            continue
+        await memory_manager.update_approval(
+            replace(
+                approval,
+                status=MEMORY_MANAGER_APPROVAL_STATUS_REJECTED,
+                decided_at=decided_at,
+                operation_metadata={**dict(approval.operation_metadata or {}), "closed_reason": closed_reason},
+            )
+        )
+    await memory_manager.update_run(
+        replace(
+            run,
+            status=MEMORY_MANAGER_RUN_STATUS_FAILED,
+            error=error,
+            completed_at=decided_at,
+            metadata={**dict(run.metadata or {}), "completion_reason": completion_reason},
+        )
+    )
 
 
 AutomaticEpisodeProcessingStatus = Literal["completed", "failed", "skipped"]
@@ -587,7 +629,10 @@ class MemoryManagerService:
                 return AutomaticEpisodeProcessingOutcome(status="completed", run_id=run_id, batch_size=batch_size)
             error = run.error if run.status == MEMORY_MANAGER_RUN_STATUS_FAILED else None
             error = error or stop_error or "Automatic processing stopped before it finished its batch"
-            await self._fail_automatic_run(run, error=error, completion_reason=AUTOMATIC_COMPLETION_CLOSED)
+            # A chat or Anima delete may already have closed the run and its proposals; it
+            # keeps that reason, which does not count as a processing failure.
+            if dict(run.metadata or {}).get("completion_reason") != SOURCE_DELETED_COMPLETION:
+                await self._fail_automatic_run(run, error=error, completion_reason=AUTOMATIC_COMPLETION_CLOSED)
             await self._commit_if_enabled()
         except Exception:
             await self._rollback_if_enabled()
@@ -621,30 +666,12 @@ class MemoryManagerService:
     async def _fail_automatic_run(self, run: MemoryManagerRun, *, error: str, completion_reason: str) -> None:
         """Close an automatic run as failed and its pending proposals as rejected, without resuming the runtime."""
 
-        decided_at = naive_utc_now()
-        approvals = await self._memory_manager.list_approvals_for_update(user_id=run.user_id, run_id=run.id)
-        for approval in approvals:
-            if approval.status != MEMORY_MANAGER_APPROVAL_STATUS_PENDING:
-                continue
-            await self._memory_manager.update_approval(
-                replace(
-                    approval,
-                    status=MEMORY_MANAGER_APPROVAL_STATUS_REJECTED,
-                    decided_at=decided_at,
-                    operation_metadata={
-                        **dict(approval.operation_metadata or {}),
-                        "closed_reason": AUTOMATIC_COMPLETION_CLOSED,
-                    },
-                )
-            )
-        await self._memory_manager.update_run(
-            replace(
-                run,
-                status=MEMORY_MANAGER_RUN_STATUS_FAILED,
-                error=error,
-                completed_at=decided_at,
-                metadata={**dict(run.metadata or {}), "completion_reason": completion_reason},
-            )
+        await close_run_as_failed(
+            self._memory_manager,
+            run,
+            error=error,
+            completion_reason=completion_reason,
+            closed_reason=AUTOMATIC_COMPLETION_CLOSED,
         )
 
     async def _supersede_open_runs(self, open_runs: list[MemoryManagerRun]) -> None:
@@ -1275,10 +1302,13 @@ class MemoryManagerService:
         if any(item.status == MEMORY_MANAGER_APPROVAL_STATUS_PENDING for item in approvals):
             return run
         try:
+            # A chat or Anima delete removes its pending notes and normally ends the run
+            # holding them; should the run still finish, it marks only the notes left.
             await self._memory_episodes.mark_items_processed(
                 user_id=run.user_id,
                 item_ids=[item.episode_item_id for item in task.items],
                 processed_by_run_id=run.id,
+                skip_missing=True,
             )
         except MemoryEpisodeConflictError as exc:
             raise MemoryManagerConflictError(exc.detail) from exc

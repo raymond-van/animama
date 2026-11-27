@@ -49,7 +49,20 @@ class AnimaRepository(Protocol):
         raise NotImplementedError
 
     async def delete(self, anima_id: str) -> bool:
-        """Delete the anima; returns True if removed."""
+        """Delete the anima with its chats, Anima-scoped memory and last-active setting; returns True if removed.
+
+        Its pending episodes and chat images are the caller's to remove.
+        """
+
+        raise NotImplementedError
+
+    async def set_pinned(self, *, user_id: str, anima_id: str, pinned: bool) -> Anima | None:
+        """Pin or unpin the owner's Anima, without committing; ``None`` when no such Anima.
+
+        A pin is runtime state: it takes no definition lock and never advances
+        ``aggregate_revision``. Pinning keeps an existing pin time, and
+        ``updated_at`` stays unchanged.
+        """
 
         raise NotImplementedError
 

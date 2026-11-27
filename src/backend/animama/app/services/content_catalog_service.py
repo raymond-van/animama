@@ -13,6 +13,7 @@ from uuid import uuid4
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_publication import ContentMutations, ContentPublication
 from animama.app.ports.content_store import ContentStore, LocalContentStore
+from animama.app.services.avatar_portraits import portrait_matches
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.local_content_mutations import LocalContentMutations, mutation_digest
@@ -21,14 +22,17 @@ from animama.domain.content_catalog import (
     CatalogContentEntry,
     CatalogContentFile,
     ContentConflictError,
+    ContentIntegrityError,
     ContentKind,
     ContentNotFoundError,
+    ContentPathError,
     ContentPreview,
     ContentPreviewFile,
     ContentScanSummary,
     ContentScope,
     ContentSource,
     ContentStatus,
+    ContentUsage,
     VerifiedContentFile,
 )
 
@@ -202,6 +206,20 @@ class ContentCatalogService:
             items,
         )
 
+    async def item_usage(self, *, item_id: str, user_id: str) -> tuple[ContentUsage, ...]:
+        """Name what keeps an item from being deleted, without changing anything.
+
+        It answers for exactly the items Delete accepts, so an Included,
+        installation-shared or other owner's item is not found. An empty result
+        means Delete would not be refused as in use.
+        """
+
+        self.require_owner(user_id)
+        item = await self._catalog.get_visible_item(item_id=item_id, user_id=user_id)
+        if item is None or not ContentAccessPolicy.can_mutate(entry=item, user_id=user_id):
+            raise ContentNotFoundError("editable catalog item was not found")
+        return await self._catalog.item_usage(item_id=item.id)
+
     async def delete_item(
         self,
         *,
@@ -209,24 +227,57 @@ class ContentCatalogService:
         user_id: str,
         expected_revision: str,
     ) -> None:
-        """Delete one exact revision with compensation until catalog commit."""
+        """Delete one exact revision with compensation until catalog commit.
+
+        When a registered file changed on disk, nothing is deleted and the refusal
+        is ``catalog_item_changed``. Local is then rescanned in its own
+        transaction, so the catalog and a retry see the files as they are now; the
+        refusal names the item's revision after that scan.
+        """
 
         self.require_owner(user_id)
-        await self.mutations.run(
-            user_id=user_id,
-            operation_id=str(uuid4()),
-            request_digest=mutation_digest({"operation": "delete", "item_id": item_id, "revision": expected_revision}),
-            result_type=type(None),
-            action=lambda: self._delete_item(item_id=item_id, user_id=user_id, expected_revision=expected_revision),
-        )
+        try:
+            await self.mutations.run(
+                user_id=user_id,
+                operation_id=str(uuid4()),
+                request_digest=mutation_digest(
+                    {"operation": "delete", "item_id": item_id, "revision": expected_revision}
+                ),
+                result_type=type(None),
+                action=lambda: self._delete_item(item_id=item_id, user_id=user_id, expected_revision=expected_revision),
+            )
+        except ContentConflictError as exc:
+            if exc.code != "catalog_item_changed":
+                raise
+            await self.rescan(user_id=user_id, include_included=False)
+            current = await self._catalog.get_visible_item(item_id=item_id, user_id=user_id)
+            raise ContentConflictError(
+                "catalog_item_changed", current_revision=current.revision_sha256 if current is not None else None
+            ) from exc
 
     async def _delete_item(self, *, item_id: str, user_id: str, expected_revision: str) -> None:
-        """Delete one exact unbound editable entry and remove its catalog identity."""
+        """Delete one exact unused editable entry, and an Avatar's unused portrait."""
 
-        # Hold the parent row lock through deletion so a concurrent FK-backed
-        # Avatar/loadout binding cannot appear after the reference check.
         await self._catalog.lock_source(source=ContentSource.LOCAL)
-        item = await self._catalog.get_visible_item(item_id=item_id, user_id=user_id, for_update=True)
+        item = await self._catalog.get_visible_item(item_id=item_id, user_id=user_id)
+        if item is None or not ContentAccessPolicy.can_mutate(entry=item, user_id=user_id):
+            raise ContentNotFoundError("editable catalog item was not found")
+        portrait_ids = (
+            [
+                portrait.id
+                for portrait in portrait_matches(item, await self._catalog.list_visible(user_id=user_id))
+                if ContentAccessPolicy.can_mutate(entry=portrait, user_id=user_id)
+            ]
+            if item.kind is ContentKind.AVATAR
+            else []
+        )
+        # Lock the item and its portraits in ID order, and hold the locks through
+        # deletion, so a concurrent FK-backed Avatar or loadout binding cannot
+        # appear after the reference check.
+        locked = await self._catalog.get_visible_items(
+            item_ids=[item_id, *portrait_ids], user_id=user_id, for_update=True
+        )
+        item = locked.get(item_id)
         if item is None or not ContentAccessPolicy.can_mutate(entry=item, user_id=user_id):
             raise ContentNotFoundError("editable catalog item was not found")
         if item.revision_sha256 != expected_revision:
@@ -236,11 +287,39 @@ class ContentCatalogService:
             )
         if item.kind is ContentKind.AVATAR:
             await self._catalog.delete_unbound_avatar_mapping(item_id=item.id, user_id=user_id)
-        if await self._catalog.item_has_runtime_references(item_id=item.id):
-            raise ContentConflictError("catalog_item_in_use")
-        await asyncio.to_thread(self._store.delete_entry, entry=item)
-        await self._catalog.purge_item(item_id=item.id)
+        used_by = await self._catalog.item_usage(item_id=item.id)
+        if used_by:
+            raise ContentConflictError("catalog_item_in_use", used_by=used_by)
+        await self._delete_entry(item)
+        for portrait_id in portrait_ids:
+            # A portrait something else uses stays, as an ordinary Appearance.
+            portrait = locked.get(portrait_id)
+            if (
+                portrait is not None
+                and portrait.revision_sha256 is not None
+                and portrait_matches(item, [portrait])
+                and not await self._catalog.item_usage(item_id=portrait.id, limit=1)
+            ):
+                await self._delete_entry(portrait)
         await self.rescan(user_id=user_id, include_included=False)
+
+    async def _delete_entry(self, item: CatalogContentEntry) -> None:
+        """Remove an entry's registered files, then its catalog identity.
+
+        A ``missing`` entry was absent from the latest scan, so only its catalog
+        row goes: bytes the scan did not attribute to it are never removed. A
+        registered file that changed, vanished or became a link since the scan
+        refuses the delete as ``catalog_item_changed`` before any of the entry's
+        files is removed; the failed mutation restores files an earlier entry of
+        the same delete removed.
+        """
+
+        if item.status is not ContentStatus.MISSING:
+            try:
+                await asyncio.to_thread(self._store.delete_entry, entry=item)
+            except (ContentIntegrityError, ContentPathError) as exc:
+                raise ContentConflictError("catalog_item_changed") from exc
+        await self._catalog.purge_item(item_id=item.id)
 
     async def open_registered_file(self, *, file_ref: str, user_id: str) -> VerifiedContentFile:
         """Authorize the opaque registration before resolving and verifying bytes."""

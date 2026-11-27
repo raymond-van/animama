@@ -406,11 +406,6 @@
     "copyJson": "JSON 복사",
     "current": "현재",
     "defaultName": "새 포즈",
-    "delete": {
-      "confirm": "로컬 콘텐츠에서 \"{{name}}\"을(를) 삭제할까요?",
-      "deleted": "로컬 포즈를 삭제했습니다.",
-      "failed": "이 포즈를 삭제할 수 없습니다."
-    },
     "download": "다운로드",
     "draftName": "초안 이름",
     "empty": "사용할 수 있는 기본 제공 또는 로컬 포즈가 없습니다.",

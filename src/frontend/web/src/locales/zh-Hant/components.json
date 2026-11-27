@@ -3,6 +3,10 @@
     "description": "搜尋要執行的指令...",
     "title": "指令面板"
   },
+  "confirmDelete": {
+    "cancel": "取消",
+    "confirm": "刪除"
+  },
   "dialog": {
     "close": "關閉"
   },

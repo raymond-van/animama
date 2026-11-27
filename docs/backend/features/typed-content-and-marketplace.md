@@ -107,6 +107,7 @@ The infrastructure surface remains neutral:
 ```text
 GET    /v1/content/catalog
 GET    /v1/content/items/{item_id}
+GET    /v1/content/items/{item_id}/usage
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}
 GET    /v1/content/files/{file_ref}

@@ -346,7 +346,10 @@ async def test_clone_library_retains_bytes_rename_ownership_and_protected_deleti
         assert reloaded["voice"] == mounted["voice"]
         blocked = await client.delete(delete_url)
         assert blocked.status_code == 409, blocked.text
-        assert blocked.json()["detail"]["code"] == "catalog_item_in_use"
+        assert blocked.json()["detail"] == {
+            "code": "catalog_item_in_use",
+            "used_by": [{"kind": "anima_voice", "id": fixture.anima_id, "name": fixture.anima_id}],
+        }
         await select({"operation": "remove"}, revision)
         assert (await client.delete(delete_url)).status_code == 204
         assert (await client.get(original_url)).status_code == 404

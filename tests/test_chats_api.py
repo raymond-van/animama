@@ -24,6 +24,7 @@ from animama.domain.user_file import STATUS_DELETE_PENDING, STATUS_DELETED, STAT
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMMemoryEpisodeItem
 from animama.orm.base import Base
 from animama.orm.user_file import ORMUserFile
+from animama.product_http.chat.active_turns import ActiveChatTurns
 from animama.product_http.routes import chats as chats_router
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
@@ -362,20 +363,10 @@ async def test_get_update_delete_enforce_chat_ownership(async_session) -> None:
     assert foreign_update.value.status_code == 404
 
     with pytest.raises(HTTPException) as foreign_delete:
-        await chats_router.delete_chat(
-            other_chat_id,
-            user=_user(owner_id),
-            repositories=SQLAlchemyProductRepositories(async_session),
-            ports=_NO_UPLOADS,
-        )
+        await chat_router_delete(other_chat_id, owner_id, async_session, _NO_UPLOADS)
     assert foreign_delete.value.status_code == 404
 
-    deleted = await chats_router.delete_chat(
-        owner_chat_id,
-        user=_user(owner_id),
-        repositories=SQLAlchemyProductRepositories(async_session),
-        ports=_NO_UPLOADS,
-    )
+    deleted = await chat_router_delete(owner_chat_id, owner_id, async_session, _NO_UPLOADS)
     assert deleted.status_code == 204
 
 
@@ -924,9 +915,7 @@ async def test_deleting_a_chat_deletes_the_images_only_it_uses(async_session, tm
     await _attach_image(async_session, storage, chat_id=kept_chat, user_id=owner_id, file_id=shared)
     ports: Any = SimpleNamespace(uploads=lambda _principal: SimpleNamespace(private_files=storage))
 
-    response = await chats_router.delete_chat(
-        deleted_chat, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session), ports=ports
-    )
+    response = await chat_router_delete(deleted_chat, owner_id, async_session, ports)
 
     assert response.status_code == 204
     async_session.expire_all()
@@ -940,7 +929,11 @@ async def test_deleting_a_chat_deletes_the_images_only_it_uses(async_session, tm
 
 async def chat_router_delete(chat_id: str, owner_id: str, session, ports: Any):
     return await chats_router.delete_chat(
-        chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(session), ports=ports
+        chat_id,
+        user=_user(owner_id),
+        repositories=SQLAlchemyProductRepositories(session),
+        ports=ports,
+        turns=ActiveChatTurns(),
     )
 
 
@@ -983,9 +976,7 @@ async def test_an_image_whose_bytes_cannot_be_deleted_stays_pending(async_sessio
     unreliable = _UnreliableStorage(storage, fails=second)
     ports: Any = SimpleNamespace(uploads=lambda _principal: SimpleNamespace(private_files=unreliable))
 
-    await chats_router.delete_chat(
-        chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session), ports=ports
-    )
+    await chat_router_delete(chat_id, owner_id, async_session, ports)
 
     async_session.expire_all()
     deleted = await async_session.get(ORMUserFile, first)

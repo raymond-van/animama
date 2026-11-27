@@ -12,7 +12,6 @@ const harness = vi.hoisted(() => ({
   selectors: [] as Array<(state: State) => unknown>,
   save: vi.fn(),
   names: vi.fn(),
-  deletePose: vi.fn(),
   submit: null as ((event: FormEvent) => void) | null,
 }));
 
@@ -20,10 +19,13 @@ vi.mock("@/query/hooks/usePoses", () => ({
   usePoses: () => ({ data: { items: [] }, isError: false, refetch: vi.fn() }),
   fetchPoseNames: harness.names,
 }));
+// The shared delete confirmation has its own tests.
+vi.mock("@/ui/content-delete/ContentDeleteDialog", () => ({
+  ContentDeleteDialog: () => null,
+}));
 vi.mock("@/query/mutations/usePoseContentActions", () => ({
   usePoseContentActions: () => ({
     savePose: { mutateAsync: harness.save, isPending: false },
-    deletePose: { mutateAsync: harness.deletePose, isPending: false },
   }),
 }));
 

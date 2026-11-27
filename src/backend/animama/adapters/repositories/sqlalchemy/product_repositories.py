@@ -23,6 +23,7 @@ from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAl
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
+from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import (
     SQLAlchemyAnimaSettingsRepository,
@@ -77,6 +78,10 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def memory_episodes(self) -> SQLAlchemyMemoryEpisodeRepository:
         return SQLAlchemyMemoryEpisodeRepository(self._session)
+
+    @cached_property
+    def memory_manager(self) -> SQLAlchemyMemoryManagerRepository:
+        return SQLAlchemyMemoryManagerRepository(self._session)
 
     @cached_property
     def user_settings(self) -> SQLAlchemyUserSettingsRepository:

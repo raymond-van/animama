@@ -406,11 +406,6 @@
     "copyJson": "JSON をコピー",
     "current": "現在",
     "defaultName": "新しいポーズ",
-    "delete": {
-      "confirm": "「{{name}}」をローカルコンテンツから削除しますか？",
-      "deleted": "ローカルのポーズを削除しました。",
-      "failed": "このポーズを削除できませんでした。"
-    },
     "download": "ダウンロード",
     "draftName": "下書きの名前",
     "empty": "利用できる同梱またはローカルのポーズはありません。",

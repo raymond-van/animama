@@ -14,7 +14,7 @@ from animama.app.contracts.anima_loadout import PyIdleIntent
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.domain.anima_loadout import AnimaLoadoutError
-from animama.domain.content_catalog import VerifiedContentFile
+from animama.domain.content_catalog import ContentUsage, VerifiedContentFile
 from animama.orm.anima_loadout import ORMAnimaLoadout
 from animama.orm.content_catalog import ORMContentCatalogFile, ORMContentCatalogItem
 from tests.content_package_helpers import anima_clip
@@ -198,7 +198,9 @@ async def test_unavailable_member_stays_visible_and_removable_and_pooled_gesture
             service, fixture, revision=1, intent={"operation": "add", "source": catalog_source(breathe)}, key="idle-1"
         )
         # A pooled Gesture is referenced, so deleting it is refused like an equipped one.
-        assert await SQLAlchemyContentCatalog(async_session).item_has_runtime_references(item_id=breathe.id)
+        assert await SQLAlchemyContentCatalog(async_session).item_usage(item_id=breathe.id) == (
+            ContentUsage("anima_idle", fixture.anima_id, fixture.anima_id),
+        )
 
         breathe.status = "invalid"
         await async_session.commit()
@@ -218,7 +220,7 @@ async def test_unavailable_member_stays_visible_and_removable_and_pooled_gesture
             key="idle-2",
         )
         assert removed == "remove"
-        assert not await SQLAlchemyContentCatalog(async_session).item_has_runtime_references(item_id=breathe.id)
+        assert await SQLAlchemyContentCatalog(async_session).item_usage(item_id=breathe.id) == ()
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
 

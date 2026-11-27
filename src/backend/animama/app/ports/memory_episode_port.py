@@ -108,5 +108,30 @@ class MemoryEpisodeRepository(Protocol):
 
         raise NotImplementedError
 
+    async def list_pending_items_from_sources(
+        self,
+        *,
+        user_id: str,
+        source_chat_ids: Iterable[str] = (),
+        source_anima_id: str | None = None,
+    ) -> list[MemoryEpisodeItem]:
+        """List the owner's pending items captured in any of ``source_chat_ids`` or from ``source_anima_id``.
+
+        An Anima's items include those captured in any of its chats.
+        """
+
+        raise NotImplementedError
+
+    async def delete_pending_items(
+        self,
+        *,
+        user_id: str,
+        source_chat_ids: Iterable[str] = (),
+        source_anima_id: str | None = None,
+    ) -> list[MemoryEpisodeItem]:
+        """Delete the pending items ``list_pending_items_from_sources`` lists for the same sources; return them."""
+
+        raise NotImplementedError
+
 
 __all__ = ["MemoryEpisodeRepository", "MemoryEpisodeRepositoryConflictError"]
