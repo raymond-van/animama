@@ -50,7 +50,7 @@ Animama は、魅力たっぷりで表情豊かなコンパニオンを画面の
 
 | プラットフォーム | 動作環境 | インストーラー | サイズ |
 | --- | --- | --- | --- |
-| macOS | macOS 15 以降、Apple シリコン | [Animama-0.1.5-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.5/Animama-0.1.5-arm64.dmg) | 418 MB（インストール後 889 MB） |
+| macOS | macOS 15 以降、Apple シリコン | [Animama-0.1.7-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.7/Animama-0.1.7-arm64.dmg) | 419 MB（インストール後 893 MB） |
 | Windows | Windows 11 x64、ビルド 22000 以降 | [Animama-0.1.6-x64-setup.exe](https://downloads.animama.ai/desktop/v0.1.6/Animama-0.1.6-x64-setup.exe) | 377 MB（インストール後 988 MB） |
 
 Windows では、Animama が新しいアプリのため、SmartScreen に「Windows によって PC が保護されました」と表示されることがあります。**詳細情報** を選び、発行元が Raymond Van であることを確認してから **実行** を選んでください。

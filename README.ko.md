@@ -71,7 +71,7 @@ Animama는 매력적이고 표정이 풍부한 컴패니언을 화면 한쪽에 
 
 | 플랫폼 | 요구 사항 | 설치 파일 | 크기 |
 | --- | --- | --- | --- |
-| macOS | macOS 15 이상, Apple 실리콘 | [Animama-0.1.5-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.5/Animama-0.1.5-arm64.dmg) | 418 MB(설치 후 889 MB) |
+| macOS | macOS 15 이상, Apple 실리콘 | [Animama-0.1.7-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.7/Animama-0.1.7-arm64.dmg) | 419 MB(설치 후 893 MB) |
 | Windows | Windows 11 x64, 빌드 22000 이상 | [Animama-0.1.6-x64-setup.exe](https://downloads.animama.ai/desktop/v0.1.6/Animama-0.1.6-x64-setup.exe) | 377 MB(설치 후 988 MB) |
 
 Windows에서는 Animama가 새로 나온 앱이라 SmartScreen에 "Windows의 PC 보호"가
