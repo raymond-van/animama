@@ -1,7 +1,12 @@
-import type { Client } from "@animama/runtime-contracts/sdk";
+import type {
+  ItemRevisionRef,
+  PyAvatarContent,
+} from "@animama/runtime-contracts/api-types";
+import { getAvatarContent, type Client } from "@animama/runtime-contracts/sdk";
 
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
+import { portraitRetakeTarget } from "@/lib/avatar/portrait/retakeTarget";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import { previewCatalogItem } from "./catalogApi";
 import { contentPreviewFileUrl } from "./contentPreview";
@@ -61,13 +66,48 @@ export async function avatarItemRuntimeEntry(
   return avatarPreviewEntry(preview, "");
 }
 
+/** Read an Avatar's typed item, whose portrait records its capture revision. */
+export async function readAvatarContent(
+  apiClient: Client,
+  itemId: string,
+  signal?: AbortSignal,
+): Promise<PyAvatarContent> {
+  const { data } = await getAvatarContent({
+    client: apiClient,
+    path: { item_id: itemId },
+    signal,
+    responseValidator: undefined,
+    throwOnError: true,
+  });
+  return data;
+}
+
+/**
+ * The previewed Local Avatar revision when its portrait is missing or was
+ * captured from another revision (after Replace VRM, for example), so the
+ * Dock can capture it again. Null for an Included Avatar, a current or
+ * imported portrait, or an unknown item.
+ */
+export function avatarPreviewPortraitRetake(
+  preview: PyContentPreview,
+  avatar: PyAvatarContent | null,
+): ItemRevisionRef | null {
+  if (!preview.item_id || !avatar) return null;
+  return portraitRetakeTarget(
+    { item_id: preview.item_id, revision_sha256: preview.revision_sha256 },
+    [avatar],
+  );
+}
+
 /** Adapt an exact Avatar preview to the shared single-Canvas preview dock. */
 export function avatarPreviewTarget(
   preview: PyContentPreview,
   displayName: string,
+  portraitRetake?: ItemRevisionRef | null,
 ): ContentPreviewTarget {
   const entry = avatarPreviewEntry(preview, displayName);
   return {
+    ...(portraitRetake ? { portraitRetake } : {}),
     key: `typed-avatar:${preview.preview_id}:${preview.revision}`,
     sourceType: "resolved_entry",
     entry,

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "laugh_hysterical",
   "name": "Hysterical Laughter",
-  "ai_description": "Use for something truly hilarious; the strongest laugh. Doubles over holding the stomach, slaps the thigh, wipes away a tear and recovers.",
+  "ai_description": "Use for something truly hilarious; the strongest laugh. Doubles over holding the stomach and wipes away a tear.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

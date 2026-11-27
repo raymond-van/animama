@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "offer_a_rose",
   "name": "Offer a Rose",
-  "description": "Brings a rose from behind the back and shyly offers it. Use for romantic gestures, apologies or thanking the user sweetly.",
-  "ai_description": "Brings a rose from behind the back and shyly offers it. Use for romantic gestures, apologies or thanking the user sweetly.",
+  "description": "Use for romantic gestures, apologies or thanking the user sweetly. Shyly offers a rose from behind the back.",
+  "ai_description": "Use for romantic gestures, apologies or thanking the user sweetly. Shyly offers a rose from behind the back.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

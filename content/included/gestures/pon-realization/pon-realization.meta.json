@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "pon_realization",
   "name": "Pon!",
-  "ai_description": "Use when something suddenly clicks or makes sense — 'Oh! I get it!' or 'that's it!'. Pounds a fist down onto the open palm once with raised eyebrows and a bright, surprised look.",
+  "ai_description": "Use when something suddenly clicks ('Oh! I get it!'). Pounds a fist onto the open palm with a bright, surprised look.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

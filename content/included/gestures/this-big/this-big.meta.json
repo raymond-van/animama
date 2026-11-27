@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "this_big",
   "name": "This Big!",
-  "ai_description": "Use when describing something big, a lot of something, or exaggerating a size (\"it was this big!\"). Frames the hands in front of the chest, then spreads them wide with palms facing as if measuring, eyebrows raised.",
+  "ai_description": "Use when describing something big or a lot, or exaggerating a size (\"it was this big!\"). Spreads the hands wide.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

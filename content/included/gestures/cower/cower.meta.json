@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "cower_hands_up",
   "name": "Cower",
-  "ai_description": "Use when frightened, startled or intimidated, or when playfully pretending to be scared of something. Shrinks down with the shoulders hunched and both palms up in front of the face, trembles, peeks out nervously, then recovers with a relieved sigh.",
+  "ai_description": "Use when frightened, startled or intimidated, or playfully pretending to be scared. Cowers behind raised palms.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

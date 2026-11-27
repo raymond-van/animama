@@ -283,6 +283,12 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] Phase 3: the Generate page (2026-11-26). Code Review #2 passed after
   one repair round. The live check on a plan model used three runs. Ends
   the spec's first usable phase.
+- [x] `origin/main` (`9b275f6e4`) merged after Phase 3 (2026-11-26). Main
+  dropped a Gesture's separate description, so a draft's project and the
+  moved save carry only the AI description, and the packaged Gesture
+  guidance gained main's rule for writing one. Targeted checks on the
+  merged tree `20128b5b…`: 887 backend tests, the web unit suite (7,011),
+  lint, types, i18n, the client and the licence record.
 - [ ] First pull request (Phases 0 to 3): integration review, the full
   pre-push suite on the candidate (G3, the owner's go-ahead first) and the
   package-set comparison.

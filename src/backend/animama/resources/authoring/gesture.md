@@ -63,6 +63,11 @@ the [motion checks](checks.md) and the [joint list](joints.md).
   `laugh_medium`, `laugh_hysterical`), and say in each AI description when
   that tier fits. Ask the owner which Selector ID a replacement for an
   existing Gesture should use.
+- **AI descriptions:** the AI description is a Gesture's one text. Chat
+  sends it for every equipped Gesture with each message and the Library shows
+  it, so keep it to about 120 characters. Lead with when chat
+  should choose the Gesture ("Use when …"), then describe the look in a few
+  words. Keep the words that tell tiers and similar Gestures apart.
 - Long Gestures (10–20 s) are sequences of short actions: give each its own
   beats, let each settle briefly before the next, and keep loops of attention
   (blinks, small head moves) alive through the holds.

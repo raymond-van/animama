@@ -24,6 +24,7 @@ from animama.domain.user_file import (
 )
 from animama.domain.user_file_processing import (
     ACTIVE_PROCESSING_JOB_STATUSES,
+    FILE_REMOVED_DURING_PROCESSING_ERROR,
     JOB_STATUS_FAILED,
     JOB_STATUS_QUEUED,
     JOB_STATUS_RUNNING,
@@ -44,6 +45,8 @@ from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.utils.clock import utc_now
 
 SEARCHABLE_FILE_STATUSES = (STATUS_READY, STATUS_READY_KEYWORD_ONLY)
+REMOVED_FILE_STATUSES = (STATUS_ABORTED, STATUS_DELETED, STATUS_DELETE_PENDING)
+"""File states that processing must never write over: the person removed the file."""
 
 CHUNK_WRITE_BATCH = 32
 """Chunks per flush when storing a processed file.
@@ -352,7 +355,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                 ORMUserFileProcessingJob.job_type == JOB_TYPE_PROCESS_FILE,
                 or_(queued_ready, stale_running),
                 ORMUserFileProcessingJob.attempts < ORMUserFileProcessingJob.max_attempts,
-                ORMUserFile.status.not_in([STATUS_ABORTED, STATUS_DELETED, STATUS_DELETE_PENDING]),
+                ORMUserFile.status.not_in(REMOVED_FILE_STATUSES),
             )
             .order_by(ORMUserFileProcessingJob.run_after, ORMUserFileProcessingJob.created_at)
             .with_for_update(skip_locked=True, of=ORMUserFileProcessingJob)
@@ -439,6 +442,38 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             .execution_options(synchronize_session=False)
         )
 
+    async def _lock_job_and_file(
+        self, *, job_id: str, user_id: str, file_id: str
+    ) -> tuple[ORMUserFileProcessingJob, ORMUserFile]:
+        """Load a claimed job and lock its file row against a concurrent delete.
+
+        ``DELETE /v1/files/{file_id}`` locks the same row, so a job finishing
+        while the file is deleted either commits first (and the delete then
+        removes its chunks) or sees the removed status here.
+        """
+
+        job_obj = await self._s.get(ORMUserFileProcessingJob, job_id)
+        file_obj = await self._s.get(ORMUserFile, file_id, with_for_update=True, populate_existing=True)
+        if job_obj is None or job_obj.user_id != user_id or job_obj.file_id != file_id:
+            raise ValueError(f"processing job not found: {job_id}")
+        if file_obj is None or file_obj.user_id != user_id:
+            raise ValueError(f"user file not found: {file_id}")
+        return job_obj, file_obj
+
+    async def _finish_job_for_removed_file(
+        self, job_obj: ORMUserFileProcessingJob, *, now: datetime
+    ) -> UserFileProcessingJob:
+        """End a job whose file was removed meanwhile, writing no chunks and leaving the file as removed."""
+
+        job_obj.status = JOB_STATUS_FAILED
+        job_obj.finished_at = now
+        job_obj.locked_at = None
+        job_obj.locked_by = None
+        job_obj.last_error = FILE_REMOVED_DURING_PROCESSING_ERROR
+        await self._s.flush()
+        await self._s.refresh(job_obj)
+        return self._job_to_domain(job_obj)
+
     async def replace_chunks_and_mark_success(
         self,
         *,
@@ -453,12 +488,9 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         processed_at: datetime,
         embedding_model_id: str | None = None,
     ) -> UserFileProcessingJob:
-        job_obj = await self._s.get(ORMUserFileProcessingJob, job_id)
-        file_obj = await self._s.get(ORMUserFile, file_id)
-        if job_obj is None or job_obj.user_id != user_id or job_obj.file_id != file_id:
-            raise ValueError(f"processing job not found: {job_id}")
-        if file_obj is None or file_obj.user_id != user_id:
-            raise ValueError(f"user file not found: {file_id}")
+        job_obj, file_obj = await self._lock_job_and_file(job_id=job_id, user_id=user_id, file_id=file_id)
+        if file_obj.status in REMOVED_FILE_STATUSES:
+            return await self._finish_job_for_removed_file(job_obj, now=processed_at)
 
         await self._s.execute(delete(ORMUserFileChunk).where(ORMUserFileChunk.file_id == file_id))
         ordered = sorted(chunks, key=lambda item: item.chunk_index)
@@ -522,15 +554,17 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         """Atomically clone a same-user digest match into the claimed target file.
 
         Vectors are copied only from ``embedding_model_id``; other chunks are
-        left for re-embedding.
+        left for re-embedding. The target file row is locked only once a source
+        exists: a ``None`` result leaves it unlocked, so the parse that follows
+        does not hold off a delete.
         """
 
-        job_obj = await self._s.get(ORMUserFileProcessingJob, job_id)
         file_obj = await self._s.get(ORMUserFile, file_id)
-        if job_obj is None or job_obj.user_id != user_id or job_obj.file_id != file_id:
-            raise ValueError(f"processing job not found: {job_id}")
         if file_obj is None or file_obj.user_id != user_id:
             raise ValueError(f"user file not found: {file_id}")
+        if file_obj.status in REMOVED_FILE_STATUSES:
+            job_obj, _ = await self._lock_job_and_file(job_id=job_id, user_id=user_id, file_id=file_id)
+            return await self._finish_job_for_removed_file(job_obj, now=processed_at)
 
         source_has_chunks = (
             select(ORMUserFileChunk.id)
@@ -556,6 +590,10 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         source_file = (await self._s.execute(source_stmt)).scalar_one_or_none()
         if source_file is None:
             return None
+
+        job_obj, file_obj = await self._lock_job_and_file(job_id=job_id, user_id=user_id, file_id=file_id)
+        if file_obj.status in REMOVED_FILE_STATUSES:
+            return await self._finish_job_for_removed_file(job_obj, now=processed_at)
 
         await self._s.execute(delete(ORMUserFileChunk).where(ORMUserFileChunk.file_id == file_id))
         # One statement copies the chunks inside the database: vectors never pass
@@ -627,12 +665,9 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         retry_delay_seconds: int,
         retryable: bool = True,
     ) -> UserFileProcessingJob:
-        job_obj = await self._s.get(ORMUserFileProcessingJob, job_id)
-        file_obj = await self._s.get(ORMUserFile, file_id)
-        if job_obj is None or job_obj.user_id != user_id or job_obj.file_id != file_id:
-            raise ValueError(f"processing job not found: {job_id}")
-        if file_obj is None or file_obj.user_id != user_id:
-            raise ValueError(f"user file not found: {file_id}")
+        job_obj, file_obj = await self._lock_job_and_file(job_id=job_id, user_id=user_id, file_id=file_id)
+        if file_obj.status in REMOVED_FILE_STATUSES:
+            return await self._finish_job_for_removed_file(job_obj, now=now)
 
         concise_error = error[:500]
         job_obj.last_error = concise_error

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "scheming_hands",
   "name": "Scheming Hands",
-  "ai_description": "Use when teasing a sneaky plan, mischief or a playfully evil idea (\"hehehe, I have a plan\"). Hunches forward and slowly rubs the palms together with a sly, narrow-eyed grin.",
+  "ai_description": "Use when teasing a sneaky plan, mischief or a playfully evil idea (\"hehehe\"). Rubs the palms together slyly.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

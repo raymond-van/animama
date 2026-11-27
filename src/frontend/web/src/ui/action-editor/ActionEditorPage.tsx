@@ -789,7 +789,6 @@ export function ActionEditorPage({
       setDocument((documentState) => ({
         ...documentState,
         name: next.name,
-        description: next.description,
         aiDescription: next.aiDescription,
         semanticKey: next.semanticKey,
         implementation: next.implementation,

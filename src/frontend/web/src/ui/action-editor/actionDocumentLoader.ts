@@ -308,10 +308,9 @@ export async function actionDocumentFromPreview(args: {
   return normalizeActionDocument({
     ...base,
     name: customName,
-    description: item.description ?? "",
-    aiDescription: String(
-      root.ai_description ?? root.description ?? item.description ?? "",
-    ),
+    // The projected description is the AI selection description (or its
+    // legacy fallback), the Action's one text.
+    aiDescription: String(root.description ?? item.description ?? ""),
     semanticKey,
     implementation: implementationKind,
     suggestedEmotion: String(placement.emotion ?? ""),

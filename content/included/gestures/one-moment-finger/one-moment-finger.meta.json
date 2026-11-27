@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "one_moment_finger",
   "name": "One Moment Finger",
-  "description": "Raises one finger and glances aside, 'hold on, let me think'. Use when pausing to think, recalling something or asking for a moment.",
-  "ai_description": "Raises one finger and glances aside, 'hold on, let me think'. Use when pausing to think, recalling something or asking for a moment.",
+  "description": "Use when pausing to think, recalling something or asking for a moment. Raises one finger, 'hold on'.",
+  "ai_description": "Use when pausing to think, recalling something or asking for a moment. Raises one finger, 'hold on'.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

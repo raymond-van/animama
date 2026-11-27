@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "checking_phone",
   "name": "Checking Phone",
-  "description": "Glances down at a phone, scrolls, reacts, then looks back up. Use when checking something, looking it up or mentioning a message or app.",
-  "ai_description": "Glances down at a phone, scrolls, reacts, then looks back up. Use when checking something, looking it up or mentioning a message or app.",
+  "description": "Use when checking something, looking it up or mentioning a message or app. Glances down at a phone and scrolls.",
+  "ai_description": "Use when checking something, looking it up or mentioning a message or app. Glances down at a phone and scrolls.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

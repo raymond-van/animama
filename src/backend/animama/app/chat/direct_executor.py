@@ -597,6 +597,7 @@ class DirectChatTurnExecutor:
                 response_format_guidance=gesture_response_guidance(
                     main_structured_response_guidance(model_provider, output_type),
                     request.runtime_gesture_descriptors,
+                    context_window_tokens=model_provider.context_window_tokens,
                 ),
                 memory_tools_active=memory_tool_config.active or web_search_active,
                 native_memory_patch_enabled=native_memory_patch,
@@ -1127,6 +1128,7 @@ class DirectChatTurnExecutor:
             response_format_guidance=gesture_response_guidance(
                 main_structured_response_guidance(model_request.model_provider, prepared.output_type),
                 prepared.request.runtime_gesture_descriptors,
+                context_window_tokens=model_request.model_provider.context_window_tokens,
             ),
             memory_tools_active=bool(prepared.memory_tool_specs)
             or model_request.provider_options.memory_apply_patch_enabled,

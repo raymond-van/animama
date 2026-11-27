@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "ready_lets_do_this",
   "name": "Ready Lets Do This",
-  "ai_description": "Clenches and clasps each fist in turn, rolls the shoulders, then raises the fists with an enthusiastic smile. Use for motivation, agreement to a challenge or getting ready to act.",
+  "ai_description": "Use for motivation, accepting a challenge or getting ready to act. Rolls the shoulders and raises both fists.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

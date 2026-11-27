@@ -562,7 +562,6 @@ def test_a_gesture_project_is_shaped_like_the_creator_s() -> None:
         "schema": "animamaActionProject/1.0",
         "intent": "gesture",
         "name": "Shy Wave",
-        "description": "",
         "aiDescription": GESTURE_DETAILS["ai_description"],
         "semanticKey": "shy_wave",
         "suggestedEmotion": "",

@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "air_guitar_shred",
   "name": "Air Guitar",
-  "description": "Shreds an air guitar with head-banging strums and a windmill finish. Use when music, rock, a great song or celebrating something awesome comes up.",
-  "ai_description": "Shreds an air guitar with head-banging strums and a windmill finish. Use when music, rock, a great song or celebrating something awesome comes up.",
+  "description": "Use when music, rock, a great song or something awesome comes up. Shreds an air guitar with head-banging strums.",
+  "ai_description": "Use when music, rock, a great song or something awesome comes up. Shreds an air guitar with head-banging strums.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

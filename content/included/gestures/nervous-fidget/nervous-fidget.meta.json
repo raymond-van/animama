@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "nervous_fidget",
   "name": "Nervous Fidget",
-  "ai_description": "Use as an idle when feeling nervous, anxious, scared or embarrassed. Wrings the clasped hands at the waist, darts quick glances side to side, shifts weight with pressed lips, then gives a small self-conscious smile.",
+  "ai_description": "Use as an idle when nervous, anxious, scared or embarrassed. Wrings the hands and glances side to side.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "polite_applause",
   "name": "Polite Applause",
-  "description": "Warm, light applause with a smile. Use to congratulate the user on a small win or appreciate a nice idea.",
-  "ai_description": "Warm, light applause with a smile. Use to congratulate the user on a small win or appreciate a nice idea.",
+  "description": "Use to congratulate the user on a small win or appreciate a nice idea. Warm, light applause with a smile.",
+  "ai_description": "Use to congratulate the user on a small win or appreciate a nice idea. Warm, light applause with a smile.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

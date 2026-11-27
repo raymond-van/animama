@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "big_circle_maru",
   "name": "Big Circle",
-  "ai_description": "Use when the user gets something right, guesses correctly or you approve of an idea, like a variety-show \"Correct!\". Raises both arms overhead into a big round circle with the fingertips touching, with a bright smile and a little bounce.",
+  "ai_description": "Use when the user gets something right or you approve an idea (\"Correct!\"). Makes a big circle overhead with both arms.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

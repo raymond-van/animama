@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "beckon_come_here",
   "name": "Beckon",
-  "ai_description": "Use when inviting the user to come closer, lean in or follow along, as in \"come here, let me show you.\" Holds the right hand palm-up at chest height and curls the fingers in twice, with a small head tilt and an inviting smile.",
+  "ai_description": "Use when inviting the user closer or to follow along (\"come here, let me show you\"). Curls the fingers in, beckoning.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

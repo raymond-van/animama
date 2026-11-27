@@ -19,8 +19,7 @@ import {
  * Run only with the owner's explicit approval of each item and of its licence
  * entries, on a task branch that goes through a PR (see the animama-animation
  * skill's "Promote to Included" step). `items.json` reuses `animation:save`'s
- * items (`clip`, `name`, `aiDescription`, `selectorId`, optional Library
- * `description`). `clip` is a file path (relative to the items file) or a
+ * items (`clip`, `name`, `aiDescription`, `selectorId`). `clip` is a file path (relative to the items file) or a
  * Library source such as `library:local/<selector>`, resolved like
  * `animation:preview` sources, so the saved Local item the owner reviewed is
  * what ships. Each item adds:
@@ -77,7 +76,6 @@ const ITEM_FIELDS = [
   "mode",
   "name",
   "aiDescription",
-  "description",
   "selectorId",
   "slug",
   "dependencies",
@@ -189,10 +187,6 @@ export async function parsePromoteItems(
         item.aiDescription,
         `${where}: "aiDescription"`,
       ),
-      description:
-        item.description === undefined
-          ? undefined
-          : requireText(item.description, `${where}: "description"`),
       selectorId,
       dependencies: item.dependencies ?? [],
       rename: item.rename === true,
@@ -364,12 +358,10 @@ export async function planPromotion(
         missing:
           "re-point the Gesture's dependencies with `pnpm -s effects promote` first",
       });
-      meta = {
-        ...original,
-        name: item.name,
-        ai_description: item.aiDescription,
-      };
-      if (item.description !== undefined) meta.description = item.description;
+      // The AI description is a Gesture's one text, so a replacement also
+      // drops any legacy `description` copy of the old one.
+      const { description: _legacyDescription, ...kept } = original;
+      meta = { ...kept, name: item.name, ai_description: item.aiDescription };
     } else {
       if (original || current(clipPath) !== null)
         throw new Error(
@@ -395,9 +387,6 @@ export async function planPromotion(
         version: 1,
         semantic_key: item.selectorId,
         name: item.name,
-        ...(item.description === undefined
-          ? {}
-          : { description: item.description }),
         ai_description: item.aiDescription,
         implementation: { kind: "anima_clip", file_role: "sequence" },
         dependencies,
@@ -490,7 +479,7 @@ owner's explicit approval of each item and its licence entries, on a task
 branch and PR. "clip" is a file or a Library source (library:local/<selector>;
 Local items come from the sourced stack's ANIMAMA_LOCAL_CONTENT_HOST_PATH).
 Each item: { "clip", "name", "aiDescription", "selectorId",
-"description"?, "mode": "add" | "replace", "slug"?, "licence": { creator, provenance,
+"mode": "add" | "replace", "slug"?, "licence": { creator, provenance,
 license_id, redistribution_review }, "sourceReview": { candidate_license,
 basis, copyright, review } }.
 An add may list "dependencies": [{ "ref": "builtin:…", "alias", "content_type",

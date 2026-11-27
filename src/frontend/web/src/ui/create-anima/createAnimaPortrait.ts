@@ -6,6 +6,7 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import { AvatarPortraitCaptureError } from "@/lib/avatar/portrait/captureAvatarPortrait";
 import { AvatarPortraitGenerationCoordinator } from "@/lib/avatar/portrait/generationCoordinator";
+import { portraitRetakeTarget } from "@/lib/avatar/portrait/retakeTarget";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("CreateAnimaPortrait");
@@ -14,10 +15,8 @@ const log = createLogger("CreateAnimaPortrait");
 export const CREATION_PORTRAIT_TIMEOUT_MS = 15_000;
 
 /**
- * The selected Avatar revision that needs a portrait, or null. Only a saved
- * Local Avatar qualifies, when it has no portrait or its portrait was captured
- * from another revision. Shipped and imported portraits (no capture revision)
- * are kept.
+ * The selected Avatar revision that needs a portrait, or null: never an
+ * unsaved upload, otherwise the shared rule in `portraitRetakeTarget`.
  */
 export function creationPortraitTarget({
   selected,
@@ -28,20 +27,7 @@ export function creationPortraitTarget({
   file: File | null;
   avatars: readonly PyAvatarContent[];
 }): ItemRevisionRef | null {
-  if (!selected || file) return null;
-  const avatar = avatars.find(
-    (item) =>
-      item.item_id === selected.item_id &&
-      item.revision_sha256 === selected.revision_sha256,
-  );
-  if (!avatar || avatar.source !== "local") return null;
-  const captured = avatar.portrait?.avatar_revision_sha256;
-  const current = avatar.portrait
-    ? captured === null ||
-      captured === undefined ||
-      captured === selected.revision_sha256
-    : false;
-  return current ? null : selected;
+  return file ? null : portraitRetakeTarget(selected, avatars);
 }
 
 function isAbort(error: unknown): boolean {

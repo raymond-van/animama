@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "phew_brow_wipe",
   "name": "Phew Brow Wipe",
-  "ai_description": "Use when relieved that something turned out fine, after a close call, a scare or finishing something tough. Wipes the back of the wrist across the brow, flicks it off and lets out a big 'phew' with a relieved closed-eye smile.",
+  "ai_description": "Use when relieved after a close call, a scare or finishing something tough. Wipes the brow with a big 'phew'.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

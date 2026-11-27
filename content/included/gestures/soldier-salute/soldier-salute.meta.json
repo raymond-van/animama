@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "soldier-salute",
   "name": "Salute",
-  "ai_description": "Use when acknowledging a request, accepting a task or playfully reporting ready to help. Snaps a right-hand salute to the brow with a nod and a wink.",
+  "ai_description": "Use when acknowledging a request, accepting a task or playfully reporting ready to help. Snaps a salute with a wink.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

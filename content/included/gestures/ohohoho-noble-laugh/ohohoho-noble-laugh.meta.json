@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "ohohoho_noble_laugh",
   "name": "Ohohoho Noble Laugh",
-  "ai_description": "Use when gloating, showing off or playing the haughty rich-girl after a win or a compliment. Throws the head back with the back of the hand at the chin and the other hand on the hip, eyes closed, in a decaying 'Ohohoho!' laugh.",
+  "ai_description": "Use when gloating or playing the haughty rich girl after a win or compliment. An 'Ohohoho!' laugh, hand at the chin.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

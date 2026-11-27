@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "thinking-head-scratch",
   "name": "Thinking Head Scratch",
-  "ai_description": "Use while puzzled or trying to work something out; thinking, not sheepish. Keeps a hand on the head, scratching now and then, with a tilted head and an upward glance.",
+  "ai_description": "Use while puzzled or working something out; thinking, not sheepish. Scratches the head with a tilted head.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

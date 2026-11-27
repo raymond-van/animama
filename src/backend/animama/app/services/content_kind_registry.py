@@ -453,6 +453,22 @@ def _string(value: Any, *, field_name: str, fallback: str | None = None, maximum
     return value.strip()
 
 
+def _description(raw: Mapping[str, Any]) -> str | None:
+    """Return a document's one description: its AI selection description, else a legacy ``description``.
+
+    Every kind reads this, but only Actions (Gestures and Reactions) write
+    ``ai_description``; chat, the Library and search all show the result. A
+    blank ``ai_description`` counts as missing.
+    """
+
+    ai_description = raw.get("ai_description")
+    if isinstance(ai_description, str) and not ai_description.strip():
+        ai_description = None
+    return _optional_string(ai_description, field_name="ai_description") or _optional_string(
+        raw.get("description"), field_name="description"
+    )
+
+
 def _optional_string(value: Any, *, field_name: str, maximum: int = 4_096) -> str | None:
     if value is None:
         return None
@@ -718,10 +734,7 @@ def _base_values(
             maximum=120,
         ),
         "content_id": _content_id(raw),
-        "description": _optional_string(
-            raw.get("description", raw.get("ai_description")),
-            field_name="description",
-        ),
+        "description": _description(raw),
         "version": version,
         "schema_version": schema_version,
         "files": files,

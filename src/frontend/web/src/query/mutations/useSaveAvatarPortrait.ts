@@ -9,6 +9,7 @@ import {
   AVATAR_PORTRAIT_CAPTURE_PRESET_VERSION,
   AVATAR_PORTRAIT_RENDERER_VERSION,
 } from "@/lib/avatar/portrait/captureAvatarPortrait";
+import { bumpAvatarPortraitVersion } from "@/stores/avatar-portrait-version-store";
 import { invalidateAvatarPortraitPresentation } from "./avatarPortraitMutationCache";
 
 /**
@@ -38,6 +39,8 @@ export function useSaveAvatarPortrait() {
         requestValidator: undefined,
         responseValidator: undefined,
       });
+      // The portrait keeps its file URL; images showing it need a new one.
+      bumpAvatarPortraitVersion(target.item_id);
       // Not awaited: a slow refetch must not count against the capture's timeout.
       if (userId)
         void invalidateAvatarPortraitPresentation(queryClient, userId);

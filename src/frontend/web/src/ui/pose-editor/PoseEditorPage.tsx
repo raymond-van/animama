@@ -182,21 +182,24 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
   }, [loaded]);
 
   const editable = loaded && Boolean(activeAvatar) && avatarStatus === "ready";
-  const error = item.error
-    ? t("editor.loadFailed")
-    : loadError?.kind === "unavailable"
-      ? t("editor.loadUnavailable")
-      : loadError?.kind === "address"
-        ? t("editor.addressFailed")
-        : loadError
-          ? apiErrorLine(
-              apiErrorText(
-                readApiError(loadError.error),
-                null,
-                t("editor.loadFailed"),
-              ),
-            )
-          : null;
+  // Once the document is loaded the editor no longer needs the item: deleting
+  // the open Pose keeps its draft for Save, so the refetch's 404 is not a failure.
+  const error =
+    item.error && !loaded
+      ? t("editor.loadFailed")
+      : loadError?.kind === "unavailable"
+        ? t("editor.loadUnavailable")
+        : loadError?.kind === "address"
+          ? t("editor.addressFailed")
+          : loadError
+            ? apiErrorLine(
+                apiErrorText(
+                  readApiError(loadError.error),
+                  null,
+                  t("editor.loadFailed"),
+                ),
+              )
+            : null;
   const retryPose = async () => {
     setLoadError(null);
     await item.refetch();

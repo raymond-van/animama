@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "smug_heh",
   "name": "Smug Heh",
-  "ai_description": "Use when being cocky or quietly pleased with yourself, such as after a clever answer, a win or a compliment you think you deserve. Lifts the chin with half-lidded eyes, puts a fist on the hip and brushes the index finger under the nose, then gives a short smug 'heh' nod.",
+  "ai_description": "Use when cocky or quietly pleased with yourself after a clever answer, a win or a compliment you deserve. A smug 'heh', chin up.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

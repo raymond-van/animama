@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "double-thumbs-down",
   "name": "Double Thumbs Down",
-  "ai_description": "Use for strong or playfully exaggerated disapproval or rejection; stronger than one thumb. Drops both thumbs down, pushes them twice like a \"boo\" and pouts.",
+  "ai_description": "Use for strong or playfully exaggerated disapproval; stronger than one thumb. Pushes both thumbs down with a pout.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -1,6 +1,7 @@
 import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type { GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import { isAnimamaConversion } from "../avatarConversionMarker";
 import { isEnhancedRenderingEnabled } from "./enhancedRendering";
 import { vroidLookFor, type ToonLook } from "./vroidPalette";
 
@@ -58,6 +59,10 @@ function isVroidExport(materials: readonly GltfMaterial[]): boolean {
 
 function patchMaterials(parser: GLTFParser): void {
   if (!isEnhancedRenderingEnabled()) return;
+  // An MMD model converted by Animama Avatar Converter may keep VRoid's
+  // material names (a VRoid model exported to PMX), but its MToon follows
+  // MMD's toon ramps, not VRoid's, so it keeps them.
+  if (isAnimamaConversion(parser.json)) return;
   const materials = (parser.json.materials ?? []) as GltfMaterial[];
   if (!isVroidExport(materials)) return;
   for (const material of materials) {

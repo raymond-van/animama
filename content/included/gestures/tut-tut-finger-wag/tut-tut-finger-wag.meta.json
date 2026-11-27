@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "tut_tut_finger_wag",
   "name": "Tut-Tut Finger Wag",
-  "ai_description": "Wags a raised index finger with an exaggerated disapproving face, then softens into a playful smile. Use for teasing correction or mild admonishment.",
+  "ai_description": "Use for teasing correction or mild admonishment. Wags a finger disapprovingly, then softens into a smile.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

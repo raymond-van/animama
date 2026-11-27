@@ -142,6 +142,25 @@
       "title": "虚拟形象设置",
       "description": "{{name}} 的设置。适用于使用此虚拟形象的所有地方。",
       "diagnosticsOnly": "查看 Animama 在 {{name}} 中发现的内容。",
+      "model": {
+        "label": "模型文件",
+        "description": "用更新后的文件替换此虚拟形象的 VRM。名称和设置保持不变。",
+        "replace": "替换 VRM",
+        "checking": "正在检查文件…",
+        "invalid": "此文件无法用作 VRM。",
+        "confirmTitle": "要将模型替换为 {{file}}（{{size}}）吗？",
+        "usedBy_other": "{{names}} 正在使用此虚拟形象，下次加载聊天时将切换到新模型。",
+        "unused": "还没有 Anima 使用此虚拟形象。",
+        "unreadable": "无法读取此虚拟形象的详细信息。请关闭并重新打开其设置后再试。",
+        "usersUnknown": "使用此虚拟形象的每个 Anima 都会在下次加载聊天时切换到新模型。",
+        "keeps": "每个 Anima 的动作、反应、待机和语音保持不变。除非肖像是导入的，否则 Animama 会从新模型重新拍摄虚拟形象的肖像。",
+        "faceParts": "为当前文件保存的脸部部件修正将不再生效，脸部部件会重新检测。",
+        "cancel": "取消",
+        "confirm": "替换",
+        "replacing": "正在替换…",
+        "changed": "选择文件后此虚拟形象已更改。请查看下方内容，然后再次替换。",
+        "replaced": "{{name}} 现在使用新模型。"
+      },
       "diagnostics": "查看 Animama 在此虚拟形象中发现的内容，并复制报告以便寻求支持。"
     }
   },

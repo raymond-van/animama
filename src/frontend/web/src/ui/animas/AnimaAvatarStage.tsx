@@ -55,11 +55,15 @@ import {
 import {
   resolveRuntimeAvatarFaceParts,
   runtimeAvatarItemId,
+  runtimeAvatarItemRevision,
 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { cn } from "@/lib/utils";
 import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
+import { useAvatarContents } from "@/query/hooks/useAnimaCreation";
+import { portraitRetakeTarget } from "@/lib/avatar/portrait/retakeTarget";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
+import { useStagePortraitRetake } from "@/ui/avatar-preview/useStagePortraitRetake";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
 import { Button } from "@/ui/components/button";
 import {
@@ -193,6 +197,19 @@ function StageAvatarActor({
   } | null>(null);
   const [sceneObject, setSceneObject] = useState<Object3D | null>(null);
   const [avatarReady, setAvatarReady] = useState(false);
+  // The Anima's own Avatar, at rest, retakes a missing or stale Local
+  // portrait (after an upload or Replace VRM), as the Create Anima stage does.
+  const shownAvatar =
+    source.kind === "url"
+      ? runtimeAvatarItemRevision(source.runtimeContentEntry)
+      : null;
+  const avatarContents = useAvatarContents(Boolean(shownAvatar));
+  useStagePortraitRetake({
+    avatarRef,
+    ready: avatarReady && !contentPreview && !temporaryPreviewModel,
+    shown: shownAvatar,
+    retake: portraitRetakeTarget(shownAvatar, avatarContents.data ?? []),
+  });
   useEffect(() => {
     temporaryModelErrorRef.current = onTemporaryPreviewModelError;
   }, [onTemporaryPreviewModelError]);

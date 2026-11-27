@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "simmering_huff",
   "name": "Simmering Huff",
-  "ai_description": "Use as an idle while annoyed, cross or disapproving (anger, annoyance, disgust). Arms loosely folded with impatient finger taps, a side-eye glare, a small cheek-puff huff and a 'hmph' turn away, then a grumpy settle.",
+  "ai_description": "Use as an idle while annoyed, cross or disapproving. Arms folded, taps the fingers, side-eyes and huffs.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -55,6 +55,7 @@ Runtime guides:
 - `runtime/avatar-animation.md`
 - `runtime/vrm-optimization.md`: shrinking the VRMs Animama ships without changing them.
 - `runtime/vrchat-avatar-conversion.md`: converting a licensed VRChat Avatar to VRM with Mochiya Avatar Tools.
+- `runtime/mmd-model-conversion.md`: converting a MikuMikuDance (PMX) model to VRM with Animama Avatar Converter.
 - `runtime/mixamo-acquisition.md`: private manual-download checklist and deferred conversion.
 - `runtime/content-previews.md`
 - `runtime/avatar-planner.md`

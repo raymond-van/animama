@@ -310,8 +310,7 @@ def build_project(intent: Intent, clip: Mapping[str, Any], details: Mapping[str,
 
     The item's name is the clip's name, and the clip's id is that name in
     kebab-case, as the creator keeps them (``normalizeActionDocument``). The
-    project owns a copy of the clip. A draft has no description, notes or
-    dependencies.
+    project owns a copy of the clip. A draft has no notes or dependencies.
     """
 
     gesture = intent == "gesture"
@@ -323,7 +322,6 @@ def build_project(intent: Intent, clip: Mapping[str, Any], details: Mapping[str,
         "schema": ACTION_PROJECT_SCHEMA,
         "intent": intent,
         "name": name,
-        "description": "",
         "aiDescription": str(details["ai_description"]).strip() if gesture else "",
         "semanticKey": details["selector_id"] if gesture else "",
         "suggestedEmotion": "" if gesture else details["emotion"],

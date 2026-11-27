@@ -100,7 +100,8 @@ the same models, and an error names a JSON path such as
   on an eye landmark; `faceCleanup` and `skinBackdrop` on a mouth landmark;
   `faceCleanup` on a mouth decal; `hideParts` on a `full` or `eyes` surface.
   `forceBlink`, `hideEyeDetails` and `faceCleanup` default on where they apply;
-  `skinBackdrop` defaults off.
+  `skinBackdrop` defaults off, except on eye art that closes the eyes of a
+  converted MMD model (see [Face cleanup](#face-cleanup)).
 - **`region`**: the replacement group (see [Coexistence](#coexistence)). Face
   attachments use `eyes`, `undereye`, `blush`, `mouth`, `emote` or
   `full_face`; the other attachments use their own kind.
@@ -369,7 +370,8 @@ review renders' face view and `animation:render` follow suit.
 
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
-painted eye area (`faceCleanup`). `skinBackdrop`, off by default, adds a
+painted eye area (`faceCleanup`). `skinBackdrop`, off by default (but see
+converted MMD models under [Face cleanup](#face-cleanup)), adds a
 skin-coloured plane behind eye or mouth art (render order 949). It is lit like
 the face when the face uses MToon or a built-in material; on a lilToon or
 other custom-shader face it is a plain, unlit card.
@@ -382,6 +384,36 @@ from a central patch and paints soft ellipses over the painted eyes or mouth
 before other layers draw. It never edits the VRM. One effect turning cleanup
 off does not cancel another's request. `skinBackdrop` uses the same sampled
 colour. `setFaceFlattenPreview` shows the pass in debug tools.
+
+A MikuMikuDance model converted by Animama Avatar Converter (its
+`ANIMAMA_avatar_conversion` marker) often closes an eye with its lash mesh
+rather than the face skin, so hiding the lashes would show the iris, and its
+closed lids and lashes can stand in front of the eye plane. Each of its eye
+landmarks therefore carries a `closedCover`
+(`measureClosedEyeCovers` in `faceParts.ts`): the box its iris, eye lines and
+lashes span on that side, open and closed under `blink`; the frontmost depth
+of those and of the face skin's lids (the face vertices `blink` moves at
+least half as far as the farthest on that side); and the same without the
+lashes (`skinFrontZLocal`). Eye art that closes the eyes then:
+
+- sits at least the usual clearance in front of the cover's front;
+- when it also hides the eye details, gets a skin patch over each eye with a
+  cover, whatever planes the art has (one eye's, both, or a centred one),
+  unless the effect sets `skinBackdrop` to `false`: a soft ellipse in the
+  sampled skin colour the size of the cover, at most 0.75 by 0.7 of the eye
+  spacing, with a narrower fade than the cleanup's, half a millimetre in front
+  of the iris and lids, behind the hidden lashes, so hair hanging in front of
+  the face still covers its edge. The patches stay over the eyes whatever the
+  art's offset, rotation or scale, and fade with the art. A face whose colour
+  cannot be sampled gets none, without a warning (an effect that sets
+  `skinBackdrop` warns).
+
+The creator's Skin backdrop switch writes `true` or `false`; an Included
+effect that leaves it unset keeps these defaults.
+
+Other Avatars carry no cover and render as before. The patch is a flat card:
+it can show at the edge of the face in a three-quarter view, and its colour
+is the face's average, which can read lighter than skin shaded under bangs.
 
 ### Coexistence
 
@@ -402,7 +434,7 @@ VRM specification does not define. `detectAvatarFaceParts`
 | `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the primitives skinned to the head (eye bones included, as an eye mesh may skin only its irises to them) within that eye region with a triangle behind an eyelid `blink` moves on the face skin: its outline meets the lid's in the front view and a corner lies no deeper than 15% of the lids' width behind the lid's front, so an eye card larger than the lid counts; sides follow the head's left-right axis. A part deep inside the head or beside it (ears) whose outline merely spans the lids does not count. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. An eye with no geometry of its own is `estimated` (see below). |
 | `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph (presets left empty are filled from MMD, ARKit or VRChat shapes first, `faceSignals.ts`), with the most area around the eyes. A face skinned partly to the neck or jaw (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do. With neither, a primitive they morph that holds the body (under half its weight on the head, or over 35% below the neck) is face skin as its head region (see below). When `aa` morphs no mesh (a mouth swapped between separate meshes by material binds, or none authored), the same rules pick among the primitives `blink` alone morphs, and the mouth anchor is estimated from the eyes; only when that finds nothing either does Diagnostics warn that the expressions move no mesh. |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
-| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. Elsewhere an island must move at least half as far as the lid, but inside the box an eye's lid sweeps on the face skin (its `blink` region grown by a quarter of its size, reaching no higher than the open lid's lash line), a tenth is enough: lower lashes and eyeliner wing tips follow the lid only part of the way. Such an island is always a lash, never the line. Brows sit above the lash line, so a brow `blink` drags is left out. |
+| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. On an MMD model converted by Animama Avatar Converter (its marker), which keeps each material in a mesh of its own, head primitives `blink` morphs but `aa` does not (its lash mesh, often shared with the brows or the eyes; not eye-bone, hair or body meshes) are searched island by island too, never taken whole. Elsewhere an island must move at least half as far as the lid, but inside the box an eye's lid sweeps on the face skin (its `blink` region grown by a quarter of its size, reaching no higher than the open lid's lash line), a tenth is enough: lower lashes and eyeliner wing tips follow the lid only part of the way. Such an island is always a lash, never the line. Brows sit above the lash line, so a brow `blink` drags is left out. |
 | `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
 
 Each part reports its `node:mesh:primitive` bindings, a source (`signals`,
@@ -413,6 +445,12 @@ region of one that holds the whole body; texture
 anchors project onto the face binding nearest the eyes. Material and node names
 (`profiles.ts`) are a fallback per part; if detection itself fails, the Avatar
 still loads with name matching and logs `avatar_face_parts_detection_failed`.
+Hair's name fallback (`isHairName`) also reads the Japanese, Chinese and
+Korean names models give hair (髪, 头发, 刘海, アホ毛, ツインテール, 앞머리, and
+发 at the start of a name or after a position, length or colour, but not in
+words such as 发光, "glow"), and skips ornaments (髪飾り) and words that only
+contain a hair word ("chair"). A converted MMD model whose springs do not
+reveal its hair still has it found.
 Detection takes a few milliseconds per Avatar and never writes world matrices.
 
 ### Eyes without geometry
@@ -550,7 +588,8 @@ Regions of those meshes are hidden instead: while the effect is on, their
 triangles are rewritten in place as degenerate triangles
 (`PrimitiveRegionHider`, reference-counted per effect, outlines included) and
 restored when the last effect using them ends, and before face parts are
-detected again. A region in an unindexed primitive cannot be hidden; the
+detected again. Regions in a primitive that holds no part of its own (a lash
+mesh shared with the brows) are hidden the same way. A region in an unindexed primitive cannot be hidden; the
 effect still plays and reports `eye_detail_not_hidden`. When a face has no
 line or lash geometry at all, its lashes are taken to be painted into the face
 texture, and eye cleanup covers each eyelid `blink` moves rather than an

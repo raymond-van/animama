@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "tantrum_stomp",
   "name": "Tantrum Stomp",
-  "description": "Pumps fists and stomps with a pout, then huffs with crossed arms. Use for playful frustration, not getting their way or 'no fair!'.",
-  "ai_description": "Pumps fists and stomps with a pout, then huffs with crossed arms. Use for playful frustration, not getting their way or 'no fair!'.",
+  "description": "Use for playful frustration, not getting your way or 'no fair!'. Stomps and pumps the fists with a pout.",
+  "ai_description": "Use for playful frustration, not getting your way or 'no fair!'. Stomps and pumps the fists with a pout.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

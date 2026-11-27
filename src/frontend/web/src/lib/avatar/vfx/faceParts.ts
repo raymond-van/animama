@@ -15,6 +15,7 @@ import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import type { Avatar } from "../Avatar";
+import { isAnimamaConversion } from "../avatarConversionMarker";
 import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
 import { createBoneClassifier, type BoneClass } from "./boneClasses";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
@@ -280,7 +281,26 @@ const EYE_BONE_MIN_HEIGHT_SHARE = 0.25;
 const FACE_FRONT_DEPTH_SHARE = 0.5;
 
 const LOOK_AT_EXPRESSIONS = ["lookLeft", "lookRight", "lookUp", "lookDown"];
-const HAIR_NAME_PATTERN = /hair|bang|fringe/i;
+/**
+ * Names that mean hair: English, and the Japanese, Chinese and Korean names
+ * MikuMikuDance and other models give hair materials (髪, 髮, 头发, 刘海,
+ * アホ毛, 앞머리 …). 发 alone counts at the start of a name or after a
+ * position, length or colour (前发, 长发, 白发), but not in words such as 发光
+ * (glow), 发条 (wind-up), 发射 (launch) or 出发 (depart).
+ */
+const HAIR_NAME_PATTERN =
+  /hair|bangs?|fringe|ponytail|twin_?tails?|pigtail|ahoge|髪|髮|头发|頭髪|刘海|瀏海|劉海|呆毛|アホ毛|ツインテ|ポニーテ|머리카락|앞머리|뒷머리|옆머리|(?:^|[前后後侧側鬓鬢长長短卷捲白黑金银銀])发(?![光条射出送生现現动動表布])/i;
+
+/** Names that contain a hair word but are not hair: ornaments, and English words like "chair". */
+const NOT_HAIR_NAME_PATTERN = /chair|bangle|飾|饰|ornament|accessor/i;
+
+/** Whether a material, object or node name means hair. */
+export function isHairName(name: string): boolean {
+  const trimmed = name.trim();
+  return (
+    HAIR_NAME_PATTERN.test(trimmed) && !NOT_HAIR_NAME_PATTERN.test(trimmed)
+  );
+}
 
 type EyeSide = "left" | "right" | "both";
 
@@ -626,6 +646,164 @@ export function measureEyelidBounds(
     left: lids.left.isEmpty() ? null : lids.left,
     right: lids.right.isEmpty() ? null : lids.right,
   };
+}
+
+/** An eye's closed cover: see {@link measureClosedEyeCovers}. */
+export type ClosedEyeCover = {
+  /** In anchor space: the eye's parts, open and closed. */
+  bounds: THREE.Box3;
+  /**
+   * The frontmost anchor-space depth (z) of those parts and of the face
+   * skin's lids there, open or closed.
+   */
+  front: number;
+  /**
+   * The frontmost depth of the iris and of the face skin blink moves on this
+   * side, open or closed: without the lashes, which stand further out and
+   * which eye art hides.
+   */
+  skinFront: number;
+};
+
+/**
+ * Each eye's closed cover: the box, in `anchor` space, that the eye's iris
+ * and the eye lines and lashes on its side span, at rest and with `blink`
+ * closing them, and the frontmost depth of those and of the face skin's lids. A converted MikuMikuDance model
+ * often closes an eye with its lash mesh rather than the face skin, so eye
+ * art that hides the lashes needs a skin patch this size in front of it.
+ * Whole primitives and part regions count; sides follow the head's
+ * left-right axis. Null for a side with none of those parts.
+ */
+export function measureClosedEyeCovers(
+  vrm: VRM,
+  map: AvatarFacePartMap,
+  entries: readonly RuntimePrimitiveBindingEntry[],
+  anchor: THREE.Object3D,
+): { left: ClosedEyeCover | null; right: ClosedEyeCover | null } {
+  const context = {
+    anchor,
+    points: new Map<THREE.Mesh, THREE.Vector3[]>(),
+    frontSign: (vrm.meta?.metaVersion === "0" ? -1 : 1) as 1 | -1,
+  };
+  const byKey = new Map(entries.map((entry) => [entry.bindingKey, entry]));
+  // Each primitive's vertices that count: all of a part primitive's, or a
+  // region's triangles' corners; and which primitives hold an iris.
+  const vertices = new Map<RuntimePrimitiveBindingEntry, Set<number> | null>();
+  const irises = new Set<RuntimePrimitiveBindingEntry>();
+  for (const role of ["eye_left", "eye_right", "eyeline", "eyelash"] as const) {
+    const part = map.parts[role];
+    if (role === "eye_left" || role === "eye_right") {
+      for (const key of part.bindings) {
+        const entry = byKey.get(key);
+        if (entry) irises.add(entry);
+      }
+    }
+    const regionKeys = new Set(
+      (part.regions ?? []).map((region) => region.bindingKey),
+    );
+    for (const key of part.bindings) {
+      const entry = byKey.get(key);
+      if (entry && !regionKeys.has(key)) vertices.set(entry, null);
+    }
+    for (const region of part.regions ?? []) {
+      const entry = byKey.get(region.bindingKey);
+      const index = entry?.object.geometry.getIndex();
+      if (!entry || !index || vertices.get(entry) === null) continue;
+      const set = vertices.get(entry) ?? new Set<number>();
+      for (const triangle of region.triangles)
+        for (let corner = 0; corner < 3; corner += 1)
+          set.add(index.getX(triangle * 3 + corner));
+      vertices.set(entry, set);
+    }
+  }
+  const blink = collectMorphBinds(vrm, "blink");
+  const covers: Record<"left" | "right", ClosedEyeCover | null> = {
+    left: null,
+    right: null,
+  };
+  const ahead = (z: number, of: number) => (z - of) * context.frontSign > 0;
+  const skinFronts: Record<"left" | "right", number | null> = {
+    left: null,
+    right: null,
+  };
+  const addSkin = (side: "left" | "right", point: THREE.Vector3) => {
+    const front = skinFronts[side];
+    if (front === null || ahead(point.z, front)) skinFronts[side] = point.z;
+  };
+  const add = (side: "left" | "right", point: THREE.Vector3) => {
+    const cover = (covers[side] ??= {
+      bounds: new THREE.Box3(),
+      front: point.z,
+      skinFront: point.z,
+    });
+    cover.bounds.expandByPoint(point);
+    if (ahead(point.z, cover.front)) cover.front = point.z;
+  };
+  for (const [entry, only] of vertices) {
+    const mesh = entry.object;
+    const points = anchorSpacePoints(context, mesh);
+    const closed = new Map<number, THREE.Vector3>();
+    forEachMorphDelta(
+      context,
+      mesh,
+      (blink.get(mesh) ?? []).map((index) => ({ index, weight: 1 })),
+      (vertex, point, delta) => closed.set(vertex, point.clone().add(delta)),
+    );
+    const iris = irises.has(entry);
+    const visit = (vertex: number) => {
+      const point = points[vertex];
+      if (!point) return;
+      // The side comes from the rest position, which a closed lid shares.
+      const side = point.x * context.frontSign >= 0 ? "left" : "right";
+      const shut = closed.get(vertex);
+      for (const at of shut ? [point, shut] : [point]) {
+        add(side, at);
+        if (iris) addSkin(side, at);
+      }
+    };
+    if (only) only.forEach(visit);
+    else points.forEach((_, vertex) => visit(vertex));
+  }
+  // The face skin's lids, open and closed: on each side, the vertices blink
+  // moves at least BLINK_REGION_MIN_SHARE as far as the farthest there, not
+  // the cheeks and brows it drags a little.
+  for (const key of map.parts.face_skin.bindings) {
+    const mesh = byKey.get(key)?.object;
+    if (!mesh) continue;
+    const moved: {
+      side: "left" | "right";
+      point: THREE.Vector3;
+      shut: THREE.Vector3;
+      distance: number;
+    }[] = [];
+    const farthest = { left: 0, right: 0 };
+    forEachMorphDelta(
+      context,
+      mesh,
+      (blink.get(mesh) ?? []).map((index) => ({ index, weight: 1 })),
+      (_vertex, point, delta) => {
+        const side = point.x * context.frontSign >= 0 ? "left" : "right";
+        const distance = delta.length();
+        farthest[side] = Math.max(farthest[side], distance);
+        moved.push({ side, point, shut: point.clone().add(delta), distance });
+      },
+    );
+    for (const { side, point, shut, distance } of moved) {
+      if (distance < farthest[side] * BLINK_REGION_MIN_SHARE) continue;
+      addSkin(side, point);
+      addSkin(side, shut);
+    }
+  }
+  for (const side of ["left", "right"] as const) {
+    const cover = covers[side];
+    const skin = skinFronts[side];
+    if (!cover) continue;
+    // Without iris or lids there, the skin is taken to be at the cover's
+    // front; lids in front of the lashes move the cover's front forward.
+    cover.skinFront = skin ?? cover.front;
+    if (ahead(cover.skinFront, cover.front)) cover.front = cover.skinFront;
+  }
+  return covers;
 }
 
 /**
@@ -1361,11 +1539,36 @@ function detectFromSignals(context: Context): {
     }
   }
 
-  // Eye lines and lashes: small face-mesh primitives the blink moves strongly.
+  // Head meshes blink alone morphs, on a MikuMikuDance model converted by
+  // Animama Avatar Converter (its marker). The converter keeps each material
+  // in a mesh of its own, so aa, which moves only the mouth, never morphs its
+  // lash mesh, and that mesh often also holds the brows or the eyes. Their
+  // lash islands are found by the region search below, never the whole mesh,
+  // so brows and eyes sharing it stay. Eye-bone meshes (searched as irises
+  // and whites already), hair and meshes that hold the body never count.
+  // Other Avatars keep the name fallback for such meshes.
+  const blinkOnlyMeshes = !isAnimamaConversion(context.gltf.parser.json)
+    ? []
+    : candidates.filter(
+        (candidate) =>
+          blink.has(candidate.entry.object) &&
+          !aa.has(candidate.entry.object) &&
+          !faceMeshCandidates.includes(candidate) &&
+          !eyeKeys.has(candidate.entry.bindingKey) &&
+          candidate.entry !== faceSkin &&
+          candidate.shares.spring_head < HAIR_MIN_SPRING_SHARE &&
+          candidate.shares.head +
+            candidate.shares.eye_left +
+            candidate.shares.eye_right >=
+            MAJORITY_SHARE &&
+          candidate.shares.other <= BODY_SKIN_SHARE,
+      );
   if (faceSkin) {
     const reference = measureMorphDisplacement(faceSkin.object, blink);
     // A whole-body primitive's face is its head region.
     const faceArea = headRegion?.area ?? measure(faceSkin).area;
+    // Eye lines and lashes: small face-mesh primitives the blink moves
+    // strongly.
     const details = faceMeshCandidates
       .filter((candidate) => candidate.entry !== faceSkin)
       .filter((candidate) => {
@@ -1401,12 +1604,17 @@ function detectFromSignals(context: Context): {
       };
     }
 
-    // Lines and lashes kept inside the face or eye primitives as their own
-    // islands. An eye line found as a primitive leaves every region a lash;
-    // otherwise each eye's largest region that follows its lid all the way is
-    // its line.
+    // Lines and lashes kept inside the face or eye primitives, or inside a
+    // head mesh blink alone morphs, as their own islands. An eye line found as
+    // a primitive leaves every region a lash; otherwise each eye's largest
+    // region that follows its lid all the way is its line.
     const regions = findEyeDetailRegions(context, {
-      entries: unique([faceSkin, ...eyeParts.iris, ...eyeParts.white]),
+      entries: unique([
+        faceSkin,
+        ...eyeParts.iris,
+        ...eyeParts.white,
+        ...blinkOnlyMeshes.map((candidate) => candidate.entry),
+      ]),
       blink,
       referenceMax: reference.max,
       faceArea,
@@ -2630,8 +2838,7 @@ export function resolveNamedHairBindings(
   const stack = rawNodes
     .map((node, index) => ({ node, index }))
     .filter(
-      ({ node, index }) =>
-        !parents.has(index) && HAIR_NAME_PATTERN.test(readName(node)),
+      ({ node, index }) => !parents.has(index) && isHairName(readName(node)),
     )
     .map(({ index }) => index);
   while (stack.length > 0) {
@@ -2653,13 +2860,13 @@ export function resolveNamedHairBindings(
   if (rooted.length > 0) return rooted;
   return entries.filter((entry) => {
     if (
-      HAIR_NAME_PATTERN.test(entry.materialName ?? "") ||
-      HAIR_NAME_PATTERN.test(entry.objectName ?? "")
+      isHairName(entry.materialName ?? "") ||
+      isHairName(entry.objectName ?? "")
     ) {
       return true;
     }
     for (let node = entry.object.parent; node; node = node.parent) {
-      if (HAIR_NAME_PATTERN.test(node.name)) return true;
+      if (isHairName(node.name)) return true;
     }
     return false;
   });

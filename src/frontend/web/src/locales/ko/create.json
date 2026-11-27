@@ -79,6 +79,7 @@
     "label": "아바타 선택",
     "loadFailed": "아바타를 불러올 수 없습니다. 선택은 유지됩니다.",
     "loading": "아바타를 불러오는 중…",
+    "mmdHint": "MikuMikuDance(.pmx) 모델은 <link>Animama Avatar Converter</link>로 VRM으로 변환한 뒤 업로드하세요.",
     "nameUsed": "이미 사용 중인 이름입니다. 새 이름을 입력하거나 아래에서 일치하는 아바타를 명시적으로 바꾸세요. 실행 중인 Anima가 사용하는 아바타는 여기서 바꿀 수 없습니다.",
     "needsAttention": "이 아바타는 확인이 필요합니다. 다른 소스를 선택하거나 다시 시도하세요.",
     "noMatches": "일치하는 아바타가 없습니다. 선택한 아바타는 변경되지 않았습니다.",

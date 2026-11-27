@@ -61,6 +61,21 @@ export function runtimeAvatarItemId(
 }
 
 /**
+ * The Avatar item and the exact revision a runtime mounted, for work that must
+ * name what is on screen (a portrait capture). Null for entries that do not
+ * record it, such as the Dock's previews.
+ */
+export function runtimeAvatarItemRevision(
+  entry: RuntimeCatalogEntry | null | undefined,
+): { item_id: string; revision_sha256: string } | null {
+  const itemId = runtimeAvatarItemId(entry);
+  const revision = entry?.config.avatar_revision_sha256;
+  return itemId && typeof revision === "string" && revision
+    ? { item_id: itemId, revision_sha256: revision }
+    : null;
+}
+
+/**
  * The sha256 of an Avatar entry's VRM file, which `Avatar.load` uses to match
  * face part corrections and verified eyelid closure profiles.
  */

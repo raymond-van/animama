@@ -54,6 +54,7 @@ import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import type { SceneCameraSettings } from "@/ui/main/canvas/sceneCameraPresets";
 import { useSceneFrameDemand } from "@/ui/main/canvas/sceneFramePacing";
 import { failureLine } from "@/lib/errors/apiError";
+import { useStagePortraitRetake } from "@/ui/avatar-preview/useStagePortraitRetake";
 
 const PARTICLE_PREVIEW_CAMERA: SceneCameraSettings = {
   position: { x: 0, y: 1.2, z: 2.75 },
@@ -153,9 +154,22 @@ function PreviewActor({
     [applySoundPlayer, catalog, onSceneVFXChange],
   );
   const avatarSourceKey = avatarEntry.content_revision;
-  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
-    runtimeAvatarItemId(avatarEntry),
-  );
+  const avatarItemId = runtimeAvatarItemId(avatarEntry);
+  const { springMode, springModeRef, materialMode } =
+    useAvatarLoadSettings(avatarItemId);
+  useStagePortraitRetake({
+    avatarRef,
+    // At rest: the Avatar preview itself, never an Action playing on it.
+    ready:
+      active &&
+      target.kind === "avatar_model" &&
+      avatarReadyKey === avatarSourceKey,
+    shown: avatarItemId
+      ? { item_id: avatarItemId, revision_sha256: avatarSourceKey }
+      : null,
+    retake:
+      target.kind === "avatar_model" ? (target.portraitRetake ?? null) : null,
+  });
 
   useEffect(() => {
     const releaseAvatar = acquireContentPreviewResource("dock", "avatar");

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "high_five",
   "name": "High Five",
-  "ai_description": "Use when celebrating a shared win with the user, cheering them on after good news, or saying 'nice one, high five!'. Raises the right palm beside the head and slaps it forward toward the viewer once with a bright grin and a little bounce.",
+  "ai_description": "Use when celebrating a shared win, cheering the user's good news or saying 'nice one!'. Offers a high five.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

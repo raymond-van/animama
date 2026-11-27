@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "hand_hold_offer",
   "name": "Hand Hold Offer",
-  "description": "Shyly reaches a hand out to the user while looking away blushing. Use for asking to hold hands, inviting the user along or tender moments.",
-  "ai_description": "Shyly reaches a hand out to the user while looking away blushing. Use for asking to hold hands, inviting the user along or tender moments.",
+  "description": "Use for asking to hold hands, inviting the user along or tender moments. Shyly reaches out a hand, blushing.",
+  "ai_description": "Use for asking to hold hands, inviting the user along or tender moments. Shyly reaches out a hand, blushing.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

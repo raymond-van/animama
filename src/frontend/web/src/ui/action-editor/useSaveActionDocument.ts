@@ -179,8 +179,7 @@ export function useSaveActionDocument(intent: ActionIntent) {
         kind: intent,
         itemId: ready.item_id,
         name: document.name.trim(),
-        description:
-          document.description.trim() || document.aiDescription.trim(),
+        description: document.aiDescription.trim(),
         source: ready.source,
         semanticKey: document.semanticKey,
         ...(intent === "reaction" && document.suggestedEmotion.trim()

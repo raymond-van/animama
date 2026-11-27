@@ -37,7 +37,6 @@ export function gestureProject(
     schema: "animamaActionProject/1.0",
     intent: "gesture",
     name: "Shy Wave",
-    description: "",
     aiDescription: "A small, shy wave with a smile.",
     semanticKey: "shy_wave",
     suggestedEmotion: "",

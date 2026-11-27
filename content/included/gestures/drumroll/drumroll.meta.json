@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "drumroll",
   "name": "Drumroll",
-  "ai_description": "Use to build suspense before announcing a result, surprise or reveal (\"and the winner is…\"). Plays a fast air drumroll in front of the belly, drumming with both index fingers like drumsticks, then flings both arms open, palms up, with a beaming \"ta-da!\" smile.",
+  "ai_description": "Use to build suspense before a result or reveal (\"and the winner is…\"). An air drumroll, then a beaming \"ta-da!\"",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

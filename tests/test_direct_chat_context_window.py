@@ -27,6 +27,7 @@ from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
 from animama.domain.usage import Usage
 from tests.test_direct_chat_turn_executor import (
+    _LONG_GESTURE_DESCRIPTORS,
     _collect,
     _executor,
     _FakeChatManager,
@@ -156,6 +157,31 @@ async def test_failed_compaction_trims_the_oldest_history_and_continues() -> Non
     assert any(content.startswith("message 39 ") for content in contents)
     assert not any(content.startswith("message 0 ") for content in contents)
     assert len(chats.record_turn_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_trimmed_prompt_keeps_the_gesture_list_form_chosen_for_the_window() -> None:
+    provider = await _small_window_row()
+    client = _ScriptedModelClient([_final()])
+    executor, _chats = _executor(
+        client=client,
+        provider=provider,
+        chat_manager=_FakeChatManager(history=_long_history()),
+    )
+
+    events = await _collect(
+        executor.stream_turn(
+            _request(
+                runtime_gesture_ids=("wave", "victory-dance"),
+                runtime_gesture_descriptors=_LONG_GESTURE_DESCRIPTORS,
+            )
+        )
+    )
+
+    assert EventType.ERROR not in [event.type for event in events]
+    contents = [str(message.get("content")) for message in prompt_messages(client.seen_specs[0].prompt)]
+    assert not any(content.startswith("message 0 ") for content in contents)
+    assert "Available Gestures for this Anima:\n- wave\n- victory-dance\n\n" in contents[0]
 
 
 @pytest.mark.asyncio

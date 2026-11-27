@@ -393,10 +393,16 @@ response. Gesture choices come from the Gestures equipped in the mounted
 runtime snapshot. The provider schema's `gesture` enum is `null` plus those
 selectors, and the response guidance appends an
 `Available Gestures for this Anima:` block with one
-`- {selector}: {description}` line per Gesture. The description falls back to
-the Gesture's name when empty; the name is otherwise left out, because
-selectors are usually readable semantic keys. An Anima with no
-equipped Gestures gets a `null`-only enum and no block. Motion types, catalog
+`- {selector}: {description}` line per Gesture. The description is the
+Gesture's AI selection description (`ai_description`), or a legacy
+`description` when that is empty. The Library shows the same text. When both
+are empty, the line uses the Gesture's name; the name is otherwise left out,
+because selectors are usually readable semantic keys. When the described block's
+conservative token estimate exceeds 10% of the model row's context window,
+each line carries only `- {selector}`, leaving the window for history. A row
+without a recorded window keeps the descriptions. Every request of a turn sends
+the same block; it changes only with the model row's window or the loadout.
+An Anima with no equipped Gestures gets a `null`-only enum and no block. Motion types, catalog
 item or file IDs, storage locators, package manifests and resource URLs are not
 sent to the model. The final parsed `gesture` is normalized and dropped unless
 it matches one of the snapshot selectors.

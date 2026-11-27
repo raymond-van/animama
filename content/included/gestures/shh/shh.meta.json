@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "shh_finger",
   "name": "Shh",
-  "ai_description": "Use when keeping a secret, hinting at a surprise, or asking for quiet. Raises the right index finger to the lips with a slight lean in and knowingly narrowed eyes.",
+  "ai_description": "Use when keeping a secret, hinting at a surprise or asking for quiet. Raises a finger to the lips, eyes narrowed.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

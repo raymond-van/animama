@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "soul_leaves_body",
   "name": "Soul Leaves Body",
-  "ai_description": "Use when overwhelmed to the point of 'I'm dead', from something too cute, too funny or too exhausting. Goes limp with the head thrown back, eyes shut and mouth open as the soul drifts out, then shakes back to life.",
+  "ai_description": "Use when overwhelmed to the point of 'I'm dead': too cute, too funny or too tiring. Goes limp as the soul drifts out.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -19,3 +19,16 @@ describe("reaction sidecar placement", () => {
     ).not.toHaveProperty("placement_hint");
   });
 });
+
+describe("action sidecar description", () => {
+  it("saves only the AI description, so a reopened Action never keeps a stale copy", () => {
+    // A draft recovered from before this change may still carry the old field.
+    const document = Object.assign(createActionDocument("gesture"), {
+      description: "Old text.",
+    });
+    document.aiDescription = "Edited text.";
+    const { descriptor } = actionDescriptorFor(document, "local:gesture:test");
+    expect(descriptor).not.toHaveProperty("description");
+    expect(descriptor).toHaveProperty("ai_description", "Edited text.");
+  });
+});

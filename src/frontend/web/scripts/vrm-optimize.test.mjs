@@ -271,6 +271,28 @@ test("a Mochiya extension that points into the binary is refused", async () => {
   );
 });
 
+test("an Animama Avatar Converter (PMX) conversion keeps its marker", async () => {
+  const document = readGlb(source);
+  const converted = structuredClone(document.json);
+  converted.extensionsUsed.push("ANIMAMA_avatar_conversion");
+  converted.extensions.ANIMAMA_avatar_conversion = {
+    source: "pmx",
+    converter: "0.2.0",
+  };
+  const result = await optimizeVrm(writeGlb(converted, document.bin));
+  const after = readGlb(result.bytes);
+  assert.ok(after.json.extensionsUsed.includes("ANIMAMA_avatar_conversion"));
+  assert.deepEqual(after.json.extensions.ANIMAMA_avatar_conversion, {
+    source: "pmx",
+    converter: "0.2.0",
+  });
+  converted.extensions.ANIMAMA_avatar_conversion.data = { bufferView: 0 };
+  await assert.rejects(
+    optimizeVrm(writeGlb(converted, document.bin)),
+    /ANIMAMA_avatar_conversion references binary data/,
+  );
+});
+
 /** A data texture whose transparent pixels hide colour that WebP would drop. */
 const paddedDataPng = () =>
   sharp(

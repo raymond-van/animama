@@ -5,8 +5,8 @@
   "version": 1,
   "semantic_key": "heart_shot_oof",
   "name": "Heart Shot Oof",
-  "description": "Clutches the chest as if struck by cupid and staggers, dazed. Use when overwhelmed by cuteness, charm or a sweet compliment.",
-  "ai_description": "Clutches the chest as if struck by cupid and staggers, dazed. Use when overwhelmed by cuteness, charm or a sweet compliment.",
+  "description": "Use when overwhelmed by cuteness, charm or a sweet compliment. Clutches the chest as if struck by cupid.",
+  "ai_description": "Use when overwhelmed by cuteness, charm or a sweet compliment. Clutches the chest as if struck by cupid.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"
