@@ -263,7 +263,6 @@ test("replaces an Included Gesture in place, keeping its identity and kind", asy
     name: "arms-crossed",
     selectorId: "arms-crossed",
     aiDescription: "New.",
-    description: "Crosses both arms.",
     mode: "replace",
   });
   const writes = byPath(
@@ -280,8 +279,30 @@ test("replaces an Included Gesture in place, keeping its identity and kind", asy
   assert.deepEqual(JSON.parse(writes[metaPath].content), {
     ...existingMeta,
     ai_description: "New.",
-    description: "Crosses both arms.",
   });
+  // A legacy `description` copy of the old text is dropped, and none is accepted.
+  repo.files[metaPath] = JSON.stringify({
+    ...existingMeta,
+    description: "Old.",
+  });
+  assert.equal(
+    "description" in
+      JSON.parse(
+        byPath(
+          await planPromotion(await parsePromoteItems([replace], itemsFile), {
+            repo,
+            compactClip,
+            formatJson,
+            maxClipBytes,
+          }),
+        )[metaPath].content,
+      ),
+    false,
+  );
+  await assert.rejects(
+    parsePromoteItems([{ ...replace, description: "Old." }], itemsFile),
+    /unknown field\(s\): description/,
+  );
   const plan = async (overrides) =>
     planPromotion(
       await parsePromoteItems([{ ...replace, ...overrides }], itemsFile),

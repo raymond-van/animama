@@ -15,7 +15,6 @@ export type ActionDocument = {
   schema: 1;
   intent: ActionIntent;
   name: string;
-  description: string;
   aiDescription: string;
   semanticKey: string;
   implementation: ActionImplementation;
@@ -121,7 +120,6 @@ export function createActionDocument(intent: ActionIntent): ActionDocument {
     schema: 1,
     intent,
     name,
-    description: "",
     aiDescription: "",
     semanticKey: intent === "gesture" ? gestureSemanticKey(name) : "",
     implementation: "anima_clip",

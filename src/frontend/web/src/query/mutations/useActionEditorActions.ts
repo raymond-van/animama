@@ -87,7 +87,8 @@ export function actionDescriptorFor(
       content_type: document.intent,
       id: logicalKey,
       name: document.name.trim(),
-      description: document.description.trim() || undefined,
+      // The AI selection description is the Action's one text; a separate
+      // `description` would only keep a stale copy of an earlier save.
       ai_description: document.aiDescription.trim() || undefined,
       notes: document.notes.trim() || undefined,
       ...(document.intent === "gesture"

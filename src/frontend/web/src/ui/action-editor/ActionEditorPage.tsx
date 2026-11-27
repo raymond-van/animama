@@ -719,9 +719,7 @@ export function ActionEditorPage({
         kind: intent,
         itemId: ready.item_id,
         name: currentDocument.name.trim(),
-        description:
-          currentDocument.description.trim() ||
-          currentDocument.aiDescription.trim(),
+        description: currentDocument.aiDescription.trim(),
         source: ready.source,
         semanticKey: currentDocument.semanticKey,
         ...(intent === "reaction" && currentDocument.suggestedEmotion.trim()
@@ -830,7 +828,6 @@ export function ActionEditorPage({
           ? {
               ...current,
               name: value.project.name,
-              description: value.project.description,
               aiDescription: value.project.aiDescription,
               semanticKey: value.project.semanticKey,
               suggestedEmotion: value.project.suggestedEmotion,
@@ -869,7 +866,6 @@ export function ActionEditorPage({
       setDocument((documentState) => ({
         ...documentState,
         name: next.name,
-        description: next.description,
         aiDescription: next.aiDescription,
         semanticKey: next.semanticKey,
         implementation: next.implementation,

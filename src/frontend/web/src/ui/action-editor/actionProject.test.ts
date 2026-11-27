@@ -37,6 +37,21 @@ describe("typed action project JSON", () => {
     if (imported.kind === "project")
       expect(imported.project.suggestedEmotion).toBe("");
   });
+  it("reads a legacy project description as its AI description", () => {
+    const document = addNeutralKeyframe(createActionDocument("gesture"));
+    document.name = "Wave";
+    const legacy: Record<string, unknown> = {
+      ...createActionProject(document),
+      description: "Greet the user.",
+    };
+    delete legacy.aiDescription;
+    const imported = parseActionImport(legacy, "gesture");
+    expect(imported.kind).toBe("project");
+    if (imported.kind !== "project") return;
+    expect(imported.project.aiDescription).toBe("Greet the user.");
+    expect(imported.project).not.toHaveProperty("description");
+  });
+
   it("imports ordinary animaPoseClip JSON directly", () => {
     const document = addNeutralKeyframe(createActionDocument("gesture"));
     const imported = parseActionImport(document.sequence, "gesture");

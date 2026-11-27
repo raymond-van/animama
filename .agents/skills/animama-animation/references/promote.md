@@ -41,7 +41,6 @@ relative to the items file.
     "name": "Blow a Kiss",
     "selectorId": "blow_kiss",
     "aiDescription": "Kisses the fingertips and sends the kiss forward ...",
-    "description": "Optional Library description",
     "licence": {
       "creator": "...",
       "provenance": "...",
