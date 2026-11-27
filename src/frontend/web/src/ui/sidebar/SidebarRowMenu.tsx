@@ -106,8 +106,10 @@ function rowDeleteFocus(
 /**
  * Wraps one sidebar row (its link as `children`) with the row actions: a More
  * button shown on hover and keyboard focus (always on phone widths, which have
- * no hover), and the same items on right-click. The link reserves room for
- * the button with `SIDEBAR_ROW_LINK_CLASS`; the list is marked
+ * no hover), and the same items on right-click. The link takes
+ * `SIDEBAR_ROW_LINK_CLASS` and its text a fade from
+ * `SIDEBAR_ROW_TEXT_UNDER_MENU_CLASS`, so the button can cover the text's end
+ * while it shows; the list is marked
  * `data-sidebar-list` (with the ID its heading controls) so focus can move to
  * a surviving row after a delete.
  */
@@ -175,15 +177,12 @@ export function SidebarRowMenu({
   );
 }
 
-/** Keeps a row link's text and pin clear of the More button. */
-export const SIDEBAR_ROW_LINK_CLASS = "pr-9";
-
 /**
  * A row link whose text runs to the row's end on desktop, where the More
  * button only appears on hover or focus and is drawn over the text. Phones
  * always show the button, so the space stays reserved there.
  */
-export const SIDEBAR_ROW_LINK_UNDER_MENU_CLASS = "pr-9 md:pr-2";
+export const SIDEBAR_ROW_LINK_CLASS = "pr-9 md:pr-2";
 
 /**
  * Fades the end of a row's text out while its More button shows (hover,
@@ -193,6 +192,16 @@ export const SIDEBAR_ROW_TEXT_UNDER_MENU_CLASS = [
   "md:group-hover/row:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
   "md:group-has-[button:focus]/row:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
   "md:group-has-[[data-state=open]]/row:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
+].join(" ");
+
+/**
+ * `SIDEBAR_ROW_TEXT_UNDER_MENU_CLASS` for a link whose text is its last
+ * `span`, such as the shared Anima row item, which takes no text class.
+ */
+export const SIDEBAR_ROW_LAST_SPAN_UNDER_MENU_CLASS = [
+  "md:group-hover/row:[&>span:last-of-type]:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
+  "md:group-has-[button:focus]/row:[&>span:last-of-type]:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
+  "md:group-has-[[data-state=open]]/row:[&>span:last-of-type]:[mask-image:linear-gradient(to_left,transparent_1.75rem,black_3rem)]",
 ].join(" ");
 
 /**

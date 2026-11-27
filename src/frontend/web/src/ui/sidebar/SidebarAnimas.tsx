@@ -23,6 +23,7 @@ import {
   type AnimaToDelete,
 } from "@/ui/sidebar/AnimaDeleteDialog";
 import {
+  SIDEBAR_ROW_LAST_SPAN_UNDER_MENU_CLASS,
   SIDEBAR_ROW_LINK_CLASS,
   SidebarPinIndicator,
   SidebarRowMenu,
@@ -207,8 +208,9 @@ export const SidebarAnimas = () => {
                             "overflow-hidden",
                             SIDEBAR_ROW_LINK_CLASS,
                             // The shared item's name (its last span) truncates
-                            // to one line so the pin stays in view.
+                            // to one line and fades under the More button.
                             "[&>span:last-of-type]:min-w-0 [&>span:last-of-type]:truncate",
+                            SIDEBAR_ROW_LAST_SPAN_UNDER_MENU_CLASS,
                           )}
                         >
                           {props.children}

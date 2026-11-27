@@ -21,7 +21,7 @@ import {
   type ChatToDelete,
 } from "@/ui/sidebar/ChatDeleteDialog";
 import {
-  SIDEBAR_ROW_LINK_UNDER_MENU_CLASS,
+  SIDEBAR_ROW_LINK_CLASS,
   SIDEBAR_ROW_TEXT_UNDER_MENU_CLASS,
   SidebarPinIndicator,
   SidebarRowMenu,
@@ -189,7 +189,7 @@ export const SidebarChats = () => {
                           "group flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
                           "text-foreground/90 hover:bg-sidebar-accent/60 transition-colors",
                           "overflow-hidden",
-                          SIDEBAR_ROW_LINK_UNDER_MENU_CLASS,
+                          SIDEBAR_ROW_LINK_CLASS,
                           isActive && "bg-sidebar-accent text-foreground",
                         )}
                       >
