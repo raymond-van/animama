@@ -105,7 +105,10 @@ _DETAIL_PROPERTIES: Final[Mapping[str, JsonObject]] = {
     "name": {"type": "string", "description": 'The display name, for example "Shy Wave".'},
     "ai_description": {
         "type": "string",
-        "description": "When chat should play this Gesture and what it shows, in one or two sentences.",
+        "description": (
+            'When chat should play this Gesture ("Use when …"), then what it shows in a few words: about 120 '
+            "characters in all."
+        ),
     },
     "selector_id": {
         "type": "string",

@@ -1,7 +1,7 @@
 """Model client for ChatGPT plan models: the Responses client on the plan's route, with the session's token.
 
 Every request this client serves is the person's own (a chat turn, its
-compaction or its title), so it asks the session for ``interactive`` tokens.
+compaction or its title, or a pass of the content assistant), so it asks the session for ``interactive`` tokens.
 Work that starts by itself uses the Memory Manager's own runtime instead.
 """
 
