@@ -13,9 +13,10 @@ export type LoginItemHost = {
 };
 
 /**
- * Open-at-login for the packaged macOS and Windows apps. An unpackaged run
- * would register the bare Electron binary, and Linux needs an XDG autostart
- * file instead, so both report the setting unavailable.
+ * Open-at-login for the packaged macOS and Windows apps, through the OS's own
+ * login-item API. An unpackaged run would register the bare Electron binary,
+ * so it reports the setting unavailable. Linux has no such API: its AppImage
+ * uses an XDG autostart entry instead (`linux-desktop-entry.ts`).
  */
 export class LoginItem {
   constructor(

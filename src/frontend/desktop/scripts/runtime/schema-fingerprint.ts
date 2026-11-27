@@ -3,7 +3,7 @@ import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  PROCESS_GUARD_PATH,
+  processGuardPath,
   runtimePlatform,
 } from "../../src/main-process/runtime/manifest.js";
 import { runtimePaths } from "../../src/main-process/runtime/paths.js";
@@ -26,8 +26,8 @@ export async function stagedSchemaDigest(runtimeRoot: string): Promise<string> {
   );
   const paths = runtimePaths(base);
   // The stage builds the guard before this step, as a launch would find it.
-  if (process.platform === "win32")
-    useProcessGuard(path.join(runtimeRoot, PROCESS_GUARD_PATH));
+  const guard = processGuardPath(process.platform);
+  if (guard) useProcessGuard(path.join(runtimeRoot, guard));
   const owned = new OwnedProcesses(paths.processes);
   const postgres = new PrivatePostgres(runtimeRoot, paths, owned);
   try {

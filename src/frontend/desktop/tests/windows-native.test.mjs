@@ -573,14 +573,14 @@ describe("process guard path", () => {
 });
 
 describe("packaging gate", () => {
-  it("packages only macOS arm64 and Windows x64 stages", () => {
+  it("packages only targets that have an embedded runtime", () => {
     for (const [nodeName, arch] of [
-      ["linux", "x64"],
+      ["linux", "arm64"],
       ["win32", "arm64"],
       ["darwin", "x64"],
     ])
       expect(() => packagedTarget({ platform: { nodeName }, arch })).toThrow(
-        "Embedded packaging supports macOS arm64 and Windows x64 only",
+        "Embedded packaging supports macOS arm64, Windows x64 and Linux x64 only",
       );
     expect(
       packagedTarget({ platform: { nodeName: "win32" }, arch: "x64" }),

@@ -19,6 +19,7 @@
       "desktopOs": "桌面版（{{os}}）",
       "web": "网页浏览器"
     },
+    "sourceBuild": "此版本通过拉取源代码并重新构建来更新。",
     "version": "版本"
   },
   "actions": {
@@ -357,10 +358,18 @@
     "label": "登录时启动",
     "description": "登录电脑时自动打开 Animama。",
     "blocked": {
+      "linux": "开启此设置后 AppImage 已被移动，因此登录时不会打开 Animama。请先关闭此设置，再重新开启。",
       "macos": "在“系统设置 → 通用 → 登录项与扩展”中允许之前，Animama 不会在登录时打开。",
       "windows": "在“设置 → 应用 → 启动”中开启之前，Animama 不会在登录时打开。"
     },
     "updateFailed": "无法更改“登录时启动”。"
+  },
+  "menuEntry": {
+    "description": "将 Animama 添加到桌面的应用程序菜单。该条目会启动这个 AppImage 文件。",
+    "label": "在应用程序菜单中显示",
+    "repoint": "指向此文件",
+    "stale": "添加条目后 AppImage 已被移动，因此该条目不再有效。",
+    "updateFailed": "无法更改应用程序菜单条目。"
   },
   "modal": {
     "close": "关闭应用设置",

@@ -5,7 +5,7 @@ import {
   type ChildProcess,
 } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, lstatSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readlinkSync } from "node:fs";
 import path from "node:path";
 import { atomicWrite, privateDirectory } from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
@@ -14,7 +14,7 @@ import { writeLog } from "../logging.js";
 
 export type OwnedProcess = {
   name: string;
-  /** On Windows this is the process guard; the service runs inside its job. */
+  /** Under a process guard this is the guard; the service runs beneath it. */
   child: ChildProcess;
   /** The service's own PID, once known. Health and postmaster checks use it. */
   processId?: number;
@@ -31,16 +31,25 @@ const GUARD_HANDSHAKE = /^animama-process-guard pid=([1-9]\d*)\r?$/u;
 let processGuard: string | undefined;
 
 /**
- * Windows runs every owned process inside the process guard's kill-on-close
- * job, so nothing outlives Electron. The supervisor selects the verified guard.
+ * Windows and Linux run every owned process under a process guard, so nothing
+ * outlives Electron: a kill-on-close job on Windows, a lifeline-watching
+ * parent on Linux. The supervisor selects the verified guard.
  */
 export function useProcessGuard(executable: string | undefined): void {
   processGuard = executable;
 }
 
+/** Whether this platform's services may only run under the process guard. */
+export function guardedPlatform(
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return platform === "win32" || platform === "linux";
+}
+
 /**
- * Spawn a service directly, or on Windows through the guard. The guard's stdin
- * is its lifeline: closing it, or Electron exiting, stops the service.
+ * Spawn a service through the selected guard, or directly where the platform
+ * has none (macOS). The guard's stdin is its lifeline: closing it, or Electron
+ * exiting, stops the service.
  */
 function spawnService(
   executable: string,
@@ -48,13 +57,14 @@ function spawnService(
   env: NodeJS.ProcessEnv,
   cwd: string,
 ): ChildProcess {
-  if (process.platform !== "win32")
+  if (!processGuard) {
+    if (guardedPlatform()) throw new RuntimeError("process_guard_unavailable");
     return spawn(executable, args, {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
     });
-  if (!processGuard) throw new RuntimeError("process_guard_unavailable");
+  }
   const guard = spawn(processGuard, ["--", executable, ...args], {
     cwd,
     env,
@@ -180,24 +190,74 @@ function logLines(
   }
 }
 
+/** Windows paths compare without case and in resolved form. */
+function sameWindowsImage(running: string, recorded: string): boolean {
+  return running.toLowerCase() === path.win32.resolve(recorded).toLowerCase();
+}
+
 /**
- * Windows reuses process IDs soon after a crash. A live recorded PID is the
- * earlier runtime only while it still runs the recorded image: the process
- * guard for a guard PID, or the recorded service. An image that cannot be read
- * (another user's or an elevated process) was never ours, since Animama never
- * runs elevated. An unknown expected image, or a failed lookup, still blocks.
+ * A process ID is reused after a crash, soon on Windows. A live recorded PID
+ * is the earlier runtime only while it still runs the recorded image: the
+ * process guard for a guard PID, or the recorded service. An image that cannot
+ * be read (another user's or an elevated process) was never ours, since
+ * Animama never runs elevated. An unknown expected image, or a failed lookup,
+ * still blocks.
  */
 export function recordedImageRunning(
   live: { pid: number; image: string | undefined }[],
   images: Map<number, string> | null,
+  sameImage: (running: string, recorded: string) => boolean = sameWindowsImage,
 ): boolean {
   return live.some(
     ({ pid, image }) =>
-      !image ||
-      !images ||
-      (images.get(pid) ?? "").toLowerCase() ===
-        path.win32.resolve(image).toLowerCase(),
+      !image || !images || sameImage(images.get(pid) ?? "", image),
   );
+}
+
+/**
+ * Linux image paths of these PIDs, from `/proc/<pid>/exe`. A process whose
+ * link cannot be read belongs to another account and is left out. Null when
+ * this process cannot read even its own link, so the lookup itself is broken.
+ */
+export function linuxImages(
+  pids: number[],
+  read: (file: string) => string = readlinkSync,
+): Map<number, string> | null {
+  try {
+    read("/proc/self/exe");
+  } catch {
+    return null;
+  }
+  const images = new Map<number, string>();
+  for (const pid of pids)
+    try {
+      // The kernel marks an image whose file was unlinked or replaced. An
+      // image on a lazily detached mount reads as a mount-relative path
+      // instead and so does not match its record.
+      images.set(pid, read(`/proc/${pid}/exe`).replace(/ \(deleted\)$/u, ""));
+    } catch {
+      // Not readable: another account's process, or one that just exited.
+    }
+  return images;
+}
+
+/** How a platform tells a recorded process from a reused PID, if it can. */
+export type ImageLookup = {
+  images(pids: number[]): Map<number, string> | null;
+  sameImage(running: string, recorded: string): boolean;
+};
+export function imageLookup(
+  platform: NodeJS.Platform,
+): ImageLookup | undefined {
+  if (platform === "win32")
+    return { images: windowsImages, sameImage: sameWindowsImage };
+  if (platform === "linux")
+    return {
+      images: linuxImages,
+      sameImage: (running, recorded) =>
+        running === path.posix.resolve(recorded),
+    };
+  return undefined;
 }
 
 /** Image paths of these PIDs that this account may read; null if the lookup fails. */
@@ -232,10 +292,26 @@ function windowsImages(pids: number[]): Map<number, string> | null {
   }
 }
 
+/**
+ * How long a stop waits before the retained handle is killed. The Linux guard
+ * needs its own 15-second grace and then up to 5 seconds for orphans; killing
+ * it sooner would leave the service's process group to the kernel's
+ * parent-death signal, which reaches only the service itself.
+ */
+export function stopTimeout(
+  platform: NodeJS.Platform = process.platform,
+  guarded = Boolean(processGuard),
+): number {
+  return platform === "linux" && guarded ? 22_000 : 15_000;
+}
+
 /** Track exact handles. A stale persisted PID is evidence, never kill authority. */
 export class OwnedProcesses {
   readonly children = new Set<OwnedProcess>();
-  constructor(private recordFile: string) {
+  constructor(
+    private recordFile: string,
+    lookup: ImageLookup | undefined = imageLookup(process.platform),
+  ) {
     privateDirectory(path.dirname(recordFile));
     if (!existsSync(recordFile)) return;
     try {
@@ -245,31 +321,33 @@ export class OwnedProcesses {
       const record = JSON.parse(readFileSync(recordFile, "utf8"));
       if (record.version !== 1 || !Array.isArray(record.children))
         throw new Error();
-      const windows = process.platform === "win32";
       const live: { pid: number; image: string | undefined }[] = [];
       for (const item of record.children) {
         const pids = [item.pid, item.servicePid ?? item.pid];
         if (!pids.every((pid) => Number.isInteger(pid) && pid >= 1))
           throw new Error();
-        // The first PID is the guard on Windows; the second runs the service.
+        // The first PID is the guard, where there is one; the second runs the service.
         const images = [item.guard ?? processGuard, item.executable];
         for (const [index, pid] of pids.entries())
           try {
             process.kill(pid, 0);
-            if (!windows) throw new RuntimeError("previous_runtime_running");
+            // Without an image lookup (macOS) any live recorded PID blocks.
+            if (!lookup) throw new RuntimeError("previous_runtime_running");
             live.push({ pid, image: images[index] });
           } catch (error) {
             const code = (error as NodeJS.ErrnoException).code;
-            if (code === "EPERM" && windows)
+            if (code === "EPERM" && lookup)
               live.push({ pid, image: images[index] });
             else if (code !== "ESRCH") throw error;
           }
       }
       if (
         live.length &&
+        lookup &&
         recordedImageRunning(
           live,
-          windowsImages([...new Set(live.map((entry) => entry.pid))]),
+          lookup.images([...new Set(live.map((entry) => entry.pid))]),
+          lookup.sameImage,
         )
       )
         throw new RuntimeError("previous_runtime_running");
@@ -320,7 +398,7 @@ export class OwnedProcesses {
       name,
       child,
       // Without the guard the child is the service itself.
-      processId: process.platform === "win32" ? undefined : child.pid,
+      processId: processGuard ? undefined : child.pid,
       token,
       executable,
       dataRoot: cwd,
@@ -356,11 +434,15 @@ export class OwnedProcesses {
     });
     return item;
   }
-  async terminate(item: OwnedProcess, timeoutMs = 15_000): Promise<void> {
+  async terminate(
+    item: OwnedProcess,
+    timeoutMs = stopTimeout(),
+  ): Promise<void> {
     if (!this.children.has(item)) return;
     const started = Date.now();
-    // Closing the guard's lifeline sends the service Ctrl+Break, then ends
-    // its job if it is still running after the guard's grace period.
+    // Closing the guard's lifeline asks the service to stop (Ctrl+Break on
+    // Windows, SIGINT on Linux), then kills it if it is still running after
+    // the guard's grace period.
     if (item.child.stdin) item.child.stdin.end();
     else item.child.kill("SIGTERM");
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -408,6 +490,8 @@ export async function runCommand(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     let child: ChildProcess;
+    // The guard's handshake line precedes the command's own output.
+    const guarded = Boolean(processGuard);
     try {
       child = spawnService(
         executable,
@@ -462,7 +546,7 @@ export async function runCommand(
         );
       } else
         resolve(
-          process.platform === "win32"
+          guarded
             ? stdout.replace(/^animama-process-guard pid=\d+\r?\n/u, "")
             : stdout,
         );

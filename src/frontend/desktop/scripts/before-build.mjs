@@ -1,20 +1,18 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { desktopRoot, readJson } from "./runtime/common.mjs";
+import { desktopRoot, readJson, RUNTIME_TARGETS } from "./runtime/common.mjs";
 import {
   assertInventory,
   componentInventory,
   inventoryId,
 } from "./runtime/inventory.mjs";
 
-const PACKAGED_TARGETS = new Set(["darwin-arm64", "win32-x64"]);
-
 /** The embedded runtime target an electron-builder context packages. */
 export function packagedTarget(context) {
   const target = `${context.platform.nodeName}-${context.arch}`;
-  if (!PACKAGED_TARGETS.has(target))
+  if (!RUNTIME_TARGETS.includes(target))
     throw new Error(
-      "Embedded packaging supports macOS arm64 and Windows x64 only; other targets remain gated.",
+      "Embedded packaging supports macOS arm64, Windows x64 and Linux x64 only; other targets remain gated.",
     );
   return target;
 }

@@ -6,7 +6,7 @@ bool PlatformRequestPermission() { return false; }
 
 bool PlatformStartHook(const HookConfig &, HookEventCallback,
                        std::string *error) {
-  *error = "Global hold shortcuts are supported only on macOS and Windows.";
+  *error = "Global hold shortcuts are not supported on this system.";
   return false;
 }
 

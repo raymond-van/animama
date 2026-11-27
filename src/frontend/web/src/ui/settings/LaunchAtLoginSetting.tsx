@@ -17,10 +17,14 @@ export function LaunchAtLoginSetting({
   const { status, pending, setEnabled } = loginItem;
   if (!status.available) return null;
   const label = t("launchAtLogin.label");
+  const os =
+    platform.kind === "desktop" ? platform.desktopBridge.platform : undefined;
   const blockedHint =
-    platform.kind === "desktop" && platform.desktopBridge.platform === "win32"
+    os === "win32"
       ? t("launchAtLogin.blocked.windows")
-      : t("launchAtLogin.blocked.macos");
+      : os === "linux"
+        ? t("launchAtLogin.blocked.linux")
+        : t("launchAtLogin.blocked.macos");
 
   return (
     <SettingsRow

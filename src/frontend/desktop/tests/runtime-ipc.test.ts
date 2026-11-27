@@ -127,6 +127,38 @@ describe("privileged runtime IPC", () => {
     );
   });
 
+  it("takes consent to unprotected storage from the recovery page, with no arguments", async () => {
+    await expect(
+      invoke("runtime:accept-unprotected-storage", recovery.event),
+    ).rejects.toThrow("embedded_runtime_unavailable");
+    operations.acceptUnprotectedStorage = vi.fn(async () => undefined);
+    await expect(
+      invoke("runtime:accept-unprotected-storage", recovery.event),
+    ).resolves.toBeUndefined();
+    expect(operations.acceptUnprotectedStorage).toHaveBeenCalledOnce();
+    await expect(
+      invoke("runtime:accept-unprotected-storage", recovery.event, true),
+    ).rejects.toThrow("ipc_arguments_invalid");
+    const impostor = caller(2, recovery.frame.url);
+    await expect(
+      invoke("runtime:accept-unprotected-storage", impostor.event),
+    ).rejects.toThrow("ipc_caller_rejected");
+  });
+
+  it("tells only the main window how saved keys are protected", async () => {
+    // Without the operation (external-stack development) keys are not stored here.
+    await expect(invoke("credentials:storage", main.event)).rejects.toThrow(
+      "embedded_runtime_unavailable",
+    );
+    operations.credentialStorage = () => ({ protection: "unprotected" });
+    await expect(invoke("credentials:storage", main.event)).resolves.toEqual({
+      protection: "unprotected",
+    });
+    await expect(invoke("credentials:storage", recovery.event)).rejects.toThrow(
+      "ipc_caller_rejected",
+    );
+  });
+
   it("validates input lengths, providers and arity before touching the vault", async () => {
     await expect(
       invoke("credentials:apply", main.event, [
@@ -156,7 +188,12 @@ describe("privileged runtime IPC", () => {
       [...handlers.keys()].filter((name) =>
         name.startsWith("animama:credentials:"),
       ),
-    ).toEqual(["animama:credentials:list", "animama:credentials:apply"]);
+    ).toEqual([
+      "animama:credentials:list",
+      // Status only: whether a secret store protects the vault.
+      "animama:credentials:storage",
+      "animama:credentials:apply",
+    ]);
   });
 
   it("applies a validated credential batch only for the registered main frame", async () => {
@@ -411,6 +448,37 @@ describe("privileged runtime IPC", () => {
     );
   });
 
+  it("changes the application-menu entry only from the main window and only with a boolean", async () => {
+    await expect(invoke("menu-entry:status", main.event)).resolves.toEqual({
+      available: false,
+    });
+    await expect(invoke("menu-entry:set", main.event, true)).rejects.toThrow(
+      "feature_unavailable",
+    );
+    const enabled = { available: true, enabled: true, stale: false } as const;
+    const setMenuEntry = vi.fn(() => enabled);
+    operations.menuEntry = () => ({ ...enabled, stale: true });
+    operations.setMenuEntry = setMenuEntry;
+    await expect(invoke("menu-entry:status", main.event)).resolves.toEqual({
+      ...enabled,
+      stale: true,
+    });
+    await expect(invoke("menu-entry:set", main.event, true)).resolves.toEqual(
+      enabled,
+    );
+    expect(setMenuEntry).toHaveBeenCalledWith(true);
+    for (const invalid of ["true", 1, null, "/tmp/other.AppImage"])
+      await expect(
+        invoke("menu-entry:set", main.event, invalid),
+      ).rejects.toThrow("ipc_arguments_invalid");
+    // The renderer never names a path: the entry is for the running file.
+    await expect(
+      invoke("menu-entry:set", main.event, true, "/tmp/other.AppImage"),
+    ).rejects.toThrow("ipc_arguments_invalid");
+    for (const operation of ["menu-entry:status", "menu-entry:set"])
+      await expect(invoke(operation, recovery.event, true)).rejects.toThrow();
+  });
+
   it("changes the login item only from the main window and only with a boolean", async () => {
     await expect(invoke("login-item:status", main.event)).resolves.toEqual({
       available: false,
@@ -504,6 +572,7 @@ async function loadRuntimePage(
   url: string,
   windowRole: string,
   html = createRuntimePage(shellStrings("en")),
+  actions: Record<string, () => Promise<void>> = {},
 ) {
   const elements = new Map<string, Record<string, unknown>>();
   const element = (selector: string) => {
@@ -537,6 +606,7 @@ async function loadRuntimePage(
       animamaDesktop: {
         windowRole,
         runtime: {
+          ...actions,
           status: async () => ({ state: "starting", stage: "backend" }),
           onStatus: (callback: (status: RuntimeStatus) => void) => {
             render = callback;
@@ -585,11 +655,14 @@ describe("independent runtime recovery page", () => {
       page.render({ state: "error", code });
       const message = String(page.element("#message").textContent);
       expect(message).toMatch(/local data is preserved/iu);
-      // Windows has no reset helper; the data folder is renamed by hand.
+      // Only macOS has a reset helper; elsewhere the data folder is renamed
+      // by hand.
       expect(message).toContain(
         process.platform === "win32"
           ? "rename %LOCALAPPDATA%\\Animama"
-          : "pnpm desktop:mac:reset",
+          : process.platform === "linux"
+            ? "rename the Animama data folder"
+            : "pnpm desktop:mac:reset",
       );
       expect(page.element("#code").textContent).toBe(code);
       expect(page.element("#retry").hidden).toBe(retryHidden);
@@ -621,6 +694,56 @@ describe("independent runtime recovery page", () => {
     expect(page.element("#detail").hidden).toBe(false);
     expect(page.element("#actions").hidden).toBe(false);
     expect(page.element("#retry").hidden).toBe(false);
+  });
+
+  it("asks for consent to unprotected storage with Continue and Quit only", async () => {
+    const accept = vi.fn(async () => undefined);
+    const page = await loadRuntimePage(
+      "data:text/html,recovery",
+      "recovery",
+      createRuntimePage(shellStrings("en"), "linux"),
+      { acceptUnprotectedStorage: accept },
+    );
+    page.render({
+      state: "error",
+      code: "unprotected_storage_consent_required",
+    });
+    expect(page.element("#title").textContent).toBe(
+      "Your keys will not be protected by the system",
+    );
+    const message = String(page.element("#message").textContent);
+    expect(message).toMatch(/any program running under this account/iu);
+    expect(message).toMatch(/GNOME Keyring|KeePassXC|KWallet/u);
+    // A question, not a failure: no error code, no Retry, no Logs.
+    expect(page.element("#detail").hidden).toBe(true);
+    expect(page.element("#retry").hidden).toBe(true);
+    expect(page.element("#logs").hidden).toBe(true);
+    expect(page.element("#continue").hidden).toBe(false);
+    expect(page.element("#actions").hidden).toBe(false);
+    await (page.element("#continue").onclick as () => Promise<void>)();
+    expect(accept).toHaveBeenCalledOnce();
+    // Any other state puts the ordinary controls back.
+    page.render({ state: "error", code: "vault_unreadable" });
+    expect(page.element("#continue").hidden).toBe(true);
+    expect(page.element("#retry").hidden).toBe(false);
+    expect(page.element("#logs").hidden).toBe(false);
+    expect(page.element("#detail").hidden).toBe(false);
+  });
+
+  it("explains a missing or locked secret store on Linux and asks for a restart", async () => {
+    const page = await loadRuntimePage(
+      "data:text/html,recovery",
+      "recovery",
+      createRuntimePage(shellStrings("en"), "linux"),
+    );
+    page.render({ state: "error", code: "secure_storage_unavailable" });
+    const message = String(page.element("#message").textContent);
+    expect(message).toMatch(/secret store .* (locked|not running)/iu);
+    // Electron fixes where its key comes from when it starts, so only a new
+    // launch can find a store that was started or unlocked meanwhile.
+    expect(message).toMatch(/quit and reopen Animama/iu);
+    expect(page.element("#retry").hidden).toBe(true);
+    expect(page.element("#continue").hidden).toBe(true);
   });
 
   it("renders in the shell locale, including its lang and direction", async () => {

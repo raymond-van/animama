@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +12,8 @@ import type {
 import {
   DesktopCredentialFailures,
   DesktopCredentialsPanel,
+  DesktopKeyStorageNote,
+  desktopCredentialStorageKey,
 } from "./DesktopCredentialsPanel";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { queryKeys } from "@/query/keys";
@@ -73,6 +78,7 @@ function bridge(status = configured): CredentialsBridge {
   return {
     list: vi.fn(async () => [status]),
     apply: vi.fn(async () => [status]),
+    storage: vi.fn(async () => ({ protection: "system" as const })),
   };
 }
 
@@ -337,6 +343,77 @@ describe("feature-local key fields", () => {
     expect(full).toContain(
       "Keys are encrypted with this computer’s secure storage",
     );
+  });
+
+  it("says so wherever keys are entered when no secret store protects them", () => {
+    const client = credentialClient(unset);
+    const claim = "Keys are encrypted with this computer’s secure storage";
+    const notice = "keys are saved without system protection";
+    client.setQueryData(desktopCredentialStorageKey("owner-1"), {
+      protection: "unprotected",
+    });
+    const full = renderWith(client, <DesktopCredentialsPanel />);
+    expect(full).toContain(notice);
+    // The usual statement would be false here.
+    expect(full).not.toContain(claim);
+    // Feature-local panels show no general copy, but still show the notice.
+    expect(
+      renderWith(
+        client,
+        <DesktopCredentialsPanel
+          providers={["elevenlabs"]}
+          showTitle={false}
+          description={null}
+        />,
+      ),
+    ).toContain(notice);
+    // A host's own description says "Encrypted on this computer" too, so it
+    // gives way to the notice as well.
+    const hosted = renderWith(
+      client,
+      <DesktopCredentialsPanel description="Encrypted on this computer." />,
+    );
+    expect(hosted).toContain(notice);
+    expect(hosted).not.toContain("Encrypted on this computer.");
+    // The same notice stands alone for key fields outside the panel.
+    expect(renderWith(client, <DesktopKeyStorageNote />)).toContain(notice);
+
+    client.setQueryData(desktopCredentialStorageKey("owner-1"), {
+      protection: "system",
+    });
+    const protectedPanel = renderWith(client, <DesktopCredentialsPanel />);
+    expect(protectedPanel).not.toContain(notice);
+    expect(protectedPanel).toContain(claim);
+    expect(
+      renderWith(
+        client,
+        <DesktopKeyStorageNote>
+          Encrypted on this computer.
+        </DesktopKeyStorageNote>,
+      ),
+    ).toContain("Encrypted on this computer.");
+  });
+
+  it("lets no key field state that keys are encrypted except through the storage note", () => {
+    // `keys.encrypted` is the sentence under a feature's own key field. Shown
+    // raw it would be false on a Linux desktop without a secret store.
+    const root = fileURLToPath(new URL("../..", import.meta.url));
+    const sources = readdirSync(root, { recursive: true, encoding: "utf8" })
+      .filter((name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"))
+      .map((name) => ({
+        name,
+        text: readFileSync(path.join(root, name), "utf8"),
+      }));
+    const uses = sources.flatMap(({ name, text }) =>
+      [...text.matchAll(/t\("keys\.encrypted"\)/gu)].map((match) => ({
+        name,
+        wrapped: /<DesktopKeyStorageNote[^<]*$/u.test(
+          text.slice(0, match.index),
+        ),
+      })),
+    );
+    expect(uses.length).toBeGreaterThanOrEqual(2);
+    expect(uses.filter((use) => !use.wrapped)).toEqual([]);
   });
 
   it("reports only its own keys' failures", () => {

@@ -4,6 +4,7 @@ import "./main-process/security/debugging-guard.js";
 import {
   app,
   BrowserWindow,
+  dialog,
   nativeImage,
   safeStorage,
   session,
@@ -58,7 +59,11 @@ import {
   reloadRecoveryWindow,
 } from "./main-process/runtime/recovery.js";
 import { RuntimeSupervisor } from "./main-process/runtime/supervisor.js";
-import { awaitDurableEncryptionKey } from "./main-process/runtime/vault.js";
+import {
+  awaitDurableEncryptionKey,
+  linuxPasswordStore,
+} from "./main-process/runtime/vault.js";
+import { refuseDisabledSandbox } from "./main-process/security/sandbox-guard.js";
 import {
   closeProductSession,
   destroyProductWindows,
@@ -73,6 +78,7 @@ import type {
 import { readBoundedJson } from "./main-process/feature-packs/catalog.js";
 import { DesktopUpdateController } from "./main-process/updates/controller.js";
 import {
+  hostUpdatePlatform,
   openSealedUpdates,
   type UpdatePlatform,
   type UpdatePolicy,
@@ -83,6 +89,7 @@ import {
   verifyUpdaterPublisher,
 } from "./main-process/updates/electron-adapter.js";
 import { LoginItem } from "./main-process/login-item/login-item.js";
+import { LinuxDesktopEntries } from "./main-process/login-item/linux-desktop-entry.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const preloadPath = join(currentDir, "preload.cjs");
@@ -138,6 +145,14 @@ else {
   }
   if (process.platform === "linux")
     app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
+  // Before `ready`, when Electron chooses where its encryption key lives.
+  const passwordStore = linuxPasswordStore(
+    process.platform,
+    process.env,
+    (name) => app.commandLine.hasSwitch(name),
+  );
+  if (passwordStore)
+    app.commandLine.appendSwitch("password-store", passwordStore);
 
   const callers = new RuntimeIpcCallers();
   // Shell text follows the locale the app last applied, else the OS languages.
@@ -168,12 +183,7 @@ else {
 
   /** Updates are optional, packaged-only infrastructure and never delay application readiness. */
   function initializeUpdates(): Promise<void> {
-    const platform =
-      process.platform === "darwin" && process.arch === "arm64"
-        ? "darwin"
-        : process.platform === "win32" && process.arch === "x64"
-          ? "win32"
-          : undefined;
+    const platform = hostUpdatePlatform(process.platform, process.arch);
     if (!app.isPackaged || !platform || !supervisor) return Promise.resolve();
     updateInitialization ??= (async () => {
       // A build that seals updates off (the final release) opens nothing, so
@@ -429,6 +439,20 @@ else {
   }
 
   const loginItem = new LoginItem(app);
+  // A Linux AppImage keeps Launch at login and its menu entry as desktop
+  // entries naming the file the launcher reports in APPIMAGE.
+  const linuxEntries =
+    process.platform === "linux"
+      ? new LinuxDesktopEntries({
+          isPackaged: app.isPackaged,
+          appImage: process.env.APPIMAGE,
+          appDir: process.env.APPDIR,
+          execPath: process.execPath,
+          env: process.env,
+          home: app.getPath("home"),
+          iconSource: join(process.resourcesPath, "icon.png"),
+        })
+      : undefined;
   installRuntimeIpc(callers, {
     status: () => currentStatus,
     retry: async () => {
@@ -449,6 +473,14 @@ else {
         throw new RuntimeError("backups_unavailable");
     },
     quit: () => app.quit(),
+    acceptUnprotectedStorage: async () => {
+      if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
+      await supervisor.acceptUnprotectedStorage();
+    },
+    credentialStorage: () => {
+      if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
+      return supervisor.credentialStorage();
+    },
     credentials: () => {
       if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
       return supervisor.credentials();
@@ -476,8 +508,16 @@ else {
       return updates.restart();
     },
     setLocale: (locale) => shellLocale.apply(locale),
-    loginItem: () => loginItem.status(),
-    setLoginItem: (enabled) => loginItem.setEnabled(enabled),
+    loginItem: () => linuxEntries?.loginItem() ?? loginItem.status(),
+    setLoginItem: (enabled) =>
+      linuxEntries
+        ? linuxEntries.setLoginItem(enabled)
+        : loginItem.setEnabled(enabled),
+    menuEntry: () => linuxEntries?.menuEntry() ?? { available: false },
+    setMenuEntry: (enabled) => {
+      if (!linuxEntries) throw new RuntimeError("feature_unavailable");
+      return linuxEntries.setMenuEntry(enabled);
+    },
     takeMenuCommand: () => menuCommands.take(),
   });
 
@@ -578,6 +618,31 @@ else {
   void app
     .whenReady()
     .then(async () => {
+      // Nothing opens or starts in a packaged Linux app whose sandbox is off.
+      if (
+        refuseDisabledSandbox({
+          isPackaged: app.isPackaged,
+          platform: process.platform,
+          hasSwitch: (name) => app.commandLine.hasSwitch(name),
+          text: shellLocale.strings.text,
+          show: (title, message) => {
+            writeLog("error", "chromium_sandbox_disabled_refused");
+            dialog.showMessageBoxSync({
+              type: "error",
+              title: app.name,
+              message: title,
+              detail: message,
+            });
+          },
+          exit: (code) => {
+            // Also stops a failed message from opening the recovery window.
+            allowQuit = true;
+            quitting = true;
+            app.exit(code);
+          },
+        })
+      )
+        return;
       showDevelopmentIcon();
       // Replaces Electron's English default menu before any window opens.
       applyApplicationMenu(shellLocale.strings);

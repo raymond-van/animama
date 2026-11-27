@@ -173,6 +173,39 @@ export function licenseRecordFiles(
   return names;
 }
 
+/**
+ * The AppImage toolset `electron-builder.yml` pins: the `appimage` key in the
+ * indented lines directly below `toolsets:`.
+ */
+export function appImageToolset() {
+  const version =
+    /^toolsets:\n(?:[ \t]+.*\n)*?[ \t]+appimage: "([^"]+)"/mu.exec(
+      readFileSync(path.join(desktopRoot, "electron-builder.yml"), "utf8"),
+    )?.[1];
+  if (!version)
+    throw new Error("electron-builder.yml does not pin toolsets.appimage");
+  return version;
+}
+
+/**
+ * Linux only: what electron-builder adds around the app when it makes the
+ * AppImage. Its pinned toolset supplies the launcher that mounts the file and
+ * a few desktop libraries that the launcher puts ahead of the system's. They
+ * are outside the staged runtime, so no file inventory lists them; this
+ * record names them for the licence review.
+ */
+export function appImageToolsetRecord(version) {
+  return {
+    id: "appimage-toolset",
+    name: "AppImage launcher (type2-runtime) and the desktop libraries electron-builder bundles with it",
+    version,
+    license:
+      "type2-runtime (MIT), a static binary that includes libfuse, squashfuse and musl under their own terms; libXtst, libXss, libnotify, libappindicator3, libindicator3 and libgconf-2 under their own upstream terms (X11/MIT, LGPL and GPL families). The toolset archive carries no licence files.",
+    source: `https://github.com/electron-userland/electron-builder-binaries/releases/tag/appimage%40${version}`,
+    review: "pending",
+  };
+}
+
 /** Every staged file gets an attribution group, with unresolved provenance visible. */
 export function writeLicenses(target, contentInventory) {
   const directory = path.join(target.runtime, "licenses");
@@ -226,6 +259,8 @@ export function writeLicenses(target, contentInventory) {
       source: "https://visualstudio.microsoft.com/license-terms/",
       review: "pending",
     });
+  if (target.platform === "linux")
+    records.push(appImageToolsetRecord(appImageToolset()));
   records.push({
     id: "electron",
     name: "Electron + Chromium",

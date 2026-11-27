@@ -28,7 +28,7 @@ import {
 import { atomicWrite } from "./atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
 import {
-  PROCESS_GUARD_PATH,
+  processGuardPath,
   runtimePlatform,
   verifyRuntime,
   type RuntimeManifest,
@@ -62,7 +62,11 @@ import { writeLog } from "../logging.js";
 import { runtimeRedactor } from "./redaction.js";
 import {
   CredentialVault,
+  currentProtection,
+  linuxVaultGate,
+  storedProtection,
   type Encryption,
+  type VaultProtection,
   validateCredentialChanges,
 } from "./vault.js";
 
@@ -107,6 +111,10 @@ export class RuntimeSupervisor {
   private backendOrigin?: URL;
   private renderersQuiesced = false;
   private vault?: CredentialVault;
+  /** What protects the open vault; only Linux can be without a secret store. */
+  private protection: VaultProtection = "system";
+  /** The owner chose Continue on the unprotected-storage question this launch. */
+  private unprotectedStorageAccepted = false;
   /** The ChatGPT plan session file's key; undefined when the vault could not create one. */
   private chatgptPlanStoreKey?: string;
   // Main owns these bounded status entries (providers, the vault's connection
@@ -289,11 +297,9 @@ export class RuntimeSupervisor {
           this.options.runtimeRoot,
           this.options.appVersion,
         );
-        // The verified manifest includes the guard on Windows.
-        if (process.platform === "win32")
-          useProcessGuard(
-            path.join(this.options.runtimeRoot, PROCESS_GUARD_PATH),
-          );
+        // The verified manifest includes the guard where the platform has one.
+        const guard = processGuardPath(process.platform);
+        if (guard) useProcessGuard(path.join(this.options.runtimeRoot, guard));
         if (!this.packs) {
           const catalog = await loadPackCatalog({
             runtimeRoot: this.options.runtimeRoot,
@@ -315,11 +321,7 @@ export class RuntimeSupervisor {
         mkdirSync(this.options.paths.base, { recursive: true, mode: 0o700 });
         this.stage("vault");
         if (!this.vault) await this.options.beforeNewVault?.();
-        this.vault ??= await CredentialVault.open(
-          this.options.paths.vault,
-          this.options.encryption,
-          hasDatabaseData(this.options.paths),
-        );
+        this.vault ??= await this.openVault();
         try {
           this.chatgptPlanStoreKey ??= await this.vault.chatgptPlanStoreKey();
         } catch (error) {
@@ -458,6 +460,53 @@ export class RuntimeSupervisor {
         }
       }
     });
+  }
+  /**
+   * Open or create the vault. On Linux a secret store may be missing: the gate
+   * stops before anything is written, and a vault made under Electron's
+   * built-in key moves under a secret store once one is available.
+   */
+  private async openVault(): Promise<CredentialVault> {
+    const { paths, encryption } = this.options;
+    const databaseExists = hasDatabaseData(paths);
+    if (process.platform !== "linux")
+      return CredentialVault.open(paths.vault, encryption, databaseExists);
+    await linuxVaultGate({
+      file: paths.vault,
+      encryption,
+      databaseExists,
+      consented: this.unprotectedStorageAccepted,
+    });
+    const vault = await CredentialVault.open(
+      paths.vault,
+      encryption,
+      databaseExists,
+    );
+    if (
+      storedProtection(paths.vault) === "unprotected" &&
+      (await currentProtection(encryption)) === "system"
+    )
+      await vault.protect();
+    this.protection = storedProtection(paths.vault) ?? "unprotected";
+    return vault;
+  }
+  /**
+   * The owner's Continue on the unprotected-storage question: keys will be
+   * saved under Electron's built-in key. Valid only while that question is the
+   * current status; the vault this creates is the lasting record.
+   */
+  acceptUnprotectedStorage(): Promise<void> {
+    if (
+      this.current.state !== "error" ||
+      this.current.code !== "unprotected_storage_consent_required"
+    )
+      return Promise.reject(new RuntimeError("consent_not_requested"));
+    this.unprotectedStorageAccepted = true;
+    return this.start();
+  }
+  /** Whether saved keys are protected by the system, for the place they are entered. */
+  credentialStorage(): { protection: VaultProtection } {
+    return { protection: this.protection };
   }
   /**
    * A development baseline edited in place keeps its Alembic head, so compare

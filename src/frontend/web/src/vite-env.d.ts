@@ -64,6 +64,8 @@ interface Window {
     readonly locale?: import("../../shared/desktop-runtime").LocaleBridge;
     readonly loginItem?: import("../../shared/desktop-runtime").LoginItemBridge;
     readonly menu?: import("../../shared/desktop-runtime").MenuBridge;
+    /** Linux AppImage only: the optional application-menu entry. */
+    readonly menuEntry?: import("../../shared/desktop-runtime").MenuEntryBridge;
     /** Main window on Windows: colors of the window buttons over the title strip. */
     readonly titleBar?: {
       setColors(colors: { color: string; symbolColor: string }): Promise<void>;

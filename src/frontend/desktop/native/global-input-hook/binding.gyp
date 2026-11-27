@@ -39,7 +39,15 @@
           }
         ],
         [
-          "OS!='mac' and OS!='win'",
+          "OS=='linux'",
+          {
+            "sources": ["src/hook_linux.cc"],
+            "cflags_cc": ["-std=c++20", "-Wall", "-Wextra"],
+            "libraries": ["-lX11", "-lXi"]
+          }
+        ],
+        [
+          "OS!='mac' and OS!='win' and OS!='linux'",
           { "sources": ["src/hook_unsupported.cc"] }
         ]
       ]

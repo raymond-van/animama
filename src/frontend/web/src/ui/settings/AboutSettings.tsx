@@ -33,10 +33,23 @@ function usePlatformLabel(): string {
 export function AboutVersionSetting() {
   const { t } = useTranslation("settings");
   const platformLabel = usePlatformLabel();
+  const platform = useRuntimePlatform();
+  // A Linux desktop build has no in-app updates: it is rebuilt from source.
+  const sourceBuild = platform.isDesktop && platform.os === "linux";
   return (
     <SettingsRow
       label={t("about.version")}
-      description={platformLabel}
+      description={
+        sourceBuild ? (
+          <>
+            {platformLabel}
+            <br />
+            {t("about.sourceBuild")}
+          </>
+        ) : (
+          platformLabel
+        )
+      }
       control={
         <span className="text-foreground font-mono text-sm">
           {env.appVersion}

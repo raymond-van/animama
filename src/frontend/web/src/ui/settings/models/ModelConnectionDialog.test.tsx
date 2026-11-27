@@ -39,6 +39,8 @@ vi.mock("@/query/mutations/useModelConfiguration", () => ({
 vi.mock("@tanstack/react-query", async (original) => ({
   ...(await original<typeof import("@tanstack/react-query")>()),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  // The key field's storage note reads protection status; none is cached here.
+  useQuery: () => ({ data: undefined }),
 }));
 
 (

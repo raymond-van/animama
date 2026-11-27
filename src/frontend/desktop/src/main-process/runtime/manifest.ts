@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, readFile, realpath } from "node:fs/promises";
@@ -31,6 +32,14 @@ export type RuntimeManifest = {
 
 /** Windows runs every owned process inside this guard's kill-on-close job. */
 export const PROCESS_GUARD_PATH = "bin/animama-process-guard.exe";
+/** Linux runs every owned process under this guard, which watches a lifeline. */
+export const LINUX_PROCESS_GUARD_PATH = "bin/animama-process-guard";
+
+/** The staged process guard of a platform that has one; macOS has none. */
+export function processGuardPath(platform: string): string | undefined {
+  if (platform === "win32") return PROCESS_GUARD_PATH;
+  return platform === "linux" ? LINUX_PROCESS_GUARD_PATH : undefined;
+}
 
 /**
  * The lowest Windows build Animama accepts: Windows 10 version 1903, the
@@ -41,19 +50,95 @@ export const PROCESS_GUARD_PATH = "bin/animama-process-guard.exe";
  */
 const WINDOWS_MINIMUM_BUILD = 18362;
 
+/**
+ * A Linux build runs only where the C library is at least as new as the one
+ * its binaries were built against, so a stage measures that version into its
+ * manifest as `glibc-<major>.<minor>`. The native lock and the source manifest
+ * carry the bare marker `glibc` in its place.
+ */
+const LINUX_MINIMUM = /^glibc-(\d{1,3})\.(\d{1,3})$/u;
+const C_LIBRARY_VERSION = /^(\d{1,3})\.(\d{1,3})$/u;
+
 /** Minimum OS and executable naming for each supported runtime platform. */
 export function runtimePlatform(platform: string): {
   minimumOs: string;
   executableSuffix: string;
 } {
-  return platform === "win32"
-    ? { minimumOs: `10.0.${WINDOWS_MINIMUM_BUILD}`, executableSuffix: ".exe" }
-    : { minimumOs: "15.0", executableSuffix: "" };
+  if (platform === "win32")
+    return {
+      minimumOs: `10.0.${WINDOWS_MINIMUM_BUILD}`,
+      executableSuffix: ".exe",
+    };
+  if (platform === "linux") return { minimumOs: "glibc", executableSuffix: "" };
+  return { minimumOs: "15.0", executableSuffix: "" };
+}
+
+/** Whether a staged manifest's `minimum_os` is one this platform's builds carry. */
+export function validMinimumOs(platform: string, value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  return platform === "linux"
+    ? LINUX_MINIMUM.test(value)
+    : value === runtimePlatform(platform).minimumOs;
+}
+
+/**
+ * Whether the running C library is at least the one a Linux manifest names.
+ * An unknown library, such as musl, is never assumed to be enough.
+ */
+export function meetsCLibrary(
+  minimumOs: string,
+  running: string | undefined,
+): boolean {
+  const required = LINUX_MINIMUM.exec(minimumOs);
+  const actual = C_LIBRARY_VERSION.exec(running ?? "");
+  if (!required || !actual) return false;
+  const [major, minor] = [Number(actual[1]), Number(actual[2])];
+  return (
+    major > Number(required[1]) ||
+    (major === Number(required[1]) && minor >= Number(required[2]))
+  );
+}
+
+/**
+ * The running glibc version, such as `2.42`: from Node's process report, or
+ * from `getconf` where the report does not carry it. Undefined on any other
+ * C library.
+ */
+export function runningCLibrary(
+  report: () => unknown = () => {
+    const reporter = process.report as
+      | (NodeJS.ProcessReport & { excludeNetwork?: boolean })
+      | undefined;
+    // The report otherwise resolves every network interface's addresses.
+    if (reporter) reporter.excludeNetwork = true;
+    return reporter?.getReport();
+  },
+  getconf: () => string = () =>
+    execFileSync("/usr/bin/getconf", ["GNU_LIBC_VERSION"], {
+      encoding: "utf8",
+      timeout: 5_000,
+    }),
+): string | undefined {
+  try {
+    const version = (report() as { header?: { glibcVersionRuntime?: unknown } })
+      ?.header?.glibcVersionRuntime;
+    if (typeof version === "string" && C_LIBRARY_VERSION.test(version))
+      return version;
+  } catch {
+    // Fall through to getconf.
+  }
+  try {
+    return /^glibc (\d{1,3}\.\d{1,3})\s*$/u.exec(getconf())?.[1];
+  } catch {
+    return undefined;
+  }
 }
 
 /**
  * Node reports the kernel release, not the product version: macOS 15 is
- * Darwin 24, and Windows 10 and 11 are both 10.0 with a build number.
+ * Darwin 24, and Windows 10 and 11 are both 10.0 with a build number. A Linux
+ * kernel release says nothing about the system a build can run on, so Linux
+ * x64 is admitted here and held to its manifest's C library by `verifyRuntime`.
  */
 export function supportsRuntimePlatform(
   platform: string,
@@ -70,7 +155,7 @@ export function supportsRuntimePlatform(
       /^10\.0\.\d+$/u.test(kernelRelease) &&
       Number(kernelRelease.split(".")[2]) >= WINDOWS_MINIMUM_BUILD
     );
-  return false;
+  return platform === "linux" && architecture === "x64";
 }
 
 function portable(name: string): boolean {
@@ -114,7 +199,7 @@ export async function verifyRuntime(
       manifest.postgresql?.major !== 16 ||
       !/^16\.\d+$/u.test(manifest.postgresql?.version) ||
       !/^\d+\.\d+\.\d+$/u.test(manifest.postgresql?.pgvector) ||
-      manifest.minimum_os !== runtimePlatform(process.platform).minimumOs ||
+      !validMinimumOs(process.platform, manifest.minimum_os) ||
       !/^[a-f0-9]{64}$/u.test(manifest.core_content_inventory_id) ||
       !/^[a-f0-9]{64}$/u.test(manifest.pack_catalog_id) ||
       !/^[a-f0-9]{64}$/u.test(manifest.database_schema_sha256) ||
@@ -127,7 +212,11 @@ export async function verifyRuntime(
       !/^[a-zA-Z0-9_]{1,128}$/u.test(manifest.alembic_head)
     )
       throw new Error();
-    if (!supportsRuntimePlatform(process.platform, process.arch, release()))
+    if (
+      !supportsRuntimePlatform(process.platform, process.arch, release()) ||
+      (process.platform === "linux" &&
+        !meetsCLibrary(manifest.minimum_os, runningCLibrary()))
+    )
       throw new RuntimeError("unsupported_runtime_platform");
     if (
       createHash("sha256")
@@ -159,6 +248,7 @@ export async function verifyRuntime(
       const critical =
         file.critical ||
         file.path.startsWith("backend/") ||
+        file.path.startsWith("bin/") ||
         file.path.startsWith("postgres/") ||
         file.path.startsWith("content/included-core/") ||
         /\.(?:json|sql|js|mjs|cjs|html|wasm)$/u.test(file.path);
@@ -197,7 +287,9 @@ export async function verifyRuntime(
         "postgres/bin/pg_dump",
         "postgres/bin/pg_restore",
       ].map((name) => `${name}${executableSuffix}`),
-      ...(process.platform === "win32" ? [PROCESS_GUARD_PATH] : []),
+      ...[processGuardPath(process.platform)].filter(
+        (name) => name !== undefined,
+      ),
       "web/index.html",
       "content/included-core/inventory.json",
       "pack-catalog.json",

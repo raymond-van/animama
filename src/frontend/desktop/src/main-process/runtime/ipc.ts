@@ -7,11 +7,13 @@ import {
 import {
   featurePackIds,
   type CredentialStatus,
+  type CredentialStorage,
   type RuntimeStatus,
   type FeaturePackStatus,
   type FeaturePackId,
   type LoginItemStatus,
   type MenuCommand,
+  type MenuEntryStatus,
   type UpdateStatus,
 } from "../../../../shared/desktop-runtime.js";
 import { isUiLocale, type UiLocale } from "@animama/runtime-contracts/locale";
@@ -25,7 +27,10 @@ export type RuntimeIpcOperations = {
   openLogs(): Promise<void>;
   openBackups?(): Promise<void>;
   quit(): void;
+  /** The owner accepted saving keys without a secret store (Linux). */
+  acceptUnprotectedStorage?(): Promise<void>;
   credentials(): CredentialStatus[];
+  credentialStorage?(): CredentialStorage;
   /** Save several key changes and apply them to the running backend. */
   changeCredentials?(changes: unknown): Promise<CredentialStatus[]>;
   featurePacks?(): FeaturePackStatus[];
@@ -43,6 +48,9 @@ export type RuntimeIpcOperations = {
   setLoginItem?(enabled: boolean): LoginItemStatus;
   /** The application-menu command waiting for the main window, taken once. */
   takeMenuCommand?(): MenuCommand | null;
+  /** A Linux AppImage's application-menu entry. */
+  menuEntry?(): MenuEntryStatus;
+  setMenuEntry?(enabled: boolean): MenuEntryStatus;
 };
 type Caller = {
   contents: WebContents;
@@ -172,7 +180,17 @@ export function installRuntimeIpc(
     return operations.openBackups();
   });
   handle("runtime:quit", 0, true, () => operations.quit());
+  handle("runtime:accept-unprotected-storage", 0, true, () => {
+    if (!operations.acceptUnprotectedStorage)
+      throw new RuntimeError("embedded_runtime_unavailable");
+    return operations.acceptUnprotectedStorage();
+  });
   handle("credentials:list", 0, false, () => operations.credentials());
+  handle("credentials:storage", 0, false, () => {
+    if (!operations.credentialStorage)
+      throw new RuntimeError("embedded_runtime_unavailable");
+    return operations.credentialStorage();
+  });
   handle("credentials:apply", 1, false, (changes) => {
     if (!operations.changeCredentials)
       throw new RuntimeError("embedded_runtime_unavailable");
@@ -240,6 +258,20 @@ export function installRuntimeIpc(
       throw new RuntimeError("ipc_arguments_invalid");
     if (!operations.setLoginItem) throw new RuntimeError("feature_unavailable");
     return operations.setLoginItem(enabled);
+  });
+  // The same rule for the application-menu entry: the renderer turns it on or
+  // off and never names a file; main writes it for the running AppImage.
+  handle(
+    "menu-entry:status",
+    0,
+    false,
+    () => operations.menuEntry?.() ?? { available: false },
+  );
+  handle("menu-entry:set", 1, false, (enabled) => {
+    if (typeof enabled !== "boolean")
+      throw new RuntimeError("ipc_arguments_invalid");
+    if (!operations.setMenuEntry) throw new RuntimeError("feature_unavailable");
+    return operations.setMenuEntry(enabled);
   });
   // Only the main app window acts on an application-menu command.
   handle("menu:take", 0, false, () => operations.takeMenuCommand?.() ?? null);

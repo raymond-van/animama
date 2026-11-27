@@ -8,6 +8,7 @@ import {
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
 import {
+  clickThroughSupported,
   floatingWindowType,
   floatOnAllWorkspaces,
 } from "../window/floating-window.js";
@@ -307,7 +308,7 @@ export class QuickChatWindowManager {
   private readonly preloadPath: string;
   private readonly runtimeMessageChannel: string;
   private readonly stateChangedChannel: string;
-  private readonly clickThroughSupported = process.platform !== "linux";
+  private readonly clickThroughSupported = clickThroughSupported();
   private interactiveRegions: DesktopQuickChatInteractiveRegion[] = [];
   private latestSnapshotMessage: DesktopQuickChatRuntimeMessage | null = null;
   private mouseEventsIgnored = false;

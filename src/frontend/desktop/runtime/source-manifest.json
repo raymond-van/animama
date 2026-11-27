@@ -7,7 +7,8 @@
   "local_http_schema_version": 1,
   "targets": {
     "darwin-arm64": { "minimum_os": "15.0", "status": "phase-1-feasibility" },
-    "win32-x64": { "minimum_os": "10.0.18362", "status": "in-development" }
+    "win32-x64": { "minimum_os": "10.0.18362", "status": "in-development" },
+    "linux-x64": { "minimum_os": "glibc", "status": "source-build" }
   },
   "core": [
     "electron",

@@ -51,7 +51,10 @@ import type {
   CredentialsBridge,
 } from "../../../../../shared/desktop-runtime";
 import { credentialTarget } from "../../../../../shared/desktop-runtime";
-import type { DesktopCredentialsController } from "@/ui/settings/DesktopCredentialsPanel";
+import {
+  DesktopKeyStorageNote,
+  type DesktopCredentialsController,
+} from "@/ui/settings/DesktopCredentialsPanel";
 import {
   applyCredentialChanges,
   credentialFailureMessage,
@@ -168,7 +171,7 @@ function draftFromConnection(connection: PyModelConnection): Draft {
  * nothing else lists the key once the connection no longer names it.
  */
 export async function deleteConnectionKey(
-  bridge: CredentialsBridge,
+  bridge: Pick<CredentialsBridge, "list" | "apply">,
   env: string,
 ): Promise<void> {
   await applyCredentialChanges(bridge, [{ connection: env }]).catch(() => {
@@ -530,7 +533,9 @@ function ModelConnectionFields({
               {t("connectionForm.keyForAnotherAddress")}
             </p>
           ) : null}
-          <p className="text-muted-foreground text-xs">{t("keys.encrypted")}</p>
+          <DesktopKeyStorageNote className="text-muted-foreground text-xs">
+            {t("keys.encrypted")}
+          </DesktopKeyStorageNote>
         </div>
       ) : (
         <div className="space-y-2">

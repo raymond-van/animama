@@ -3,8 +3,10 @@ import {
   DesktopUpdateController,
   type UpdateAdapter,
 } from "../src/main-process/updates/controller.js";
+import { readFileSync } from "node:fs";
 import {
   allowedUpdateUrl,
+  hostUpdatePlatform,
   openSealedUpdates,
   updateFreeBytes,
   updatePlatform,
@@ -75,6 +77,35 @@ function controller() {
   return { updates: new DesktopUpdateController(options), adapter, options };
 }
 afterEach(() => vi.useRealTimers());
+
+describe("platforms that can update in place", () => {
+  it("offers updates on macOS arm64 and Windows x64 only", () => {
+    expect(hostUpdatePlatform("darwin", "arm64")).toBe("darwin");
+    expect(hostUpdatePlatform("win32", "x64")).toBe("win32");
+    // A Linux build is rebuilt from source; it never asks for a feed.
+    for (const [platform, arch] of [
+      ["linux", "x64"],
+      ["linux", "arm64"],
+      ["darwin", "x64"],
+      ["win32", "arm64"],
+    ])
+      expect(hostUpdatePlatform(platform, arch)).toBeUndefined();
+  });
+
+  it("is the only gate main.ts opens updates through", () => {
+    const main = readFileSync(
+      new URL("../src/main.ts", import.meta.url),
+      "utf8",
+    );
+    expect(main).toContain(
+      "const platform = hostUpdatePlatform(process.platform, process.arch);",
+    );
+    expect(main).toMatch(
+      /if \(!app\.isPackaged \|\| !platform \|\| !supervisor\) return Promise\.resolve\(\);/u,
+    );
+    expect(main.match(/openSealedUpdates\(/gu)).toHaveLength(1);
+  });
+});
 
 describe("opening a packaged build's updates", () => {
   const open = (sealed: unknown, cancelled = false) => {

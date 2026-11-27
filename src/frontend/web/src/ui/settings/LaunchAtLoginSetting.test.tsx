@@ -45,5 +45,8 @@ describe("Launch at login setting", () => {
     expect(render(blocked)).toContain("Login Items &amp; Extensions");
     platform.desktopBridge.platform = "win32";
     expect(render(blocked)).toContain("Settings → Apps → Startup");
+    // On Linux nothing in the system blocks it: the AppImage has moved.
+    platform.desktopBridge.platform = "linux";
+    expect(render(blocked)).toContain("has moved");
   });
 });

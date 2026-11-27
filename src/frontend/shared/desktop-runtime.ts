@@ -84,8 +84,19 @@ export type RuntimeBridge = {
   openLogs(): Promise<void>;
   openBackups(): Promise<void>;
   quit(): Promise<void>;
+  /**
+   * The owner's Continue when startup stops with
+   * `unprotected_storage_consent_required` (Linux without a secret store):
+   * save keys without system protection and carry on starting.
+   */
+  acceptUnprotectedStorage(): Promise<void>;
   onStatus(callback: (status: RuntimeStatus) => void): () => void;
 };
+/**
+ * What protects saved keys: the operating system's secret store, or, on a
+ * Linux desktop without one, only the vault file's permissions.
+ */
+export type CredentialStorage = { protection: "system" | "unprotected" };
 /**
  * One key change in a batch, for a built-in provider or a model connection;
  * an omitted value removes the saved key. A connection key is saved with the
@@ -109,6 +120,8 @@ export type CredentialsBridge = {
    * a restart. Returns every status; failed entries carry their own `error`.
    */
   apply(changes: CredentialChange[]): Promise<CredentialStatus[]>;
+  /** How saved keys are protected, for a notice where keys are entered. */
+  storage(): Promise<CredentialStorage>;
 };
 export const featurePackIds = ["expanded-included-content"] as const;
 export type FeaturePackId = (typeof featurePackIds)[number];
@@ -153,9 +166,10 @@ export type LocaleBridge = {
   setApplied(locale: string): Promise<void>;
 };
 /**
- * Whether the OS opens the app at login. Only packaged macOS and Windows apps
- * offer it; `blockedBySystem` means the app asked to open at login but the OS
- * will not run it until the user allows it there.
+ * Whether the OS opens the app at login. Packaged macOS and Windows apps and
+ * a Linux AppImage offer it. `blockedBySystem` means the app asked to open at
+ * login but that will not happen yet: the OS waits for the user to allow it,
+ * or, on Linux, the AppImage has moved since the setting was turned on.
  */
 export type LoginItemStatus =
   | { available: false }
@@ -164,6 +178,19 @@ export type LoginItemStatus =
 export type LoginItemBridge = {
   status(): Promise<LoginItemStatus>;
   setEnabled(enabled: boolean): Promise<LoginItemStatus>;
+};
+/**
+ * A Linux AppImage's application-menu entry, which exists only if the owner
+ * turns it on. `stale` means the entry names a file that is no longer the
+ * running AppImage; turning it on again repoints it.
+ */
+export type MenuEntryStatus =
+  | { available: false }
+  | { available: true; enabled: boolean; stale: boolean };
+/** Main-window only: the entry file itself is the stored state. */
+export type MenuEntryBridge = {
+  status(): Promise<MenuEntryStatus>;
+  setEnabled(enabled: boolean): Promise<MenuEntryStatus>;
 };
 /** Application-menu items that act in the main window's web app. */
 export type MenuCommand = "check-for-updates" | "import-anima";

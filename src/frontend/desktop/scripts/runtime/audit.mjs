@@ -1,7 +1,9 @@
 import { existsSync, lstatSync, rmSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 import {
   buildPython,
+  buildRoot,
   executableSuffix,
   filesIn,
   nativeLockFile,
@@ -21,6 +23,7 @@ import {
 } from "./inventory.mjs";
 import { assertBundledImports } from "./js-audit.mjs";
 import { validateSizeReport } from "./size.mjs";
+import { auditLinuxStage, compiledOnLinux } from "./linux-platform.mjs";
 import { auditMacosMinimum } from "./macos-platform.mjs";
 import { msvcEnvironment } from "./windows-build.mjs";
 import { auditWindowsStage } from "./windows-platform.mjs";
@@ -47,12 +50,16 @@ try {
     manifest.architecture !== target.arch
   )
     throw new Error("Manifest target mismatch");
+  const pinnedMinimum = readJson(path.join(sourceRoot, "source-manifest.json"))
+    .targets[target.target]?.minimum_os;
+  // A Linux stage measures its minimum; the lock and source manifest carry
+  // the marker `glibc`, and the measured value is checked again below.
   if (
-    manifest.minimum_os !== nativeLock.minimum_os ||
-    manifest.minimum_os !==
-      readJson(path.join(sourceRoot, "source-manifest.json")).targets[
-        target.target
-      ]?.minimum_os
+    nativeLock.minimum_os !== pinnedMinimum ||
+    (target.platform === "linux"
+      ? pinnedMinimum !== "glibc" ||
+        !/^glibc-\d+\.\d+$/u.test(manifest.minimum_os)
+      : manifest.minimum_os !== pinnedMinimum)
   )
     throw new Error("Minimum OS target changed; run a fresh runtime stage");
   run(
@@ -111,12 +118,25 @@ try {
           systemDlls: nativeLock.system_dlls,
           env: msvcEnvironment(nativeLock.toolchain).env,
         })
-      : Object.fromEntries(
-          Object.entries(componentFiles).map(([part, names]) => [
-            part,
-            auditMacosMinimum(roots[part], names, manifest.minimum_os),
-          ]),
-        );
+      : target.platform === "linux"
+        ? auditLinuxStage(roots, componentFiles, {
+            compiled: compiledOnLinux,
+            systemLibraries: nativeLock.system_libraries,
+            buildPaths: [repoRoot, buildRoot, homedir()],
+          })
+        : Object.fromEntries(
+            Object.entries(componentFiles).map(([part, names]) => [
+              part,
+              auditMacosMinimum(roots[part], names, manifest.minimum_os),
+            ]),
+          );
+  if (
+    target.platform === "linux" &&
+    nativePlatforms.minimum_os !== manifest.minimum_os
+  )
+    throw new Error(
+      `Staged binaries need ${nativePlatforms.minimum_os}, but the manifest says ${manifest.minimum_os}; run a fresh runtime stage`,
+    );
   const nativeHook = "dist/native/animama_input_hook.node";
   const stagedNativeFiles = filesIn(
     path.join(target.output, "app/dist/native"),
@@ -130,7 +150,9 @@ try {
     target.output,
     target.platform === "win32"
       ? "electron/electron.exe"
-      : "electron/Electron.app/Contents/MacOS/Electron",
+      : target.platform === "linux"
+        ? "electron/electron"
+        : "electron/Electron.app/Contents/MacOS/Electron",
   );
   const electronEvidence = JSON.parse(
     run(

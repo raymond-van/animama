@@ -190,7 +190,8 @@
     },
     "title": "API 金鑰",
     "unavailable": "受保護的設定無法使用。請開啟執行環境復原後再試一次。",
-    "undoRemoveNamed": "復原移除 {{name}} 金鑰"
+    "undoRemoveNamed": "復原移除 {{name}} 金鑰",
+    "unprotected": "這台電腦沒有密鑰儲存服務，因此金鑰在沒有系統保護的情況下儲存：以你的帳號執行的任何程式都能讀取它們。若要保護它們，請啟動 GNOME Keyring、KeePassXC 或 KWallet 等密鑰儲存服務，然後重新開啟 Animama。"
   },
   "defaults": {
     "current": "目前為 {{model}}。",

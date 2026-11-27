@@ -60,6 +60,7 @@ import {
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
 import { useDesktopLoginItem } from "@/hooks/useDesktopLoginItem";
+import { useDesktopMenuEntry } from "@/hooks/useDesktopMenuEntry";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import type { AppSettingsRequest } from "@/stores/app-settings-request-store";
 import { APPEARANCE_COLOR_TOKENS } from "@/lib/theme/appearance-overrides";
@@ -138,6 +139,7 @@ import {
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
 import { LaunchAtLoginSetting } from "@/ui/settings/LaunchAtLoginSetting";
+import { ApplicationMenuEntrySetting } from "@/ui/settings/ApplicationMenuEntrySetting";
 import { VoiceCloneSettings } from "@/ui/settings/VoiceDownloads";
 import { ChoiceTabsList } from "@/ui/settings/choice-tabs/ChoiceTabsList";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
@@ -1256,6 +1258,7 @@ export function ApplicationSettingsModal({
   // unpackaged or unsupported desktop), so its entry is hidden then too.
   const desktopUpdates = useDesktopUpdates();
   const loginItem = useDesktopLoginItem(open);
+  const menuEntry = useDesktopMenuEntry(open);
   const credentialsAvailable = useDesktopCredentialsAvailable();
   const desktopShortcutsAvailable =
     platform.isDesktop && Boolean(platform.desktopBridge.shortcuts);
@@ -1394,9 +1397,19 @@ export function ApplicationSettingsModal({
       ...inGroup("startup"),
       label: t("launchAtLogin.label"),
       keywords: ["startup", "login", "autostart", "open automatically", "boot"],
-      // Packaged macOS and Windows apps only.
+      // Packaged macOS and Windows apps, and a Linux AppImage.
       hidden: !loginItem.status.available,
       render: () => <LaunchAtLoginSetting loginItem={loginItem} />,
+    },
+    {
+      id: "application-menu-entry",
+      section: "General",
+      ...inGroup("startup"),
+      label: t("menuEntry.label"),
+      keywords: ["application menu", "launcher", "desktop entry", "shortcut"],
+      // A Linux AppImage only.
+      hidden: !menuEntry.status.available,
+      render: () => <ApplicationMenuEntrySetting menuEntry={menuEntry} />,
     },
     {
       id: "feature-packs",

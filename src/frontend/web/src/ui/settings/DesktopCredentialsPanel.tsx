@@ -120,6 +120,58 @@ function useDesktopCredentialStatuses(enabled: boolean) {
 }
 
 /**
+ * Whether the system protects saved keys. Only a Linux desktop without a
+ * secret store reports "unprotected"; the panel then says so in place of its
+ * usual statement that keys are encrypted with secure storage.
+ */
+function useDesktopCredentialStorage(enabled: boolean) {
+  const platform = useRuntimePlatform();
+  const bridge =
+    platform.kind === "desktop" ? platform.desktopBridge.credentials : null;
+  const owner = useRuntimeCacheKey() ?? "__anon__";
+  return useQuery({
+    queryKey: desktopCredentialStorageKey(owner),
+    enabled: enabled && Boolean(bridge?.storage),
+    retry: false,
+    queryFn: () => bridge!.storage(),
+  });
+}
+
+/**
+ * Cached under the same owner as the key statuses. Protection is settled when
+ * the app starts, so saving a key does not refresh it.
+ */
+export const desktopCredentialStorageKey = (ownerId: string) =>
+  [...queryKeys.desktopCredentials.all(ownerId), "storage"] as const;
+
+/**
+ * The line by a key field that says how the key is kept. `children` is the
+ * host's usual sentence ("Encrypted on this computer…"); on a Linux desktop
+ * without a secret store that would be false, so the warning replaces it.
+ */
+export function DesktopKeyStorageNote({
+  children,
+  className,
+}: {
+  children?: ReactNode;
+  className?: string;
+}) {
+  const { t } = useTranslation("models");
+  const available = useDesktopCredentialsAvailable();
+  const unprotected =
+    useDesktopCredentialStorage(available).data?.protection === "unprotected";
+  if (unprotected)
+    return (
+      <p role="note" className="text-destructive text-sm">
+        {t("credentials.unprotected")}
+      </p>
+    );
+  return children === undefined || children === null ? null : (
+    <p className={className}>{children}</p>
+  );
+}
+
+/**
  * Whether a provider key is saved, from the same shared status as the key
  * panels; null where keys are not managed here (or status is unknown).
  */
@@ -171,6 +223,8 @@ export function DesktopCredentialsPanel({
   const available = useDesktopCredentialsAvailable();
   const statusQuery = useDesktopCredentialStatuses(available);
   const statuses = statusQuery.data ?? EMPTY_STATUSES;
+  const unprotected =
+    useDesktopCredentialStorage(available).data?.protection === "unprotected";
   const [drafts, setDrafts] = useState<CredentialDrafts>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -260,7 +314,7 @@ export function DesktopCredentialsPanel({
       aria-busy={busy}
       aria-label={showTitle ? undefined : t("credentials.title")}
     >
-      {showTitle || description !== null ? (
+      {showTitle || description !== null || unprotected ? (
         <div className="space-y-2">
           {showTitle ? (
             <h3 className="text-base font-semibold">
@@ -270,13 +324,19 @@ export function DesktopCredentialsPanel({
               </span>
             </h3>
           ) : null}
-          {description === undefined ? (
-            <p className="text-muted-foreground text-sm">
-              {t("credentials.description")}
-            </p>
-          ) : description !== null ? (
-            <p className="text-muted-foreground text-xs">{description}</p>
-          ) : null}
+          {/* Every description, the default and a host's own, says the keys
+              are encrypted; the note replaces it when that is not so. */}
+          <DesktopKeyStorageNote
+            className={
+              description === undefined
+                ? "text-muted-foreground text-sm"
+                : "text-muted-foreground text-xs"
+            }
+          >
+            {description === undefined
+              ? t("credentials.description")
+              : description}
+          </DesktopKeyStorageNote>
         </div>
       ) : null}
       <div className="divide-border/60 divide-y">
