@@ -56,6 +56,7 @@
     "waitForRun": "助手完成后可用。"
   },
   "failure": {
+    "chooseModel": "选择其他模型",
     "dismiss": "关闭",
     "kept": "你的对话和草稿都已保留。",
     "model": "助手未能完成此请求。",
@@ -77,13 +78,23 @@
   "model": {
     "chooseFailed": "无法保存模型选择。",
     "description": "助手使用此模型编写和修复草稿。",
+    "effort": {
+      "default": "模型默认",
+      "saveFailed": "无法保存推理强度。"
+    },
     "empty": "未找到模型。",
+    "expectation": "较大的模型编写的动作更好；较小的模型需要更多修复，或留下更多警告。",
     "noFrames": "此模型无法查看图像，因此助手会跳过对渲染帧的查看。检查仍会运行。",
     "none": "选择模型",
     "search": "搜索模型…",
     "setup": "设置模型",
     "title": "助手模型",
-    "trigger": "助手模型：{{model}}"
+    "trigger": "助手模型：{{model}}",
+    "unavailable": {
+      "contextTooSmall": "需要至少 {{tokens, number}} 个 token 的上下文窗口",
+      "streamingUnsupported": "无法流式输出回复",
+      "toolsUnsupported": "无法调用工具"
+    }
   },
   "page": {
     "conversationsFailed": "无法加载你与助手的对话。",
@@ -129,7 +140,7 @@
     "claudeNote": "Claude 的 API 密钥也可以使用。请在“应用设置 → 模型”的模型连接中添加它，或添加其他能够调用工具的模型。",
     "description": "助手根据文字请求编写动作，然后进行检查和修复。它需要一个能够调用工具的模型。",
     "done": "返回生成",
-    "modelsDescription": "只列出能够调用工具且可用于聊天的模型。你的选择会被记住，并且可以随时更改。",
+    "modelsDescription": "助手无法使用的模型会连同原因一并列出。你的选择会被记住，并且可以随时更改。",
     "modelsTitle": "可以使用的模型",
     "modelTitle": "为助手选择模型",
     "noModels": "目前还没有可用的模型。请使用上方的“使用 ChatGPT 继续”，或在模型连接中添加模型。",
@@ -147,6 +158,15 @@
     "scrollToLatest": "滚动到最新消息",
     "skippedQuestions": "已跳过这些问题。",
     "stopped": "已停止。已完成的草稿会保留。"
+  },
+  "usage": {
+    "conversation": "本次对话：输入 {{input, number}} 个 token，输出 {{output, number}} 个 token。",
+    "conversationCost": "本次对话：输入 {{input, number}} 个 token，输出 {{output, number}} 个 token，约 {{cost}}。",
+    "conversationCostPartial": "本次对话：输入 {{input, number}} 个 token，输出 {{output, number}} 个 token，其中价格已知的运行约 {{cost}}。",
+    "estimate": "费用是根据模型的标价估算的。",
+    "lastRun": "上次运行：输入 {{input, number}} 个 token，输出 {{output, number}} 个 token。",
+    "lastRunCost": "上次运行：输入 {{input, number}} 个 token，输出 {{output, number}} 个 token，约 {{cost}}。",
+    "title": "token 用量"
   },
   "warnings": {
     "avatarOnlyExpressions": "仅在具有以下表情的虚拟形象上播放：{{names, list}}。",

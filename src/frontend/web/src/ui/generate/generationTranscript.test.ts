@@ -77,7 +77,10 @@ describe("generationTranscript", () => {
     expect(transcript[1]).toMatchObject({
       outcome: "questions",
       questions: [{ question: "Which hand?", options: ["Right", "Left"] }],
+      runId: "run-1",
     });
+    // Only an assistant turn names a run.
+    expect(transcript[0]!.runId).toBeNull();
     expect(transcript[2]!.answers).toEqual({
       skipped: false,
       answers: [{ question: "Which hand?", answer: "Left" }],
@@ -148,6 +151,7 @@ describe("generationTranscript", () => {
         questions: [],
         answers: null,
         errorCode: null,
+        runId: null,
       },
       {
         id: "pending:assistant",
@@ -159,6 +163,7 @@ describe("generationTranscript", () => {
         questions: [],
         answers: null,
         errorCode: null,
+        runId: null,
       },
     ]);
   });
@@ -218,38 +223,36 @@ describe("failedRunStoredDraft", () => {
             id: "message-2",
             role: "assistant",
             text: "",
-            data: { outcome: "failed", ...data },
+            data: { run_id: "run-1", outcome: "failed", ...data },
           }),
         ],
       }),
       { running: false, pendingTurn: null },
     );
+  const run = (draftStored: boolean, runId: string | null = "run-1") => ({
+    draftStored,
+    runId,
+  });
 
   it("is true once a draft arrived in the run, whatever the transcript says", () => {
-    expect(failedRunStoredDraft({ draftStored: true }, [])).toBe(true);
-    expect(failedRunStoredDraft({ draftStored: true }, failedTurn({}))).toBe(
-      true,
-    );
+    expect(failedRunStoredDraft(run(true), [])).toBe(true);
+    expect(failedRunStoredDraft(run(true), failedTurn({}))).toBe(true);
+    expect(failedRunStoredDraft(run(true, null), [])).toBe(true);
   });
 
   it("is true when the turn the failed run stored names a draft", () => {
     expect(
-      failedRunStoredDraft(
-        { draftStored: false },
-        failedTurn({ draft_id: "draft-1" }),
-      ),
+      failedRunStoredDraft(run(false), failedTurn({ draft_id: "draft-1" })),
     ).toBe(true);
   });
 
   it("is false for a run that failed before it stored one", () => {
-    expect(failedRunStoredDraft({ draftStored: false }, failedTurn({}))).toBe(
-      false,
-    );
-    expect(failedRunStoredDraft({ draftStored: false }, [])).toBe(false);
+    expect(failedRunStoredDraft(run(false), failedTurn({}))).toBe(false);
+    expect(failedRunStoredDraft(run(false), [])).toBe(false);
     // An earlier run's draft does not count: only the last turn is the failed run's.
     expect(
       failedRunStoredDraft(
-        { draftStored: false },
+        run(false),
         generationTranscript(
           generationSnapshot({
             messages: [
@@ -257,13 +260,33 @@ describe("failedRunStoredDraft", () => {
               generationMessage({
                 id: "message-2",
                 role: "assistant",
-                data: { outcome: "draft", draft_id: "draft-1" },
+                data: {
+                  run_id: "run-1",
+                  outcome: "draft",
+                  draft_id: "draft-1",
+                },
               }),
               generationMessage({ id: "message-3", text: "make it shy" }),
             ],
           }),
           { running: false, pendingTurn: null },
         ),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not take the run before's failed turn for this run's", () => {
+    // The run before failed after storing its draft, and stored that turn.
+    const before = failedTurn({ run_id: "run-0", draft_id: "draft-1" });
+    // This request never reached the backend: no stream event, so no run id.
+    expect(failedRunStoredDraft(run(false, null), before)).toBe(false);
+    // Nor when this run did start and stored no turn the page has read yet.
+    expect(failedRunStoredDraft(run(false, "run-1"), before)).toBe(false);
+    // A stored turn that names no run is nobody's.
+    expect(
+      failedRunStoredDraft(
+        run(false),
+        failedTurn({ run_id: undefined, draft_id: "draft-1" }),
       ),
     ).toBe(false);
   });

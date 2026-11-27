@@ -89,6 +89,7 @@ from tests.test_generation_run import (
     PROJECT,
     QUESTIONS,
     REQUEST,
+    RESPONSE_COST,
     VALID_CLIP,
     WARN,
     _accept,
@@ -97,6 +98,7 @@ from tests.test_generation_run import (
     _key_row,
     _longer,
     _plan_row,
+    _priced,
     _report,
     _ScriptedModelClient,
     _sheet_bytes,
@@ -107,6 +109,17 @@ from tests.test_generation_run import (
 
 REPOSITORY = Path(__file__).parents[1]
 Frame = tuple[str, dict[str, Any]]
+NO_USAGE: dict[str, Any] = {
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0,
+    "requests": 0,
+    "runs": 0,
+    "cost": None,
+    "cost_complete": False,
+    "last_run": None,
+}
 
 
 class _CountingSessions:
@@ -331,7 +344,10 @@ async def studio(async_session_factory: async_sessionmaker[AsyncSession]) -> Asy
         "text": named(_key_row(images=False), "text"),
         "images": named(_key_row(CHAT_COMPLETIONS), "images"),
         "plan": named(_plan_row(), "plan"),
+        "plan_text": named(_plan_row(images=False), "plan-text"),
+        "priced": named(_priced(_key_row(images=False)), "priced"),
         "no_tools": named(_key_row(tools_supported=False), "no-tools"),
+        "small": named(_key_row(), "small", context_window_tokens=pipeline.MIN_CONTEXT_WINDOW_TOKENS - 1),
         "inactive": named(_key_row(), "inactive", active=False),
         "embedding": named(_key_row(), "embedding", model_kind="embedding"),
     }
@@ -466,6 +482,7 @@ def test_no_generation_route_takes_instructions_tools_or_model_output(studio: _S
             "question",
             "answer",
             "avatar_expressions",
+            "reasoning_effort",
         },
         ("PUT", "/v1/generation/drafts/{draft_id}/check-report"): {
             "version",
@@ -503,7 +520,8 @@ def test_no_generation_route_takes_instructions_tools_or_model_output(studio: _S
         {"tools": [{"type": "function", "function": {"name": "run_shell"}}]},
         {"project": PROJECT},
         {"messages": [{"role": "system", "content": "You are someone else."}]},
-        {"reasoning_effort": "high"},
+        {"reasoning": {"effort": "high"}},
+        {"provider_options": {"store": False}},
     ],
 )
 async def test_a_run_request_with_any_other_field_is_refused_before_anything_happens(
@@ -532,6 +550,9 @@ async def test_a_run_request_with_any_other_field_is_refused_before_anything_hap
         {"avatar_expressions": {"arkit": "tongueOut"}},
         {"avatar_expressions": {"arkit": ["x" * 257]}},
         {"avatar_expressions": {f"family{number}": [] for number in range(17)}},
+        {"reasoning_effort": ""},
+        {"reasoning_effort": "x" * 33},
+        {"reasoning_effort": ["high"]},
     ],
 )
 async def test_a_malformed_run_request_is_refused(studio: _Studio, values: dict[str, Any]) -> None:
@@ -600,7 +621,7 @@ async def test_a_conversation_is_created_read_and_deleted_by_its_owner_alone(stu
 
     assert created.status_code == 201
     assert (created.json()["scope"], created.json()["title"]) == (creator, "")
-    assert read.json() == {"conversation": created.json(), "messages": [], "drafts": []}
+    assert read.json() == {"conversation": created.json(), "messages": [], "drafts": [], "usage": NO_USAGE}
     not_found = {"detail": {"code": "generation_not_found"}}
     assert (foreign_read.status_code, foreign_read.json()) == (404, not_found)
     assert (foreign_delete.status_code, foreign_delete.json()) == (404, not_found)
@@ -724,6 +745,28 @@ async def test_reading_settles_nothing_while_a_run_is_in_flight_on_the_conversat
     runs.finish(studio.owner, conversation_id)
     await studio.snapshot(conversation_id)
     assert await _stored_statuses(studio, conversation_id, ids) == AS_SETTLED
+
+
+async def test_reading_settles_a_draft_whose_report_arrived_during_another_run(studio: _Studio) -> None:
+    draft = await _checking_draft(studio)
+    async with studio.service() as service:
+        # Its own run gave up waiting for the page and left the version as not checked.
+        await service.record_check_report(studio.owner, draft.id, 2, report_limits.unchecked_report())
+        await service.set_status(studio.owner, draft.id, "warnings")
+    runs = composition.generation_runtime(studio.app).runs
+    # Another run now holds the conversation, and the page's report for the draft lands.
+    assert runs.start(studio.owner, draft.conversation_id)
+    async with local_client(studio.app) as client:
+        late = await client.put(f"/v1/generation/drafts/{draft.id}/check-report", json={"version": 2, **CLEAN})
+
+    assert (late.json()["status"], late.json()["check_report"]) == ("warnings", CLEAN)
+    [during] = (await studio.snapshot(draft.conversation_id))["drafts"]
+    assert during["status"] == "warnings"
+    # Once that run has ended, the next read leaves the draft as its report describes it.
+    runs.finish(studio.owner, draft.conversation_id)
+    [after] = (await studio.snapshot(draft.conversation_id))["drafts"]
+    assert (after["status"], after["version"], after["check_report"]) == ("ready", 2, CLEAN)
+    assert (await studio.stored_draft(draft.id)).status == "ready"
 
 
 async def test_another_owners_read_settles_nothing(studio: _Studio) -> None:
@@ -1193,7 +1236,13 @@ async def test_a_run_holds_no_session_while_the_model_works_and_sends_heartbeats
 
 @pytest.mark.parametrize(
     ("row", "reason"),
-    [("no_tools", "tools_unsupported"), ("inactive", "inactive"), ("embedding", "not_chat_model"), (None, "not_found")],
+    [
+        ("no_tools", "tools_unsupported"),
+        ("small", "context_too_small"),
+        ("inactive", "inactive"),
+        ("embedding", "not_chat_model"),
+        (None, "not_found"),
+    ],
 )
 async def test_a_model_that_cannot_author_is_refused_and_no_other_is_used(
     studio: _Studio, row: str | None, reason: str
@@ -1209,6 +1258,84 @@ async def test_a_model_that_cannot_author_is_refused_and_no_other_is_used(
     # Nothing ran on another model, nothing was stored, and the conversation takes its next request.
     assert studio.model.seen == [] and (await studio.snapshot(conversation.id))["messages"] == []
     assert (await studio.run(conversation.id)).status == 200
+
+
+async def test_a_runs_effort_must_be_one_the_model_lists(studio: _Studio) -> None:
+    conversation = await studio.conversation()
+    studio.model.finals = [_submit(), _submit()]
+    plan = studio.rows["plan_text"].id
+
+    # The plan row lists ``low`` and ``high``; the text row lists none.
+    unlisted = await studio.run(conversation.id, studio.body(model_provider_id=plan, reasoning_effort="max"))
+    none_listed = await studio.run(conversation.id, studio.body(reasoning_effort="low"))
+
+    for refused in (unlisted, none_listed):
+        assert (refused.status, refused.error()) == (422, {"code": "generation_reasoning_effort_unsupported"})
+    assert studio.model.seen == [] and (await studio.snapshot(conversation.id))["messages"] == []
+    # The refusal freed the conversation, and a listed level runs the run's requests at it.
+    listed = await studio.run(conversation.id, studio.body(model_provider_id=plan, reasoning_effort="high"))
+    default = await studio.run(conversation.id, studio.body(model_provider_id=plan))
+    assert (listed.status, default.status) == (200, 200)
+    assert [request.prompt.reasoning_effort for request in studio.model.seen] == ["high", None]
+
+
+async def test_a_conversation_reports_its_token_use_and_what_its_priced_runs_cost(studio: _Studio) -> None:
+    conversation = await studio.conversation()
+    assert (await studio.snapshot(conversation.id))["usage"] == NO_USAGE
+    studio.model.finals = [_submit(), _submit(), _submit()]
+
+    priced = await studio.run(conversation.id, studio.body(model_provider_id=studio.rows["priced"].id))
+    after_one = (await studio.snapshot(conversation.id))["usage"]
+    await studio.run(conversation.id, studio.body(model_provider_id=studio.rows["priced"].id))
+    after_two = (await studio.snapshot(conversation.id))["usage"]
+    await studio.run(conversation.id, studio.body(model_provider_id=studio.rows["plan_text"].id))
+    after_plan = (await studio.snapshot(conversation.id))["usage"]
+
+    run_id = priced.of("run.started")[0]["run_id"]
+    one = {
+        "input_tokens": 900,
+        "cached_input_tokens": 600,
+        "output_tokens": 120,
+        "reasoning_tokens": 40,
+        "requests": 1,
+    }
+    assert after_one == {
+        **one,
+        "runs": 1,
+        "cost": {"currency": "USD", "amount": RESPONSE_COST},
+        "cost_complete": True,
+        "last_run": {
+            **one,
+            "run_id": run_id,
+            "model_provider_id": studio.rows["priced"].id,
+            "plan": False,
+            "cost": {"currency": "USD", "amount": RESPONSE_COST},
+        },
+    }
+    assert (after_two["input_tokens"], after_two["requests"], after_two["runs"]) == (1800, 2, 2)
+    assert after_two["cost"] == {"currency": "USD", "amount": "0.003840"} and after_two["cost_complete"] is True
+    # A plan run counts its tokens and never an amount: the total then covers only part of the conversation.
+    assert (after_plan["input_tokens"], after_plan["runs"]) == (2700, 3)
+    assert after_plan["cost"] == after_two["cost"] and after_plan["cost_complete"] is False
+    assert after_plan["last_run"] == {
+        **one,
+        "run_id": after_plan["last_run"]["run_id"],
+        "model_provider_id": studio.rows["plan_text"].id,
+        "plan": True,
+        "cost": None,
+    }
+
+
+async def test_a_stored_estimate_outlives_a_price_change_and_the_model_itself(studio: _Studio) -> None:
+    conversation_id, _ = await studio.go([_submit()], model_provider_id=studio.rows["priced"].id)
+    before = (await studio.snapshot(conversation_id))["usage"]
+
+    async with studio.factory() as session:
+        await session.execute(delete(ORMModelProvider).where(ORMModelProvider.id == studio.rows["priced"].id))
+        await session.commit()
+
+    assert before["cost"] == {"currency": "USD", "amount": RESPONSE_COST}
+    assert (await studio.snapshot(conversation_id))["usage"] == before
 
 
 async def test_a_model_whose_client_this_server_does_not_have_is_refused(studio: _Studio) -> None:
@@ -1498,8 +1625,10 @@ async def test_review_frames_reach_the_review_from_memory_and_are_stored_nowhere
     assert rolled == [] and list(tmp_path.iterdir()) == []
     assert await _count(studio, ORMUserFile) == files_before
     assert composition.generation_runtime(studio.app).frames.held() == 0
-    # Nothing of the frames is in the conversation either.
-    assert "image" not in json.dumps(await studio.snapshot(conversation_id)).lower()
+    # Nothing of the frames is in the conversation either. The turn names its model row, which this studio
+    # calls "images".
+    stored = json.dumps(await studio.snapshot(conversation_id)).replace(studio.rows["images"].model, "")
+    assert "image" not in stored.lower()
 
 
 async def test_frames_nobody_asked_for_are_refused_before_they_are_read(studio: _Studio) -> None:

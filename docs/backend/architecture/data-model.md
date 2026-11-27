@@ -810,7 +810,7 @@ drafts.
 | `conversation_id` | Foreign key, cascading delete; indexed |
 | `role` | `user` or `assistant` (CHECK) |
 | `text` | The turn's text; empty for a turn that only asked questions |
-| `data` | JSONB. The person's turn: `draft_id`, `answers`. The assistant's turn: `run_id`, `outcome` (`draft`, `questions`, `reply`, `failed` or `stopped`), `usage`, and where they apply `draft_id`, `questions`, `error` |
+| `data` | JSONB. The person's turn: `draft_id`, `answers`. The assistant's turn: `run_id`, `outcome` (`draft`, `questions`, `reply`, `failed` or `stopped`), `usage`, `model`, and where they apply `cost`, `draft_id`, `questions`, `error` |
 | `created_at` | Wall-clock time of the insert; messages read back in `created_at`, `id` order |
 
 `generation_drafts`:
@@ -832,6 +832,19 @@ drafts.
 | `failure_reason` | A code, kept only while the status it came with stands |
 | `saved_item_id` | The Library item the person saved the draft as |
 | `created_at`, `updated_at` | |
+
+An assistant turn's `usage` is `{input_tokens, cached_input_tokens,
+output_tokens, reasoning_tokens, requests}`, added up over the run's model
+responses. A response whose provider reported no usage is counted with its
+adapter's figures: a rough count on a Chat Completions server that streams
+none, and nothing otherwise. `model` is `{model_provider_id, model,
+provider_type}` with `reasoning_effort` when the run named one. `cost` is
+`{currency, amount}`, the amount a decimal string: the run's estimate from
+the prices the model row had when the run started. It is stored only when
+every response reported its usage and could be priced, and never for a
+ChatGPT plan run. The estimate is stored, not the price, so a later price
+change or a deleted model row leaves it as it was. Turns stored before these
+fields existed have neither; they count their tokens and no cost.
 
 A project read back from JSONB has its keys in the database's order, not the
 order they were written in. Review frames are never stored: they are held in
@@ -859,6 +872,10 @@ wait too when they inherit such a waiting chat role
 role: the page sends it with each run, the run route checks it
 (`422 generation_model_unusable`), and no default stands in for it
 ([ADR 0041](../../adr/0041-backend-built-content-assistant-runs.md)).
+`generation.reasoning_efforts` maps a model row ID to the reasoning effort
+chosen for the assistant on that model (`null` or absent for the model's
+default). The page sends the chosen model's level with each run, and the run
+route checks it (`422 generation_reasoning_effort_unsupported`).
 
 ### Avatar And Uploads
 

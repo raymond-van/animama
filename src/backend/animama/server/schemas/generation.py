@@ -23,6 +23,7 @@ from animama.app.generation.check_report import (
 )
 from animama.app.generation.draft_validation import is_storable_text
 from animama.app.generation.tools import MAX_QUESTION_LENGTH, MAX_QUESTIONS
+from animama.app.generation.usage import ConversationUsage, CostEstimate, RunUsage, StoredRunUsage
 from animama.domain.generation import (
     GenerationDraft,
     GenerationDraftStatus,
@@ -37,6 +38,7 @@ MAX_ANSWER_LENGTH = 1000
 MAX_EXPRESSION_FAMILIES = 16
 MAX_EXPRESSION_FAMILY_NAMES = 2000
 MAX_EXPRESSION_TEXT_LENGTH = 256
+MAX_REASONING_EFFORT_LENGTH = 32
 
 
 def _storable(value: str) -> str:
@@ -116,8 +118,10 @@ class PyGenerationMessage(BaseModel):
 
     The person's turn: ``draft_id`` (the draft it revises) and ``answers``.
     The assistant's turn: ``run_id``, ``outcome`` (``draft``, ``questions``,
-    ``reply``, ``failed`` or ``stopped``), ``usage``, and where they apply
-    ``draft_id``, ``questions`` and ``error`` (``code`` and ``category``).
+    ``reply``, ``failed`` or ``stopped``), ``usage``, ``model`` (the row the
+    run named, and its reasoning effort when it named one), and where they
+    apply ``cost`` (the run's estimate), ``draft_id``, ``questions`` and
+    ``error`` (``code`` and ``category``).
     """
 
     id: str
@@ -173,12 +177,91 @@ class PyGenerationDraft(BaseModel):
         )
 
 
+class PyGenerationTokenUse(BaseModel):
+    """Tokens that model responses reported, added up; ``requests`` counts the responses."""
+
+    input_tokens: int
+    cached_input_tokens: int
+    output_tokens: int
+    reasoning_tokens: int
+    requests: int
+
+    @staticmethod
+    def counts(usage: RunUsage) -> dict[str, int]:
+        return {
+            "input_tokens": usage.input_tokens,
+            "cached_input_tokens": usage.cached_input_tokens,
+            "output_tokens": usage.output_tokens,
+            "reasoning_tokens": usage.reasoning_tokens,
+            "requests": usage.requests,
+        }
+
+
+class PyGenerationCostEstimate(BaseModel):
+    """An estimated cost from the model's listed prices when the run happened; not a bill.
+
+    ``amount`` is a decimal string in ``currency`` (an ISO 4217 code).
+    """
+
+    currency: str
+    amount: str
+
+    @classmethod
+    def from_domain(cls, cost: CostEstimate | None) -> PyGenerationCostEstimate | None:
+        return cls(**cost.stored()) if cost is not None else None
+
+
+class PyGenerationRunUsage(PyGenerationTokenUse):
+    """One stored run's token use. ``plan`` is true for a run on the ChatGPT plan, which never has a ``cost``."""
+
+    run_id: str | None
+    model_provider_id: str | None
+    plan: bool
+    cost: PyGenerationCostEstimate | None
+
+    @classmethod
+    def from_domain(cls, run: StoredRunUsage) -> PyGenerationRunUsage:
+        return cls(
+            **cls.counts(run.usage),
+            run_id=run.run_id,
+            model_provider_id=run.model_provider_id,
+            plan=run.plan,
+            cost=PyGenerationCostEstimate.from_domain(run.cost),
+        )
+
+
+class PyGenerationConversationUsage(PyGenerationTokenUse):
+    """A conversation's token use over its ``runs`` stored runs, and its last run's.
+
+    ``cost`` adds the runs that have an estimate (``null`` when none has, or
+    when they are in more than one currency). ``cost_complete`` is false when
+    a run that made a model request has no estimate, so the amount covers
+    only part of the conversation.
+    """
+
+    runs: int
+    cost: PyGenerationCostEstimate | None
+    cost_complete: bool
+    last_run: PyGenerationRunUsage | None
+
+    @classmethod
+    def from_domain(cls, usage: ConversationUsage) -> PyGenerationConversationUsage:
+        return cls(
+            **cls.counts(usage.usage),
+            runs=usage.runs,
+            cost=PyGenerationCostEstimate.from_domain(usage.cost),
+            cost_complete=usage.cost_complete,
+            last_run=PyGenerationRunUsage.from_domain(usage.last_run) if usage.last_run is not None else None,
+        )
+
+
 class PyGenerationConversationSnapshot(BaseModel):
-    """A conversation with its messages in the order added and its drafts by position."""
+    """A conversation with its messages in the order added, its drafts by position and its token use."""
 
     conversation: PyGenerationConversation
     messages: list[PyGenerationMessage]
     drafts: list[PyGenerationDraft]
+    usage: PyGenerationConversationUsage
 
 
 # --- A run ----------------------------------------------------------------------------
@@ -204,7 +287,9 @@ class PyGenerationRunRequest(_Request):
     revise; without it the run writes a new draft of ``intent``.
     ``avatar_expressions`` maps a family (as the page groups them) to the
     names of the chosen preview Avatar's expressions: names only, which reach
-    the model as data.
+    the model as data. ``reasoning_effort`` is one of the model row's listed
+    levels, applied to every model request of the run; without it the model's
+    default applies.
     """
 
     message: Annotated[
@@ -221,6 +306,9 @@ class PyGenerationRunRequest(_Request):
             Field(max_length=MAX_EXPRESSION_FAMILIES),
         ]
         | None
+    ) = None
+    reasoning_effort: (
+        Annotated[str, StringConstraints(min_length=1, max_length=MAX_REASONING_EFFORT_LENGTH), _Storable] | None
     ) = None
 
 
@@ -312,11 +400,15 @@ __all__ = [
     "PyGenerationConversationCreate",
     "PyGenerationConversationList",
     "PyGenerationConversationSnapshot",
+    "PyGenerationConversationUsage",
+    "PyGenerationCostEstimate",
     "PyGenerationCreatorScope",
     "PyGenerationDraft",
     "PyGenerationMarkSaved",
     "PyGenerationMessage",
     "PyGenerationPageScope",
     "PyGenerationRunRequest",
+    "PyGenerationRunUsage",
     "PyGenerationScope",
+    "PyGenerationTokenUse",
 ]

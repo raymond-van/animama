@@ -14,6 +14,7 @@ import re
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from typing import Any, cast
@@ -35,7 +36,7 @@ from animama.adapters.model_clients.openai_responses import ChatGPTPlanResponses
 from animama.adapters.repositories.sqlalchemy.generation_repo import SQLAlchemyGenerationRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.direct_turn.events import model_error_details
-from animama.app.generation import check_report, passes, prompts, review_frames, run as pipeline, tools
+from animama.app.generation import check_report, passes, prompts, review_frames, run as pipeline, tools, usage
 from animama.app.generation.deterministic_author import DeterministicAuthor, example_gesture_clip
 from animama.app.generation.draft_validation import MAX_CLIP_DEPTH, MAX_DRAFT_SECONDS, build_project
 from animama.app.generation.expression_names import MAX_EXPRESSION_NAMES
@@ -61,11 +62,13 @@ from animama.app.model_clients.event_types import MCFunctionToolCallDeltaEvent
 from animama.app.model_clients.image_parts import is_image_part
 from animama.app.ports.chatgpt_plan_port import PlanModelListing
 from animama.app.services.chatgpt_plan_models import plan_model_row
-from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
+from animama.app.services.content_image import CHAT_IMAGE_MAX_DIMENSION, canonicalize_chat_image_stream
+from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.domain.generation import (
     GenerationConversation,
     GenerationDraft,
     GenerationError,
+    GenerationMessage,
     GenerationNotFoundError,
 )
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
@@ -82,6 +85,7 @@ from tests.anthropic_fakes import (
 )
 from tests.test_chatgpt_plan_client import _completed, _function_call, _Route, _Session
 from tests.test_model_client_registry import (
+    _api_status_error,
     _FakeOpenAIClient,
     _FakeOpenAIStream,
     _responses_completed_event,
@@ -183,6 +187,34 @@ def _key_row(provider_type: str = RESPONSES, *, images: bool = True, tools_suppo
             supports_streaming=True,
         ),
     )
+
+
+def _with_efforts(row: ModelProvider, *efforts: str) -> ModelProvider:
+    """The row, offering these reasoning effort levels."""
+
+    return replace(
+        row, capabilities=replace(row.capabilities, supports_reasoning=True, supported_reasoning_efforts=list(efforts))
+    )
+
+
+def _priced(row: ModelProvider) -> ModelProvider:
+    """The row with listed prices: 2, 0.2 (cached input) and 10 a million tokens."""
+
+    return replace(
+        row,
+        pricing=ModelProviderPricing(
+            pricing_status="priced",
+            currency="USD",
+            billing_unit="1M_tokens",
+            standard_input_price_per_million=Decimal("2"),
+            standard_cached_input_price_per_million=Decimal("0.2"),
+            standard_output_price_per_million=Decimal("10"),
+        ),
+    )
+
+
+# One scripted response (``_usage``) at those prices: 300 uncached and 600 cached input tokens, 120 output tokens.
+RESPONSE_COST = "0.001920"
 
 
 def _usage(input_tokens: int = 900, output_tokens: int = 120, cached: int = 600, reasoning: int = 40) -> Usage:
@@ -394,6 +426,18 @@ def test_a_sheet_is_decoded_by_the_bounded_opener_and_loses_its_metadata() -> No
     assert png.media_type == "image/png"
 
 
+def test_a_six_row_sheet_reaches_the_model_at_the_size_it_was_drawn() -> None:
+    # Six rows of 330 pixels under a 28-pixel header: taller than a chat image may be.
+    sheet = review_frames.decode_review_sheet(_sheet_bytes(880, 2008))
+    taller = review_frames.decode_review_sheet(_sheet_bytes(880, 4096))
+
+    assert (sheet.width, sheet.height) == (880, 2008)
+    assert review_frames.MAX_REVIEW_SHEET_DIMENSION == 2048 and (taller.width, taller.height) == (440, 2048)
+    # A chat image keeps its own bound.
+    chat = canonicalize_chat_image_stream(content=BytesIO(_sheet_bytes(880, 2008)))
+    assert CHAT_IMAGE_MAX_DIMENSION == 2000 and (chat.width, chat.height) == (876, 2000)
+
+
 @pytest.mark.parametrize(
     ("content", "code"),
     [
@@ -469,6 +513,16 @@ def test_a_pass_is_one_fresh_request_with_its_own_tools(kind: tools.PassKind, ro
     else:
         assert user["content"] == prompts.write_message(REQUEST, [], None)
         assert request.images == {} and _roles_with_images(request) == set()
+
+
+@pytest.mark.parametrize("row", [_plan_row(), _key_row(RESPONSES), _key_row(CHAT_COMPLETIONS), _key_row(ANTHROPIC)])
+@pytest.mark.parametrize("kind", ["write", "revise", "repair", "review"])
+def test_a_pass_names_the_runs_effort_in_the_option_chat_uses(kind: tools.PassKind, row: ModelProvider) -> None:
+    sheets = SHEETS if kind == "review" else ()
+
+    request = passes.pass_request(_spec(kind, row, sheets=sheets, reasoning_effort="high"), "gesture")
+
+    assert request.prompt.reasoning_effort == "high"
 
 
 def test_a_request_whose_questions_were_answered_offers_no_more() -> None:
@@ -745,19 +799,28 @@ async def test_a_review_pass_on_the_chatgpt_plan_sends_the_sheets_in_the_user_me
 
 
 class _ScriptedOpenAI(_FakeOpenAIClient):
-    """The SDK double of the registry tests, with one script for each request instead of one for all."""
+    """The SDK double of the registry tests, with one script for each request instead of one for all.
 
-    def __init__(self, scripts: Sequence[list[Any]]) -> None:
+    A script that is an exception is raised as the provider's answer to that request.
+    """
+
+    def __init__(self, scripts: Sequence[list[Any] | Exception]) -> None:
         super().__init__([])
         self.scripts = list(scripts)
 
+    def _next(self) -> _FakeOpenAIStream:
+        script = self.scripts.pop(0)
+        if isinstance(script, Exception):
+            raise script
+        return _FakeOpenAIStream(script)
+
     async def _create(self, **kwargs: Any) -> _FakeOpenAIStream:
         self.create_calls.append(dict(kwargs))
-        return _FakeOpenAIStream(self.scripts.pop(0))
+        return self._next()
 
     async def _responses_create(self, **kwargs: Any) -> _FakeOpenAIStream:
         self.response_create_calls.append(dict(kwargs))
-        return _FakeOpenAIStream(self.scripts.pop(0))
+        return self._next()
 
 
 def _responses_call(response_id: str, call_id: str, arguments: dict[str, Any]) -> list[Any]:
@@ -868,6 +931,231 @@ async def test_a_write_pass_with_a_tool_round_on_anthropic() -> None:
     [tool_result] = [block for block in second["messages"][2]["content"] if block["type"] == "tool_result"]
     assert tool_use["id"] == tool_result["tool_use_id"] == "toolu_1"
     assert SCHEMA_PROBLEM in tool_result["content"]
+
+
+# --- A named reasoning effort, on each provider family's own request (R2.5) -----------
+
+
+async def test_a_named_effort_reaches_every_round_on_the_chatgpt_plan() -> None:
+    route = _Route(
+        _completed([_plan_call("call_1", "submit_draft", INVALID_SUBMISSION)]),
+        _completed([_plan_call("call_2", "submit_draft", VALID_SUBMISSION)]),
+    )
+    client = _plan_client(route)
+
+    try:
+        await _run_pass(client, _spec("write", _plan_row(), reasoning_effort="high"), tools.WorkingDraft("gesture"))
+    finally:
+        await client.aclose()
+
+    assert [route.body(index)["reasoning"]["effort"] for index in (0, 1)] == ["high", "high"]
+
+
+async def test_a_named_effort_reaches_every_round_on_openai_responses_with_a_key() -> None:
+    sdk = _ScriptedOpenAI(
+        [_responses_call("resp_1", "call_1", INVALID_SUBMISSION), _responses_call("resp_2", "call_2", VALID_SUBMISSION)]
+    )
+    client = OpenAIResponsesModelClient(api_key="sk-test", client=sdk)  # type: ignore[arg-type]
+
+    await _run_pass(client, _spec("write", _key_row(RESPONSES), reasoning_effort="low"), tools.WorkingDraft("gesture"))
+
+    assert [call["reasoning"] for call in sdk.response_create_calls] == [{"effort": "low"}, {"effort": "low"}]
+
+
+async def test_a_named_effort_reaches_every_round_on_chat_completions_and_none_is_sent_without_one() -> None:
+    def script() -> _ScriptedOpenAI:
+        return _ScriptedOpenAI(
+            [_completion_call("call_1", INVALID_SUBMISSION), _completion_call("call_2", VALID_SUBMISSION)]
+        )
+
+    named, unnamed = script(), script()
+    row = _key_row(CHAT_COMPLETIONS)
+
+    await _run_pass(
+        OpenAIChatCompletionsModelClient(api_key="sk-test", client=named),  # type: ignore[arg-type]
+        _spec("write", row, reasoning_effort="high"),
+        tools.WorkingDraft("gesture"),
+    )
+    await _run_pass(
+        OpenAIChatCompletionsModelClient(api_key="sk-test", client=unnamed),  # type: ignore[arg-type]
+        _spec("write", row),
+        tools.WorkingDraft("gesture"),
+    )
+
+    assert [call["reasoning_effort"] for call in named.create_calls] == ["high", "high"]
+    assert not any("reasoning_effort" in call for call in unnamed.create_calls)
+
+
+async def test_a_named_effort_reaches_every_round_on_anthropic_and_none_is_sent_without_one() -> None:
+    def client_for(sdk: FakeAnthropicClient) -> AnthropicMessagesModelClient:
+        return AnthropicMessagesModelClient(
+            credential_resolver=static_credential_resolver({"ANTHROPIC_API_KEY": SENTINEL_KEY}),
+            timeout=30.0,
+            client_factory=FakeClientFactory(sdk),
+        )
+
+    def script() -> FakeAnthropicClient:
+        return FakeAnthropicClient(
+            [
+                message_events(tool_use_block("toolu_1", "submit_draft", INVALID_SUBMISSION), stop_reason="tool_use"),
+                message_events(tool_use_block("toolu_2", "submit_draft", VALID_SUBMISSION), stop_reason="tool_use"),
+            ]
+        )
+
+    named, unnamed = script(), script()
+    row = _key_row(ANTHROPIC)
+
+    await _run_pass(client_for(named), _spec("write", row, reasoning_effort="high"), tools.WorkingDraft("gesture"))
+    await _run_pass(client_for(unnamed), _spec("write", row), tools.WorkingDraft("gesture"))
+
+    assert [request["output_config"]["effort"] for request in named.requests] == ["high", "high"]
+    # A row that lists no levels gets no effort when the run names none: the model's own default applies.
+    assert not any("effort" in request.get("output_config", {}) for request in unnamed.requests)
+
+
+# --- A stored response the provider no longer has (R2.4) -------------------------------
+
+
+def _stale_cursor() -> Exception:
+    """OpenAI's answer to a ``previous_response_id`` it cannot resolve, as an organisation that stores none gets."""
+
+    return _api_status_error(
+        status_code=400,
+        body={
+            "error": {
+                "code": "previous_response_not_found",
+                "param": "previous_response_id",
+                "message": "Previous response with id 'resp_1' not found.",
+            }
+        },
+    )
+
+
+def _input_kinds(call: Mapping[str, Any]) -> list[str]:
+    return [item.get("type") or item.get("role") for item in call["input"]]
+
+
+async def test_a_round_whose_stored_response_is_gone_replays_the_exchange_without_the_cursor() -> None:
+    sdk = _ScriptedOpenAI(
+        [
+            _responses_call("resp_1", "call_1", INVALID_SUBMISSION),
+            _stale_cursor(),
+            _responses_call("resp_2", "call_2", INVALID_SUBMISSION),
+            _responses_call("resp_3", "call_3", VALID_SUBMISSION),
+        ]
+    )
+    client = OpenAIResponsesModelClient(api_key="sk-test", client=sdk)  # type: ignore[arg-type]
+    draft = tools.WorkingDraft(intent="gesture")
+
+    ended, items = await _run_pass(client, _spec("write", _key_row(RESPONSES), reasoning_effort="low"), draft)
+
+    # The refused request is not one of the pass's rounds, and no response of its own was counted.
+    assert (ended.end, ended.rounds) == ("submitted", 3) and draft.project() == PROJECT
+    assert len([item for item in items if isinstance(item, passes.PassRound)]) == 3
+    first, refused, replayed, third = sdk.response_create_calls
+    assert refused["previous_response_id"] == "resp_1" and _input_kinds(refused) == ["function_call_output"]
+    # The replay is the same exchange in full: the request, the call and its result, with nothing else changed.
+    assert "previous_response_id" not in replayed
+    assert _input_kinds(replayed) == [*_input_kinds(first), "function_call", "function_call_output"]
+    assert replayed["input"][-1] == refused["input"][-1] and SCHEMA_PROBLEM in replayed["input"][-1]["output"]
+    for key in ("instructions", "tools", "tool_choice", "parallel_tool_calls", "prompt_cache_key", "reasoning"):
+        assert replayed[key] == first[key], key
+    # Once a stored response was missing, the rest of the pass sends the whole exchange every round.
+    assert "previous_response_id" not in third
+    assert _input_kinds(third) == [*_input_kinds(replayed), "function_call", "function_call_output"]
+
+
+async def test_a_replay_that_fails_too_ends_the_pass_with_that_failure() -> None:
+    refused = _api_status_error(
+        status_code=401, body={"error": {"code": "invalid_api_key", "message": "Incorrect API key provided."}}
+    )
+    sdk = _ScriptedOpenAI([_responses_call("resp_1", "call_1", INVALID_SUBMISSION), _stale_cursor(), refused])
+    client = OpenAIResponsesModelClient(api_key="sk-test", client=sdk)  # type: ignore[arg-type]
+
+    with pytest.raises(ModelClientError) as raised:
+        await _run_pass(client, _spec("write", _key_row(RESPONSES)), tools.WorkingDraft("gesture"))
+
+    # The replay's own failure is the pass's: nothing is tried a third time.
+    assert raised.value.code != "openai_previous_response_unresolvable"
+    assert len(sdk.response_create_calls) == 3 and "previous_response_id" not in sdk.response_create_calls[2]
+
+
+async def test_a_review_replayed_without_its_cursor_still_carries_the_sheets() -> None:
+    final = replace(_edit({"op": "remove", "path": "/schema"}), raw_provider_metadata={"response_id": "resp_1"})
+    stale = ModelClientProviderError("gone", code="openai_previous_response_unresolvable")
+    client = _ScriptedModelClient([final, stale, _accept()])
+    row = _key_row(RESPONSES)
+
+    ended, _ = await _run_pass(client, _spec("review", row, sheets=SHEETS, message="Look."), _drafted())
+
+    assert (ended.end, ended.rounds) == ("accepted", 2)
+    first, refused, replayed = client.seen
+    assert refused.continuation is not None and refused.continuation.cursor == "resp_1"
+    assert replayed.continuation is None and _messages(replayed) == _messages(refused)
+    assert dict(replayed.images) == dict(first.images) and len(replayed.images) == 2
+
+
+async def test_a_pass_says_when_the_provider_has_no_stored_response_and_only_then() -> None:
+    lost = _ScriptedOpenAI(
+        [
+            _responses_call("resp_1", "call_1", INVALID_SUBMISSION),
+            _stale_cursor(),
+            _responses_call("resp_2", "call_2", VALID_SUBMISSION),
+        ]
+    )
+    kept = _ScriptedOpenAI(
+        [_responses_call("resp_1", "call_1", INVALID_SUBMISSION), _responses_call("resp_2", "call_2", VALID_SUBMISSION)]
+    )
+
+    _, after_a_replay = await _run_pass(
+        OpenAIResponsesModelClient(api_key="sk-test", client=lost),  # type: ignore[arg-type]
+        _spec("write", _key_row(RESPONSES)),
+        tools.WorkingDraft("gesture"),
+    )
+    _, undisturbed = await _run_pass(
+        OpenAIResponsesModelClient(api_key="sk-test", client=kept),  # type: ignore[arg-type]
+        _spec("write", _key_row(RESPONSES)),
+        tools.WorkingDraft("gesture"),
+    )
+
+    # Said once, before the replayed round's response, so the run can tell its later passes.
+    kinds = [type(item) for item in after_a_replay if isinstance(item, passes.PassRound | passes.PassCursorLost)]
+    assert kinds == [passes.PassRound, passes.PassCursorLost, passes.PassRound]
+    assert not any(isinstance(item, passes.PassCursorLost) for item in undisturbed)
+
+
+async def test_a_pass_told_the_provider_stores_no_responses_names_none_and_spends_no_refused_request() -> None:
+    sdk = _ScriptedOpenAI(
+        [
+            _responses_call("resp_1", "call_1", INVALID_SUBMISSION),
+            _responses_call("resp_2", "call_2", INVALID_SUBMISSION),
+            _responses_call("resp_3", "call_3", VALID_SUBMISSION),
+        ]
+    )
+    client = OpenAIResponsesModelClient(api_key="sk-test", client=sdk)  # type: ignore[arg-type]
+    draft = tools.WorkingDraft(intent="gesture")
+
+    ended, items = await _run_pass(client, _spec("write", _key_row(RESPONSES), stored_responses=False), draft)
+
+    assert (ended.end, ended.rounds) == ("submitted", 3) and draft.project() == PROJECT
+    first, second, third = sdk.response_create_calls
+    # Every request the pass made got a response: none named a stored one, and each carried the whole exchange.
+    assert not any("previous_response_id" in call for call in sdk.response_create_calls)
+    assert _input_kinds(second) == [*_input_kinds(first), "function_call", "function_call_output"]
+    assert _input_kinds(third) == [*_input_kinds(second), "function_call", "function_call_output"]
+    assert not any(isinstance(item, passes.PassCursorLost) for item in items)
+
+
+@pytest.mark.parametrize("row", [_key_row(CHAT_COMPLETIONS), _key_row(ANTHROPIC), _plan_row()])
+async def test_only_a_responses_cursor_is_replayed(row: ModelProvider) -> None:
+    final = replace(_submit(_without_schema()), raw_provider_metadata={"response_id": "resp_1"})
+    stale = ModelClientProviderError("gone", code="openai_previous_response_unresolvable")
+    client = _ScriptedModelClient([final, stale, _submit()])
+
+    with pytest.raises(ModelClientProviderError) as raised:
+        await _run_pass(client, _spec("write", row), tools.WorkingDraft("gesture"))
+
+    assert raised.value is stale and len(client.seen) == 2
 
 
 # --- The run pipeline ----------------------------------------------------------------
@@ -1061,6 +1349,7 @@ async def test_a_request_becomes_a_ready_draft(studio: _Studio) -> None:
     user, assistant = (await studio.snapshot()).messages
     assert (user.role, user.text, user.data) == ("user", REQUEST, {})
     assert (assistant.role, assistant.text) == ("assistant", NOTE)
+    row = _key_row(images=False)
     assert assistant.data == {
         "run_id": started.run_id,
         "outcome": "draft",
@@ -1072,6 +1361,8 @@ async def test_a_request_becomes_a_ready_draft(studio: _Studio) -> None:
             "reasoning_tokens": 40,
             "requests": 1,
         },
+        # The row has no listed price, so the turn holds no estimate.
+        "model": {"model_provider_id": row.id, "model": row.model, "provider_type": row.provider_type},
     }
     assert len(client.seen) == 1 and studio.checked == [2]
 
@@ -1923,6 +2214,16 @@ async def test_a_run_revises_only_a_draft_of_its_conversation_that_holds_a_proje
         (replace(_key_row(), connection=replace(builtin_openai_connection(), active=False)), "connection_inactive"),
         (replace(_key_row(), model_kind="embedding"), "not_chat_model"),
         (_key_row(tools_supported=False), "tools_unsupported"),
+        (
+            replace(_key_row(), capabilities=replace(_key_row().capabilities, supports_streaming=False)),
+            "streaming_unsupported",
+        ),
+        # A pass sends 16,000 to 24,000 tokens: the window must hold a few of them with room to answer.
+        (replace(_key_row(), context_window_tokens=pipeline.MIN_CONTEXT_WINDOW_TOKENS - 1), "context_too_small"),
+        (replace(_key_row(), context_window_tokens=pipeline.MIN_CONTEXT_WINDOW_TOKENS), None),
+        # A built-in row may record no window, as in chat; the owner's own model must, as in chat.
+        (replace(_key_row(), context_window_tokens=None), None),
+        (replace(_key_row(), context_window_tokens=None, source="owner"), "context_window_missing"),
         # What chat itself would refuse: a Responses row on another connection than OpenAI's own.
         (replace(_key_row(), connection_id="conn-other"), "unsupported"),
         (_key_row(), None),
@@ -1933,6 +2234,306 @@ async def test_a_run_revises_only_a_draft_of_its_conversation_that_holds_a_proje
 )
 def test_a_run_needs_an_active_chat_model_that_calls_tools(row: ModelProvider | None, reason: str | None) -> None:
     assert pipeline.model_unusable_reason(row) == reason
+
+
+def test_the_context_window_a_model_needs_is_the_figure_the_page_lists_models_by() -> None:
+    # The fixture is the parity record: the page's own constant is tested against the same file.
+    shared = json.loads((REPOSITORY / "src/frontend/web/src/ui/generate/fixtures/model-requirements.json").read_text())
+
+    assert shared == {"minContextWindowTokens": pipeline.MIN_CONTEXT_WINDOW_TOKENS}
+    assert pipeline.MIN_CONTEXT_WINDOW_TOKENS == 64_000
+
+
+# --- A stored response the provider no longer has, across a run (R2.4) -------------------
+
+
+def _stored(final: ModelClientFinal, response_id: str) -> ModelClientFinal:
+    """The response as OpenAI Responses returns it on a key: with the id the next round would continue from."""
+
+    return replace(final, raw_provider_metadata={"response_id": response_id})
+
+
+async def test_a_run_spends_at_most_one_refused_request_on_a_provider_that_stores_no_responses(
+    studio: _Studio,
+) -> None:
+    stale = ModelClientProviderError("gone", code="openai_previous_response_unresolvable")
+    studio.reports = [FAILING, CLEAN]
+
+    events, client = await studio.go(
+        [
+            # The write pass: a refused submission, the second round's missing response, and its replay.
+            _stored(_submit(_without_schema()), "resp_1"),
+            stale,
+            _stored(_submit(), "resp_2"),
+            # The repair pass, which also takes two rounds.
+            _stored(_edit({"op": "remove", "path": "/schema"}), "resp_3"),
+            _stored(_edit(_longer(4.5)), "resp_4"),
+        ],
+        row=_key_row(RESPONSES, images=False),
+    )
+
+    assert not _of(events, pipeline.RunFailed) and (await studio.draft()).status == "ready"
+    write, refused, replayed, repair, repair_again = client.seen
+    assert refused.continuation is not None and refused.continuation.cursor == "resp_1"
+    assert replayed.continuation is None and _messages(replayed) == _messages(refused)
+    # The run remembers: the next pass's second round names no stored response, so nothing more is refused.
+    assert (write.continuation, repair.continuation, repair_again.continuation) == (None, None, None)
+    assert len(_messages(repair_again)) == len(_messages(repair)) + 2
+    # The refused request is no response: four answered, four counted.
+    assert _of(events, pipeline.RunCompleted)[0].usage.requests == 4
+
+
+async def test_a_run_whose_provider_keeps_its_responses_goes_on_continuing_from_them(studio: _Studio) -> None:
+    studio.reports = [FAILING, CLEAN]
+
+    _, client = await studio.go(
+        [
+            _stored(_submit(_without_schema()), "resp_1"),
+            _stored(_submit(), "resp_2"),
+            _stored(_edit({"op": "remove", "path": "/schema"}), "resp_3"),
+            _stored(_edit(_longer(4.5)), "resp_4"),
+        ],
+        row=_key_row(RESPONSES, images=False),
+    )
+
+    cursors = [request.continuation.cursor if request.continuation else None for request in client.seen]
+    # Each pass starts fresh, and its later rounds continue from the response before.
+    assert cursors == [None, "resp_1", None, "resp_3"]
+
+
+# --- Reasoning effort (R2.5) ------------------------------------------------------------
+
+
+async def test_every_pass_of_a_run_carries_the_chosen_effort(studio: _Studio) -> None:
+    row = _with_efforts(_key_row(RESPONSES), "low", "high")
+    studio.reports = [FAILING, CLEAN]
+
+    events, client = await studio.go(
+        [_submit(), _edit(_longer(4.5)), _accept()], row=row, plan={"reasoning_effort": " high "}
+    )
+
+    assert _phases(events) == ["thinking", "writing", "checking", "repairing", "checking", "reviewing_frames"]
+    assert [request.prompt.reasoning_effort for request in client.seen] == ["high", "high", "high"]
+    # The turn records the level the run named, beside its model.
+    assert (await studio.snapshot()).messages[-1].data["model"] == {
+        "model_provider_id": row.id,
+        "model": row.model,
+        "provider_type": row.provider_type,
+        "reasoning_effort": "high",
+    }
+
+
+async def test_a_run_that_names_no_effort_leaves_the_models_default(studio: _Studio) -> None:
+    row = _with_efforts(_key_row(RESPONSES, images=False), "low", "high")
+
+    for unnamed in ({}, {"reasoning_effort": None}, {"reasoning_effort": "  "}):
+        _, client = await studio.go([_submit()], row=row, plan=unnamed)
+        assert [request.prompt.reasoning_effort for request in client.seen] == [None]
+    assert "reasoning_effort" not in (await studio.snapshot()).messages[-1].data["model"]
+
+
+@pytest.mark.parametrize(
+    ("row", "effort"),
+    [
+        # A level the row does not list, and any level on a row that lists none.
+        (_with_efforts(_key_row(RESPONSES), "low", "high"), "medium"),
+        (_key_row(RESPONSES), "low"),
+        (_key_row(ANTHROPIC), "high"),
+        (_plan_row(), "xhigh"),
+        # OpenAI's Chat Completions takes function tools on this model at no reasoning only, and a pass is tools.
+        (_with_efforts(replace(_key_row(CHAT_COMPLETIONS), model="gpt-6-luna"), "none", "high"), "high"),
+    ],
+)
+async def test_an_effort_the_model_cannot_run_a_pass_at_is_refused(
+    studio: _Studio, row: ModelProvider, effort: str
+) -> None:
+    with pytest.raises(GenerationError) as refused:
+        await studio.plan(row=row, reasoning_effort=effort)
+
+    assert refused.value.code == "generation_reasoning_effort_unsupported"
+    assert (await studio.snapshot()).messages == ()
+
+
+async def test_a_listed_effort_is_accepted(studio: _Studio) -> None:
+    luna = _with_efforts(replace(_key_row(CHAT_COMPLETIONS), model="gpt-6-luna"), "none", "high")
+
+    assert (await studio.plan(row=_plan_row(), reasoning_effort="high")).reasoning_effort == "high"
+    assert (await studio.plan(row=luna, reasoning_effort="none")).reasoning_effort == "none"
+    assert (await studio.plan(row=luna)).reasoning_effort is None
+
+
+# --- Token use and cost (R6.3) -----------------------------------------------------------
+
+
+async def test_a_run_on_a_priced_model_stores_its_estimate_with_its_turn(studio: _Studio) -> None:
+    row = _priced(_key_row(images=False))
+    studio.reports = [FAILING, CLEAN]
+
+    await studio.go([_submit(), _edit(_longer(4.5))], row=row)
+
+    data = (await studio.snapshot()).messages[-1].data
+    assert data["usage"]["requests"] == 2 and data["usage"]["input_tokens"] == 1800
+    # Two responses at the row's prices, kept as a decimal string.
+    assert data["cost"] == {"currency": "USD", "amount": "0.003840"}
+    assert Decimal(data["cost"]["amount"]) == 2 * Decimal(RESPONSE_COST)
+    assert data["model"]["model_provider_id"] == row.id
+
+
+async def test_a_failed_run_still_stores_what_its_responses_cost(studio: _Studio) -> None:
+    studio.reports = [FAILING]
+
+    await studio.go(
+        [_submit(), ModelClientProviderError("No API key", code="missing_api_key")], row=_priced(_key_row(images=False))
+    )
+
+    data = (await studio.snapshot()).messages[-1].data
+    assert (data["outcome"], data["usage"]["requests"], data["cost"]["amount"]) == ("failed", 1, RESPONSE_COST)
+
+
+async def test_a_run_gets_no_estimate_without_a_price_or_on_the_plan_or_before_any_response(studio: _Studio) -> None:
+    cache_writes = _submit()
+    cache_writes.usage.input_tokens_details.cache_write_tokens = 200
+    cases: list[tuple[ModelProvider, list[ModelClientFinal | Exception]]] = [
+        (_key_row(images=False), [_submit()]),
+        # A plan run is never priced, whatever its row lists.
+        (_priced(_plan_row(images=False)), [_submit()]),
+        # The catalog has no rate for prompt-cache writes, so a response that reports them is not priced.
+        (_priced(_key_row(images=False)), [cache_writes]),
+        (_priced(_key_row(images=False)), [ModelClientProviderError("No API key", code="missing_api_key")]),
+    ]
+
+    for row, finals in cases:
+        await studio.go(finals, row=row)
+        assert "cost" not in (await studio.snapshot()).messages[-1].data, row.id
+
+
+async def test_a_response_that_reports_no_usage_leaves_the_run_without_an_estimate(studio: _Studio) -> None:
+    # A server that streams no usage: the adapter's figures for that response are its own rough count.
+    rough = replace(_edit(_longer(4.5)), usage=_usage(input_tokens=5000, output_tokens=50, cached=0, reasoning=0))
+    unreported = replace(rough, usage_reported=False)
+    studio.reports = [FAILING, CLEAN]
+
+    await studio.go([_submit(), unreported], row=_priced(_key_row(images=False)))
+
+    data = (await studio.snapshot()).messages[-1].data
+    # One response of two could be priced: a sum of the one would read as what the run cost.
+    assert "cost" not in data
+    # The token totals keep every response's figures, the reported ones and that count.
+    assert data["usage"] == {
+        "input_tokens": 5900,
+        "cached_input_tokens": 600,
+        "output_tokens": 170,
+        "reasoning_tokens": 40,
+        "requests": 2,
+    }
+    summary = usage.conversation_usage((await studio.snapshot()).messages)
+    assert (summary.cost, summary.cost_complete, summary.usage.input_tokens) == (None, False, 5900)
+
+
+def test_a_run_is_priced_only_when_every_response_reported_its_usage() -> None:
+    row = _priced(_key_row())
+
+    def estimate(*reported: bool) -> usage.CostEstimate | None:
+        meter = usage.RunCostMeter(row)
+        for flag in reported:
+            meter.add(_usage(), reported=flag)
+        return meter.estimate()
+
+    assert estimate(True, True) == usage.CostEstimate("USD", 2 * Decimal(RESPONSE_COST))
+    # Whichever response it is, and however many others were reported.
+    for mixed in ((False,), (False, True), (True, False), (True, False, True)):
+        assert estimate(*mixed) is None, mixed
+    assert estimate() is None
+
+
+def _turn(role: str = "assistant", **data: Any) -> GenerationMessage:
+    return GenerationMessage(
+        id=uuid4().hex, conversation_id="c", role=cast(Any, role), text="", data=data, created_at=cast(Any, None)
+    )
+
+
+def _counts(input_tokens: int, output_tokens: int, requests: int = 1) -> dict[str, int]:
+    return {
+        "input_tokens": input_tokens,
+        "cached_input_tokens": 10,
+        "output_tokens": output_tokens,
+        "reasoning_tokens": 5,
+        "requests": requests,
+    }
+
+
+def test_a_conversations_usage_adds_up_its_stored_runs() -> None:
+    key = {"model_provider_id": "row-key", "model": "m", "provider_type": RESPONSES}
+    turns = [
+        _turn("user"),
+        _turn(run_id="run-1", usage=_counts(1000, 100, 2), model=key, cost={"currency": "USD", "amount": "0.010000"}),
+        _turn("user", usage=_counts(999, 999)),
+        _turn(run_id="run-2", usage=_counts(500, 50), model=key, cost={"currency": "USD", "amount": "0.002500"}),
+    ]
+
+    summary = usage.conversation_usage(turns)
+
+    assert summary.usage == usage.RunUsage(
+        input_tokens=1500, cached_input_tokens=20, output_tokens=150, reasoning_tokens=10, requests=3
+    )
+    assert (summary.runs, summary.cost_complete) == (2, True)
+    assert summary.cost == usage.CostEstimate(currency="USD", amount=Decimal("0.0125"))
+    assert summary.cost.stored() == {"currency": "USD", "amount": "0.012500"}
+    last = summary.last_run
+    assert last is not None and (last.run_id, last.model_provider_id, last.plan) == ("run-2", "row-key", False)
+    assert last.usage.input_tokens == 500 and last.cost == usage.CostEstimate("USD", Decimal("0.002500"))
+
+
+def test_a_conversation_without_runs_has_no_usage_to_show() -> None:
+    summary = usage.conversation_usage([_turn("user"), _turn(outcome="reply")])
+
+    assert (summary.usage, summary.runs, summary.cost, summary.cost_complete, summary.last_run) == (
+        usage.RunUsage(),
+        0,
+        None,
+        False,
+        None,
+    )
+
+
+def test_a_total_cost_says_when_it_leaves_runs_out() -> None:
+    key = {"model_provider_id": "row-key", "provider_type": RESPONSES}
+    plan = {"model_provider_id": "row-plan", "provider_type": CHATGPT_PLAN}
+    priced = _turn(usage=_counts(1000, 100), model=key, cost={"currency": "USD", "amount": "0.01"})
+    # A plan run never shows an amount, even if its turn held one.
+    on_plan = _turn(usage=_counts(2000, 200), model=plan, cost={"currency": "USD", "amount": "9.99"})
+    unpriced = _turn(usage=_counts(300, 30), model=key)
+    no_request = _turn(usage=_counts(0, 0, 0), model=key)
+
+    mixed = usage.conversation_usage([priced, on_plan])
+    assert mixed.cost == usage.CostEstimate("USD", Decimal("0.01")) and mixed.cost_complete is False
+    assert mixed.last_run is not None and mixed.last_run.plan is True and mixed.last_run.cost is None
+    assert mixed.usage.input_tokens == 3000
+    assert usage.conversation_usage([priced, unpriced]).cost_complete is False
+    # A run that made no model request has nothing to price, so it leaves nothing out.
+    assert usage.conversation_usage([priced, no_request]).cost_complete is True
+    assert usage.conversation_usage([on_plan, unpriced]).cost is None
+    # Estimates in two currencies are not added.
+    euros = _turn(usage=_counts(1, 1), model=key, cost={"currency": "EUR", "amount": "0.01"})
+    assert usage.conversation_usage([priced, euros]).cost is None
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"usage": "a lot"},
+        {"usage": {"input_tokens": -5, "output_tokens": "many", "requests": True}},
+        {"usage": _counts(10, 1), "cost": {"currency": "USD", "amount": "NaN"}},
+        {"usage": _counts(10, 1), "cost": {"currency": "USD", "amount": "-1"}},
+        {"usage": _counts(10, 1), "cost": {"currency": "", "amount": "1"}},
+        {"usage": _counts(10, 1), "cost": "free", "model": "the good one"},
+    ],
+)
+def test_a_stored_turn_is_read_tolerantly(data: dict[str, Any]) -> None:
+    summary = usage.conversation_usage([_turn(**data)])
+
+    assert summary.cost is None and summary.usage.input_tokens in (0, 10)
+    assert summary.usage.requests in (0, 1)
 
 
 # --- Model failures (R2.4) -------------------------------------------------------------

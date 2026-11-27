@@ -68,9 +68,12 @@ function GenerateWorkspace({
   const snapshot = conversation.data;
   const drafts = snapshot?.drafts ?? NO_DRAFTS;
   const expressions = useGeneratePreviewAvatarExpressions();
+  // Opened from the header, and from a failed run's "Choose another model".
+  const [modelControlOpen, setModelControlOpen] = useState(false);
   const controller = useGenerationRun({
     conversationId,
     modelProviderId: modelChoice.model?.id ?? null,
+    reasoningEffort: modelChoice.effort,
     avatarExpressionNames: expressions?.names ?? null,
     arkitNames: expressions?.arkitNames,
   });
@@ -89,6 +92,9 @@ function GenerateWorkspace({
     : undefined;
   const player = useGeneratePreviewPlayer(selectedDraft, validation);
   const { running } = controller.run;
+  // A run closes the model control for good: left open in state, it would
+  // open again by itself when the run ends.
+  if (running && modelControlOpen) setModelControlOpen(false);
   const opening = !snapshot && !conversation.isError;
   const title = snapshot?.conversation.title.trim();
 
@@ -119,6 +125,9 @@ function GenerateWorkspace({
               choice={modelChoice}
               disabled={running}
               onOpenSetup={onOpenSetup}
+              usage={snapshot?.usage}
+              open={modelControlOpen}
+              onOpenChange={setModelControlOpen}
             />
           }
         />
@@ -142,6 +151,7 @@ function GenerateWorkspace({
             controller={controller}
             selectedDraft={selectedDraft}
             onStartNewDraft={() => selectDraft(null)}
+            onChooseModel={() => setModelControlOpen(true)}
             framesStatus={worker.frames.status}
           />
         </CreatorFloatingPanel>

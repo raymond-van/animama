@@ -282,7 +282,15 @@ flight.
 The [content assistant](content-generation.md#the-assistants-model) is not
 one of these roles. Its model is chosen on the Generate page, saved as
 `generation.model_provider_id`, and has no default: with no usable choice the
-page shows its setup.
+page shows its setup. It may be any shown chat model that calls tools,
+streams and has a context window of at least 64,000 tokens (or, for a
+built-in model, none recorded); the page lists the others disabled, with the
+reason. The assistant's
+[reasoning effort](content-generation.md#reasoning-effort) is its own too,
+saved for each model as `generation.reasoning_efforts.<model id>`: it is not
+an Anima's saved effort, and with none chosen the model's default applies. A
+model's prices, where its row lists them, give the assistant's
+[cost estimates](content-generation.md#token-use-and-cost).
 
 ## Web search
 

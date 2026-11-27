@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import type {
   PyGenerationConversation,
   PyGenerationConversationSnapshot,
+  PyGenerationConversationUsage,
   PyGenerationDraft,
   PyGenerationMessage,
 } from "@animama/runtime-contracts/api-types";
@@ -98,6 +99,24 @@ export function generationMessage(
   };
 }
 
+/** A conversation's token use; no run has made a model request by default. */
+export function generationUsage(
+  overrides: Partial<PyGenerationConversationUsage> = {},
+): PyGenerationConversationUsage {
+  return {
+    input_tokens: 0,
+    cached_input_tokens: 0,
+    output_tokens: 0,
+    reasoning_tokens: 0,
+    requests: 0,
+    runs: 0,
+    cost: null,
+    cost_complete: false,
+    last_run: null,
+    ...overrides,
+  };
+}
+
 export function generationSnapshot(
   overrides: Partial<PyGenerationConversationSnapshot> = {},
 ): PyGenerationConversationSnapshot {
@@ -105,6 +124,7 @@ export function generationSnapshot(
     conversation: generationConversation(),
     messages: [],
     drafts: [],
+    usage: generationUsage(),
     ...overrides,
   };
 }

@@ -61,6 +61,7 @@ function conversation(
     snapshot?: PyGenerationConversationSnapshot;
     selectedDraft?: PyGenerationDraft | null;
     onStartNewDraft?: () => void;
+    onChooseModel?: () => void;
     framesStatus?: "idle" | "rendering" | "unavailable" | "failed";
   } = {},
 ) {
@@ -70,6 +71,7 @@ function conversation(
       controller={control}
       selectedDraft={options.selectedDraft ?? null}
       onStartNewDraft={options.onStartNewDraft ?? (() => {})}
+      onChooseModel={options.onChooseModel}
       framesStatus={options.framesStatus}
     />
   );
@@ -409,28 +411,49 @@ describe("the conversation with the assistant", () => {
       expect(control.dismissFailure).toHaveBeenCalledTimes(1);
     });
 
-    it("offers no Try again when the stored failed turn names the draft", () => {
+    const storedFailedTurn = generationMessage({
+      id: "message-2",
+      role: "assistant",
+      text: "",
+      data: {
+        run_id: "run-1",
+        outcome: "failed",
+        draft_id: "draft-1",
+        error: { code: "generation_run_failed" },
+      },
+    });
+
+    it("offers no Try again when the failed turn that run stored names the draft", () => {
       // The stream was lost before the page saw the draft arrive.
-      conversation(controller({ run: { failure: providerFailure } }), {
-        snapshot: generationSnapshot({
-          messages: [
-            request,
-            generationMessage({
-              id: "message-2",
-              role: "assistant",
-              text: "",
-              data: {
-                outcome: "failed",
-                draft_id: "draft-1",
-                error: { code: "generation_run_failed" },
-              },
-            }),
-          ],
-        }),
-      });
+      conversation(
+        controller({ run: { failure: providerFailure, runId: "run-1" } }),
+        {
+          snapshot: generationSnapshot({
+            messages: [request, storedFailedTurn],
+          }),
+        },
+      );
       expect(find("generate-failure")).not.toBeNull();
       expect(find("generate-retry")).toBeNull();
       expect(find("generate-failure-dismiss")).not.toBeNull();
+    });
+
+    it("offers Try again for a request that never reached the backend, whatever the run before stored", () => {
+      // The run before failed after storing its draft. This request then got
+      // no answer at all: no stream event, so the last turn is not its own.
+      const unreached = failure({
+        code: "generation_request_failed",
+        category: "request",
+        network: true,
+        request: { message: "now slower", draftId: "draft-1", answers: null },
+      });
+      conversation(controller({ run: { failure: unreached, runId: null } }), {
+        snapshot: generationSnapshot({ messages: [request, storedFailedTurn] }),
+      });
+      expect(find("generate-failure")!.dataset.code).toBe(
+        "generation_request_failed",
+      );
+      expect(find("generate-retry")).not.toBeNull();
     });
 
     it("still offers Try again when the run failed before storing a draft", () => {
@@ -452,6 +475,106 @@ describe("the conversation with the assistant", () => {
         }),
       });
       expect(find("generate-retry")).not.toBeNull();
+    });
+  });
+
+  describe("Choose another model, beside Try again", () => {
+    const withFailure = (overrides: Partial<GenerationRunFailure>) => {
+      const onChooseModel = vi.fn();
+      conversation(controller({ run: { failure: failure(overrides) } }), {
+        snapshot: generationSnapshot({ messages: [generationMessage()] }),
+        onChooseModel,
+      });
+      return onChooseModel;
+    };
+
+    it("opens the model control after a model, plan or connection failure", async () => {
+      const onChooseModel = withFailure({
+        code: "openai_rate_limit",
+        category: "rate_limited",
+        details: { connection_name: "OpenAI" },
+      });
+      expect(find("generate-retry")).not.toBeNull();
+      expect(find("generate-choose-model")!.textContent).toBe(
+        "Choose another model",
+      );
+      await click(find("generate-choose-model"));
+      expect(onChooseModel).toHaveBeenCalledTimes(1);
+    });
+
+    it("is offered when the model or its effort was refused, or it wrote no draft that works", () => {
+      for (const overrides of [
+        {
+          code: "generation_model_unusable",
+          category: "request",
+          reason: "context_too_small",
+          status: 422,
+        },
+        {
+          code: "generation_reasoning_effort_unsupported",
+          category: "request",
+          status: 422,
+        },
+        { code: "generation_no_valid_draft" },
+      ]) {
+        withFailure(overrides);
+        expect(find("generate-choose-model")).not.toBeNull();
+        mounted!.unmount();
+        mounted = null;
+      }
+    });
+
+    it("is not offered for a failure another model would meet too", () => {
+      for (const overrides of [
+        { code: "generation_request_failed", category: "request" },
+        { code: "generation_stream_interrupted", category: "request" },
+        { code: "generation_run_in_progress", category: "request" },
+        { code: "generation_run_failed", category: "internal" },
+      ]) {
+        withFailure(overrides);
+        expect(find("generate-failure")).not.toBeNull();
+        expect(find("generate-choose-model")).toBeNull();
+        mounted!.unmount();
+        mounted = null;
+      }
+    });
+
+    it("words a refused effort and the new refusals of a model", () => {
+      const worded = (overrides: Partial<GenerationRunFailure>) => {
+        withFailure(overrides);
+        const text =
+          find("generate-failure")!.querySelector(
+            '[role="alert"]',
+          )!.textContent;
+        mounted!.unmount();
+        mounted = null;
+        return text;
+      };
+      expect(
+        worded({
+          code: "generation_reasoning_effort_unsupported",
+          category: "request",
+          status: 422,
+        }),
+      ).toContain(
+        "The chosen model cannot run the assistant at this reasoning effort. Choose another level or another model.",
+      );
+      const refused = (reason: string) =>
+        worded({
+          code: "generation_model_unusable",
+          category: "request",
+          reason,
+          status: 422,
+        });
+      expect(refused("context_too_small")).toContain(
+        "The chosen model's context window is too small for the assistant.",
+      );
+      expect(refused("context_window_missing")).toContain(
+        "The chosen model has no context window set.",
+      );
+      expect(refused("streaming_unsupported")).toContain(
+        "The chosen model cannot stream its replies, which the assistant needs.",
+      );
     });
   });
 

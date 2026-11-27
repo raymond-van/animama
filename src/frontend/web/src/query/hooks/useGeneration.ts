@@ -9,6 +9,7 @@ import {
 import type {
   PyGenerationConversation,
   PyGenerationConversationSnapshot,
+  PyGenerationConversationUsage,
   PyGenerationDraft,
 } from "@animama/runtime-contracts/api-types";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
@@ -20,6 +21,24 @@ import { queryKeys } from "@/query/keys";
  * conversation with its messages and drafts (the snapshot). The assistant is
  * local-only, so every query waits for the runtime to report it.
  */
+
+/**
+ * The token use of a conversation no run has touched yet, as the backend
+ * reports it: what a conversation the page has just created starts with.
+ */
+export const NO_GENERATION_USAGE: PyGenerationConversationUsage = Object.freeze(
+  {
+    input_tokens: 0,
+    cached_input_tokens: 0,
+    output_tokens: 0,
+    reasoning_tokens: 0,
+    requests: 0,
+    runs: 0,
+    cost: null,
+    cost_complete: false,
+    last_run: null,
+  },
+);
 
 /** Whether this runtime offers the content assistant (the local composition). */
 export function useContentGenerationAvailable(): boolean {

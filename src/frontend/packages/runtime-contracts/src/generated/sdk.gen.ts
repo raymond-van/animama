@@ -1558,12 +1558,13 @@ export const deleteGenerationConversationV1GenerationConversationsConversationId
 /**
  * Get Generation Conversation
  *
- * Return a conversation with its messages in the order added and its drafts by position.
+ * Return a conversation with its messages in the order added, its drafts by position and its token use.
  *
- * With no run in flight on the conversation, a draft that a run left
- * mid-step without settling is settled first: by its current version's
- * report, to ``checking`` when that version has none, or deleted when it
- * never got a project.
+ * With no run in flight on the conversation, a draft whose status does not
+ * describe it is settled first (one a run left mid-step, or one whose
+ * report arrived after it was left): by its current version's report, to
+ * ``checking`` when that version has none, or deleted when it never got a
+ * project. ``usage`` adds up what the stored runs recorded.
  */
 export const getGenerationConversationV1GenerationConversationsConversationIdGet = <ThrowOnError extends boolean = false>(options: Options<GetGenerationConversationV1GenerationConversationsConversationIdGetData, ThrowOnError>) => (options.client ?? client).get<GetGenerationConversationV1GenerationConversationsConversationIdGetResponses, GetGenerationConversationV1GenerationConversationsConversationIdGetErrors, ThrowOnError>({
     requestValidator: async (data) => await zGetGenerationConversationV1GenerationConversationsConversationIdGetData.parseAsync(data),
@@ -1578,8 +1579,10 @@ export const getGenerationConversationV1GenerationConversationsConversationIdGet
  * Run one request to the assistant and stream its events; closing the stream stops the run.
  *
  * Refused with 409 ``generation_run_in_progress`` while the conversation
- * has a run in flight, and with 422 ``generation_model_unusable`` and a
- * ``reason`` when the named model cannot be used.
+ * has a run in flight, with 422 ``generation_model_unusable`` and a
+ * ``reason`` when the named model cannot be used, and with 422
+ * ``generation_reasoning_effort_unsupported`` when the model cannot run a
+ * pass at the named effort.
  */
 export const runGenerationSseV1GenerationConversationsConversationIdRunsSsePost = <ThrowOnError extends boolean = false>(options: Options<RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostData, ThrowOnError>) => (options.client ?? client).post<RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostResponses, RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostErrors, ThrowOnError>({
     requestValidator: async (data) => await zRunGenerationSseV1GenerationConversationsConversationIdRunsSsePostData.parseAsync(data),

@@ -18,10 +18,12 @@ from animama.app.model_clients import (
     ModelClientRequest,
 )
 
-# Advancing a round's provider state is shared with other tool loops.
+# Advancing a round's provider state and the stale-cursor fallback are shared with other tool loops.
 from animama.app.model_clients.tool_rounds import (
     continuation_after_tool_round,
+    model_request_without_continuation,
     openai_responses_continuation_from_final,
+    should_retry_without_previous_response_id,
 )
 from animama.app.model_provider_native_tools import (
     normalized_native_tool_support,
@@ -44,7 +46,6 @@ from .constants import (
     CHATGPT_PLAN_PROVIDER,
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
-    OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
     OPENAI_RESPONSES_PROVIDER,
     WEB_SEARCH_NATIVE_TOOL,
 )
@@ -341,35 +342,6 @@ def should_skip_context_fetch_for_responses_cursor(
     """Skip explicit history when Responses can continue from provider state."""
 
     return model_provider.provider_type == OPENAI_RESPONSES_PROVIDER and continuation is not None
-
-
-def model_request_without_continuation(model_request: ModelClientRequest) -> ModelClientRequest:
-    """Copy a model request while dropping provider continuation state."""
-
-    return ModelClientRequest(
-        model_provider=model_request.model_provider,
-        prompt=model_request.prompt,
-        provider_options=model_request.provider_options,
-        continuation=None,
-    )
-
-
-def should_retry_without_previous_response_id(
-    error: ModelClientError,
-    model_request: ModelClientRequest,
-    *,
-    partial_text_seen: bool,
-    allow_previous_response_retry: bool,
-) -> bool:
-    """Return whether a stale Responses cursor should be retried with history."""
-
-    return (
-        allow_previous_response_retry
-        and not partial_text_seen
-        and error.code == OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE
-        and model_request.model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
-        and model_request.continuation is not None
-    )
 
 
 def final_with_previous_response_retry_metadata(

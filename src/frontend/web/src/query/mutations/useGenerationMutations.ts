@@ -17,6 +17,7 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
+  NO_GENERATION_USAGE,
   removeGenerationDraft,
   writeGenerationDraft,
 } from "@/query/hooks/useGeneration";
@@ -53,7 +54,7 @@ export function useCreateGenerationConversation() {
       // A new conversation is empty, so its snapshot is known without a read.
       queryClient.setQueryData<PyGenerationConversationSnapshot>(
         queryKeys.generation.conversation(ownerKey, conversation.id),
-        { conversation, messages: [], drafts: [] },
+        { conversation, messages: [], drafts: [], usage: NO_GENERATION_USAGE },
       );
       queryClient.setQueryData<PyGenerationConversation[]>(
         queryKeys.generation.conversations(ownerKey),

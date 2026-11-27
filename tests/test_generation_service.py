@@ -583,6 +583,56 @@ async def test_only_the_named_statuses_settle(async_session: AsyncSession) -> No
     assert settled is not None and settled.status == "warnings"
 
 
+CLEAN_REPORT: dict[str, Any] = {"loadable": True, "issues": [], "findings": []}
+
+
+@pytest.mark.parametrize(
+    ("late", "status", "reason"),
+    [
+        (CLEAN_REPORT, "ready", None),
+        ({"loadable": True, "issues": [], "findings": [{"severity": "warn"}]}, "warnings", None),
+        ({"loadable": False, "issues": []}, "failed", "generation_draft_unloadable"),
+    ],
+)
+async def test_a_left_draft_settles_by_a_report_that_arrived_after_it_was_left(
+    async_session: AsyncSession, late: dict[str, Any], status: str, reason: str | None
+) -> None:
+    service, owner = _service(async_session), _owner()
+    _, draft = await _draft_with_project(service, owner)
+    # Its run gave up waiting for the page, so the version was left as not checked.
+    await service.record_check_report(owner, draft.id, draft.version, {"unchecked": True})
+    left = await service.set_status(owner, draft.id, "warnings")
+    assert not service_module.is_unsettled(left, IN_A_RUN)
+    # The page's report lands while another run holds the conversation: it is stored, and the status stays.
+    reported = await service.record_check_report(owner, draft.id, draft.version, late)
+    assert reported.status == "warnings"
+    assert service_module.is_unsettled(reported, IN_A_RUN) is (status != "warnings")
+
+    settled = await service.settle_draft(owner, draft.id, IN_A_RUN)
+
+    assert settled is not None and settled == await service.get_draft(owner, draft.id)
+    assert (settled.status, settled.failure_reason, settled.version, settled.check_report) == (status, reason, 2, late)
+    assert not service_module.is_unsettled(settled, IN_A_RUN)
+    assert await service.settle_draft(owner, draft.id, IN_A_RUN) == settled
+
+
+async def test_a_left_draft_is_settled_only_by_a_report_of_its_current_version(async_session: AsyncSession) -> None:
+    service, owner = _service(async_session), _owner()
+    conversation, draft = await _draft_with_project(service, owner)
+    await service.record_check_report(owner, draft.id, draft.version, CLEAN_REPORT)
+    # A newer version, left with a status its older report does not describe.
+    await service.store_project(owner, draft.id, _project("Wave, slower"), "checking")
+    newer = await service.set_status(owner, draft.id, "warnings")
+    # A draft that failed before it had a project is how its run left it, whatever report it holds.
+    empty = await service.create_draft(owner, conversation.id, "gesture")
+    await service.record_check_report(owner, empty.id, empty.version, CLEAN_REPORT)
+    failed = await service.set_status(owner, empty.id, "failed", "generation_no_valid_draft")
+
+    for left in (newer, failed):
+        assert not service_module.is_unsettled(left, IN_A_RUN)
+        assert await service.settle_draft(owner, left.id, IN_A_RUN) == left
+
+
 async def test_mark_saved_records_the_library_item(async_session: AsyncSession) -> None:
     service, owner = _service(async_session), _owner()
     _, draft = await _draft_with_project(service, owner)

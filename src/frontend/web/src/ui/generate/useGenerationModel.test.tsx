@@ -33,6 +33,8 @@ const server = {
   patches: [] as unknown[],
   /** Answers the catalog read with a failure. */
   catalogDown: false,
+  /** Holds each settings save until the test releases it. */
+  holdSaves: null as Promise<void> | null,
 };
 
 async function fetch(request: Request): Promise<Response> {
@@ -47,6 +49,7 @@ async function fetch(request: Request): Promise<Response> {
         preferences: Record<string, unknown>;
       };
       server.patches.push(body);
+      await server.holdSaves;
       server.preferences = body.preferences;
     }
     return jsonResponse({ preferences: server.preferences });
@@ -65,13 +68,18 @@ beforeEach(() => {
   server.catalog = [
     row("key-model"),
     row("no-tools", { supports_tools: false }),
-    row("plan-model", { model_provider: CHATGPT_PLAN_PROVIDER_TYPE }),
+    row("plan-model", {
+      model_provider: CHATGPT_PLAN_PROVIDER_TYPE,
+      supported_reasoning_efforts: ["low", "medium", "high"],
+    }),
     // The owner's own model, which chat cannot use without a context window.
     row("own-no-window", { source: "owner", context_window_tokens: null }),
+    row("hidden-model", { hidden: true }),
   ];
   server.preferences = { speech: { tts_enabled: false } };
   server.patches = [];
   server.catalogDown = false;
+  server.holdSaves = null;
 });
 
 afterEach(() => {
@@ -89,6 +97,118 @@ describe("useGenerationModel", () => {
     ]);
     // No choice means setup; the assistant never picks one itself.
     expect(result().model).toBeNull();
+    // The pickers also show the visible models that cannot be chosen, with why.
+    expect(
+      result().listed.map(({ item, unavailable }) => [item.id, unavailable]),
+    ).toEqual([
+      ["plan-model", null],
+      ["key-model", null],
+      ["no-tools", "tools_unsupported"],
+      ["own-no-window", "context_window_missing"],
+    ]);
+  });
+
+  it("offers the chosen model's effort levels and names none until one is chosen", async () => {
+    server.preferences = { generation: { model_provider_id: "plan-model" } };
+    const result = await mount();
+    expect(result().efforts).toEqual(["low", "medium", "high"]);
+    // No level chosen: the model's own default applies, and none is preselected.
+    expect(result().effort).toBeNull();
+    mounted.unmount();
+
+    // A model that offers no levels has nothing to choose.
+    server.preferences = { generation: { model_provider_id: "key-model" } };
+    const none = await mount();
+    expect(none().efforts).toEqual([]);
+    expect(none().effort).toBeNull();
+  });
+
+  it("remembers a level for each model by itself, beside the model choice", async () => {
+    server.preferences = {
+      generation: {
+        model_provider_id: "plan-model",
+        reasoning_efforts: { "key-model": "max" },
+      },
+    };
+    const result = await mount();
+    await act(() => result().chooseEffort("high"));
+    await settle();
+
+    expect(server.patches).toEqual([
+      {
+        preferences: {
+          generation: {
+            model_provider_id: "plan-model",
+            reasoning_efforts: { "key-model": "max", "plan-model": "high" },
+          },
+        },
+      },
+    ]);
+    expect(result().effort).toBe("high");
+
+    // Back to the model's default, for this model only.
+    await act(() => result().chooseEffort(null));
+    await settle();
+    expect(result().effort).toBeNull();
+    expect(server.preferences).toEqual({
+      generation: {
+        model_provider_id: "plan-model",
+        reasoning_efforts: { "key-model": "max", "plan-model": null },
+      },
+    });
+  });
+
+  it("keeps the model control usable while an effort level is being saved", async () => {
+    server.preferences = { generation: { model_provider_id: "plan-model" } };
+    const result = await mount();
+    let release!: () => void;
+    server.holdSaves = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    let saved!: Promise<void>;
+    act(() => {
+      saved = result().chooseEffort("low");
+    });
+    await settle();
+    // The save is in flight, and the control is not held as for a model choice.
+    expect(server.patches).toHaveLength(1);
+    expect(result().isChoosing).toBe(false);
+
+    release();
+    await act(() => saved);
+    await settle();
+    expect(result().effort).toBe("low");
+
+    // Choosing a model does hold it.
+    server.holdSaves = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    act(() => {
+      saved = result().choose("key-model");
+    });
+    await settle();
+    expect(result().isChoosing).toBe(true);
+    release();
+    await act(() => saved);
+    await settle();
+    expect(result().isChoosing).toBe(false);
+  });
+
+  it("names no level the chosen model does not list", async () => {
+    server.preferences = {
+      generation: {
+        model_provider_id: "plan-model",
+        // Saved when the model listed it, or for another model's scale.
+        reasoning_efforts: { "plan-model": "xhigh", "key-model": "high" },
+      },
+    };
+    const result = await mount();
+    expect(result().effort).toBeNull();
+    await act(() => result().choose("key-model"));
+    await settle();
+    // A model without levels sends none, whatever was saved for it.
+    expect(result().effort).toBeNull();
   });
 
   it("saves the choice in the owner's preferences, keeping the others", async () => {

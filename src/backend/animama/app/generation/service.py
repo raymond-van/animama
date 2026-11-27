@@ -12,7 +12,7 @@ import asyncio
 from collections.abc import Collection, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
-from typing import Any, cast
+from typing import Any, Final, cast
 from uuid import uuid4
 
 from animama.app.ports.generation_port import GenerationRepository
@@ -37,6 +37,35 @@ from .check_report import final_status
 
 MAX_TITLE_LENGTH = 80
 """The longest title a conversation is given from the person's first message."""
+
+_LEFT_STATUSES: Final[frozenset[str]] = frozenset({"ready", "warnings", "failed"})
+"""How a run leaves a draft: the statuses that are no step of a run."""
+
+
+def is_unsettled(draft: GenerationDraft, statuses: Collection[str]) -> bool:
+    """Whether a draft that no run is working on is stored in a status that does not describe it.
+
+    ``statuses`` are the steps of a run. Two cases need settling
+    (``GenerationService.settle_draft``):
+
+    - the draft is still in one of those steps. A run that ended without
+      settling it left it there (the process was killed, or stopping took
+      too long). A draft in ``checking`` whose current version has no report
+      is not such a case: it waits for the page to check it;
+    - the draft was left (``ready``, ``warnings`` or ``failed``) with a
+      project, and the report of its current version says otherwise. That is
+      a report the page sent after the draft was left, while another run held
+      the conversation: the route stored it and left the status to that run,
+      which settles only its own draft.
+    """
+
+    if draft.status in statuses:
+        return not (draft.status == "checking" and draft.checked_version != draft.version)
+    if draft.status not in _LEFT_STATUSES or draft.project is None:
+        return False
+    if draft.checked_version != draft.version or draft.check_report is None:
+        return False
+    return (draft.status, draft.failure_reason) != final_status(draft.check_report)
 
 
 def conversation_title(text: str) -> str:
@@ -280,12 +309,14 @@ class GenerationService:
     ) -> GenerationDraft | None:
         """Leave a draft that no run is working on in a status that describes it.
 
-        Only a draft whose status is one of ``statuses`` (steps of a run) is
-        touched; any other is returned as it stands. A draft that never got a
-        project is deleted, and ``None`` is returned. One whose current
-        version has a check report takes that report's final status and
-        failure reason. One whose current version was never checked goes to
-        ``checking``, for the page to check; its report then settles it.
+        Only a draft that ``is_unsettled`` is touched: one whose status is
+        one of ``statuses`` (steps of a run), or one a run left whose current
+        version's report says otherwise. Any other is returned as it stands.
+        A draft that never got a project is deleted, and ``None`` is
+        returned. One whose current version has a check report takes that
+        report's final status and failure reason. One whose current version
+        was never checked goes to ``checking``, for the page to check; its
+        report then settles it.
 
         The draft is read and changed under one hold of its row, so a status
         another request stored meanwhile is never overwritten by an older
@@ -293,7 +324,7 @@ class GenerationService:
         """
 
         draft = await self._locked_draft(owner_user_id, draft_id)
-        if draft.status not in statuses:
+        if not is_unsettled(draft, statuses):
             # End the transaction that holds the row.
             await self._uow.rollback()
             return draft
@@ -304,7 +335,7 @@ class GenerationService:
             return None
         checked = draft.checked_version == draft.version and draft.check_report is not None
         status, reason = final_status(draft.check_report or {}) if checked else ("checking", None)
-        if status == draft.status:
+        if (status, reason) == (draft.status, draft.failure_reason):
             await self._uow.rollback()
             return draft
         return await self._save(replace(draft, status=status, failure_reason=reason))
@@ -405,4 +436,5 @@ __all__ = [
     "GenerationService",
     "GenerationStaleVersionError",
     "conversation_title",
+    "is_unsettled",
 ]

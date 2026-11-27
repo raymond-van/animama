@@ -56,6 +56,7 @@
     "waitForRun": "アシスタントの作業が終わると使えます。"
   },
   "failure": {
+    "chooseModel": "別のモデルを選ぶ",
     "dismiss": "閉じる",
     "kept": "会話と下書きはそのまま残ります。",
     "model": "アシスタントはこのリクエストを完了できませんでした。",
@@ -77,13 +78,23 @@
   "model": {
     "chooseFailed": "モデルの選択を保存できませんでした。",
     "description": "アシスタントはこのモデルで下書きを作成し、修復します。",
+    "effort": {
+      "default": "モデルのデフォルト",
+      "saveFailed": "推論の強さを保存できませんでした。"
+    },
     "empty": "モデルが見つかりません。",
+    "expectation": "大きなモデルほど動きをうまく作成でき、小さなモデルでは修復が増えたり、警告が多く残ったりします。",
     "noFrames": "このモデルは画像を見られないため、アシスタントは描画したフレームの確認を省略します。チェックは引き続き実行されます。",
     "none": "モデルを選択",
     "search": "モデルを検索…",
     "setup": "モデルのセットアップ",
     "title": "アシスタントのモデル",
-    "trigger": "アシスタントのモデル: {{model}}"
+    "trigger": "アシスタントのモデル: {{model}}",
+    "unavailable": {
+      "contextTooSmall": "{{tokens, number}} トークン以上のコンテキストウィンドウが必要です",
+      "streamingUnsupported": "応答をストリーミングできません",
+      "toolsUnsupported": "ツールを呼び出せません"
+    }
   },
   "page": {
     "conversationsFailed": "アシスタントとの会話を読み込めませんでした。",
@@ -129,7 +140,7 @@
     "claudeNote": "Claude の API キーも使えます。API キーや、ツールを呼び出せるほかのモデルは、「アプリ設定 → モデル」のモデルの接続で追加してください。",
     "description": "アシスタントは言葉でのリクエストからジェスチャーを作成し、チェックして修復します。ツールを呼び出せるモデルが必要です。",
     "done": "生成に戻る",
-    "modelsDescription": "ツールを呼び出せて、チャットで使えるモデルだけが表示されます。選択は記憶され、いつでも変更できます。",
+    "modelsDescription": "アシスタントが使えないモデルは、理由とともに表示されます。選択は記憶され、いつでも変更できます。",
     "modelsTitle": "使用できるモデル",
     "modelTitle": "アシスタントのモデルを選択",
     "noModels": "使用できるモデルがまだありません。上の「ChatGPT で続ける」を使うか、モデルの接続でモデルを追加してください。",
@@ -147,6 +158,15 @@
     "scrollToLatest": "最新のメッセージまでスクロール",
     "skippedQuestions": "質問をスキップしました。",
     "stopped": "停止しました。ここまでに完成した下書きは残ります。"
+  },
+  "usage": {
+    "conversation": "この会話: 入力 {{input, number}} トークン、出力 {{output, number}} トークン。",
+    "conversationCost": "この会話: 入力 {{input, number}} トークン、出力 {{output, number}} トークン、約 {{cost}}。",
+    "conversationCostPartial": "この会話: 入力 {{input, number}} トークン、出力 {{output, number}} トークン、価格がわかる実行の分で約 {{cost}}。",
+    "estimate": "費用はモデルの公開価格に基づく見積もりです。",
+    "lastRun": "前回の実行: 入力 {{input, number}} トークン、出力 {{output, number}} トークン。",
+    "lastRunCost": "前回の実行: 入力 {{input, number}} トークン、出力 {{output, number}} トークン、約 {{cost}}。",
+    "title": "トークン使用量"
   },
   "warnings": {
     "avatarOnlyExpressions": "次の表情を持つアバターでのみ再生されます: {{names, list}}。",

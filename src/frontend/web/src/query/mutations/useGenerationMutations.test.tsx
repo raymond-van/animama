@@ -12,6 +12,7 @@ import {
   generationConversation,
   generationDraft,
   generationSnapshot,
+  generationUsage,
   jsonResponse,
 } from "@/ui/generate/testing/generationFixtures";
 import {
@@ -93,6 +94,8 @@ describe("assistant conversations", () => {
       conversation: created,
       messages: [],
       drafts: [],
+      // No run yet: the token use the backend reports for it.
+      usage: generationUsage(),
     });
     expect(list()).toEqual([created, older]);
   });

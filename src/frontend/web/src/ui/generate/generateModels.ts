@@ -9,13 +9,24 @@ import {
 /**
  * Which catalog models the content assistant may use. The assistant writes
  * through function tools and streams its replies, so it needs a chat model
- * that calls tools, streams, and that chat itself could use. The backend
- * checks the same when a run starts (`model_unusable_reason`, which asks
- * chat's own validator) and never uses another model instead
- * (`generation_model_unusable`), so a model it would refuse is not listed.
- * The catalog lists only active models on active connections, which is the
- * rest of the backend's rule.
+ * that calls tools, streams, has room for a pass in its context window, and
+ * that chat itself could use. The backend checks the same when a run starts
+ * (its `model_unusable_reason`, which asks chat's own validator) and never
+ * uses another model instead (`generation_model_unusable`), so a model it
+ * would refuse cannot be chosen: the pickers list it disabled, with the
+ * reason. The catalog lists only active models on active connections, which
+ * is the rest of the backend's rule.
  */
+
+/**
+ * The smallest recorded context window the assistant's model may have, in
+ * tokens. A pass sends 16,000 to 24,000 tokens and its tool rounds send the
+ * clip again. The backend refuses a smaller one by the same figure (its
+ * `MIN_CONTEXT_WINDOW_TOKENS`). `fixtures/model-requirements.json` records
+ * the value for the parity tests that keep this constant and the backend's
+ * equal: change all three together.
+ */
+export const MIN_GENERATION_CONTEXT_WINDOW_TOKENS = 64_000;
 
 /** Why the assistant cannot use a catalog model. */
 export type GenerationModelIneligibility =
@@ -30,7 +41,9 @@ export type GenerationModelIneligibility =
   /** Chat cannot use it either: the app has no API to talk to it with. */
   | "chat_unsupported"
   /** Chat cannot use it either: the owner's own model has no context window yet. */
-  | "context_window_missing";
+  | "context_window_missing"
+  /** Its recorded context window has no room for the assistant's passes. */
+  | "context_too_small";
 
 type ModelRow = Pick<
   PyModelProviderCatalogItem,
@@ -54,6 +67,14 @@ export function generationModelIneligibility(
   if (item.hidden) return "hidden";
   if (item.supports_tools !== true) return "tools_unsupported";
   if (item.supports_streaming !== true) return "streaming_unsupported";
+  // The window before chat's other rules, in the backend's order.
+  if (item.source === "owner" && item.context_window_tokens == null)
+    return "context_window_missing";
+  if (
+    item.context_window_tokens != null &&
+    item.context_window_tokens < MIN_GENERATION_CONTEXT_WINDOW_TOKENS
+  )
+    return "context_too_small";
   // The rule the chat's model picker disables rows by.
   switch (chatModelUnusableReason(item as PyModelProviderCatalogItem)) {
     case "unsupported":
@@ -85,6 +106,40 @@ export function eligibleGenerationModels<T extends ModelRow>(
   return [
     ...eligible.filter(isChatGPTPlanModel),
     ...eligible.filter((item) => !isChatGPTPlanModel(item)),
+  ];
+}
+
+/** A model as the assistant's pickers list it. */
+export type ListedGenerationModel<T> = {
+  item: T;
+  /** Why it cannot be chosen; `null` for a model the assistant may use. */
+  unavailable: Exclude<
+    GenerationModelIneligibility,
+    "not_chat_model" | "hidden"
+  > | null;
+};
+
+/**
+ * Every model the assistant's pickers show (R2.2): each visible chat model,
+ * the ones that can be chosen first (as `eligibleGenerationModels` orders
+ * them) and then, in catalog order, the ones that cannot, each with its
+ * reason. Embedding models and models the owner hid are not shown at all.
+ */
+export function listedGenerationModels<T extends ModelRow>(
+  items: readonly T[],
+): ListedGenerationModel<T>[] {
+  const unavailable = items.flatMap((item): ListedGenerationModel<T>[] => {
+    const reason = generationModelIneligibility(item);
+    return reason === null || reason === "not_chat_model" || reason === "hidden"
+      ? []
+      : [{ item, unavailable: reason }];
+  });
+  return [
+    ...eligibleGenerationModels(items).map((item) => ({
+      item,
+      unavailable: null,
+    })),
+    ...unavailable,
   ];
 }
 

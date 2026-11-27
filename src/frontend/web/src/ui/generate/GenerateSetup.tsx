@@ -15,8 +15,10 @@ const SEARCHABLE_MODEL_COUNT = 8;
 /**
  * Setup for the assistant (R1.4): shown while it has no usable model, and
  * again from the model control. It offers the ChatGPT plan's own sign-in
- * (where the plan connection offers it), the models the assistant may use,
- * and the way to Model connections for any other, such as a Claude API key.
+ * (where the plan connection offers it), every visible chat model (the ones
+ * the assistant cannot use disabled, with the reason), what to expect from a
+ * smaller model, and the way to Model connections for any other, such as a
+ * Claude API key.
  */
 export function GenerateSetup({
   choice,
@@ -28,7 +30,7 @@ export function GenerateSetup({
 }) {
   const { t } = useTranslation("generate");
   const openSettings = useAppSettingsOpener();
-  const { model, models } = choice;
+  const { model, models, listed } = choice;
 
   const choose = async (item: PyModelProviderCatalogItem) => {
     try {
@@ -68,20 +70,25 @@ export function GenerateSetup({
             <p className="text-muted-foreground text-xs">
               {t("setup.modelsDescription")}
             </p>
+            <p className="text-muted-foreground text-xs" role="note">
+              {t("model.expectation")}
+            </p>
           </div>
-          {models.length > 0 ? (
-            <GenerateModelList
-              models={models}
-              chosenId={model?.id ?? null}
-              disabled={choice.isChoosing}
-              searchable={models.length >= SEARCHABLE_MODEL_COUNT}
-              onChoose={(item) => void choose(item)}
-            />
-          ) : (
+          {models.length === 0 ? (
             <p className="text-sm" role="status">
               {t("setup.noModels")}
             </p>
-          )}
+          ) : null}
+          {/* Models that cannot be chosen are listed too, each with why. */}
+          {listed.length > 0 ? (
+            <GenerateModelList
+              listed={listed}
+              chosenId={model?.id ?? null}
+              disabled={choice.isChoosing}
+              searchable={listed.length >= SEARCHABLE_MODEL_COUNT}
+              onChoose={(item) => void choose(item)}
+            />
+          ) : null}
         </div>
 
         <div className="border-border/60 space-y-3 rounded-xl border p-4">

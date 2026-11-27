@@ -126,10 +126,12 @@ the hosted composition never does
   so that a provider's prompt cache can serve them.
 - Repair is bounded, so some drafts end with warnings. Warnings never block
   Save.
-- A pass uses chat's default provider options. On an OpenAI Responses model
-  reached with an API key its requests are therefore stored by OpenAI, as an
-  ordinary chat's are, and its later tool rounds continue from the stored
-  response; on the plan route nothing is stored.
+- A pass uses chat's default provider options, with the reasoning effort the
+  person chose for the assistant's model where they chose one. On an OpenAI
+  Responses model reached with an API key its requests are therefore stored
+  by OpenAI, as an ordinary chat's are, and its later tool rounds continue
+  from the stored response, or resend the exchange where OpenAI has none; on
+  the plan route nothing is stored.
 - The person may change model in the middle of a conversation, because no
   run depends on another run's provider state.
 - The one-run rule and the frames a review waits for are held in the server

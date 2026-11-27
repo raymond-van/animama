@@ -6,6 +6,7 @@ import {
   describeGenerationActionFailure,
   describeGenerationFailure,
   draftFailureText,
+  generationFailureSuggestsAnotherModel,
 } from "./generationFailure";
 
 const failure = (
@@ -128,6 +129,48 @@ describe("describeGenerationFailure", () => {
       });
   });
 
+  it("says why a refused model cannot be used, for each reason the backend gives", () => {
+    const refused = (reason: string) => {
+      const text = describeGenerationFailure(
+        failure({
+          code: "generation_model_unusable",
+          category: "request",
+          reason,
+          status: 422,
+        }),
+      );
+      if (text.source !== "assistant") throw new Error("Expected own wording.");
+      return text.message;
+    };
+    expect(refused("context_too_small")).toBe(
+      "The chosen model's context window is too small for the assistant. Choose another model.",
+    );
+    expect(refused("context_window_missing")).toBe(
+      "The chosen model has no context window set. Set it in App Settings → Models or choose another model.",
+    );
+    expect(refused("streaming_unsupported")).toBe(
+      "The chosen model cannot stream its replies, which the assistant needs. Choose another model.",
+    );
+    // A reason this page does not know reads as the general refusal.
+    expect(refused("something_new")).toBe(
+      "The assistant cannot use the chosen model. Choose another model.",
+    );
+  });
+
+  it("words a refused reasoning effort", () => {
+    const text = describeGenerationFailure(
+      failure({
+        code: "generation_reasoning_effort_unsupported",
+        category: "request",
+        status: 422,
+      }),
+    );
+    if (text.source !== "assistant") throw new Error("Expected own wording.");
+    expect(text.message).toBe(
+      "The chosen model cannot run the assistant at this reasoning effort. Choose another level or another model.",
+    );
+  });
+
   it("words the page's own failures of a request", () => {
     expect(
       describeGenerationFailure(
@@ -187,6 +230,51 @@ describe("describeGenerationFailure", () => {
         failure({ code: "generation_not_found", category: "generation" }),
       ),
     ).toMatchObject({ message: "存在しません。" });
+  });
+});
+
+describe("generationFailureSuggestsAnotherModel", () => {
+  const suggests = (overrides: Partial<GenerationRunFailure>) =>
+    generationFailureSuggestsAnotherModel(
+      describeGenerationFailure(failure(overrides)),
+    );
+
+  it("is true for a model, plan or connection failure", () => {
+    expect(
+      suggests({
+        code: "chatgpt_plan_usage_limit",
+        category: "rate_limited",
+        details: { connection_name: "ChatGPT plan" },
+      }),
+    ).toBe(true);
+    expect(
+      suggests({
+        code: "missing_api_key",
+        category: "credential_missing",
+        details: { connection_name: "OpenAI" },
+      }),
+    ).toBe(true);
+  });
+
+  it("is true for the assistant's own failures that depend on the model", () => {
+    for (const code of [
+      "generation_model_unusable",
+      "generation_reasoning_effort_unsupported",
+      "generation_no_valid_draft",
+    ])
+      expect(suggests({ code, category: "generation" })).toBe(true);
+  });
+
+  it("is false where another model would fail the same way", () => {
+    for (const code of [
+      "generation_run_failed",
+      "generation_request_failed",
+      "generation_stream_interrupted",
+      "generation_run_in_progress",
+      "generation_not_found",
+      "generation_draft_empty",
+    ])
+      expect(suggests({ code, category: "generation" })).toBe(false);
   });
 });
 

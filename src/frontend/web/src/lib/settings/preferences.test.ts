@@ -4,12 +4,14 @@ import {
   DEFAULT_ANIMAMA_PREFERENCES,
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
   generationModelPatch,
+  generationReasoningEffortPatch,
   isParakeetWebgpuPreferred,
   mergePreferences,
   offlineSttEnginePreference,
   modelRolePatch,
   modelRolePreferencePath,
   readGenerationModelId,
+  readGenerationReasoningEffort,
   readModelRoleId,
   normalizeThemeSetting,
   resolvePreferences,
@@ -230,6 +232,63 @@ describe("the content assistant's model preference", () => {
       ),
     ])
       expect(readGenerationModelId(preferences)).toBeNull();
+  });
+});
+
+describe("the content assistant's reasoning effort preference", () => {
+  it("is kept for each model by itself, beside the model choice", () => {
+    const saved = {
+      generation: {
+        model_provider_id: "model-1",
+        reasoning_efforts: { "model-1": "low", "model-2": "max" },
+      },
+    };
+    const merged = mergePreferences(
+      saved,
+      generationReasoningEffortPatch("model-1", "high"),
+    );
+    expect(merged).toEqual({
+      generation: {
+        model_provider_id: "model-1",
+        reasoning_efforts: { "model-1": "high", "model-2": "max" },
+      },
+    });
+    expect(readGenerationReasoningEffort(merged, "model-1")).toBe("high");
+    expect(readGenerationReasoningEffort(merged, "model-2")).toBe("max");
+    // Choosing another model keeps every model's level.
+    expect(
+      readGenerationReasoningEffort(
+        mergePreferences(merged, generationModelPatch("model-2")),
+        "model-1",
+      ),
+    ).toBe("high");
+  });
+
+  it("goes back to the model's default with null, for that model only", () => {
+    const merged = mergePreferences(
+      { generation: { reasoning_efforts: { "model-1": "low", m2: "max" } } },
+      generationReasoningEffortPatch("model-1", null),
+    );
+    expect(readGenerationReasoningEffort(merged, "model-1")).toBeNull();
+    expect(readGenerationReasoningEffort(merged, "m2")).toBe("max");
+  });
+
+  it("reads no level before one is chosen or from a malformed value", () => {
+    for (const preferences of [
+      null,
+      {},
+      { generation: { reasoning_efforts: "high" } },
+      { generation: { reasoning_efforts: { "model-1": 3 } } },
+      { generation: { reasoning_efforts: { "model-1": "  " } } },
+      { generation: { reasoning_efforts: { other: "high" } } },
+    ])
+      expect(readGenerationReasoningEffort(preferences, "model-1")).toBeNull();
+    expect(
+      readGenerationReasoningEffort(
+        { generation: { reasoning_efforts: { "model-1": "high" } } },
+        null,
+      ),
+    ).toBeNull();
   });
 });
 

@@ -64,6 +64,8 @@ const SETTLE_REFRESH_DELAYS_MS = [1_500, 6_000];
 export function generationRunBody(input: {
   request: GenerationRunRequest;
   modelProviderId: string;
+  /** The level chosen for the model; none leaves the model's own default. */
+  reasoningEffort?: string | null;
   uiLocale?: string | null;
   avatarExpressionNames?: readonly string[] | null;
   /** The names that count as ARKit shapes; the canonical 52 by default. */
@@ -81,6 +83,9 @@ export function generationRunBody(input: {
   return {
     message: request.message,
     model_provider_id: input.modelProviderId,
+    ...(input.reasoningEffort
+      ? { reasoning_effort: input.reasoningEffort }
+      : {}),
     ...(request.draftId ? { draft_id: request.draftId } : {}),
     // A revision takes its draft's own kind; a new draft is a Gesture.
     intent: "gesture",
@@ -164,13 +169,16 @@ export type GenerationRunController = {
  * of it. Leaving the page or switching conversation stops the run too: the
  * page's checks, which a run waits for, stop with it.
  *
- * `modelProviderId` and `avatarExpressionNames` are read when a run starts,
- * so they may change between runs.
+ * `modelProviderId`, `reasoningEffort` and `avatarExpressionNames` are read
+ * when a run starts, so they may change between runs: a retry and an answer
+ * to the assistant's questions go out with the model and level chosen then.
  */
 export function useGenerationRun(input: {
   conversationId: string | null;
   /** The assistant's chosen model. */
   modelProviderId: string | null;
+  /** The reasoning effort chosen for that model, or `null` for its default. */
+  reasoningEffort?: string | null;
   /** The chosen preview Avatar's expression names, or `null` without one. */
   avatarExpressionNames?: readonly string[] | null;
   /** The names that count as ARKit shapes on that Avatar. */
@@ -212,7 +220,8 @@ export function useGenerationRun(input: {
 
   const start = useCallback(
     async (request: GenerationRunRequest): Promise<boolean> => {
-      const { conversationId, modelProviderId, ...avatar } = inputRef.current;
+      const { conversationId, modelProviderId, reasoningEffort, ...avatar } =
+        inputRef.current;
       if (!conversationId || !modelProviderId) return false;
       if (
         !request.message.trim() ||
@@ -242,6 +251,7 @@ export function useGenerationRun(input: {
           body: generationRunBody({
             request,
             modelProviderId,
+            reasoningEffort,
             uiLocale: activeUiLocale(),
             avatarExpressionNames: avatar.avatarExpressionNames,
             arkitNames: avatar.arkitNames,

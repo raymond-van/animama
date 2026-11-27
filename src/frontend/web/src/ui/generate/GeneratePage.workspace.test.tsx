@@ -14,6 +14,7 @@ import {
   generationDraft,
   generationMessage,
   generationSnapshot,
+  generationUsage,
   gestureProject,
   jsonResponse,
   sseFrame,
@@ -120,6 +121,10 @@ const server = {
   earlier: null as PyGenerationConversationSnapshot | null,
   runs: [] as Record<string, unknown>[],
   streams: [] as ReturnType<typeof controlledSseResponse>[],
+  /** What the chosen model's catalog row adds, such as its effort levels. */
+  model: {} as Record<string, unknown>,
+  /** The owner's saved choices for the assistant. */
+  generation: { model_provider_id: "model-1" } as Record<string, unknown>,
 };
 
 async function fetch(request: Request): Promise<Response> {
@@ -140,12 +145,11 @@ async function fetch(request: Request): Promise<Response> {
         supports_tools: true,
         supports_streaming: true,
         accepts: ["text", "image"],
+        ...server.model,
       },
     ]);
   if (pathname === "/v1/users/me/settings")
-    return jsonResponse({
-      preferences: { generation: { model_provider_id: "model-1" } },
-    });
+    return jsonResponse({ preferences: { generation: server.generation } });
   if (request.method === "POST" && pathname.endsWith("/runs:sse")) {
     server.runs.push((await request.json()) as Record<string, unknown>);
     const stream = controlledSseResponse();
@@ -216,6 +220,8 @@ beforeEach(() => {
   server.earlier = null;
   server.runs = [];
   server.streams = [];
+  server.model = {};
+  server.generation = { model_provider_id: "model-1" };
   fixture.player = [];
   fixture.workerInput = null;
 });
@@ -403,6 +409,85 @@ describe("the Generate page's workspace", () => {
     const conversation = find("generate-conversation")!.textContent;
     expect(conversation).toContain("Here is a deep bow.");
     expect(conversation).not.toContain("Here is a shy wave.");
+  });
+
+  it("runs at the effort saved for the model, and opens the model control from a failed run", async () => {
+    server.model = { supported_reasoning_efforts: ["low", "medium", "high"] };
+    server.generation = {
+      model_provider_id: "model-1",
+      reasoning_efforts: { "model-1": "high", "another-model": "low" },
+    };
+    server.snapshot = {
+      ...server.snapshot,
+      usage: generationUsage({
+        input_tokens: 99_955,
+        output_tokens: 2_260,
+        requests: 5,
+        runs: 1,
+        last_run: {
+          run_id: "run-0",
+          model_provider_id: "model-1",
+          plan: false,
+          input_tokens: 99_955,
+          cached_input_tokens: 0,
+          output_tokens: 2_260,
+          reasoning_tokens: 0,
+          requests: 5,
+          cost: null,
+        },
+      }),
+    };
+    await open();
+    type("a hearty laugh");
+    await click(find("generate-new-draft"));
+    await click(find("generate-send"));
+    await settle();
+    expect(server.runs[0]).toMatchObject({
+      message: "a hearty laugh",
+      model_provider_id: "model-1",
+      reasoning_effort: "high",
+    });
+
+    const stream = server.streams[0]!;
+    stream.send(sseFrame("run.started", { run_id: "run-1" }));
+    stream.send(
+      sseFrame("run.failed", {
+        code: "openai_rate_limit",
+        category: "rate_limited",
+        details: { connection_name: "OpenAI" },
+      }),
+    );
+    stream.send(sseFrame("run.completed", { usage: { requests: 1 } }));
+    stream.close();
+    await settle();
+
+    // Beside Try again, the failure offers the assistant's model control.
+    expect(find("generate-retry")).not.toBeNull();
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
+    await click(find("generate-choose-model"));
+    const control = document.querySelector<HTMLElement>(
+      '[data-slot="popover-content"]',
+    )!;
+    expect(control.textContent).toContain("Assistant model");
+    // It shows the level in use and what the conversation has used so far.
+    expect(find("generate-effort")!.dataset.effort).toBe("high");
+    expect(find("generate-usage-last-run")!.textContent).toBe(
+      "Last run: 99,955 input and 2,260 output tokens.",
+    );
+    expect(find("generate-usage-conversation")!.textContent).toBe(
+      "This conversation: 99,955 input and 2,260 output tokens.",
+    );
+
+    // A run started with the control open closes it, and it stays closed
+    // when that run ends.
+    await click(find("generate-retry"));
+    await settle();
+    expect(server.runs).toHaveLength(2);
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
+    await click(find("generate-stop"));
+    await settle();
+    expect(find("generate-send")).not.toBeNull();
+    expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
   });
 
   it("reopens setup from the model control and returns to the workspace", async () => {

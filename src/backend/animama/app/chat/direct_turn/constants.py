@@ -5,7 +5,6 @@ from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, CHAT
 DIRECT_CHAT_NODE_ID = "direct-chat:model-client"
 
 OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent"
-OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE = "openai_previous_response_unresolvable"
 OPENAI_CHAT_COMPLETIONS_PROVIDER = "OpenAIHTTPAgent"
 ANTHROPIC_MESSAGES_PROVIDER = ANTHROPIC_MESSAGES_PROVIDER_TYPE
 # Not in NATIVE_COMPACTION_PROVIDERS: the plan route was not shown to compact, so the app fits its prompts.

@@ -45,6 +45,30 @@ export type GenerationFailureText =
       detail: string | null;
     };
 
+/**
+ * The assistant's own failures that another model may not meet: the model or
+ * the effort was refused, or the model produced no draft that works.
+ */
+const MODEL_DEPENDENT_CODES = new Set([
+  "generation_model_unusable",
+  "generation_reasoning_effort_unsupported",
+  "generation_no_valid_draft",
+]);
+
+/**
+ * Whether a failure is one that choosing another model could get past (R2.4):
+ * any model, plan or connection failure, and the assistant's own failures
+ * that depend on the model. A request that never arrived, a stream that
+ * broke or a conversation that is gone are not.
+ */
+export function generationFailureSuggestsAnotherModel(
+  described: GenerationFailureText,
+): boolean {
+  return (
+    described.source === "model" || MODEL_DEPENDENT_CODES.has(described.code)
+  );
+}
+
 function ownFailureText(info: ApiErrorInfo): ApiErrorText {
   // A refused model says why; that reason is worded before the general code.
   const reasoned =

@@ -35,7 +35,10 @@ import {
   draftName,
   type PendingGenerationQuestions,
 } from "./generationDrafts";
-import { describeGenerationFailure } from "./generationFailure";
+import {
+  describeGenerationFailure,
+  generationFailureSuggestsAnotherModel,
+} from "./generationFailure";
 import {
   failedRunStoredDraft,
   generationTranscript,
@@ -310,12 +313,15 @@ export function GenerateQuestionCards({
  * The last run's failure with its retry (R2.4). A model, plan or connection
  * failure reads as it does in chat, beside the request that failed; this
  * block then only adds the actions. The assistant's own failures are worded
- * here.
+ * here. Where another model could do better (a model, plan or connection
+ * failure, a refused model or effort, or no draft that works), it also
+ * offers the model control.
  */
 function GenerateFailure({
   failure,
   noticeShown,
   onRetry,
+  onChooseModel,
   onDismiss,
 }: {
   failure: GenerationRunFailure;
@@ -323,6 +329,8 @@ function GenerateFailure({
   noticeShown: boolean;
   /** Send the failed request again; absent when the run had stored its draft. */
   onRetry?: () => void;
+  /** Open the assistant's model control. */
+  onChooseModel?: () => void;
   onDismiss: () => void;
 }) {
   const { t } = useTranslation("generate");
@@ -359,6 +367,17 @@ function GenerateFailure({
             {t("failure.retry")}
           </Button>
         ) : null}
+        {onChooseModel && generationFailureSuggestsAnotherModel(described) ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid="generate-choose-model"
+            onClick={onChooseModel}
+          >
+            {t("failure.chooseModel")}
+          </Button>
+        ) : null}
         <Button
           type="button"
           size="sm"
@@ -387,6 +406,7 @@ export function GenerateConversation({
   controller,
   selectedDraft,
   onStartNewDraft,
+  onChooseModel,
   framesStatus = "idle",
   autoFocus = false,
 }: {
@@ -403,6 +423,8 @@ export function GenerateConversation({
   selectedDraft: PyGenerationDraft | null;
   /** Clear the selection, so the next message writes a new draft. */
   onStartNewDraft: () => void;
+  /** Open the assistant's model control, offered beside a failure's retry. */
+  onChooseModel?: () => void;
   /** Where the review sheets of the run in flight stand. */
   framesStatus?: DraftFramesStatus;
   autoFocus?: boolean;
@@ -525,6 +547,7 @@ export function GenerateConversation({
                   ? undefined
                   : () => void controller.retry()
               }
+              onChooseModel={onChooseModel}
               onDismiss={controller.dismissFailure}
             />
           ) : null}

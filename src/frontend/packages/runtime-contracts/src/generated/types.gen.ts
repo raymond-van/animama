@@ -5561,7 +5561,7 @@ export type PyGenerationConversationList = {
 /**
  * PyGenerationConversationSnapshot
  *
- * A conversation with its messages in the order added and its drafts by position.
+ * A conversation with its messages in the order added, its drafts by position and its token use.
  */
 export type PyGenerationConversationSnapshot = {
     conversation: PyGenerationConversation;
@@ -5573,6 +5573,68 @@ export type PyGenerationConversationSnapshot = {
      * Messages
      */
     messages: Array<PyGenerationMessage>;
+    usage: PyGenerationConversationUsage;
+};
+
+/**
+ * PyGenerationConversationUsage
+ *
+ * A conversation's token use over its ``runs`` stored runs, and its last run's.
+ *
+ * ``cost`` adds the runs that have an estimate (``null`` when none has, or
+ * when they are in more than one currency). ``cost_complete`` is false when
+ * a run that made a model request has no estimate, so the amount covers
+ * only part of the conversation.
+ */
+export type PyGenerationConversationUsage = {
+    /**
+     * Cached Input Tokens
+     */
+    cached_input_tokens: number;
+    cost: PyGenerationCostEstimate | null;
+    /**
+     * Cost Complete
+     */
+    cost_complete: boolean;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    last_run: PyGenerationRunUsage | null;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Reasoning Tokens
+     */
+    reasoning_tokens: number;
+    /**
+     * Requests
+     */
+    requests: number;
+    /**
+     * Runs
+     */
+    runs: number;
+};
+
+/**
+ * PyGenerationCostEstimate
+ *
+ * An estimated cost from the model's listed prices when the run happened; not a bill.
+ *
+ * ``amount`` is a decimal string in ``currency`` (an ISO 4217 code).
+ */
+export type PyGenerationCostEstimate = {
+    /**
+     * Amount
+     */
+    amount: string;
+    /**
+     * Currency
+     */
+    currency: string;
 };
 
 /**
@@ -5691,8 +5753,10 @@ export type PyGenerationMarkSaved = {
  *
  * The person's turn: ``draft_id`` (the draft it revises) and ``answers``.
  * The assistant's turn: ``run_id``, ``outcome`` (``draft``, ``questions``,
- * ``reply``, ``failed`` or ``stopped``), ``usage``, and where they apply
- * ``draft_id``, ``questions`` and ``error`` (``code`` and ``category``).
+ * ``reply``, ``failed`` or ``stopped``), ``usage``, ``model`` (the row the
+ * run named, and its reasoning effort when it named one), and where they
+ * apply ``cost`` (the run's estimate), ``draft_id``, ``questions`` and
+ * ``error`` (``code`` and ``category``).
  */
 export type PyGenerationMessage = {
     /**
@@ -5741,7 +5805,9 @@ export type PyGenerationPageScope = {
  * revise; without it the run writes a new draft of ``intent``.
  * ``avatar_expressions`` maps a family (as the page groups them) to the
  * names of the chosen preview Avatar's expressions: names only, which reach
- * the model as data.
+ * the model as data. ``reasoning_effort`` is one of the model row's listed
+ * levels, applied to every model request of the run; without it the model's
+ * default applies.
  */
 export type PyGenerationRunRequest = {
     answers?: PyGenerationAnswers | null;
@@ -5768,9 +5834,54 @@ export type PyGenerationRunRequest = {
      */
     model_provider_id: string;
     /**
+     * Reasoning Effort
+     */
+    reasoning_effort?: string | null;
+    /**
      * Ui Locale
      */
     ui_locale?: string | null;
+};
+
+/**
+ * PyGenerationRunUsage
+ *
+ * One stored run's token use. ``plan`` is true for a run on the ChatGPT plan, which never has a ``cost``.
+ */
+export type PyGenerationRunUsage = {
+    /**
+     * Cached Input Tokens
+     */
+    cached_input_tokens: number;
+    cost: PyGenerationCostEstimate | null;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Model Provider Id
+     */
+    model_provider_id: string | null;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Plan
+     */
+    plan: boolean;
+    /**
+     * Reasoning Tokens
+     */
+    reasoning_tokens: number;
+    /**
+     * Requests
+     */
+    requests: number;
+    /**
+     * Run Id
+     */
+    run_id: string | null;
 };
 
 /**

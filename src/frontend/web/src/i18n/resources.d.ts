@@ -3568,15 +3568,19 @@ export default interface Resources {
       "generation_intent_unavailable": "The assistant writes Gestures only for now.",
       "generation_model_unusable": "The assistant cannot use the chosen model. Choose another model.",
       "generation_model_unusable_connection_inactive": "The chosen model's connection is turned off. Turn it on in App Settings or choose another model.",
+      "generation_model_unusable_context_too_small": "The chosen model's context window is too small for the assistant. Choose another model.",
+      "generation_model_unusable_context_window_missing": "The chosen model has no context window set. Set it in App Settings → Models or choose another model.",
       "generation_model_unusable_inactive": "The chosen model is turned off. Choose another model.",
       "generation_model_unusable_no_model_client": "This installation cannot run the chosen model. Choose another model.",
       "generation_model_unusable_not_chat_model": "The chosen model is not a chat model. Choose another model.",
       "generation_model_unusable_not_found": "The chosen model is no longer available. Choose another model.",
+      "generation_model_unusable_streaming_unsupported": "The chosen model cannot stream its replies, which the assistant needs. Choose another model.",
       "generation_model_unusable_tools_unsupported": "The chosen model cannot call tools, which the assistant needs. Choose another model.",
       "generation_model_unusable_unsupported": "The chosen model cannot be used on its connection. Choose another model.",
       "generation_no_valid_draft": "The assistant did not produce a draft that works. Try again, or describe it differently.",
       "generation_not_found": "This conversation or draft no longer exists.",
       "generation_nothing_to_restore": "This draft has no earlier version to restore.",
+      "generation_reasoning_effort_unsupported": "The chosen model cannot run the assistant at this reasoning effort. Choose another level or another model.",
       "generation_request_failed": "The request did not reach the assistant. Try again.",
       "generation_run_failed": "The assistant ran into an unexpected problem. Try again.",
       "generation_run_in_progress": "The assistant is still working on this conversation. Wait for it to finish or stop it first.",
@@ -3813,6 +3817,7 @@ export default interface Resources {
       "waitForRun": "Available when the assistant has finished."
     },
     "failure": {
+      "chooseModel": "Choose another model",
       "dismiss": "Dismiss",
       "kept": "Your conversation and drafts are kept.",
       "model": "The assistant could not finish this request.",
@@ -3834,13 +3839,23 @@ export default interface Resources {
     "model": {
       "chooseFailed": "The model choice could not be saved.",
       "description": "The assistant writes and repairs drafts with this model.",
+      "effort": {
+        "default": "Model default",
+        "saveFailed": "The reasoning effort could not be saved."
+      },
       "empty": "No models found.",
+      "expectation": "Larger models write better motion; smaller ones need more repairs or leave more warnings.",
       "noFrames": "This model cannot look at images, so the assistant skips reviewing rendered frames. The checks still run.",
       "none": "Choose a model",
       "search": "Search models…",
       "setup": "Model setup",
       "title": "Assistant model",
-      "trigger": "Assistant model: {{model}}"
+      "trigger": "Assistant model: {{model}}",
+      "unavailable": {
+        "contextTooSmall": "Needs a context window of at least {{tokens, number}} tokens",
+        "streamingUnsupported": "Cannot stream replies",
+        "toolsUnsupported": "Cannot call tools"
+      }
     },
     "page": {
       "conversationsFailed": "Your conversations with the assistant could not be loaded.",
@@ -3887,7 +3902,7 @@ export default interface Resources {
       "description": "The assistant writes Gestures from a request in words, then checks and repairs them. It needs a model that can call tools.",
       "done": "Back to Generate",
       "modelTitle": "Choose a model for the assistant",
-      "modelsDescription": "Only models that can call tools and that chat can use are listed. Your choice is remembered, and you can change it at any time.",
+      "modelsDescription": "Models the assistant cannot use are listed with the reason. Your choice is remembered, and you can change it at any time.",
       "modelsTitle": "Models you can use",
       "noModels": "No model can be used yet. Continue with ChatGPT above, or add a model under model connections.",
       "openConnections": "Open model connections",
@@ -3904,6 +3919,15 @@ export default interface Resources {
       "scrollToLatest": "Scroll to the latest message",
       "skippedQuestions": "Skipped the questions.",
       "stopped": "Stopped. Drafts finished so far are kept."
+    },
+    "usage": {
+      "conversation": "This conversation: {{input, number}} input and {{output, number}} output tokens.",
+      "conversationCost": "This conversation: {{input, number}} input and {{output, number}} output tokens, about {{cost}}.",
+      "conversationCostPartial": "This conversation: {{input, number}} input and {{output, number}} output tokens, about {{cost}} for the runs with a known price.",
+      "estimate": "Costs are estimates from the model's listed prices.",
+      "lastRun": "Last run: {{input, number}} input and {{output, number}} output tokens.",
+      "lastRunCost": "Last run: {{input, number}} input and {{output, number}} output tokens, about {{cost}}.",
+      "title": "Token use"
     },
     "warnings": {
       "avatarOnlyExpressions": "Plays only on Avatars that have these expressions: {{names, list}}.",

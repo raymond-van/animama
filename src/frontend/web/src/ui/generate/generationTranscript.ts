@@ -55,6 +55,8 @@ export type GenerationTranscriptEntry = {
   } | null;
   /** A failed run's code, for wording with `describeGenerationFailure`'s area. */
   errorCode: string | null;
+  /** An assistant turn: the run that stored it; `null` when it does not say. */
+  runId: string | null;
 };
 
 function storedEntry(message: PyGenerationMessage): GenerationTranscriptEntry {
@@ -86,25 +88,37 @@ function storedEntry(message: PyGenerationMessage): GenerationTranscriptEntry {
         : [],
     },
     errorCode: typeof error?.code === "string" ? error.code : null,
+    runId:
+      message.role === "assistant" &&
+      typeof data.run_id === "string" &&
+      data.run_id
+        ? data.run_id
+        : null,
   };
 }
 
 /**
  * Whether the failed run had already stored its draft: one arrived on its
- * stream, or the turn it stored (the conversation's last) names a draft,
- * which the backend does only for a draft the run left changed. Such a
- * failure is not offered again, since the draft is there, checked or
- * awaiting its check.
+ * stream, or the turn that run stored names a draft, which the backend does
+ * only for a draft the run left changed. Such a failure is not offered
+ * again, since the draft is there, checked or awaiting its check.
+ *
+ * The conversation's last turn counts only when it is this run's own
+ * (`run_id`). A request that never reached the backend stored no turn, so
+ * the last turn is then the run before's, and says nothing about this one:
+ * with no stream event there is no run id, and the failure can be retried.
  */
 export function failedRunStoredDraft(
-  run: Pick<GenerationRunState, "draftStored">,
+  run: Pick<GenerationRunState, "draftStored" | "runId">,
   entries: readonly GenerationTranscriptEntry[],
 ): boolean {
   if (run.draftStored) return true;
   const last = entries.at(-1);
   return (
+    run.runId !== null &&
     last?.role === "assistant" &&
     !last.pending &&
+    last.runId === run.runId &&
     last.outcome === "failed" &&
     last.draftId !== null
   );
@@ -152,6 +166,7 @@ export function generationTranscript(
     questions: [],
     answers: null,
     errorCode: null,
+    runId: null,
   });
   return [
     ...entries,

@@ -158,6 +158,11 @@ export type SafetyPreferences = {
  */
 export type GenerationPreferences = {
   model_provider_id?: string | null;
+  /**
+   * The reasoning effort chosen for the assistant on each model, by model id.
+   * A model without an entry (or with `null`) runs at its own default.
+   */
+  reasoning_efforts?: Record<string, string | null>;
   [key: string]: unknown;
 };
 
@@ -244,7 +249,16 @@ export function mergePreferences(
   const generation = mergeSection(baseObj, patchObj, "generation");
   if (chat) merged.chat = chat as SettingsPreferences["chat"];
   if (models) merged.models = models as ModelRolePreferences;
-  if (generation) merged.generation = generation as GenerationPreferences;
+  if (generation) {
+    // Merged by model, so choosing one model's level keeps the others'.
+    const efforts = mergeNestedRecord(
+      isRecord(baseObj.generation) ? baseObj.generation : undefined,
+      isRecord(patchObj.generation) ? patchObj.generation : undefined,
+      "reasoning_efforts",
+    );
+    if (efforts) generation.reasoning_efforts = efforts;
+    merged.generation = generation as GenerationPreferences;
+  }
 
   if (memory) merged.memory = memory as PreferenceToggleSection;
   if (emotion) merged.emotion = emotion as PreferenceToggleSection;
@@ -335,6 +349,32 @@ export function generationModelPatch(
   modelProviderId: string | null,
 ): SettingsPreferences {
   return { generation: { model_provider_id: modelProviderId } };
+}
+
+/**
+ * The reasoning effort the owner chose for the assistant on one model, or
+ * null when that model runs at its own default.
+ */
+export function readGenerationReasoningEffort(
+  preferences: unknown,
+  modelProviderId: string | null | undefined,
+): string | null {
+  if (!modelProviderId) return null;
+  if (!isRecord(preferences) || !isRecord(preferences.generation)) return null;
+  const efforts = preferences.generation.reasoning_efforts;
+  const value = isRecord(efforts) ? efforts[modelProviderId] : null;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/**
+ * A preferences patch that sets the assistant's reasoning effort on one model
+ * or, with null, returns that model to its own default.
+ */
+export function generationReasoningEffortPatch(
+  modelProviderId: string,
+  effort: string | null,
+): SettingsPreferences {
+  return { generation: { reasoning_efforts: { [modelProviderId]: effort } } };
 }
 
 export function resolvePreferences(

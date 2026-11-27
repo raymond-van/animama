@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.app.generation.usage import conversation_usage
 from animama.domain.generation import GenerationError
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
@@ -43,6 +44,7 @@ from animama.server.schemas.generation import (
     PyGenerationConversationCreate,
     PyGenerationConversationList,
     PyGenerationConversationSnapshot,
+    PyGenerationConversationUsage,
     PyGenerationDraft,
     PyGenerationMarkSaved,
     PyGenerationMessage,
@@ -105,12 +107,13 @@ async def create_generation_conversation(
 async def get_generation_conversation(
     conversation_id: str, request: Request, principal: Owner, session: Session
 ) -> PyGenerationConversationSnapshot:
-    """Return a conversation with its messages in the order added and its drafts by position.
+    """Return a conversation with its messages in the order added, its drafts by position and its token use.
 
-    With no run in flight on the conversation, a draft that a run left
-    mid-step without settling is settled first: by its current version's
-    report, to ``checking`` when that version has none, or deleted when it
-    never got a project.
+    With no run in flight on the conversation, a draft whose status does not
+    describe it is settled first (one a run left mid-step, or one whose
+    report arrived after it was left): by its current version's report, to
+    ``checking`` when that version has none, or deleted when it never got a
+    project. ``usage`` adds up what the stored runs recorded.
     """
 
     with _refusals():
@@ -119,6 +122,7 @@ async def get_generation_conversation(
         conversation=PyGenerationConversation.model_validate(snapshot.conversation, from_attributes=True),
         messages=[PyGenerationMessage.model_validate(message, from_attributes=True) for message in snapshot.messages],
         drafts=[PyGenerationDraft.from_domain(draft) for draft in snapshot.drafts],
+        usage=PyGenerationConversationUsage.from_domain(conversation_usage(snapshot.messages)),
     )
 
 
@@ -146,8 +150,10 @@ async def run_generation_sse(
     """Run one request to the assistant and stream its events; closing the stream stops the run.
 
     Refused with 409 ``generation_run_in_progress`` while the conversation
-    has a run in flight, and with 422 ``generation_model_unusable`` and a
-    ``reason`` when the named model cannot be used.
+    has a run in flight, with 422 ``generation_model_unusable`` and a
+    ``reason`` when the named model cannot be used, and with 422
+    ``generation_reasoning_effort_unsupported`` when the model cannot run a
+    pass at the named effort.
     """
 
     return await start_generation_run(

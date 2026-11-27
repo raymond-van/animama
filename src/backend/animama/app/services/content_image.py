@@ -358,12 +358,14 @@ def canonicalize_chat_image_stream(
     *,
     content: BinaryIO,
     maximum_bytes: int = CHAT_IMAGE_MAX_BYTES,
+    maximum_dimension: int = CHAT_IMAGE_MAX_DIMENSION,
 ) -> CanonicalChatImage:
     """Turn an uploaded chat image into the one copy that is stored and sent to models.
 
     The image is recognised by its bytes, whatever the upload was called: PNG, JPEG,
     WebP or GIF. An animation contributes its first frame. The result has its EXIF
-    orientation applied, a long edge of at most ``CHAT_IMAGE_MAX_DIMENSION`` and no
+    orientation applied, a long edge of at most ``maximum_dimension`` (a chat image's
+    ``CHAT_IMAGE_MAX_DIMENSION`` unless the caller has a bound of its own) and no
     metadata (EXIF, GPS location, text chunks or colour profile). It is PNG for a
     lossless source that fits ``maximum_bytes``, otherwise JPEG with transparency
     flattened onto white. WebP is never produced: OpenAI-compatible local servers
@@ -384,7 +386,7 @@ def canonicalize_chat_image_stream(
             # nearest-neighbour, which destroys small text in a GIF or palette PNG.
             pixels = _eight_bit(image).convert(mode)
             working.append(pixels)
-            pixels.thumbnail((CHAT_IMAGE_MAX_DIMENSION, CHAT_IMAGE_MAX_DIMENSION), Image.Resampling.LANCZOS)
+            pixels.thumbnail((maximum_dimension, maximum_dimension), Image.Resampling.LANCZOS)
             transposition = _EXIF_TRANSPOSITIONS.get(_exif_orientation(image) or 0)
             if transposition is not None:
                 pixels = pixels.transpose(transposition)

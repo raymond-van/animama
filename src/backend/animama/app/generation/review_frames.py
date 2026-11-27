@@ -26,6 +26,9 @@ MAX_REVIEW_SHEETS: Final = 2
 """One sheet per Included Avatar."""
 MAX_REVIEW_SHEET_BYTES: Final = 4 * 1024 * 1024
 """The largest sheet the page may upload."""
+MAX_REVIEW_SHEET_DIMENSION: Final = 2048
+"""A sheet's longest edge. The page's tallest sheet is six rows of 330 pixels under its header, 2,008 pixels,
+which is above a chat image's bound; a sheet within this one reaches the model at the size it was drawn."""
 
 
 class ReviewSheetError(GenerationError):
@@ -51,13 +54,14 @@ def decode_review_sheet(content: bytes) -> ReviewSheet:
 
     Raises ``ReviewSheetError`` for a sheet that is empty or over
     ``MAX_REVIEW_SHEET_BYTES``, or that is not an image the bounded opener
-    accepts (PNG, JPEG, WebP or GIF within its pixel limits).
+    accepts (PNG, JPEG, WebP or GIF within its pixel limits). A sheet whose
+    longest edge is over ``MAX_REVIEW_SHEET_DIMENSION`` is scaled down to it.
     """
 
     if not 0 < len(content) <= MAX_REVIEW_SHEET_BYTES:
         raise ReviewSheetError("generation_frame_too_large" if content else "generation_frame_not_an_image")
     try:
-        image = canonicalize_chat_image_stream(content=BytesIO(content))
+        image = canonicalize_chat_image_stream(content=BytesIO(content), maximum_dimension=MAX_REVIEW_SHEET_DIMENSION)
     except ContentFileInvalidError as error:
         raise ReviewSheetError("generation_frame_not_an_image") from error
     return ReviewSheet(media_type=image.media_type, content=image.content, width=image.width, height=image.height)
@@ -116,6 +120,7 @@ class ReviewFrameStore:
 __all__ = [
     "MAX_REVIEW_SHEETS",
     "MAX_REVIEW_SHEET_BYTES",
+    "MAX_REVIEW_SHEET_DIMENSION",
     "ReviewFrameStore",
     "ReviewSheet",
     "ReviewSheetError",

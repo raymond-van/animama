@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
 
 import { CHATGPT_PLAN_PROVIDER_TYPE } from "@/lib/chat/model-catalog";
+import requirements from "./fixtures/model-requirements.json";
 import {
+  MIN_GENERATION_CONTEXT_WINDOW_TOKENS,
   chosenGenerationModel,
   eligibleGenerationModels,
   generationModelIneligibility,
   generationModelReviewsFrames,
   isChatGPTPlanModel,
+  listedGenerationModels,
 } from "./generateModels";
 
 const model = (
@@ -50,6 +53,13 @@ const CATALOG = [
     context_window_tokens: null,
   }),
   model("own-model", {
+    model_provider: "OpenAIHTTPAgent",
+    api_standard: "chat_completions",
+    source: "owner",
+    context_window_tokens: 131_072,
+  }),
+  // Room for a chat turn, not for the assistant's passes.
+  model("own-small", {
     model_provider: "OpenAIHTTPAgent",
     api_standard: "chat_completions",
     source: "owner",
@@ -124,6 +134,57 @@ describe("generationModelIneligibility", () => {
       }),
     ).toBe("tools_unsupported");
   });
+
+  it("refuses a recorded context window with no room for a pass", () => {
+    const withWindow = (context_window_tokens: number | null) =>
+      generationModelIneligibility(
+        model("windowed", { context_window_tokens }),
+      );
+    // The fixture is the parity record a backend test holds its own constant to.
+    expect(requirements).toEqual({
+      minContextWindowTokens: MIN_GENERATION_CONTEXT_WINDOW_TOKENS,
+    });
+    expect(MIN_GENERATION_CONTEXT_WINDOW_TOKENS).toBe(64_000);
+    expect(withWindow(MIN_GENERATION_CONTEXT_WINDOW_TOKENS - 1)).toBe(
+      "context_too_small",
+    );
+    expect(withWindow(MIN_GENERATION_CONTEXT_WINDOW_TOKENS)).toBeNull();
+    // A built-in row may record none, as in chat.
+    expect(withWindow(null)).toBeNull();
+    expect(
+      generationModelIneligibility(
+        CATALOG.find((item) => item.id === "own-small")!,
+      ),
+    ).toBe("context_too_small");
+  });
+});
+
+describe("listedGenerationModels", () => {
+  it("lists every visible chat model: the usable ones first, then the others with their reasons", () => {
+    expect(
+      listedGenerationModels(CATALOG).map(({ item, unavailable }) => [
+        item.id,
+        unavailable,
+      ]),
+    ).toEqual([
+      ["plan-a", null],
+      ["plan-b", null],
+      ["key-model", null],
+      ["local-model", null],
+      ["own-model", null],
+      ["no-tools", "tools_unsupported"],
+      ["own-no-window", "context_window_missing"],
+      ["own-small", "context_too_small"],
+      ["no-api", "chat_unsupported"],
+      ["no-streaming", "streaming_unsupported"],
+    ]);
+  });
+
+  it("never shows an embedding model or one the owner hid", () => {
+    const ids = listedGenerationModels(CATALOG).map(({ item }) => item.id);
+    for (const id of ["embedding", "hidden-model", "plan-hidden"])
+      expect(ids).not.toContain(id);
+  });
 });
 
 describe("eligibleGenerationModels", () => {
@@ -174,6 +235,7 @@ describe("chosenGenerationModel", () => {
       "embedding",
       // Chosen while it had a context window, which was removed since.
       "own-no-window",
+      "own-small",
       "no-api",
       "no-streaming",
     ])

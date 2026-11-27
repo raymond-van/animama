@@ -22,11 +22,15 @@ from .types import (
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
     ModelClientContinuation,
+    ModelClientError,
     ModelClientFinal,
     ModelClientRequest,
     ModelClientToolCall,
     ModelClientToolResult,
 )
+
+OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE = "openai_previous_response_unresolvable"
+"""The model-client code of a Responses request whose ``previous_response_id`` the provider cannot resolve."""
 
 
 def assistant_tool_call_prompt_message(
@@ -207,7 +211,50 @@ def model_request_with_appended_messages(
     )
 
 
+def model_request_without_continuation(
+    model_request: ModelClientRequest, *, keep_images: bool = False
+) -> ModelClientRequest:
+    """Copy a model request while dropping provider continuation state.
+
+    A Responses request then sends its whole prompt instead of only what
+    follows the stored response. The copy starts without image bytes unless
+    ``keep_images`` is set, as ``model_request_with_appended_messages`` does.
+    """
+
+    return ModelClientRequest(
+        model_provider=model_request.model_provider,
+        prompt=model_request.prompt,
+        provider_options=model_request.provider_options,
+        continuation=None,
+        images=model_request.images if keep_images else {},
+    )
+
+
+def should_retry_without_previous_response_id(
+    error: ModelClientError,
+    model_request: ModelClientRequest,
+    *,
+    partial_text_seen: bool,
+    allow_previous_response_retry: bool,
+) -> bool:
+    """Return whether a stale Responses cursor should be retried with history.
+
+    True only for the provider's own "cannot resolve the previous response"
+    answer to a Responses request that named one (the stored response expired,
+    or the organisation stores none), before any text of the reply was seen.
+    """
+
+    return (
+        allow_previous_response_retry
+        and not partial_text_seen
+        and error.code == OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE
+        and model_request.model_provider.provider_type == OPENAI_RESPONSES_PROVIDER_TYPE
+        and model_request.continuation is not None
+    )
+
+
 __all__ = [
+    "OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE",
     "anthropic_tool_result_item",
     "anthropic_tool_use_item",
     "assistant_tool_call_prompt_message",
@@ -215,7 +262,9 @@ __all__ = [
     "model_client_tool_call_prompt_item",
     "model_client_tool_result_prompt_item",
     "model_request_with_appended_messages",
+    "model_request_without_continuation",
     "openai_responses_continuation_from_final",
+    "should_retry_without_previous_response_id",
     "tool_exchange_prompt_items",
     "tool_result_prompt_message",
 ]

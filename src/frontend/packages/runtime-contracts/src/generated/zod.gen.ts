@@ -3200,6 +3200,18 @@ export const zPyGenerationCheckReport = z.object({
 });
 
 /**
+ * PyGenerationCostEstimate
+ *
+ * An estimated cost from the model's listed prices when the run happened; not a bill.
+ *
+ * ``amount`` is a decimal string in ``currency`` (an ISO 4217 code).
+ */
+export const zPyGenerationCostEstimate = z.object({
+    amount: z.string(),
+    currency: z.string()
+});
+
+/**
  * PyGenerationCreatorScope
  *
  * A conversation started in a creator, about the item open in it (``null`` for an unsaved one).
@@ -3280,8 +3292,10 @@ export const zPyGenerationMarkSaved = z.object({
  *
  * The person's turn: ``draft_id`` (the draft it revises) and ``answers``.
  * The assistant's turn: ``run_id``, ``outcome`` (``draft``, ``questions``,
- * ``reply``, ``failed`` or ``stopped``), ``usage``, and where they apply
- * ``draft_id``, ``questions`` and ``error`` (``code`` and ``category``).
+ * ``reply``, ``failed`` or ``stopped``), ``usage``, ``model`` (the row the
+ * run named, and its reasoning effort when it named one), and where they
+ * apply ``cost`` (the run's estimate), ``draft_id``, ``questions`` and
+ * ``error`` (``code`` and ``category``).
  */
 export const zPyGenerationMessage = z.object({
     created_at: z.iso.datetime(),
@@ -3348,17 +3362,6 @@ export const zPyGenerationConversationList = z.object({
 });
 
 /**
- * PyGenerationConversationSnapshot
- *
- * A conversation with its messages in the order added and its drafts by position.
- */
-export const zPyGenerationConversationSnapshot = z.object({
-    conversation: zPyGenerationConversation,
-    drafts: z.array(zPyGenerationDraft),
-    messages: z.array(zPyGenerationMessage)
-});
-
-/**
  * PyGenerationRunRequest
  *
  * One request to the assistant.
@@ -3368,7 +3371,9 @@ export const zPyGenerationConversationSnapshot = z.object({
  * revise; without it the run writes a new draft of ``intent``.
  * ``avatar_expressions`` maps a family (as the page groups them) to the
  * names of the chosen preview Avatar's expressions: names only, which reach
- * the model as data.
+ * the model as data. ``reasoning_effort`` is one of the model row's listed
+ * levels, applied to every model request of the run; without it the model's
+ * default applies.
  */
 export const zPyGenerationRunRequest = z.object({
     answers: z.optional(z.union([
@@ -3386,10 +3391,80 @@ export const zPyGenerationRunRequest = z.object({
     intent: z.optional(z.enum(['gesture', 'reaction'])),
     message: z.string().min(1).max(4000),
     model_provider_id: z.string().min(1).max(255),
+    reasoning_effort: z.optional(z.union([
+        z.string().min(1).max(32),
+        z.null()
+    ])),
     ui_locale: z.optional(z.union([
         z.string().max(35),
         z.null()
     ]))
+});
+
+/**
+ * PyGenerationRunUsage
+ *
+ * One stored run's token use. ``plan`` is true for a run on the ChatGPT plan, which never has a ``cost``.
+ */
+export const zPyGenerationRunUsage = z.object({
+    cached_input_tokens: z.int(),
+    cost: z.union([
+        zPyGenerationCostEstimate,
+        z.null()
+    ]),
+    input_tokens: z.int(),
+    model_provider_id: z.union([
+        z.string(),
+        z.null()
+    ]),
+    output_tokens: z.int(),
+    plan: z.boolean(),
+    reasoning_tokens: z.int(),
+    requests: z.int(),
+    run_id: z.union([
+        z.string(),
+        z.null()
+    ])
+});
+
+/**
+ * PyGenerationConversationUsage
+ *
+ * A conversation's token use over its ``runs`` stored runs, and its last run's.
+ *
+ * ``cost`` adds the runs that have an estimate (``null`` when none has, or
+ * when they are in more than one currency). ``cost_complete`` is false when
+ * a run that made a model request has no estimate, so the amount covers
+ * only part of the conversation.
+ */
+export const zPyGenerationConversationUsage = z.object({
+    cached_input_tokens: z.int(),
+    cost: z.union([
+        zPyGenerationCostEstimate,
+        z.null()
+    ]),
+    cost_complete: z.boolean(),
+    input_tokens: z.int(),
+    last_run: z.union([
+        zPyGenerationRunUsage,
+        z.null()
+    ]),
+    output_tokens: z.int(),
+    reasoning_tokens: z.int(),
+    requests: z.int(),
+    runs: z.int()
+});
+
+/**
+ * PyGenerationConversationSnapshot
+ *
+ * A conversation with its messages in the order added, its drafts by position and its token use.
+ */
+export const zPyGenerationConversationSnapshot = z.object({
+    conversation: zPyGenerationConversation,
+    drafts: z.array(zPyGenerationDraft),
+    messages: z.array(zPyGenerationMessage),
+    usage: zPyGenerationConversationUsage
 });
 
 /**

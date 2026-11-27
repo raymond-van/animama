@@ -163,6 +163,29 @@ describe("generationRunBody", () => {
     });
   });
 
+  it("names the reasoning effort chosen for the model, and none without one", () => {
+    expect(
+      generationRunBody({
+        request,
+        modelProviderId: "model-1",
+        reasoningEffort: "high",
+      }),
+    ).toEqual({
+      message: "a shy wave",
+      model_provider_id: "model-1",
+      reasoning_effort: "high",
+      intent: "gesture",
+    });
+    for (const reasoningEffort of [null, undefined, ""])
+      expect(
+        generationRunBody({
+          request,
+          modelProviderId: "model-1",
+          reasoningEffort,
+        }),
+      ).not.toHaveProperty("reasoning_effort");
+  });
+
   it("drops names that may not reach a model and sends no empty family", () => {
     const body = generationRunBody({
       request,
@@ -457,6 +480,56 @@ describe("useGenerationRun", () => {
 
     act(() => result().dismissFailure());
     expect(result().run.failure).toBeNull();
+  });
+
+  it("sends the chosen effort with every run: a request, its retry and an answer", async () => {
+    const { result, rerender } = await mount({ reasoningEffort: "high" });
+    act(() => void result().send("a shy little wave"));
+    await settle();
+    await emit(
+      sseFrame("run.started", { run_id: "run-1" }),
+      sseFrame("run.failed", {
+        code: "openai_rate_limit",
+        category: "rate_limited",
+        details: {},
+      }),
+      sseFrame("run.completed", { usage: { requests: 1 } }),
+    );
+
+    act(() => void result().retry());
+    await settle();
+    await emit(
+      sseFrame("run.started", { run_id: "run-2" }),
+      sseFrame("questions", {
+        questions: [{ question: "Which hand?", options: ["Right", "Left"] }],
+      }),
+      sseFrame("run.completed", { usage: { requests: 1 } }),
+    );
+
+    act(
+      () => void result().answer([{ question: "Which hand?", answer: "Left" }]),
+    );
+    await settle();
+    expect(server.runs.map((run) => run.reasoning_effort)).toEqual([
+      "high",
+      "high",
+      "high",
+    ]);
+    expect(server.runs[2]).toMatchObject({
+      message: "a shy little wave",
+      answers: { answers: [{ question: "Which hand?", answer: "Left" }] },
+    });
+    await emit(sseFrame("run.completed", { usage: { requests: 1 } }));
+
+    // The level is read when a run starts: back at the model's default, none is named.
+    rerender({
+      conversationId: CONVERSATION,
+      modelProviderId: "model-1",
+      reasoningEffort: null,
+    });
+    act(() => void result().send("another wave"));
+    await settle();
+    expect(server.runs[3]).not.toHaveProperty("reasoning_effort");
   });
 
   it("reports a request the server refuses, with its code and reason", async () => {

@@ -9,8 +9,13 @@ that is run; its result goes back in the provider's own shape for another
 round, up to ``MAX_TOOL_ROUNDS`` responses. Within a pass, rounds after the
 first continue as chat's tool rounds do: on a route that keeps a cursor
 (OpenAI Responses on a key) the next request names the response it follows,
-and on the others it carries the exchange again. Model errors are raised as
-the model clients raise them.
+and on the others it carries the exchange again. Where the provider no longer
+has that response (an organisation that stores none, or one that expired), the
+round is sent again in full without the cursor, as chat does, and the rest of
+the pass goes without one. The pass says so (``PassCursorLost``), and the run
+tells its later passes (``PassSpec.stored_responses``), so a run spends at
+most one refused request. Every other model error is raised as the model
+clients raise it.
 """
 
 from __future__ import annotations
@@ -30,7 +35,12 @@ from animama.app.model_clients import (
     ModelClientToolResult,
 )
 from animama.app.model_clients.image_parts import ModelClientImage, image_part
-from animama.app.model_clients.tool_rounds import model_request_with_appended_messages, tool_exchange_prompt_items
+from animama.app.model_clients.tool_rounds import (
+    model_request_with_appended_messages,
+    model_request_without_continuation,
+    should_retry_without_previous_response_id,
+    tool_exchange_prompt_items,
+)
 from animama.domain import ModelProvider
 from animama.domain.usage import Usage
 from animama.logging import get_logger
@@ -62,6 +72,11 @@ class PassSpec:
 
     ``sheets`` are a review pass's contact sheets. ``can_ask`` is false once
     the person has answered or skipped the questions about their request.
+    ``reasoning_effort`` is the run's chosen level, already checked against
+    the row; ``None`` leaves the model's default. ``stored_responses`` is
+    false once an earlier pass of the run found that the provider could not
+    resolve a stored response: no round of this pass then names one, and
+    each carries the whole exchange.
     ``selector_in_use`` and ``example_reader`` are what the tools may ask of
     the owner's Library (see ``tools.run_tool``).
     """
@@ -71,6 +86,8 @@ class PassSpec:
     instructions: str
     message: str
     prompt_cache_key: str | None = None
+    reasoning_effort: str | None = None
+    stored_responses: bool = True
     sheets: tuple[ReviewSheet, ...] = ()
     can_ask: bool = True
     selector_in_use: SelectorInUse | None = None
@@ -91,10 +108,21 @@ class PassWriting:
 
 @dataclass(frozen=True)
 class PassRound:
-    """One model response arrived; ``usage`` is what the provider reported for it, or an estimate."""
+    """One model response arrived. ``usage`` is what the provider reported for it when ``usage_reported``;
+    otherwise the adapter's own figures: a rough count on a server that streams no usage, or nothing."""
 
     usage: Usage
     usage_reported: bool
+
+
+@dataclass(frozen=True)
+class PassCursorLost:
+    """The provider could not resolve the response a round continued from: the round is sent again without it.
+
+    Yielded once, before that round's response. No later round of the pass
+    names a stored response, and the run should start its later passes with
+    ``PassSpec.stored_responses`` false.
+    """
 
 
 @dataclass(frozen=True)
@@ -106,14 +134,15 @@ class PassEnded:
     rounds: int
 
 
-PassItem = PassText | PassWriting | PassRound | PassEnded
+PassItem = PassText | PassWriting | PassRound | PassCursorLost | PassEnded
 
 
 def pass_request(spec: PassSpec, intent: Intent) -> ModelClientRequest:
     """The pass's first request: the instructions, one user message and the pass's tools.
 
-    It names no reasoning effort (the model's default), no response format and
-    no continuation from anything before the pass. A review pass's sheets are
+    It names the run's reasoning effort in the prompt option chat uses, or
+    none for the model's default, and no response format and no continuation
+    from anything before the pass. A review pass's sheets are
     image parts of the user message, the only place model adapters read
     images, with their bytes on the request itself; they never get an id
     outside it.
@@ -138,6 +167,7 @@ def pass_request(spec: PassSpec, intent: Intent) -> ModelClientRequest:
             tool_choice="auto",
             parallel_tool_calls=False,
             prompt_cache_key=spec.prompt_cache_key,
+            reasoning_effort=cast(Any, spec.reasoning_effort),
         ),
         images=images,
     )
@@ -153,36 +183,61 @@ async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> 
     request. The pass also ends when a response holds no tool call, or after
     ``MAX_TOOL_ROUNDS`` responses, with ``draft`` as the last accepted call
     left it.
+
+    A round that names a stored response the provider cannot resolve is sent
+    once more without the cursor (the request already holds the whole
+    exchange), after a ``PassCursorLost``, and no later round of the pass
+    names one. That refused request is not a response, so it is neither a
+    round nor counted in the usage. With ``spec.stored_responses`` false the
+    pass names no stored response from its start.
     """
 
     offered = offered_tools(spec.kind, can_ask=spec.can_ask)
     request = pass_request(spec, draft.intent)
     text = ""
+    cursorless = not spec.stored_responses
     for round_number in range(1, MAX_TOOL_ROUNDS + 1):
         final: ModelClientFinal | None = None
         streamed, writing = False, False
-        stream = client.stream(request)
-        try:
-            async for delta in stream:
-                if delta.kind == "text_delta" and delta.text:
-                    streamed = True
-                    yield PassText(delta.text)
-                elif delta.kind == "event" and not writing and _begins_tool_call(delta):
-                    writing = True
-                    yield PassWriting()
-                elif delta.kind == "final" and delta.final is not None:
-                    final = delta.final
-                elif delta.kind == "error":
-                    raise ModelClientError(
-                        delta.error or "Model client stream failed",
-                        code="model_client_error",
-                        raw_metadata=delta.raw_metadata,
-                    )
-        finally:
-            # A pass stopped at one of its own events must not leave the provider's stream open behind it.
-            close = getattr(stream, "aclose", None)
-            if close is not None:
-                await close()
+        while True:
+            stream = client.stream(request)
+            try:
+                async for delta in stream:
+                    if delta.kind == "text_delta" and delta.text:
+                        streamed = True
+                        yield PassText(delta.text)
+                    elif delta.kind == "event" and not writing and _begins_tool_call(delta):
+                        writing = True
+                        yield PassWriting()
+                    elif delta.kind == "final" and delta.final is not None:
+                        final = delta.final
+                    elif delta.kind == "error":
+                        raise ModelClientError(
+                            delta.error or "Model client stream failed",
+                            code="model_client_error",
+                            raw_metadata=delta.raw_metadata,
+                        )
+            except ModelClientError as error:
+                if not should_retry_without_previous_response_id(
+                    error, request, partial_text_seen=streamed, allow_previous_response_retry=not cursorless
+                ):
+                    raise
+                _log.warning(
+                    "Generation pass replays a round without its stored response",
+                    pass_kind=spec.kind,
+                    round=round_number,
+                    code=error.code,
+                )
+                # The sheets ride on the request itself, so the replay keeps them.
+                cursorless, request = True, model_request_without_continuation(request, keep_images=True)
+                yield PassCursorLost()
+                continue
+            finally:
+                # A pass stopped at one of its own events must not leave the provider's stream open behind it.
+                close = getattr(stream, "aclose", None)
+                if close is not None:
+                    await close()
+            break
         if final is None:
             raise ModelClientError("Model client stream ended without a final result", code="model_client_error")
         text = final.text
@@ -219,6 +274,9 @@ async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> 
             # The request carries the sheets' bytes itself, and some routes take the whole input every round.
             keep_images=True,
         )
+        if cursorless:
+            # The provider keeps no response to continue from: every later round carries the whole exchange.
+            request = model_request_without_continuation(request, keep_images=True)
     yield PassEnded(end="round_limit", text=text, rounds=MAX_TOOL_ROUNDS)
 
 
@@ -235,6 +293,7 @@ def _result(call: ModelClientToolCall, output: str, *, ok: bool) -> ModelClientT
 
 
 __all__ = [
+    "PassCursorLost",
     "PassEnd",
     "PassEnded",
     "PassItem",

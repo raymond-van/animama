@@ -27,7 +27,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/components/popover";
-import { Slider } from "@/ui/components/slider";
+import {
+  ReasoningEffortSlider,
+  reasoningEffortLabel,
+} from "@/ui/components/reasoning-effort-slider";
 import {
   Tooltip,
   TooltipContent,
@@ -379,33 +382,6 @@ function attachmentDetails(
 function nativeToolLabel(t: TFunction<"chat">, tool: string) {
   if (tool === "web_search") return t("composer.model.webSearch");
   return tool.replaceAll("_", " ");
-}
-
-/**
- * Reasoning effort names, without changing the catalog's supported effort
- * values; an effort the app does not know shows its identifier, capitalized.
- */
-function reasoningEffortLabel(t: TFunction<"chat">, effort: string) {
-  switch (effort) {
-    case "none":
-      return t("composer.model.reasoningEfforts.none");
-    case "minimal":
-      return t("composer.model.reasoningEfforts.minimal");
-    case "low":
-      return t("composer.model.reasoningEfforts.low");
-    case "medium":
-      return t("composer.model.reasoningEfforts.medium");
-    case "high":
-      return t("composer.model.reasoningEfforts.high");
-    case "xhigh":
-      return t("composer.model.reasoningEfforts.xhigh");
-    case "max":
-      return t("composer.model.reasoningEfforts.max");
-    default:
-      return (
-        effort.charAt(0).toUpperCase() + effort.slice(1).replaceAll("_", " ")
-      );
-  }
 }
 
 /** Drives the model picker from outside it, e.g. the composer's no-key notice. */
@@ -770,41 +746,18 @@ function ChatInputModelSelector({
               <span className="size-7 shrink-0" aria-hidden="true" />
             </div>
             {reasoningEfforts.length > 1 ? (
-              <div className="relative mt-4">
-                <Slider
-                  min={0}
-                  max={reasoningEfforts.length - 1}
-                  step={1}
-                  value={[selectedEffortIndex]}
-                  disabled={isDisabled}
-                  onValueChange={([index]) => {
-                    const effort = reasoningEfforts[index];
-                    if (effort) handleReasoningChange(effort);
-                  }}
-                  thumbProps={{
-                    "aria-label": t("composer.model.reasoningEffort"),
-                    "aria-valuetext": effortLabel,
-                  }}
-                  className="[&_[data-slot=slider-thumb]]:border-border h-8 [&_[data-slot=slider-thumb]]:size-8 [&_[data-slot=slider-track]]:h-7"
-                />
-                <div
-                  className="pointer-events-none absolute inset-x-4 top-1/2 flex -translate-y-1/2 justify-between"
-                  aria-hidden="true"
-                >
-                  {reasoningEfforts.map((effort, index) => (
-                    <span
-                      key={effort}
-                      className={cn(
-                        "size-1 rounded-full",
-                        index < selectedEffortIndex
-                          ? "bg-primary-foreground/50"
-                          : "bg-muted-foreground/50",
-                        index === selectedEffortIndex && "opacity-0",
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
+              <ReasoningEffortSlider
+                className="mt-4"
+                stops={reasoningEfforts}
+                selectedIndex={selectedEffortIndex}
+                label={t("composer.model.reasoningEffort")}
+                valueText={effortLabel}
+                disabled={isDisabled}
+                onSelect={(index) => {
+                  const effort = reasoningEfforts[index];
+                  if (effort) handleReasoningChange(effort);
+                }}
+              />
             ) : activeItem && reasoningEfforts.length === 0 ? (
               <p className="text-muted-foreground mt-3 text-center text-xs">
                 {t("composer.model.noReasoning")}

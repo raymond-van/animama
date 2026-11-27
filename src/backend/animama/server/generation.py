@@ -56,7 +56,7 @@ from animama.app.generation.run import (
     model_unusable_reason,
     plan_run,
 )
-from animama.app.generation.service import CheckReportSignal, GenerationService
+from animama.app.generation.service import CheckReportSignal, GenerationService, is_unsettled
 from animama.app.generation.tools import EXAMPLE_NAMES
 from animama.app.model_clients import ModelClient
 from animama.app.services.content_portability import is_non_portable
@@ -93,6 +93,7 @@ _STATUS_BY_CODE: Final[Mapping[str, int]] = {
     "generation_nothing_to_restore": 409,
     "generation_draft_empty": 409,
     "generation_intent_unavailable": 422,
+    "generation_reasoning_effort_unsupported": 422,
     "generation_frame_not_an_image": 422,
     "generation_frame_too_large": 413,
 }
@@ -199,38 +200,35 @@ def _storage(app: FastAPI) -> Storage:
     return open_storage
 
 
-def _awaits_check(draft: GenerationDraft) -> bool:
-    """Whether the draft only waits for the page to check its current version, which is no run's step."""
-
-    return draft.status == "checking" and draft.checked_version != draft.version
-
-
 async def read_conversation(
     app: FastAPI, session: AsyncSession, owner_user_id: str, conversation_id: str
 ) -> GenerationConversationSnapshot:
-    """A conversation with its messages and drafts, after settling any draft a run abandoned.
+    """A conversation with its messages and drafts, after settling any draft whose status does not describe it.
 
-    A run settles its own draft when it ends. One that could not (the
-    process was killed, or stopping took longer than its bound) leaves the
-    draft in a step no run is doing. With no run in flight on the
-    conversation, each such draft is settled here by the rule a run itself
-    applies (``GenerationService.settle_draft``). A draft whose current
-    version has no report stays ``checking``, for the page to check.
+    A run settles its own draft when it ends. Two kinds of draft are left
+    for this read (``is_unsettled``): one a run could not settle (the process
+    was killed, or stopping took longer than its bound), which is still in a
+    step no run is doing; and one whose check report arrived after it was
+    left, while another run held the conversation, so that its status no
+    longer matches the report. With no run in flight on the conversation,
+    each is settled here by the rule a run itself applies
+    (``GenerationService.settle_draft``). A draft whose current version has
+    no report stays ``checking``, for the page to check.
     """
 
     service = generation_service(app, session)
     snapshot = await service.get_conversation(owner_user_id, conversation_id)
-    abandoned = [draft for draft in snapshot.drafts if draft.status in RUN_STATUSES and not _awaits_check(draft)]
+    unsettled = [draft for draft in snapshot.drafts if is_unsettled(draft, RUN_STATUSES)]
     # Asked right after the read, with nothing awaited between: a run in flight owns these statuses.
-    if not abandoned or generation_runtime(app).runs.running(owner_user_id, conversation_id):
+    if not unsettled or generation_runtime(app).runs.running(owner_user_id, conversation_id):
         return snapshot
-    for draft in abandoned:
+    for draft in unsettled:
         try:
             # Read again under its row's hold, so a draft settled or discarded meanwhile is left as it is.
             await service.settle_draft(owner_user_id, draft.id, RUN_STATUSES)
         except GenerationNotFoundError:
             continue
-    _log.info("Generation drafts settled on read", conversation_id=conversation_id, draft_count=len(abandoned))
+    _log.info("Generation drafts settled on read", conversation_id=conversation_id, draft_count=len(unsettled))
     return await service.get_conversation(owner_user_id, conversation_id)
 
 
@@ -425,6 +423,7 @@ async def start_generation_run(
             ui_locale=body.ui_locale,
             answers=body.answers.model_dump() if body.answers is not None else None,
             avatar_expressions=body.avatar_expressions,
+            reasoning_effort=body.reasoning_effort,
         )
         client, author = _author_or_client(app, model_provider)
         library = await _authoring_library(
@@ -586,7 +585,9 @@ async def record_check_report(
     and decides what follows. With no run in flight (a restored version, or
     one a stopped run left unchecked) the report itself says how the draft is
     left: ready, with warnings, or failed. A draft that never had a project
-    stays as it failed.
+    stays as it failed. A report for a draft the run in flight is not working
+    on is stored too; the next read of the conversation after that run
+    settles the draft from it (``read_conversation``).
     """
 
     report = body.stored()

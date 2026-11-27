@@ -44,8 +44,7 @@ from animama.domain.generation import (
     GenerationMessage,
     GenerationNotFoundError,
 )
-from animama.domain.model_connection import MODEL_KIND_CHAT
-from animama.domain.usage import Usage
+from animama.domain.model_connection import MODEL_KIND_CHAT, MODEL_SOURCE_OWNER
 from animama.logging import failure_site, get_logger
 
 from . import prompts
@@ -58,10 +57,11 @@ from .check_report import (
 )
 from .deterministic_author import DeterministicAuthor
 from .draft_validation import Intent, SelectorInUse
-from .passes import PassEnd, PassRound, PassSpec, PassText, PassWriting, run_pass
+from .passes import PassCursorLost, PassEnd, PassRound, PassSpec, PassText, PassWriting, run_pass
 from .review_frames import MAX_REVIEW_SHEETS, ReviewFrameStore, ReviewSheet
 from .service import CheckReportSignal, GenerationService
 from .tools import ExampleReader, PassKind, WorkingDraft, offered_tools, run_tool
+from .usage import RunCostMeter, RunUsage, run_model
 
 _log = get_logger("app.generation.run")
 
@@ -75,6 +75,17 @@ REPORT_POLL_SECONDS: Final = 1.0
 """How often a waiting run reads the database again when nothing wakes it."""
 MAX_REPLY_LENGTH: Final = 8000
 """Characters kept of the assistant's text for one run."""
+MIN_CONTEXT_WINDOW_TOKENS: Final = 64_000
+"""The smallest recorded context window a run's model may have.
+
+A pass sends 16,000 to 24,000 tokens (the guidance, the clip and its
+findings), and its tool rounds send the clip again with each result, so a
+smaller window fails part-way through a draft. The page lists a model below
+this figure as one that cannot be chosen, by the same number: the shared
+fixture ``ui/generate/fixtures/model-requirements.json`` under the web
+sources is the parity record that this constant and the page's are each
+tested against.
+"""
 
 NO_VALID_DRAFT: Final = "generation_no_valid_draft"
 """A pass ended without a draft that validates."""
@@ -110,14 +121,23 @@ class GenerationDraftEmptyError(GenerationError):
     code = "generation_draft_empty"
 
 
+class GenerationReasoningEffortUnsupportedError(GenerationError):
+    """The run names a reasoning effort its model cannot run a pass at."""
+
+    code = "generation_reasoning_effort_unsupported"
+
+
 def model_unusable_reason(model_provider: ModelProvider | None) -> str | None:
     """Why a run cannot use this model row, as a reason code; ``None`` when it can.
 
     The row must exist, be active on an active connection, be a chat model
-    that calls tools, and be one chat itself could use on its connection. A
-    missing key or sign-in is not checked here: the request fails with the
-    model client's own code, as it does in chat. There is no fallback to
-    another model (decision D9).
+    that calls tools and streams, have room for a pass in its context window,
+    and be one chat itself could use on its connection. A recorded window
+    must be at least ``MIN_CONTEXT_WINDOW_TOKENS``; a row may record none
+    where chat accepts that (a built-in row), and the owner's own model must
+    record one, as in chat. A missing key or sign-in is not checked here: the
+    request fails with the model client's own code, as it does in chat. There
+    is no fallback to another model (decision D9).
     """
 
     if model_provider is None:
@@ -130,11 +150,44 @@ def model_unusable_reason(model_provider: ModelProvider | None) -> str | None:
         return "not_chat_model"
     if not model_provider.capabilities.supports_tools:
         return "tools_unsupported"
+    if not model_provider.capabilities.supports_streaming:
+        return "streaming_unsupported"
+    window = model_provider.context_window_tokens
+    if window is None and model_provider.source == MODEL_SOURCE_OWNER:
+        return "context_window_missing"
+    if window is not None and window < MIN_CONTEXT_WINDOW_TOKENS:
+        return "context_too_small"
     try:
         validate_model_provider_for_direct_turn(model_provider, request_options=DirectChatOptions())
     except DirectChatTurnSetupError:
         return "unsupported"
     return None
+
+
+def accepted_reasoning_effort(model_provider: ModelProvider, reasoning_effort: str | None) -> str | None:
+    """The reasoning effort a run sends with every pass; ``None`` leaves the model's own default.
+
+    A named level must be one chat could send to this row with function
+    tools in the request, which every pass has: the row lists it, and the
+    route takes tools at it (OpenAI's Chat Completions takes them on its
+    newer models at ``none`` only). Chat's own validator decides, so the two
+    never disagree. Raises ``GenerationReasoningEffortUnsupportedError``
+    otherwise; ``model_provider`` has already passed ``model_unusable_reason``.
+    """
+
+    effort = reasoning_effort.strip() if isinstance(reasoning_effort, str) else ""
+    if not effort:
+        return None
+    try:
+        validate_model_provider_for_direct_turn(
+            model_provider,
+            request_options=DirectChatOptions(reasoning_effort=effort),
+            # The flag stands for "function tools ride on this request", which is what blocks an effort.
+            memory_tools_active=True,
+        )
+    except DirectChatTurnSetupError as error:
+        raise GenerationReasoningEffortUnsupportedError from error
+    return effort
 
 
 @dataclass(frozen=True)
@@ -145,7 +198,8 @@ class RunInput:
     is ``None`` while the request may still be asked about; otherwise what
     the person said to the questions, as ``prompts.write_message`` takes it.
     ``recent_turns`` are the conversation's last text turns before this
-    request.
+    request. ``reasoning_effort`` is the level every pass names, or ``None``
+    for the model's default.
     """
 
     owner_user_id: str
@@ -158,6 +212,7 @@ class RunInput:
     answers: Mapping[str, Any] | None
     recent_turns: tuple[Mapping[str, str], ...]
     avatar_expressions: Mapping[str, object] | None
+    reasoning_effort: str | None = None
 
     @property
     def can_ask(self) -> bool:
@@ -231,12 +286,15 @@ def plan_run(
     ui_locale: str | None = None,
     answers: Mapping[str, Any] | None = None,
     avatar_expressions: Mapping[str, object] | None = None,
+    reasoning_effort: str | None = None,
 ) -> RunInput:
     """Plan a run on the owner's conversation, or refuse it with a ``GenerationError``.
 
     ``draft_id`` must be a draft of this conversation that holds a project,
     and a revision takes its draft's intent. Reactions are refused until
-    their guidance exists (the plan's Phase 5). Questions are asked once for a
+    their guidance exists (the plan's Phase 5). ``reasoning_effort`` must be
+    a level the model can run a pass at (``accepted_reasoning_effort``); a
+    blank one counts as none. Questions are asked once for a
     request whatever the caller sends: while the assistant's questions are
     outstanding (no run has used answers to them yet, however many failed or
     were stopped before they stored a draft), this run answers them, with
@@ -253,6 +311,7 @@ def plan_run(
         intent = draft.intent
     if intent != "gesture":
         raise GenerationIntentUnavailableError
+    effort = accepted_reasoning_effort(model_provider, reasoning_effort)
     conversation = snapshot.conversation
     turns = tuple({"role": turn.role, "text": turn.text} for turn in snapshot.messages[-prompts.MAX_RECENT_TURNS :])
     return RunInput(
@@ -266,6 +325,7 @@ def plan_run(
         answers=_given_answers(answers) if _questions_outstanding(snapshot.messages) else None,
         recent_turns=turns,
         avatar_expressions=avatar_expressions,
+        reasoning_effort=effort,
     )
 
 
@@ -321,26 +381,6 @@ class RunFailed:
     code: str
     category: str
     details: Mapping[str, Any]
-
-
-@dataclass(frozen=True)
-class RunUsage:
-    """Tokens the run's model responses reported, added up; ``requests`` counts the responses."""
-
-    input_tokens: int = 0
-    cached_input_tokens: int = 0
-    output_tokens: int = 0
-    reasoning_tokens: int = 0
-    requests: int = 0
-
-    def plus(self, usage: Usage) -> RunUsage:
-        return RunUsage(
-            input_tokens=self.input_tokens + (usage.input_tokens or 0),
-            cached_input_tokens=self.cached_input_tokens + (usage.input_tokens_details.cached_tokens or 0),
-            output_tokens=self.output_tokens + (usage.output_tokens or 0),
-            reasoning_tokens=self.reasoning_tokens + (usage.output_tokens_details.reasoning_tokens or 0),
-            requests=self.requests + 1,
-        )
 
 
 @dataclass(frozen=True)
@@ -445,6 +485,10 @@ class GenerationRun:
             model=plan.model_provider.model,
         )
         self._usage = RunUsage()
+        self._cost = RunCostMeter(plan.model_provider)
+        # False once a pass found that the provider keeps no response to continue from: the run's later
+        # passes then name none, so the whole run spends at most one refused request on finding out.
+        self._stored_responses = True
         self._reply = _Reply()
         self._outcome: RunOutcome = "stopped"
         self._questions: list[Mapping[str, Any]] = []
@@ -479,6 +523,7 @@ class GenerationRun:
             message_length=len(plan.message),
             recent_turn_count=len(plan.recent_turns),
             can_ask=plan.can_ask,
+            reasoning_effort=plan.reasoning_effort,
             deterministic_author=self._author is not None,
         )
         yield RunStarted(self.run_id)
@@ -697,6 +742,8 @@ class GenerationRun:
                 instructions=self._instructions,
                 message=message,
                 prompt_cache_key=self._cache_key,
+                reasoning_effort=plan.reasoning_effort,
+                stored_responses=self._stored_responses,
                 sheets=tuple(sheets),
                 can_ask=plan.can_ask,
                 selector_in_use=self._selector_in_use,
@@ -712,8 +759,12 @@ class GenerationRun:
                             announced = True
                             yield Progress("writing", draft_id)
                     elif isinstance(item, PassRound):
+                        # The totals keep every response's figures; only a provider's own report is priced.
                         self._usage = self._usage.plus(item.usage)
+                        self._cost.add(item.usage, reported=item.usage_reported)
                         self._reply.end_piece()
+                    elif isinstance(item, PassCursorLost):
+                        self._stored_responses = False
                     else:
                         self._pass_end, self._pass_text, rounds = item.end, item.text, item.rounds
         _log.info(
@@ -814,8 +865,10 @@ class GenerationRun:
         storage's rule (``GenerationService.settle_draft``): deleted when it
         never got a project, described by the report of its current version,
         or back to ``checking`` for the page to check. The assistant's
-        message is stored once, with the outcome and the token use. A draft
-        or conversation that is gone is left alone.
+        message is stored once, with the outcome, the token use, the model
+        the run named and, where that model has a price, the estimate of
+        what the run cost (``usage.py``). A draft or conversation that is
+        gone is left alone.
 
         The message names the draft only when the run left it changed: a new
         draft that was kept or that the page was shown before the person
@@ -842,7 +895,17 @@ class GenerationRun:
             elif settled.status != self._told_status:
                 changed = settled
         if self._request_stored and not self._reply_stored:
-            data: dict[str, Any] = {"run_id": self.run_id, "outcome": self._outcome, "usage": asdict(self._usage)}
+            data: dict[str, Any] = {
+                "run_id": self.run_id,
+                "outcome": self._outcome,
+                "usage": asdict(self._usage),
+                "model": run_model(self._plan.model_provider, self._plan.reasoning_effort),
+            }
+            # The estimate itself is stored, at the prices the row had when the run started, so a later price
+            # change does not rewrite the turn.
+            estimate = self._cost.estimate()
+            if estimate is not None:
+                data["cost"] = estimate.stored()
             if self._draft_id is not None:
                 data["draft_id"] = self._draft_id
             if self._questions:
@@ -864,6 +927,7 @@ __all__ = [
     "CHECK_WAIT_SECONDS",
     "FRAMES_WAIT_SECONDS",
     "MAX_REPAIR_PASSES",
+    "MIN_CONTEXT_WINDOW_TOKENS",
     "NO_VALID_DRAFT",
     "RUN_FAILED",
     "RUN_STATUSES",
@@ -871,6 +935,7 @@ __all__ = [
     "FramesRequested",
     "GenerationDraftEmptyError",
     "GenerationIntentUnavailableError",
+    "GenerationReasoningEffortUnsupportedError",
     "GenerationRun",
     "MessageDelta",
     "Progress",
@@ -883,6 +948,7 @@ __all__ = [
     "RunStarted",
     "RunUsage",
     "Storage",
+    "accepted_reasoning_effort",
     "model_unusable_reason",
     "plan_run",
 ]

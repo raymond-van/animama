@@ -44,19 +44,29 @@ owner's preferences as `generation.model_provider_id`. It is the assistant's
 own choice, not a [model role](model-settings.md#default-models): it has no
 default, and no run falls back to another model.
 
-- Any chat model can be chosen that calls tools, streams, is shown in model
-  lists and is active on an active connection, whichever connection that is.
-  ChatGPT plan models are listed first. A model chat itself cannot use is not
-  listed either, by the rule the chat's model picker disables rows with
-  (`chatModelUnusableReason`): one of the owner's own models has no context
-  window yet, or the app has no API for it.
+- The model control and setup list every chat model that is shown in model
+  lists and active on an active connection, whichever connection that is,
+  with ChatGPT plan models first. A model the assistant cannot use is listed
+  disabled, with the reason:
+
+  | Reason | The model |
+  | --- | --- |
+  | Cannot call tools | does not support tool calling, which every pass uses. |
+  | Cannot stream replies | does not stream. |
+  | Needs a context window of at least 64,000 tokens | records a smaller one. A pass sends 16,000 to 24,000 tokens and its tool rounds send the clip again. |
+  | Set its context window in App Settings → Models | is one of the owner's own models with no context window recorded yet, which chat needs too. |
+  | Not available for direct chat yet | has no API the app can talk to, as in the chat's model picker. |
+
+  A built-in model that records no context window can be chosen, as in chat.
+- Larger models write better motion; smaller ones need more repairs or leave
+  more warnings. Setup and the model control say so, and name no model.
 - With no usable choice the page shows setup instead: none was made yet, or
   the chosen model was removed, hidden, or retired by signing out of the
   plan. Setup offers the [ChatGPT plan card](model-settings.md#chatgpt-plan)
   with **Continue with ChatGPT** where the plan connection offers sign-in,
-  the models that can be chosen, and the way to model connections in App
-  Settings → Models for any other model, such as one on a Claude API key.
-  Setup can be reopened from the model control.
+  the model list, and the way to model connections in App Settings → Models
+  for any other model, such as one on a Claude API key. Setup can be
+  reopened from the model control.
 - While the chosen model is a ChatGPT plan model, the model control ends with
   "Using ChatGPT plan" and **Manage usage**, as the chat's model picker does.
 - A model that does not accept images writes, checks and repairs drafts but
@@ -65,7 +75,55 @@ default, and no run falls back to another model.
   not while a run is in flight.
 
 The backend checks the model again when a run starts and refuses one it
-cannot use with `generation_model_unusable` and a reason.
+cannot use with `generation_model_unusable` and a reason. The 64,000-token
+figure is one backend constant (`MIN_CONTEXT_WINDOW_TOKENS`) that the page
+mirrors (`MIN_GENERATION_CONTEXT_WINDOW_TOKENS`). Each is tested against the
+parity record `web/src/ui/generate/fixtures/model-requirements.json`; change
+the three together.
+
+### Reasoning effort
+
+Where the chosen model offers reasoning effort levels, the model control
+shows the chat picker's slider. Its first stop is **Model default**, which
+names no level, and the others are the model's levels in order. A model that
+offers none shows no control.
+
+The choice is remembered for each model by itself, in the owner's preferences
+as `generation.reasoning_efforts.<model id>`, so changing model and changing
+back keeps both levels. Every model request of a run names the chosen level,
+including a retry and a run that answers the assistant's questions; with
+**Model default** none is named. Unlike chat, the assistant preselects no
+level.
+
+The backend refuses a level the model cannot run a pass at with
+`generation_reasoning_effort_unsupported`: one the model does not list, or,
+on OpenAI's Chat Completions API, any level but `none` on the models that
+take function tools at no reasoning only.
+
+### Token use and cost
+
+Once a run has made a model request, the model control shows the last run's
+input and output tokens and the open conversation's totals.
+
+- **Key-based model with a listed price.** Each line ends with an estimated
+  cost. The backend works it out from the prices the model had when the run
+  started and stores the estimate with the run, so a later price change or a
+  removed model does not alter it. It is an estimate, not a bill: it uses
+  the standard input, cached-input and output prices only.
+- **Model without a listed price**, such as most of the owner's own models:
+  tokens only.
+- **Claude API key.** The estimate is usually absent. The first response of
+  a run writes Anthropic's prompt cache, and Animama has no price for cache
+  writes, so the run is left without an estimate instead of an understated
+  one. Token use still shows.
+- **Server that reports no token use.** The tokens shown for such a response
+  are Animama's own rough count, and the run has no estimate.
+- **ChatGPT plan model.** Tokens only, with the plan notice in place of a
+  cost. A plan run never gets an estimate, and no amount is shown at all
+  while a plan model is chosen.
+
+A conversation that used more than one model adds up the runs that have an
+estimate and says that the amount covers only those.
 
 ## Asking
 
@@ -185,8 +243,10 @@ Each step below is a fresh request, a *pass*:
    check. Findings that only warn are passed along but start no repair.
 4. One frame review, when the model accepts images: the page draws one
    contact sheet for each Included Avatar, with a row for each beat (at most
-   six) showing the front, three-quarter, side and face views. The assistant
-   accepts the draft or makes one edit, which the page checks once more.
+   six) showing the front, three-quarter, side and face views. A sheet
+   reaches the model at the size it was drawn, up to 2,048 pixels on its
+   longer edge. The assistant accepts the draft or makes one edit, which the
+   page checks once more.
 5. The draft is left `ready`, `warnings` or `failed`.
 
 | Limit | Value |
@@ -221,17 +281,28 @@ draw them, for example with no preview canvas showing.
   are stored and return. When a conversation is opened, the page checks any
   draft whose current version was never checked, and the backend first
   settles a draft that a run left in one of its steps, so no draft stays
-  `repairing` after a restart.
+  `repairing` after a restart. It also settles a draft whose check report
+  arrived after the draft was left, while another run held the
+  conversation, so the draft reads as that report describes it.
 - **Checks that cannot run.** If the page cannot run a draft's checks or
   send its report, the draft says so and offers to check again.
 - **Model failures.** An expired sign-in, a plan or rate limit, a missing
   key or a provider error ends the run with the notice chat shows for the
   same failure, beside the request that failed, with **Manage usage** at a
   ChatGPT plan usage limit. The conversation and its drafts are kept, and no
-  other model is used unless the person chooses one. The request can be
-  sent again with **Try again**, unless the failed run had already stored
-  its draft: a second pass would write a second draft, or replace the
-  version a restore returns to.
+  other model is used unless the person chooses one: **Choose another
+  model** opens the model control. The request can be sent again with
+  **Try again**, unless the failed run had already stored its draft: a
+  second pass would write a second draft, or replace the version a restore
+  returns to. A request that never reached the backend can always be sent
+  again, whatever the run before it stored.
+- **A stored response OpenAI no longer has.** On an OpenAI API key's
+  Responses models, a pass's later tool rounds continue from the response
+  OpenAI stored. Where the organisation stores none, or the response
+  expired, the round is sent once more in full, as chat does for a stale
+  cursor, and the rest of the run sends the whole exchange each round. A run
+  spends at most one refused request this way, and goes on without a
+  notice.
 - **The assistant's own failures** are worded from their codes in the
   `errors` catalog's `generation` area:
 
@@ -239,7 +310,8 @@ draw them, for example with no preview canvas showing.
   | --- | --- |
   | `generation_no_valid_draft` | A pass ended without a draft that validates. A new draft is listed as `failed`; a revision leaves its draft unchanged. |
   | `generation_draft_unloadable` | The page could not load the draft's current version, so the draft is `failed`. |
-  | `generation_model_unusable` | The chosen model cannot run, with a reason such as `tools_unsupported` or `connection_inactive`. |
+  | `generation_model_unusable` | The chosen model cannot run, with a reason such as `tools_unsupported`, `context_too_small` or `connection_inactive`. |
+  | `generation_reasoning_effort_unsupported` | The chosen model cannot run a pass at the chosen reasoning effort. |
   | `generation_run_in_progress` | The conversation already has a run in flight. |
   | `generation_stream_interrupted`, `generation_request_failed` | The connection was lost during a run, or the request never reached the backend. Drafts already stored are kept. |
   | `generation_run_failed` | Any other failure. |
@@ -271,8 +343,8 @@ What the provider keeps depends on the connection:
   does not store it as a response.
 - **OpenAI API key, Responses models.** Requests are stored by OpenAI as
   responses, review sheets included, as the requests of an ordinary (not
-  incognito) chat are. Later tool rounds of a pass continue from the stored
-  response.
+  incognito) chat are, unless the organisation has turned storage off. Later
+  tool rounds of a pass continue from the stored response where there is one.
 - **Anthropic and Chat Completions models.** Animama sets no storage option,
   and the provider's own retention rules apply.
 
@@ -284,5 +356,5 @@ installation's database
 ([data model](../../backend/architecture/data-model.md#content-assistant)).
 Discarding a draft or a conversation deletes its rows. Review frames are
 never stored: the backend holds them in memory for one review. The token use
-a run reported is stored with the assistant's turn; the page does not show
-it.
+a run reported is stored with the assistant's turn, with the model it ran on,
+its reasoning effort and, where the model had a price, the estimated cost.

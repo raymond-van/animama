@@ -6,8 +6,9 @@ at 2026-11-27T16:19:34Z, after the owner added R2.5 (R3.7 was added on 2026-11-2
 and P3 to P12. It was revised on 2026-11-26 where delivered work changed a
 fact (the ChatGPT plan connection, #919, and chat image input, #904), and the
 owner added R3.7 the same day.
-Authorized scope: Phases 0 to 3. The owner approved this plan on 2026-11-26
-(G0), including D1 to D17, and authorized Phases 0 to 3 the same day. D18 to
+Authorized scope: Phases 0 to 7. The owner approved this plan on 2026-11-26
+(G0), including D1 to D17, and authorized Phases 0 to 3 the same day and
+Phases 4 to 7 on 2026-11-27, with the merge of the first pull request. D18 to
 D20 were added after G0 to meet R3.7. Gates G1 to G8 still apply where the
 phases name them.
 Planning baseline: `origin/main` at `4ba6db1c5`, which the line numbers below
@@ -299,7 +300,10 @@ provider, and, in Phase 8, an outside client and the backend.
   [#956](https://github.com/raymond-van/animama/pull/956), opened 2026-11-27
   for the owner's review. The model list decision (INT-F2) and gates G4, G7
   and G8 are open in it; hosted Validation waits for the `ci:full` label.
-- [ ] Phase 4: other Model connections, usage and cost.
+- [x] Phase 4: other Model connections, reasoning effort, usage and cost
+  (2026-11-27). Raised to the high-risk tier in review; Code Review #2
+  passed. The manual check on a key-based model (G2) waits for the owner's
+  spend approval.
 - [ ] Phase 5: the creator control, revising and Reactions.
 - [ ] Phase 6: batches and effects on the timeline.
 - [ ] Phase 7: references and presets (C3).
@@ -1657,8 +1661,122 @@ estimate.
 Manual check (G2): one request on one key-based model, within the spend the
 owner approves.
 
-Records: no checks run, commits or reviews yet. Code Review #1 Findings and
-Revisions go here.
+Records. As built:
+
+- **Reasoning effort (R2.5).** A run takes an optional `reasoning_effort`.
+  Chat's own validator checks it against the model row, and a level the row
+  cannot run a pass at is refused with
+  `generation_reasoning_effort_unsupported`. It is applied to every pass and
+  round. The page keeps one level per model in preferences and sends it with
+  each run; its first stop is the model's default, which sends nothing. The
+  slider moved out of chat's composer into a component both use.
+- **Eligibility with reasons (R2.2).** A model needs a recorded context
+  window of at least 64,000 tokens. The backend refuses others with a reason
+  (`context_too_small`, `context_window_missing`, `streaming_unsupported`
+  beside the earlier ones), and the page lists such models disabled with the
+  reason in words. A fixture read by a backend test and a page test keeps
+  the two sides' figure the same.
+- **Token use and cost (R6.3).** A run's assistant turn stores the model and,
+  when every response reported its usage and could be priced, a cost
+  estimate from the prices the row had when the run started. The
+  conversation snapshot carries totals and the last run. The model control
+  shows them. A ChatGPT plan run never stores an amount, and the page shows
+  none while a plan model is chosen.
+- **Unstored responses (R2.4).** A pass whose provider has lost the stored
+  response replays the exchange once without the cursor, and the rest of
+  the run sends none, so a run spends at most one refused request. Chat's
+  helpers for this moved to `app/model_clients/tool_rounds.py`. The failure
+  notice offers "Choose another model" beside Try again.
+- **Carried findings.** A draft whose status disagrees with a report that
+  arrived while another run held the conversation is settled on the next
+  read (P3-R2-F1). The rule that hides Try again compares run ids
+  (P3-R2-F2). A review sheet may be 2,048 pixels on its long edge; chat
+  images keep their cap (INT-F3).
+- **What to expect.** One neutral sentence in setup and the model control
+  says that larger models write better motion and smaller ones need more
+  repairs. No model is ranked by name.
+- **Contract.** `local-http` and `runtime-contracts` take the next versions
+  after the first pull request's.
+
+Review tier: raised to high risk during review, because the phase changes
+the API contract and the generated client (P4-R1-F1).
+
+Known limits, for the owner:
+
+- **A Claude API key usually shows no cost estimate.** The Anthropic client
+  caches the instructions, a run's first response reports cache-write
+  tokens, and the price table has no rate for cache writes, so the run gets
+  no estimate. Token use still shows. Giving cache writes a rate is a
+  pricing decision outside this plan.
+- **Some effort levels are offered and then refused** on OpenAI Chat
+  Completions rows of recent models, where a request with tools accepts
+  only the default. The refusal is worded and the model's default works.
+- **C5 is not settled.** No model has been compared beyond the plan
+  model's live checks; the manual check on a key-based model (G2) waits for
+  the owner's spend approval.
+- `scripts/generation_probe.py` no longer mirrors a product run and is
+  kept only until C5 is settled.
+
+Not verified: any of this in a browser, a live key-based provider (including
+an organisation that stores no responses), and the translations by a reader
+of each language.
+
+Check record, on working tree `d15130e3d58d65221b15716c64f126dbb5178b92`,
+each rerun by the checks reviewer with the same result:
+
+| Check | Result |
+| --- | --- |
+| `uv run --no-sync pytest -q -p no:cacheprovider` on the six `tests/test_generation_*.py` files, `test_model_client_tool_rounds.py`, `test_product_http_inventory.py`, `test_openapi_export.py`, `test_direct_chat_turn_executor.py`, `test_anima_chat_sse.py` | 880 passed |
+| Fourteen further test files over the moved shared code (images, uploads, the model clients, chat turns, pricing, boundaries) | 363 passed |
+| The generation test files with two workers | 583 passed |
+| `ruff check`; `ruff format --check src/backend/animama tests scripts`; `mypy src/backend/animama tests`; the import boundary; `python -m unittest discover -s scripts/ci -p 'test_*.py'`; `check_source.py` | Clean; 971 files; no forbidden edge; 143 OK; every file covered (the format check by the coordinator only) |
+| From `src/frontend`: `pnpm openapi-ts:check`; `packages:build`, `packages:check`, `packages:test`; `pnpm web:test` through the heavy slot; `pnpm check`; `pnpm web:lint`; `pnpm prettier:check`; `pnpm e2e:check:source` | Current; exit 0; 725 files and 7,051 tests passed; clean (the Prettier check by the coordinator only) |
+| Journey `generate-gesture` on a disposable built stack (on the tree before the repair, which changed no page code) | 2 passed |
+
+The checks reviewer also confirmed that chat's own slider tests drive the
+moved component (18 passed), that changing the context figure on either side
+alone fails a test, and that letting a plan run store or show an amount
+fails a test on each side.
+
+Not run: the full pre-push suite and the package-set `compare`, which run
+on the pull request's candidate.
+
+#### Code Review #1 Findings
+
+Independent review of working tree
+`fe1ab6f53943926649e22718022c010da179cd02` against `8c0ef1560`, begun at the
+standard tier. Result: blocked by F1; no code defect was Required.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P4-R1-F1 | Required | The phase changes the API contract and the generated client, which the tier table makes high risk. |
+| P4-R1-F2 | Optional | A Claude API key model almost never shows a cost estimate, because its first response writes the prompt cache and cache writes have no price. |
+| P4-R1-F3 | Optional | A response that reported no usage was priced as zero, so a run could show an understated estimate. |
+| P4-R1-F4 | Optional | `data-model.md` said prices are read when the run ended; the code reads them when it starts. |
+| P4-R1-F5 | Optional | The page offers effort levels that some OpenAI Chat Completions rows always refuse. |
+
+The reviewer also observed that the state after a lost stored response
+lasted one pass, so each later pass spent one more refused request.
+
+#### Code Review #1 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P4-R1-F1 | Accepted: the phase is high risk. A checks reviewer reran the affected checks independently, and the repair was rechecked. The full pre-push suite stays with the pull request's candidate, by the owner's standing instruction. |
+| P4-R1-F2 | Documented in the feature page and the API page as the usual case on a Claude API key; pricing is unchanged and the owner is told. |
+| P4-R1-F3 | Fixed: one unreported response leaves the run without an estimate. |
+| P4-R1-F4 | Fixed. |
+| P4-R1-F5 | Not acted on: the refusal is worded and the model's default works. |
+
+The lost-response state now lasts the run.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `d15130e3d58d65221b15716c64f126dbb5178b92`
+at the high-risk tier, with the independent checks rerun above. Result:
+pass, with no finding. One repair round of the two allowed was used.
+
+Phase commit: this commit (`feat(generate)[p4]`).
 
 ### Phase 5: The creator control, revising and Reactions
 

@@ -68,12 +68,20 @@ function modelChoice(
 ): GenerationModelChoice {
   return {
     models: [],
+    // Every model given can be chosen, unless the test lists others too.
+    listed: (overrides.models ?? []).map((item) => ({
+      item,
+      unavailable: null,
+    })),
     model: null,
     isPending: false,
     isError: false,
     retry: vi.fn(),
     choose: vi.fn(async () => {}),
     isChoosing: false,
+    efforts: [],
+    effort: null,
+    chooseEffort: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -167,6 +175,68 @@ describe("the Generate page", () => {
     const root = page();
     expect(find("generate-setup")).toBeNull();
     expect(root.textContent).toContain("Opening Generate…");
+  });
+
+  it("lists a model the assistant cannot use with the reason, and says what to expect of a model", () => {
+    const models = [row("gpt-key")];
+    fixture.model = modelChoice({
+      models,
+      listed: [
+        { item: models[0]!, unavailable: null },
+        { item: row("no-tools"), unavailable: "tools_unsupported" },
+        { item: row("tiny"), unavailable: "context_too_small" },
+      ],
+    });
+    page();
+    const setup = find("generate-setup")!;
+    const unavailable = [
+      ...setup.querySelectorAll<HTMLElement>(
+        '[data-testid="generate-model-unavailable"]',
+      ),
+    ];
+    expect(
+      unavailable.map((item) => [
+        item.dataset.modelId,
+        item.dataset.reason,
+        item.getAttribute("aria-disabled"),
+      ]),
+    ).toEqual([
+      ["no-tools", "tools_unsupported", "true"],
+      ["tiny", "context_too_small", "true"],
+    ]);
+    expect(unavailable[0]!.textContent).toContain("Cannot call tools");
+    expect(unavailable[1]!.textContent).toContain(
+      "Needs a context window of at least 64,000 tokens",
+    );
+    // Only the model that can be chosen is an option.
+    expect(
+      [
+        ...setup.querySelectorAll<HTMLElement>(
+          '[data-testid="generate-model-option"]',
+        ),
+      ].map((option) => option.dataset.modelId),
+    ).toEqual(["gpt-key"]);
+    expect(setup.textContent).toContain(
+      "Models the assistant cannot use are listed with the reason.",
+    );
+    expect(setup.textContent).toContain(
+      "Larger models write better motion; smaller ones need more repairs or leave more warnings.",
+    );
+  });
+
+  it("still lists the models that cannot be chosen when none can", () => {
+    fixture.model = modelChoice({
+      listed: [{ item: row("no-tools"), unavailable: "tools_unsupported" }],
+    });
+    page();
+    const setup = find("generate-setup")!;
+    expect(setup.textContent).toContain("No model can be used yet.");
+    expect(
+      setup.querySelector('[data-testid="generate-model-unavailable"]'),
+    ).not.toBeNull();
+    expect(
+      setup.querySelector('[data-testid="generate-model-option"]'),
+    ).toBeNull();
   });
 
   it("opens on the workspace, not setup, once a model is chosen", () => {
