@@ -58,8 +58,9 @@ released in desktop 0.1.2 from `src/backend/migrations/versions/0001_baseline.sq
 The SQL creates the tables, constraints, indexes, runtime-worker heartbeats and
 content mutation receipts directly, without importing live ORM metadata. Later
 schema changes are revisions on top of it: `reasoning_effort_20261112` adds
-`anima_chat_profiles.reasoning_effort`, and `sidebar_pins_20261126` adds
-`chats.pinned_at` and `anima.pinned_at`.
+`anima_chat_profiles.reasoning_effort`, `sidebar_pins_20261126` adds
+`chats.pinned_at` and `anima.pinned_at`, and `content_generation_20261126` adds
+the [content assistant's](#content-assistant) three tables.
 Database bootstrap (desktop startup, or `./reset.sh` for a Compose stack) runs
 `alembic upgrade head`, bringing an existing database forward. The baseline SQL
 and merged revisions are never edited
@@ -788,6 +789,62 @@ Internal or backend-maintenance output is represented as
 `chat_messages.internal = true`. `/v1/chats/{chat_id}/messages` hides internal
 rows by default and exposes them only with `include_internal=true`.
 
+### Content Assistant
+
+The content assistant's conversations are not Chats. They live in three tables
+of their own, with no Anima and no row in `chats` or `chat_messages`, so chat
+lists, chat search, memory, episode notes and Reflection never read them
+([HTTP API](http-api.md#content-assistant)). `GenerationService`
+(`app/generation/service.py`) owns every rule below and filters every read
+and write by the owner. Deleting a conversation deletes its messages and
+drafts.
+
+`generation_conversations`:
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID text, primary key |
+| `owner_user_id` | The owner; indexed |
+| `title` | The person's first message on one line, cut to 80 characters; empty until they send one |
+| `scope` | JSONB: `{"kind": "page"}`, or `{"kind": "creator", "intent", "catalog_item_id"}` for a conversation started in a creator |
+| `style_preset` | Nullable text, unused so far |
+| `created_at`, `updated_at` | `updated_at` moves with each message, which orders the conversation list |
+
+`generation_messages`:
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID text, primary key |
+| `conversation_id` | Foreign key, cascading delete; indexed |
+| `role` | `user` or `assistant` (CHECK) |
+| `text` | The turn's text; empty for a turn that only asked questions |
+| `data` | JSONB. The person's turn: `draft_id`, `answers`. The assistant's turn: `run_id`, `outcome` (`draft`, `questions`, `reply`, `failed` or `stopped`), `usage`, and where they apply `draft_id`, `questions`, `error` |
+| `created_at` | Wall-clock time of the insert; messages read back in `created_at`, `id` order |
+
+`generation_drafts`:
+
+| Column | Notes |
+| --- | --- |
+| `id` | UUID text, primary key |
+| `conversation_id` | Foreign key, cascading delete; indexed |
+| `owner_user_id` | The owner, repeated so a draft is read by id without its conversation |
+| `intent` | `gesture` or `reaction` (CHECK) |
+| `position` | Order within the conversation: a new draft takes one more than the highest, so a deleted draft leaves a gap unless it was the last |
+| `status` | `writing`, `checking`, `repairing`, `reviewing`, `ready`, `warnings` or `failed` (CHECK) |
+| `version` | Starts at 1 with no project; grows by one with every stored project |
+| `project` | JSONB, nullable: the `animamaActionProject/1.0` document, stored only after server validation |
+| `previous_project` | JSONB, nullable: the project from before the person's last revising message, which a restore puts back once |
+| `check_report` | JSONB, nullable: the page's bounded report, or `{"unchecked": true}` |
+| `checked_version` | The version `check_report` is for; may be older than `version` |
+| `repair_count` | Repair passes since the last revision began |
+| `failure_reason` | A code, kept only while the status it came with stands |
+| `saved_item_id` | The Library item the person saved the draft as |
+| `created_at`, `updated_at` | |
+
+A project read back from JSONB has its keys in the database's order, not the
+order they were written in. Review frames are never stored: they are held in
+the server's memory for one frame review.
+
 ### Settings
 
 Settings models store user-level settings and anima-level settings. Anima
@@ -805,6 +862,11 @@ the account) is the exception: the role resolves to no model and waits rather
 than moving its work to another connection, and Utility and the Memory Manager
 wait too when they inherit such a waiting chat role
 ([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)).
+
+`generation.model_provider_id` is the content assistant's model. It is not a
+role: the page sends it with each run, the run route checks it
+(`422 generation_model_unusable`), and no default stands in for it
+([ADR 0041](../../adr/0041-backend-built-content-assistant-runs.md)).
 
 ### Avatar And Uploads
 
@@ -936,8 +998,10 @@ change is intentionally local.
 HTTP routes that depend on `get_async_session()` get a request-scoped
 `AsyncSession`. Application services commit through `SQLAlchemyUnitOfWork` when
 they complete a unit of work. Direct chat closes its setup session before
-streaming and opens short-lived sessions for persistence and tools. Shared
-model clients must not retain request sessions.
+streaming and opens short-lived sessions for persistence and tools. A content
+assistant run does the same, and holds no session while it waits for the model
+or for the page's check report. Shared model clients must not retain request
+sessions.
 
 Background workers create their own engines/session factories and open a fresh
 database session per job instead of retaining FastAPI request sessions.

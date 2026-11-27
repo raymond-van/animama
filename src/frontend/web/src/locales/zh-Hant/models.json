@@ -22,7 +22,7 @@
     "confirmation": {
       "background": "也讓自動記憶更新使用我的方案",
       "backgroundHint": "之後可以在「應用程式設定 → 模型」中變更。",
-      "description": "Animama 中符合條件的 AI 請求現在會使用你的 ChatGPT 方案：與方案模型的聊天、聊天標題與摘要，以及你啟動的記憶更新。你可以在 ChatGPT 設定中查看並限制這些用量。",
+      "description": "Animama 中符合條件的 AI 請求現在會使用你的 ChatGPT 方案：與方案模型的聊天、聊天標題與摘要、你啟動的記憶更新，以及助理在「生成」頁面用方案模型撰寫的草稿。你可以在 ChatGPT 設定中查看並限制這些用量。",
       "gotIt": "知道了",
       "title": "你正在使用 ChatGPT 方案"
     },

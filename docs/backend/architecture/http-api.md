@@ -57,6 +57,11 @@ Local setup and host/key administration schemas remain in the server composition
 - `server/routers/web_search.py`: owner application web search settings and
   Test. Only `create_local_app` mounts it, because a SearXNG URL is
   owner-supplied and Test sends a query to the configured backend.
+- `server/routers/generation.py`: the [content assistant](#content-assistant):
+  its conversations, the run stream, the page's check reports and review
+  frames, and draft actions. Only `create_local_app` mounts it, because a run
+  spends the owner's own plan or key. `server/generation.py` composes what the
+  handlers call; the run itself is `app/generation/`.
 - `server/routers/model_assets.py`: pinned downloadable asset install state,
   install, removal and same-origin byte delivery.
 - `product_http/routes/chats.py` (shared): chat CRUD and persisted chat messages.
@@ -183,7 +188,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 26.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 27.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -205,6 +210,8 @@ catalog policy enables owner models, which only the local composition does; the
 local-only [model configuration routes](#model-configuration) exist only then.
 `chatgpt_plan` (absent means false) is true only in the local composition,
 which mounts the [ChatGPT plan routes](#chatgpt-plan).
+`content_generation` (absent means false) is true only in the local
+composition, which mounts the [content assistant's routes](#content-assistant).
 The shared `GET /v1/model-roles` report is served by every composition. Every
 local composition [processes uploads in its server](../features/user-files.md#in-server-processing):
 `user_file_processing.enabled` follows `ANIMAMA_USER_FILE_PROCESSING_ENABLED`
@@ -1263,6 +1270,165 @@ Request bodies with unknown fields fail validation (`422`). A session that
 cannot be used returns `503 chatgpt_plan_temporarily_unavailable` while its
 storage or OpenAI is unavailable, and otherwise `409 chatgpt_plan_<code>`, for
 example `chatgpt_plan_not_signed_in` from a model refresh while signed out.
+
+## Content Assistant
+
+Local composition only (`content_generation` capability). The assistant
+authors Gesture drafts in a conversation that is not a Chat: it has its own
+[tables](data-model.md#content-assistant), no Anima, and nothing that chat
+lists, chat search, memory or Reflection reads. The backend builds every model
+request from its own instructions and tools. A caller sends the person's
+message, the chosen model, and what the page measured; request bodies with any
+other field fail validation (`422`). Every route serves only the caller's
+conversations and drafts, and another owner's id answers like a missing one
+(`404 generation_not_found`). The page's side, and what reaches a model
+provider, are in
+[Content generation](../../frontend/features/content-generation.md); the
+reasons for the split are in
+[ADR 0041](../../adr/0041-backend-built-content-assistant-runs.md).
+
+- `GET /v1/generation/conversations`: `{conversations}`, the most recently
+  written to first. Each is `{id, title, scope, style_preset, created_at,
+  updated_at}`; `scope` is `{kind: "page"}` or `{kind: "creator", intent,
+  catalog_item_id}`, and `title` is the person's first message on one line,
+  cut to 80 characters (empty until they send one).
+- `POST /v1/generation/conversations` (`201`): `{scope}` starts an empty
+  conversation.
+- `GET /v1/generation/conversations/{conversation_id}`: `{conversation,
+  messages, drafts}`. A message is `{id, role, text, data, created_at}`;
+  `data` holds what the turn carried besides text (`draft_id` and `answers`
+  on the person's turn; `run_id`, `outcome`, `usage`, and where they apply
+  `draft_id`, `questions` and `error` on the assistant's). A draft is
+  described under [Drafts](#drafts). With no run in flight, a draft that a
+  run left in one of its steps without settling (the server stopped under
+  it) is settled before it is returned: by its current version's report, to
+  `checking` when that version has none, or deleted when it never got a
+  project.
+- `DELETE /v1/generation/conversations/{conversation_id}` (`204`): delete the
+  conversation with its messages and drafts.
+- `POST /v1/generation/conversations/{conversation_id}/runs:sse`: one
+  [run](#runs).
+- `PUT /v1/generation/drafts/{draft_id}/check-report`: the page's
+  [check report](#check-reports-and-review-frames) for the draft's current
+  version. Returns the draft.
+- `PUT /v1/generation/drafts/{draft_id}/review-frames?version=N` (`204`): the
+  contact sheets a run asked for.
+- `POST /v1/generation/drafts/{draft_id}:restore`: put back the project from
+  before the person's last revising message, as a new version with status
+  `checking`. Returns the draft; `409 generation_nothing_to_restore` when there
+  is none.
+- `POST /v1/generation/drafts/{draft_id}:mark-saved`: `{item_id}` records the
+  Library item the person saved the draft as. Saving itself is the creator's
+  own save route. Returns the draft.
+- `DELETE /v1/generation/drafts/{draft_id}` (`204`): discard the draft. A run
+  working on it ends.
+
+One run is in flight for a conversation at a time. While it is, a second run,
+deleting the conversation and restoring one of its drafts return
+`409 generation_run_in_progress`.
+
+### Drafts
+
+A draft is `{id, conversation_id, intent, position, status, version, project,
+has_previous_version, check_report, checked_version, repair_count,
+failure_reason, saved_item_id, created_at, updated_at}`. `project` is an
+`animamaActionProject/1.0` document the creator's Import accepts. It is stored
+only after the server validated it, and is `null` on a draft that failed
+before any version validated. `version` grows with every stored project.
+`check_report` is the page's report for `checked_version`, which may be older
+than `version`. `status` is `writing`, `checking`, `repairing` or `reviewing`
+while a run works on the draft, and `ready`, `warnings` or `failed` (with
+`failure_reason`) when it is left. A draft with no run in flight and a version
+nobody checked is `checking`: the page checks it, and its report then settles
+the status.
+
+### Runs
+
+The run body is `{message, model_provider_id, draft_id?, intent?, ui_locale?,
+answers?, avatar_expressions?}`. `message` is 1 to 4,000 characters. With
+`draft_id` the run revises that draft; without it, it writes a new draft of
+`intent` (`gesture`; `reaction` returns `422 generation_intent_unavailable`).
+`answers` is `{skipped}` or `{answers: [{question, answer}]}` for the questions
+the assistant last asked, with the request they were about sent again as
+`message`; questions are asked once for a request, a request that follows them
+counts as skipped when it carries no answers, and answers to questions nobody
+asked are ignored. A run that failed or was stopped before it stored a draft
+or a revision leaves the questions outstanding, so a retry sends the same
+`answers` again; one that stored its draft first has used them, and its turn
+names the draft (`draft_id`). Questions whose stream closed as they arrived
+are stored with the stopped run's turn and are answered the same way.
+`avatar_expressions` maps a family to the chosen preview Avatar's expression
+names. Only names are sent; at most 400 of at most 64 characters reach the
+model, as data.
+
+The model row must exist and be an active chat model that calls tools, on an
+active connection: otherwise `422 generation_model_unusable` with `reason`
+(`not_found`, `inactive`, `connection_inactive`, `not_chat_model`,
+`tools_unsupported`, `unsupported` or `no_model_client`). No other model is
+used instead. A draft to revise must belong to the conversation (`404`) and
+hold a project (`409 generation_draft_empty`).
+
+The response is `text/event-stream`. Each frame has an `event` name and JSON
+`data`; a comment line (`: heartbeat`) follows every 15 seconds of silence.
+
+| Event | Data |
+| --- | --- |
+| `run.started` | `{run_id}` |
+| `progress` | `{phase, draft_id?}`; `phase` is `thinking`, `writing`, `checking`, `repairing` or `reviewing_frames` |
+| `message.delta` | `{text}`: more of the assistant's text; the pieces in order are the stored message |
+| `questions` | `{questions: [{question, options}]}`; the run ends here |
+| `draft.updated` | `{draft}`: the whole draft after a new version or status |
+| `frames.requested` | `{draft_id, version}`: upload the review frames of this version |
+| `run.failed` | `{code, category, details}` |
+| `run.completed` | `{usage: {input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, requests}}` |
+
+`run.completed` is the last frame of every run the server ends, after
+`run.failed` when the run failed. When the stream itself fails (an event that
+cannot be sent, or a failure the run did not report), the run is stopped
+first and `run.completed` counts no tokens; the run's own count is in its
+stored message. A model failure carries the model client's own `code` and the
+`category` and connection `details` chat's error frame carries, so a usage
+limit, a missing key or an expired sign-in reads as it does in chat. The
+assistant's own failures have category `generation`
+(`generation_no_valid_draft`, `generation_not_found`) or `internal`
+(`generation_run_failed`). The conversation and its drafts stay.
+
+A run makes at most five model passes for a draft: one write or revise pass,
+three repair passes and one frame review, each at most eight model responses.
+It waits up to 120 seconds for a version's check report (then leaves the
+draft `warnings` with the report `{unchecked: true}`) and up to 60 seconds for
+review frames (then skips the review). Closing the stream stops the run: its
+model request is cancelled, a draft keeps its last stored project, and the
+conversation is free for the next run. Nothing restarts a stopped run.
+
+With `ANIMAMA_LLM_SKIP` set, a deterministic author stands in for every model
+pass: it submits a packaged example Gesture named after the request, lengthens
+the clip on a revision or repair, and accepts a review.
+
+### Check reports and review frames
+
+After `draft.updated` with a version nobody checked, the page validates the
+clip, runs the motion checks and sends `{version, loadable, issues: [{path,
+message}], findings, expression_names: {missing, avatar_only}}`. A finding is
+the frontend's `MotionCheckFinding`. The body is bounded: 200 issues, 200
+findings, strings of 500 characters, 400 expression names of 64 characters and
+256 KB in all (`413 generation_check_report_too_large`); an unknown category
+or any other field fails validation. A `version` that is not the draft's
+returns `409 generation_stale_version`. The report only decides repairs and
+warnings: a run repairs when the clip does not load, has an issue or has a
+finding of severity `fail`. A draft that loads is left `warnings` by an issue,
+a finding of either severity or a `missing` name; `avatar_only` names are a
+note the report keeps, and alone leave it `ready`. Loading and saving never
+depend on the report.
+
+Review frames are a `multipart/form-data` body with one or two `frames` files
+of at most 4 MB each. They are taken only for the draft version a run is
+waiting to review (`409 generation_frames_not_requested`,
+`409 generation_stale_version`), read wholly in memory, decoded by the bounded
+image opener chat images use, and dropped when the review ends. They are never
+written to a table or a file. Refusals: `422 generation_frames_invalid`,
+`422 generation_frame_not_an_image`, `413 generation_frame_too_large` and
+`413 generation_frames_too_large`.
 
 ## Memory
 

@@ -5421,6 +5421,431 @@ export type PyEmotionalState = {
 };
 
 /**
+ * PyGenerationAnswer
+ */
+export type PyGenerationAnswer = {
+    /**
+     * Answer
+     */
+    answer: string;
+    /**
+     * Question
+     */
+    question: string;
+};
+
+/**
+ * PyGenerationAnswers
+ *
+ * What the person said to the questions the assistant last asked: their answers, or that they skipped them.
+ */
+export type PyGenerationAnswers = {
+    /**
+     * Answers
+     */
+    answers?: Array<PyGenerationAnswer>;
+    /**
+     * Skipped
+     */
+    skipped?: boolean;
+};
+
+/**
+ * PyGenerationCheckExpressionNames
+ *
+ * Keyed expression names that will not show everywhere (decision D20).
+ */
+export type PyGenerationCheckExpressionNames = {
+    /**
+     * Avatar Only
+     */
+    avatar_only?: Array<string>;
+    /**
+     * Missing
+     */
+    missing?: Array<string>;
+};
+
+/**
+ * PyGenerationCheckFinding
+ *
+ * One motion check finding, as ``MotionCheckFinding`` in the frontend's ``checks.ts``.
+ */
+export type PyGenerationCheckFinding = {
+    /**
+     * Actualoffset
+     */
+    actualOffset?: [
+        number,
+        number,
+        number
+    ] | null;
+    /**
+     * Avatar
+     */
+    avatar?: string | null;
+    /**
+     * Category
+     */
+    category: 'pose' | 'range' | 'smoothness' | 'oscillation' | 'intersection' | 'fingers' | 'contact' | 'feet' | 'loopSeam' | 'parity';
+    /**
+     * Detail
+     */
+    detail: string;
+    /**
+     * From
+     */
+    from: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Severity
+     */
+    severity: 'fail' | 'warn';
+    /**
+     * Subject
+     */
+    subject: string;
+    /**
+     * To
+     */
+    to: number;
+    /**
+     * Unit
+     */
+    unit: string;
+    /**
+     * Value
+     */
+    value: number;
+};
+
+/**
+ * PyGenerationCheckIssue
+ *
+ * One validation problem of the clip, by JSON path.
+ */
+export type PyGenerationCheckIssue = {
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Path
+     */
+    path: string;
+};
+
+/**
+ * PyGenerationCheckReport
+ *
+ * The page's checks of one draft version.
+ *
+ * ``loadable`` false means the clip cannot be played. ``issues`` are the
+ * page's validation problems; ``findings`` its motion check findings on the
+ * Included Avatars; ``expression_names`` the keyed names the chosen Avatar
+ * lacks (``missing``) or only such Avatars have (``avatar_only``).
+ */
+export type PyGenerationCheckReport = {
+    expression_names?: PyGenerationCheckExpressionNames;
+    /**
+     * Findings
+     */
+    findings?: Array<PyGenerationCheckFinding>;
+    /**
+     * Issues
+     */
+    issues?: Array<PyGenerationCheckIssue>;
+    /**
+     * Loadable
+     */
+    loadable: boolean;
+    /**
+     * Version
+     */
+    version: number;
+};
+
+/**
+ * PyGenerationConversation
+ */
+export type PyGenerationConversation = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Scope
+     */
+    scope: ({
+        kind: 'page';
+    } & PyGenerationPageScope) | ({
+        kind: 'creator';
+    } & PyGenerationCreatorScope);
+    /**
+     * Style Preset
+     */
+    style_preset?: string | null;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * PyGenerationConversationCreate
+ *
+ * Where the new conversation is started.
+ */
+export type PyGenerationConversationCreate = {
+    /**
+     * Scope
+     */
+    scope: ({
+        kind: 'page';
+    } & PyGenerationPageScope) | ({
+        kind: 'creator';
+    } & PyGenerationCreatorScope);
+};
+
+/**
+ * PyGenerationConversationList
+ *
+ * The caller's conversations, the most recently written to first.
+ */
+export type PyGenerationConversationList = {
+    /**
+     * Conversations
+     */
+    conversations: Array<PyGenerationConversation>;
+};
+
+/**
+ * PyGenerationConversationSnapshot
+ *
+ * A conversation with its messages in the order added and its drafts by position.
+ */
+export type PyGenerationConversationSnapshot = {
+    conversation: PyGenerationConversation;
+    /**
+     * Drafts
+     */
+    drafts: Array<PyGenerationDraft>;
+    /**
+     * Messages
+     */
+    messages: Array<PyGenerationMessage>;
+};
+
+/**
+ * PyGenerationCreatorScope
+ *
+ * A conversation started in a creator, about the item open in it (``null`` for an unsaved one).
+ */
+export type PyGenerationCreatorScope = {
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id?: string | null;
+    /**
+     * Intent
+     */
+    intent: 'gesture' | 'reaction';
+    /**
+     * Kind
+     */
+    kind: 'creator';
+};
+
+/**
+ * PyGenerationDraft
+ *
+ * A draft as stored: its project, the page's report on ``checked_version``, and where it stands.
+ *
+ * ``project`` is an ``animamaActionProject/1.0`` document the creator's
+ * Import accepts, or ``null`` for a draft that failed before it had one.
+ * ``has_previous_version`` says whether a restore has something to return
+ * to; the earlier project itself stays on the server.
+ */
+export type PyGenerationDraft = {
+    /**
+     * Check Report
+     */
+    check_report: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Checked Version
+     */
+    checked_version: number | null;
+    /**
+     * Conversation Id
+     */
+    conversation_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Failure Reason
+     */
+    failure_reason: string | null;
+    /**
+     * Has Previous Version
+     */
+    has_previous_version: boolean;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Intent
+     */
+    intent: 'gesture' | 'reaction';
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Project
+     */
+    project: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Repair Count
+     */
+    repair_count: number;
+    /**
+     * Saved Item Id
+     */
+    saved_item_id: string | null;
+    /**
+     * Status
+     */
+    status: 'writing' | 'checking' | 'repairing' | 'reviewing' | 'ready' | 'warnings' | 'failed';
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Version
+     */
+    version: number;
+};
+
+/**
+ * PyGenerationMarkSaved
+ *
+ * The Library item the person saved the draft as.
+ */
+export type PyGenerationMarkSaved = {
+    /**
+     * Item Id
+     */
+    item_id: string;
+};
+
+/**
+ * PyGenerationMessage
+ *
+ * One text turn. ``data`` holds what it carried besides text.
+ *
+ * The person's turn: ``draft_id`` (the draft it revises) and ``answers``.
+ * The assistant's turn: ``run_id``, ``outcome`` (``draft``, ``questions``,
+ * ``reply``, ``failed`` or ``stopped``), ``usage``, and where they apply
+ * ``draft_id``, ``questions`` and ``error`` (``code`` and ``category``).
+ */
+export type PyGenerationMessage = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Data
+     */
+    data: {
+        [key: string]: unknown;
+    };
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Role
+     */
+    role: 'user' | 'assistant';
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
+ * PyGenerationPageScope
+ *
+ * A conversation started on the Generate page.
+ */
+export type PyGenerationPageScope = {
+    /**
+     * Kind
+     */
+    kind: 'page';
+};
+
+/**
+ * PyGenerationRunRequest
+ *
+ * One request to the assistant.
+ *
+ * ``message`` is the person's own words. With ``answers``, it is the request
+ * the questions were about, sent again. ``draft_id`` names the draft to
+ * revise; without it the run writes a new draft of ``intent``.
+ * ``avatar_expressions`` maps a family (as the page groups them) to the
+ * names of the chosen preview Avatar's expressions: names only, which reach
+ * the model as data.
+ */
+export type PyGenerationRunRequest = {
+    answers?: PyGenerationAnswers | null;
+    /**
+     * Avatar Expressions
+     */
+    avatar_expressions?: {
+        [key: string]: Array<string>;
+    } | null;
+    /**
+     * Draft Id
+     */
+    draft_id?: string | null;
+    /**
+     * Intent
+     */
+    intent?: 'gesture' | 'reaction';
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Model Provider Id
+     */
+    model_provider_id: string;
+    /**
+     * Ui Locale
+     */
+    ui_locale?: string | null;
+};
+
+/**
  * PyGesture
  */
 export type PyGesture = {
@@ -10011,6 +10436,10 @@ export type RuntimeCapabilities = {
      */
     chatgpt_plan?: boolean;
     companion_safety: CompanionSafetyCapability;
+    /**
+     * Content Generation
+     */
+    content_generation?: boolean;
     gemini_tts?: GeminiTtsCapability | null;
     /**
      * Library Previews
@@ -13673,6 +14102,295 @@ export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses = {
 };
 
 export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponse = GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses[keyof GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses];
+
+export type ListGenerationConversationsV1GenerationConversationsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/generation/conversations';
+};
+
+export type ListGenerationConversationsV1GenerationConversationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyGenerationConversationList;
+};
+
+export type ListGenerationConversationsV1GenerationConversationsGetResponse = ListGenerationConversationsV1GenerationConversationsGetResponses[keyof ListGenerationConversationsV1GenerationConversationsGetResponses];
+
+export type CreateGenerationConversationV1GenerationConversationsPostData = {
+    body: PyGenerationConversationCreate;
+    path?: never;
+    query?: never;
+    url: '/v1/generation/conversations';
+};
+
+export type CreateGenerationConversationV1GenerationConversationsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateGenerationConversationV1GenerationConversationsPostError = CreateGenerationConversationV1GenerationConversationsPostErrors[keyof CreateGenerationConversationV1GenerationConversationsPostErrors];
+
+export type CreateGenerationConversationV1GenerationConversationsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PyGenerationConversation;
+};
+
+export type CreateGenerationConversationV1GenerationConversationsPostResponse = CreateGenerationConversationV1GenerationConversationsPostResponses[keyof CreateGenerationConversationV1GenerationConversationsPostResponses];
+
+export type DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/conversations/{conversation_id}';
+};
+
+export type DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteError = DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteErrors[keyof DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteErrors];
+
+export type DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteResponse = DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteResponses[keyof DeleteGenerationConversationV1GenerationConversationsConversationIdDeleteResponses];
+
+export type GetGenerationConversationV1GenerationConversationsConversationIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/conversations/{conversation_id}';
+};
+
+export type GetGenerationConversationV1GenerationConversationsConversationIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetGenerationConversationV1GenerationConversationsConversationIdGetError = GetGenerationConversationV1GenerationConversationsConversationIdGetErrors[keyof GetGenerationConversationV1GenerationConversationsConversationIdGetErrors];
+
+export type GetGenerationConversationV1GenerationConversationsConversationIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyGenerationConversationSnapshot;
+};
+
+export type GetGenerationConversationV1GenerationConversationsConversationIdGetResponse = GetGenerationConversationV1GenerationConversationsConversationIdGetResponses[keyof GetGenerationConversationV1GenerationConversationsConversationIdGetResponses];
+
+export type RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostData = {
+    body: PyGenerationRunRequest;
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/conversations/{conversation_id}/runs:sse';
+};
+
+export type RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostError = RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostErrors[keyof RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostErrors];
+
+export type RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Draft Id
+         */
+        draft_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/drafts/{draft_id}';
+};
+
+export type DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteError = DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteErrors[keyof DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteErrors];
+
+export type DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteResponse = DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteResponses[keyof DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteResponses];
+
+export type RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutData = {
+    body: PyGenerationCheckReport;
+    path: {
+        /**
+         * Draft Id
+         */
+        draft_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/drafts/{draft_id}/check-report';
+};
+
+export type RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutError = RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutErrors[keyof RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutErrors];
+
+export type RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyGenerationDraft;
+};
+
+export type RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutResponse = RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutResponses[keyof RecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutResponses];
+
+export type UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutData = {
+    body: {
+        /**
+         * One contact sheet per Included Avatar, as PNG or JPEG.
+         */
+        frames: Array<Blob | File>;
+    };
+    path: {
+        /**
+         * Draft Id
+         */
+        draft_id: string;
+    };
+    query: {
+        /**
+         * Version
+         */
+        version: number;
+    };
+    url: '/v1/generation/drafts/{draft_id}/review-frames';
+};
+
+export type UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutError = UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutErrors[keyof UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutErrors];
+
+export type UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutResponse = UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutResponses[keyof UploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutResponses];
+
+export type MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostData = {
+    body: PyGenerationMarkSaved;
+    path: {
+        /**
+         * Draft Id
+         */
+        draft_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/drafts/{draft_id}:mark-saved';
+};
+
+export type MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostError = MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostErrors[keyof MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostErrors];
+
+export type MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyGenerationDraft;
+};
+
+export type MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostResponse = MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostResponses[keyof MarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostResponses];
+
+export type RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostData = {
+    body?: never;
+    path: {
+        /**
+         * Draft Id
+         */
+        draft_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/drafts/{draft_id}:restore';
+};
+
+export type RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostError = RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostErrors[keyof RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostErrors];
+
+export type RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyGenerationDraft;
+};
+
+export type RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostResponse = RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostResponses[keyof RestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostResponses];
 
 export type ListGesturesData = {
     body?: never;

@@ -40,6 +40,7 @@ export type ApiErrorText = { message: string; detail: string | null };
 /** Catalog areas holding wording for backend codes. */
 export type ErrorArea =
   | "creation"
+  | "generation"
   | "loadout"
   | "contentSave"
   | "sharing"

@@ -73,6 +73,7 @@ import {
 } from "lucide-react";
 import {
   alternateModelIds,
+  chatModelUnusableReason,
   modelDisplayName,
   modelOptionDetail,
   modelOptionLabel,
@@ -891,13 +892,12 @@ function ChatInputModelSelector({
                     >
                       {group.models.map((item, index) => {
                         const isActive = item.id === activeItemId;
-                        const rowGate = chatModelSendGate(activeChat, item);
-                        const rowUnsupported =
-                          !rowGate.ok && rowGate.reason === "unsupported_model";
-                        // Owner models need a context window before they can chat.
+                        // The rows chat cannot use; the content assistant
+                        // leaves the same models out of its list.
+                        const rowUnusable = chatModelUnusableReason(item);
+                        const rowUnsupported = rowUnusable === "unsupported";
                         const rowNeedsWindow =
-                          item.source === "owner" &&
-                          item.context_window_tokens == null;
+                          rowUnusable === "needs_context_window";
                         const modelName = modelDisplayName(
                           item,
                           alternateIds.has(item.id),

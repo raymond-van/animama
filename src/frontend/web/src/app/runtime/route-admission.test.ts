@@ -55,3 +55,34 @@ describe("native auxiliary route admission", () => {
     },
   );
 });
+
+describe("the content assistant's route", () => {
+  const local = {
+    ...hostedCapabilitiesFixture,
+    runtime_kind: "self_hosted_web",
+  } as const;
+
+  it.each(["/generate", "/generate/"])(
+    "offers %s only to a runtime that reports content generation",
+    (path) => {
+      expect(
+        unavailableRouteReason(path, { ...local, content_generation: true }),
+      ).toBeNull();
+      // Not reported (an older runtime) reads as withheld, like `false`.
+      for (const capabilities of [
+        local,
+        { ...local, content_generation: false },
+        hostedCapabilitiesFixture,
+      ]) {
+        const reason = unavailableRouteReason(path, capabilities);
+        expect(reason).toBe("content_generation");
+        expect(unavailableReasonText(reason!)).toContain("Content generation");
+      }
+    },
+  );
+
+  it("leaves other routes that only start with the same letters alone", () => {
+    expect(unavailableRouteReason("/generated", local)).toBeNull();
+    expect(unavailableRouteReason("/gestures/new", local)).toBeNull();
+  });
+});

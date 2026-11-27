@@ -1,0 +1,247 @@
+"""One pass of a run: a fresh model request, and tool rounds until a call ends it.
+
+A pass (``write``, ``revise``, ``repair`` or ``review``) starts with a new
+request built only from what this backend holds (decision D2): the instructions
+as the system message, one user message, and the pass's fixed tools. Nothing of
+an earlier pass or conversation rides along, so no pass depends on what a
+provider stored for another. A response answers with at most one tool call
+that is run; its result goes back in the provider's own shape for another
+round, up to ``MAX_TOOL_ROUNDS`` responses. Within a pass, rounds after the
+first continue as chat's tool rounds do: on a route that keeps a cursor
+(OpenAI Responses on a key) the next request names the response it follows,
+and on the others it carries the exchange again. Model errors are raised as
+the model clients raise them.
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncGenerator
+from dataclasses import dataclass
+from typing import Any, Final, Literal, cast
+
+from animama.app.model_clients import (
+    DirectChatPrompt,
+    ModelClient,
+    ModelClientDelta,
+    ModelClientError,
+    ModelClientFinal,
+    ModelClientRequest,
+    ModelClientToolCall,
+    ModelClientToolResult,
+)
+from animama.app.model_clients.image_parts import ModelClientImage, image_part
+from animama.app.model_clients.tool_rounds import model_request_with_appended_messages, tool_exchange_prompt_items
+from animama.domain import ModelProvider
+from animama.domain.usage import Usage
+from animama.logging import get_logger
+
+from .draft_validation import Intent, SelectorInUse
+from .review_frames import ReviewSheet
+from .tools import (
+    MAX_TOOL_ROUNDS,
+    ExampleReader,
+    PassKind,
+    WorkingDraft,
+    ignored_call_reply,
+    offered_tools,
+    run_tool,
+    tool_definitions,
+)
+
+_log = get_logger("app.generation.passes")
+
+PassEnd = Literal["submitted", "edited", "accepted", "asked", "no_tool_call", "round_limit"]
+"""How a pass ended: a tool call's ``tools.Outcome``, an answer without a tool call, or the round limit."""
+
+_TOOL_CALL_EVENTS: Final = frozenset({"function_tool_call_delta", "function_tool_call_done"})
+
+
+@dataclass(frozen=True)
+class PassSpec:
+    """What one pass sends: the run's model row, the instructions, its user message and its tools' context.
+
+    ``sheets`` are a review pass's contact sheets. ``can_ask`` is false once
+    the person has answered or skipped the questions about their request.
+    ``selector_in_use`` and ``example_reader`` are what the tools may ask of
+    the owner's Library (see ``tools.run_tool``).
+    """
+
+    kind: PassKind
+    model_provider: ModelProvider
+    instructions: str
+    message: str
+    prompt_cache_key: str | None = None
+    sheets: tuple[ReviewSheet, ...] = ()
+    can_ask: bool = True
+    selector_in_use: SelectorInUse | None = None
+    example_reader: ExampleReader | None = None
+
+
+@dataclass(frozen=True)
+class PassText:
+    """Text the model wrote outside a tool call, as it streams."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class PassWriting:
+    """The model began a tool call in this response: it is writing, no longer only thinking."""
+
+
+@dataclass(frozen=True)
+class PassRound:
+    """One model response arrived; ``usage`` is what the provider reported for it, or an estimate."""
+
+    usage: Usage
+    usage_reported: bool
+
+
+@dataclass(frozen=True)
+class PassEnded:
+    """The pass is over. ``text`` is the last response's own text; the working draft holds the rest."""
+
+    end: PassEnd
+    text: str
+    rounds: int
+
+
+PassItem = PassText | PassWriting | PassRound | PassEnded
+
+
+def pass_request(spec: PassSpec, intent: Intent) -> ModelClientRequest:
+    """The pass's first request: the instructions, one user message and the pass's tools.
+
+    It names no reasoning effort (the model's default), no response format and
+    no continuation from anything before the pass. A review pass's sheets are
+    image parts of the user message, the only place model adapters read
+    images, with their bytes on the request itself; they never get an id
+    outside it.
+    """
+
+    if spec.sheets and spec.kind != "review":
+        raise ValueError("Only a review pass carries contact sheets")
+    content: str | list[dict[str, Any]] = spec.message
+    images: dict[str, ModelClientImage] = {}
+    if spec.sheets:
+        parts: list[dict[str, Any]] = []
+        for number, sheet in enumerate(spec.sheets, start=1):
+            file_id = f"review-sheet-{number}"
+            parts.append(image_part(file_id=file_id, name=f"sheet-{number}", width=sheet.width, height=sheet.height))
+            images[file_id] = ModelClientImage(media_type=sheet.media_type, content=sheet.content)
+        content = [*parts, {"type": "text", "text": spec.message}]
+    return ModelClientRequest(
+        model_provider=spec.model_provider,
+        prompt=DirectChatPrompt(
+            messages=({"role": "system", "content": spec.instructions}, {"role": "user", "content": content}),
+            tools=cast(Any, tool_definitions(spec.kind, intent, can_ask=spec.can_ask)),
+            tool_choice="auto",
+            parallel_tool_calls=False,
+            prompt_cache_key=spec.prompt_cache_key,
+        ),
+        images=images,
+    )
+
+
+async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> AsyncGenerator[PassItem, None]:
+    """Run one pass on ``draft`` and yield what happens; the last item is its ``PassEnded``.
+
+    Each round sends the request, forwards the response's text as it streams
+    and runs its first tool call through ``tools.run_tool``. A call that ends
+    the pass (``draft.outcome``) ends it here; any other gets its result, and
+    every further call of the same response a refusal, in the next round's
+    request. The pass also ends when a response holds no tool call, or after
+    ``MAX_TOOL_ROUNDS`` responses, with ``draft`` as the last accepted call
+    left it.
+    """
+
+    offered = offered_tools(spec.kind, can_ask=spec.can_ask)
+    request = pass_request(spec, draft.intent)
+    text = ""
+    for round_number in range(1, MAX_TOOL_ROUNDS + 1):
+        final: ModelClientFinal | None = None
+        streamed, writing = False, False
+        stream = client.stream(request)
+        try:
+            async for delta in stream:
+                if delta.kind == "text_delta" and delta.text:
+                    streamed = True
+                    yield PassText(delta.text)
+                elif delta.kind == "event" and not writing and _begins_tool_call(delta):
+                    writing = True
+                    yield PassWriting()
+                elif delta.kind == "final" and delta.final is not None:
+                    final = delta.final
+                elif delta.kind == "error":
+                    raise ModelClientError(
+                        delta.error or "Model client stream failed",
+                        code="model_client_error",
+                        raw_metadata=delta.raw_metadata,
+                    )
+        finally:
+            # A pass stopped at one of its own events must not leave the provider's stream open behind it.
+            close = getattr(stream, "aclose", None)
+            if close is not None:
+                await close()
+        if final is None:
+            raise ModelClientError("Model client stream ended without a final result", code="model_client_error")
+        text = final.text
+        if text and not streamed:
+            # An adapter that reports text only with its final still shows it.
+            yield PassText(text)
+        yield PassRound(usage=final.usage, usage_reported=final.usage_reported)
+        if not final.tool_calls:
+            yield PassEnded(end="no_tool_call", text=text, rounds=round_number)
+            return
+        call, *others = final.tool_calls
+        reply = run_tool(draft, call, offered, selector_in_use=spec.selector_in_use, example_reader=spec.example_reader)
+        _log.info(
+            "Generation tool call ran",
+            pass_kind=spec.kind,
+            round=round_number,
+            arguments_length=len(call.arguments),
+            problem_count=len(reply.problems),
+            outcome=draft.outcome,
+            ignored_call_count=len(others),
+        )
+        if draft.outcome is not None:
+            yield PassEnded(end=draft.outcome, text=text, rounds=round_number)
+            return
+        ignored = ignored_call_reply().output
+        results = (
+            _result(call, reply.output, ok=not reply.problems),
+            *(_result(other, ignored, ok=False) for other in others),
+        )
+        request = model_request_with_appended_messages(
+            request,
+            tool_exchange_prompt_items(model_request=request, tool_calls=final.tool_calls, tool_results=results),
+            previous_final=final,
+            # The request carries the sheets' bytes itself, and some routes take the whole input every round.
+            keep_images=True,
+        )
+    yield PassEnded(end="round_limit", text=text, rounds=MAX_TOOL_ROUNDS)
+
+
+def _begins_tool_call(delta: ModelClientDelta) -> bool:
+    """Whether a stream observation shows the model writing a function tool call."""
+
+    return getattr(delta.stream_event, "kind", None) in _TOOL_CALL_EVENTS
+
+
+def _result(call: ModelClientToolCall, output: str, *, ok: bool) -> ModelClientToolResult:
+    return ModelClientToolResult(
+        call_id=call.id, tool_type=call.tool_type, status="completed" if ok else "failed", output=output
+    )
+
+
+__all__ = [
+    "PassEnd",
+    "PassEnded",
+    "PassItem",
+    "PassRound",
+    "PassSpec",
+    "PassText",
+    "PassWriting",
+    "pass_request",
+    "run_pass",
+]

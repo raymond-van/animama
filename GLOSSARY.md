@@ -124,6 +124,29 @@ member it played last when the pool has two or more. An empty cell plays no
 Reaction and never falls back to another cell. A Reaction's emotion/intensity
 suggestion is only a hint for where it fits.
 
+## Content assistant
+
+The AI that authors content from a person's request on the Generate page of a
+local composition, at present Gestures; the interface and the documents call
+it **the assistant**. It has no persona and is not an **Anima**. Its
+conversations are not **Chats**: they appear in no chat list, and memory,
+episode processing, Reflection and chat search never read them. It writes
+only **drafts**, and saving one is always the person's action. Its model is
+its own remembered choice, not a **Model role**. Not the `assistant` role of
+a chat message, and not an agent skill that authors content from a source
+checkout. See
+[ADR 0041](docs/adr/0041-backend-built-content-assistant-runs.md).
+
+## Draft (assistant draft)
+
+Content the assistant wrote that the person has not saved: held with its
+conversation, with a status, the warnings its checks left and, after a
+revision, the one version before it. It stays there across restarts until
+the person discards it or its conversation. Saving a draft makes a Local item
+that no longer depends on it. Not a creator's unsaved document, an agent
+skill's clip file before it is saved, or the saved progress of creating an
+Anima, which code and documents also call drafts.
+
 ## Non-portable content
 
 Included content that plays, previews and can be equipped but never leaves the
@@ -298,7 +321,8 @@ connections; see
 
 The built-in model connection whose credential is the owner's Sign in with
 ChatGPT session, in local compositions only. Eligible requests (chats, their
-titles and compaction, and Memory Manager runs) use the usage included in the
+titles and compaction, Memory Manager runs and the content assistant's runs)
+use the usage included in the
 account's ChatGPT plan instead of an API key; automatic episode processing uses
 it only with the owner's agreement. Its models are **account-listed**. A role
 whose plan model cannot run waits rather than moving to another connection. See

@@ -10,7 +10,6 @@ import type {
   PyGesture,
   PyReaction,
 } from "@/lib/content/catalogTypes";
-import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
 import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
@@ -21,10 +20,6 @@ import {
   actionDocumentDigest,
   saveActionRecovery,
 } from "@/lib/content/actionRecovery";
-import {
-  contentFileFingerprint,
-  sha256File,
-} from "@/lib/content/contentUploads";
 import {
   creatorActionPreviewRuntime,
   actionPreviewTarget,
@@ -42,9 +37,9 @@ import {
 import { useAction } from "@/query/hooks/useActions";
 import { useActionComponentPreviews } from "@/query/hooks/useActionComponentPreviews";
 import {
-  type EditSessionIdentity,
-  useActionEditorActions,
-} from "@/query/mutations/useActionEditorActions";
+  useContentGenerationWithheld,
+  useGenerationConversation,
+} from "@/query/hooks/useGeneration";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { ContentPreviewExclusiveCanvasGate } from "@/ui/content-preview/ContentPreviewDockProvider";
 import { Button } from "@/ui/components/button";
@@ -73,7 +68,6 @@ import { ActionEditorWorkspace } from "./ActionEditorWorkspace";
 import {
   ActionEditorWorkspaceProvider,
   type ActionDependencySection,
-  type ActionSaveStage,
 } from "./ActionEditorWorkspaceContext";
 import {
   applyActionAuthoringSnapshot,
@@ -99,7 +93,15 @@ import {
   removedActionEffects,
 } from "./actionDocumentLoader";
 import type { ActionImport } from "./actionProject";
-import { unresolvedActionReferences } from "./actionProject";
+import {
+  importedProjectDocument,
+  parseActionImport,
+  unresolvedActionReferences,
+} from "./actionProject";
+import {
+  ActionDocumentIncompleteError,
+  useSaveActionDocument,
+} from "./useSaveActionDocument";
 import {
   ActionManageDialog,
   type ManageActionTarget,
@@ -119,6 +121,20 @@ function queryErrorMessage(
 ): string | null {
   if (!error) return null;
   return failureLine(error, t("page.catalogUnavailable"));
+}
+
+/**
+ * The assistant draft a location opens in the creator (`?draft=`), or `null`.
+ * The new-item editor is keyed by it, so a move to another draft, or to none,
+ * on the same route replaces the document like a move to another page.
+ */
+function locationDraft(location: { search: unknown }): string | null {
+  const { search } = location;
+  const draft =
+    search && typeof search === "object"
+      ? (search as { draft?: unknown }).draft
+      : null;
+  return typeof draft === "string" && draft ? draft : null;
 }
 
 function exactSourceKey(source: unknown): string | null {
@@ -141,11 +157,17 @@ export function ActionEditorPage({
   itemId,
   initialComponent,
   initialComponentType,
+  initialDraft,
 }: {
   intent: ActionIntent;
   itemId?: string;
   initialComponent?: string;
   initialComponentType?: ActionComponentType;
+  /**
+   * A content assistant draft to open in a new document ("Open in creator").
+   * Its project is loaded through the import path, so it arrives unsaved.
+   */
+  initialDraft?: { conversationId: string; draftId: string };
 }) {
   const { t } = useTranslation("actionEditor");
   const createDocument = useCallback(
@@ -157,16 +179,10 @@ export function ActionEditorPage({
   const cleanDigest = useRef(actionDocumentDigest(document));
   const documentRef = useRef(document);
   documentRef.current = document;
-  const [identity, setIdentity] = useState<EditSessionIdentity | null>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(
     itemId ?? null,
   );
   const [vrma, setVrma] = useState<File | null>(null);
-  const [uploadedRootFile, setUploadedRootFile] = useState<{
-    sessionId: string;
-    fileRef: string;
-    fingerprint: string;
-  } | null>(null);
   const [dependencyQuery, setDependencyQuery] = useState("");
   const [activeDependencyType, setActiveDependencyType] =
     useState<ActionComponentType>("particle_effect");
@@ -180,7 +196,6 @@ export function ActionEditorPage({
     setMessage: setFailureMessage,
   } = useContentSaveFailure();
   const [validationAttempted, setValidationAttempted] = useState(false);
-  const [saveStage, setSaveStage] = useState<ActionSaveStage>("idle");
   const [manageTarget, setManageTarget] = useState<ManageActionTarget | null>(
     null,
   );
@@ -202,7 +217,16 @@ export function ActionEditorPage({
   const recoveryGeneration = useRef(0);
   const internalNavigation = useRef(false);
   const initialComponentApplied = useRef(false);
-  const actions = useActionEditorActions(intent);
+  // The save itself, with the edit session it keeps between attempts.
+  const saver = useSaveActionDocument(intent);
+  const {
+    actions,
+    identity,
+    stage: saveStage,
+    setStage: setSaveStage,
+    resetSession: resetSaveSession,
+    restoreSession: restoreSaveSession,
+  } = saver;
   // Stable across renders, unlike the `actionPreview` object around it.
   const loadActionPreview = actions.actionPreview.load;
   const userId = useRuntimeCacheKey();
@@ -279,7 +303,8 @@ export function ActionEditorPage({
       !internalNavigation.current &&
       !finalized.current &&
       (dirty || busy) &&
-      current.pathname !== next.pathname,
+      (current.pathname !== next.pathname ||
+        locationDraft(current) !== locationDraft(next)),
     enableBeforeUnload: () => !finalized.current && (dirty || busy),
     withResolver: true,
   });
@@ -374,8 +399,7 @@ export function ActionEditorPage({
           return false;
         finalized.current = false;
         setActiveItemId(item.origin === "owned" ? item.item_id : null);
-        setIdentity(null);
-        setUploadedRootFile(null);
+        resetSaveSession();
         setVrma(animation);
         setPreviewRuntime(creatorActionPreviewRuntime(target.runtime));
         setRootPreviewDependencyDigest(JSON.stringify(next.dependencies));
@@ -419,6 +443,7 @@ export function ActionEditorPage({
       itemId,
       loadActionPreview,
       replaceLoadedDocument,
+      resetSaveSession,
       setFailureMessage,
       t,
       userId,
@@ -488,7 +513,7 @@ export function ActionEditorPage({
       recovery.sessionId &&
       recovery.sessionRevision !== null
     ) {
-      setIdentity({
+      restoreSaveSession({
         itemId: recovery.itemId,
         itemRevision: recovery.itemRevision,
         sessionId: recovery.sessionId,
@@ -498,7 +523,7 @@ export function ActionEditorPage({
     hydrated.current = true;
     hydrating.current = false;
     setHydrationReady(true);
-  }, [intent, itemId, replaceLoadedDocument, userId]);
+  }, [intent, itemId, replaceLoadedDocument, restoreSaveSession, userId]);
 
   // The catalog item whose automatic hydration failed. The loader callback is
   // recreated when its inputs change (such as the UI Locale), so without this
@@ -613,30 +638,10 @@ export function ActionEditorPage({
     return next;
   };
 
-  const ensureSession = async (currentDocument: ActionDocument) => {
-    const operationId = crypto.randomUUID();
-    if (!identity) {
-      const created = await actions.beginSession.mutateAsync({
-        document: currentDocument,
-        operationId,
-        itemId: activeItemId ?? undefined,
-      });
-      setIdentity(created);
-      return created;
-    }
-    const updated = await actions.updateSession.mutateAsync({
-      identity,
-      document: currentDocument,
-    });
-    setIdentity(updated);
-    return updated;
-  };
-
   /** Save once and return the exact typed target used by Save & Equip. */
   const saveAction = async (): Promise<ManageActionTarget> => {
     setValidationAttempted(true);
     clearSaveFailure();
-    // Live validation belongs to the document, not a cached save failure.
     let currentDocument: ActionDocument;
     try {
       setSaveStage("preparing");
@@ -646,94 +651,27 @@ export function ActionEditorPage({
       setSaveStage("idle");
       throw captureSaveFailure(cause);
     }
-    const currentIssues = validateActionDocument(currentDocument, t);
-    if (currentIssues.length) {
-      setSaveStage("idle");
-      const description = currentIssues.map((issue) => issue.message).join(" ");
-      toast.error(
-        intent === "gesture"
-          ? t("page.save.incomplete.gesture")
-          : t("page.save.incomplete.reaction"),
-        { description },
-      );
-      throw new WordedError(description);
-    }
     try {
-      setSaveStage("preparing");
-      const session = await ensureSession(currentDocument);
-      const file =
-        currentDocument.implementation === "vrma"
-          ? vrma
-          : new File(
-              [JSON.stringify(currentDocument.sequence)],
-              `${currentDocument.semanticKey || "reaction"}.json`,
-              { type: "application/json" },
+      return await saver.saveDocument({
+        document: currentDocument,
+        itemId: activeItemId,
+        vrma,
+        onSaved: () => {
+          finalized.current = true;
+          cleanDigest.current = actionDocumentDigest(currentDocument);
+          if (userId)
+            clearActionRecovery(
+              window.localStorage,
+              userId,
+              intent,
+              itemId ?? null,
             );
-      if (!file)
-        throw contentSaveFieldError(t("page.save.chooseVrma"), "files");
-      const sha256 = await sha256File(file);
-      const fingerprint = contentFileFingerprint(file, sha256);
-      if (
-        uploadedRootFile?.sessionId !== session.sessionId ||
-        uploadedRootFile.fingerprint !== fingerprint
-      ) {
-        setSaveStage("uploading");
-        const uploaded = await actions.stageFile.mutateAsync({
-          sessionId: session.sessionId,
-          file,
-          role:
-            currentDocument.implementation === "vrma"
-              ? "animation"
-              : "sequence",
-          sha256,
-        });
-        setUploadedRootFile({
-          sessionId: session.sessionId,
-          fileRef: uploaded.file_ref,
-          fingerprint,
-        });
-      }
-      setSaveStage("saving");
-      const ready = await actions.save.mutateAsync({
-        identity: session,
+        },
       });
-      finalized.current = true;
-      cleanDigest.current = actionDocumentDigest(currentDocument);
-      if (userId)
-        clearActionRecovery(
-          window.localStorage,
-          userId,
-          intent,
-          itemId ?? null,
-        );
-      setIdentity(null);
-      setUploadedRootFile(null);
-      setSaveStage("idle");
-      toast.success(
-        intent === "gesture"
-          ? t("page.save.saved.gesture")
-          : t("page.save.saved.reaction"),
-        { description: t("page.save.savedDescription") },
-      );
-      return {
-        kind: intent,
-        itemId: ready.item_id,
-        name: currentDocument.name.trim(),
-        description: currentDocument.aiDescription.trim(),
-        source: ready.source,
-        semanticKey: currentDocument.semanticKey,
-        ...(intent === "reaction" && currentDocument.suggestedEmotion.trim()
-          ? {
-              emotion: currentDocument.suggestedEmotion,
-              intensity: currentDocument.suggestedIntensity,
-            }
-          : {}),
-        includedCount: currentDocument.dependencies.length,
-      };
     } catch (cause) {
-      setSaveStage("idle");
-      const error = captureSaveFailure(cause);
-      throw error;
+      // A toast already named the missing details.
+      if (cause instanceof ActionDocumentIncompleteError) throw cause;
+      throw captureSaveFailure(cause);
     }
   };
 
@@ -823,24 +761,10 @@ export function ActionEditorPage({
   const applyImport = useCallback(
     (value: ActionImport) => {
       const current = documentRef.current;
-      const next: ActionDocument = normalizeActionDocument(
+      const next: ActionDocument =
         value.kind === "project"
-          ? {
-              ...current,
-              name: value.project.name,
-              aiDescription: value.project.aiDescription,
-              semanticKey: value.project.semanticKey,
-              suggestedEmotion: value.project.suggestedEmotion,
-              suggestedIntensity: value.project.suggestedIntensity,
-              notes: value.project.notes,
-              implementation: "anima_clip",
-              sequence: value.project.sequence as unknown as Record<
-                string,
-                unknown
-              >,
-              dependencies: value.project.dependencies,
-            }
-          : {
+          ? importedProjectDocument(current, value.project)
+          : normalizeActionDocument({
               ...renameActionDocument(
                 current,
                 current.name.trim() || value.sequence.name.trim(),
@@ -855,8 +779,7 @@ export function ActionEditorPage({
                   ),
                 ).has(dependency.alias),
               ),
-            },
-      );
+            });
       if (intent === "reaction" && hasHumanoidTracks(next.sequence)) {
         throw new WordedError(t("importDialog.reactionHumanoid"));
       }
@@ -883,8 +806,7 @@ export function ActionEditorPage({
     const next = createDocument();
     finalized.current = false;
     setActiveItemId(null);
-    setIdentity(null);
-    setUploadedRootFile(null);
+    resetSaveSession();
     setVrma(null);
     clearSaveFailure();
     setPreviewRuntime(null);
@@ -918,7 +840,46 @@ export function ActionEditorPage({
     itemId,
     navigate,
     replaceLoadedDocument,
+    resetSaveSession,
     userId,
+  ]);
+
+  // "Open in creator": load an assistant draft's project once, as an import.
+  const draftSnapshot = useGenerationConversation(
+    initialDraft?.conversationId ?? null,
+  );
+  // A runtime without the assistant never reads the conversation.
+  const assistantWithheld = useContentGenerationWithheld();
+  const initialDraftApplied = useRef(false);
+  useEffect(() => {
+    if (!initialDraft || initialDraftApplied.current || !hydrationReady) return;
+    if (!draftSnapshot.data && !draftSnapshot.isError && !assistantWithheld)
+      return;
+    initialDraftApplied.current = true;
+    const project = draftSnapshot.data?.drafts.find(
+      (draft) => draft.id === initialDraft.draftId,
+    )?.project;
+    if (!project) {
+      // The draft was discarded, never held a project, or could not be read
+      // (also where this runtime has no assistant to read it from).
+      setFailureMessage(t("page.load.failed"));
+      return;
+    }
+    try {
+      applyImport(parseActionImport(project, intent));
+    } catch (cause) {
+      setFailureMessage(failureLine(cause, t("page.load.failed")));
+    }
+  }, [
+    applyImport,
+    assistantWithheld,
+    draftSnapshot.data,
+    draftSnapshot.isError,
+    hydrationReady,
+    initialDraft,
+    intent,
+    setFailureMessage,
+    t,
   ]);
 
   useEffect(() => {

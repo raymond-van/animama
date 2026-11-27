@@ -17,6 +17,7 @@ import { Route as AppIndexRouteImport } from "./routes/_app/index";
 import { Route as ASplatRouteImport } from "./routes/a/$";
 import { Route as AppMemoriesRouteImport } from "./routes/_app/memories";
 import { Route as AppLibraryRouteImport } from "./routes/_app/library";
+import { Route as AppGenerateRouteImport } from "./routes/_app/generate";
 import { Route as AppCreateRouteImport } from "./routes/_app/create";
 import { Route as AppAvatarPortraitDebugRouteImport } from "./routes/_app/avatar-portrait-debug";
 import { Route as AppAnimasRouteImport } from "./routes/_app/animas";
@@ -83,6 +84,11 @@ const AppMemoriesRoute = AppMemoriesRouteImport.update({
 const AppLibraryRoute = AppLibraryRouteImport.update({
   id: "/library",
   path: "/library",
+  getParentRoute: () => AppRoute,
+} as any);
+const AppGenerateRoute = AppGenerateRouteImport.update({
+  id: "/generate",
+  path: "/generate",
   getParentRoute: () => AppRoute,
 } as any);
 const AppCreateRoute = AppCreateRouteImport.update({
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   "/animas": typeof AppAnimasRouteWithChildren;
   "/avatar-portrait-debug": typeof AppAvatarPortraitDebugRoute;
   "/create": typeof AppCreateRoute;
+  "/generate": typeof AppGenerateRoute;
   "/library": typeof AppLibraryRoute;
   "/memories": typeof AppMemoriesRoute;
   "/a/$": typeof ASplatRoute;
@@ -276,6 +283,7 @@ export interface FileRoutesByTo {
   "/setup": typeof SetupRoute;
   "/avatar-portrait-debug": typeof AppAvatarPortraitDebugRoute;
   "/create": typeof AppCreateRoute;
+  "/generate": typeof AppGenerateRoute;
   "/library": typeof AppLibraryRoute;
   "/memories": typeof AppMemoriesRoute;
   "/a/$": typeof ASplatRoute;
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   "/_app/animas": typeof AppAnimasRouteWithChildren;
   "/_app/avatar-portrait-debug": typeof AppAvatarPortraitDebugRoute;
   "/_app/create": typeof AppCreateRoute;
+  "/_app/generate": typeof AppGenerateRoute;
   "/_app/library": typeof AppLibraryRoute;
   "/_app/memories": typeof AppMemoriesRoute;
   "/a/$": typeof ASplatRoute;
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | "/animas"
     | "/avatar-portrait-debug"
     | "/create"
+    | "/generate"
     | "/library"
     | "/memories"
     | "/a/$"
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
     | "/setup"
     | "/avatar-portrait-debug"
     | "/create"
+    | "/generate"
     | "/library"
     | "/memories"
     | "/a/$"
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | "/_app/animas"
     | "/_app/avatar-portrait-debug"
     | "/_app/create"
+    | "/_app/generate"
     | "/_app/library"
     | "/_app/memories"
     | "/a/$"
@@ -522,6 +534,13 @@ declare module "@tanstack/react-router" {
       path: "/library";
       fullPath: "/library";
       preLoaderRoute: typeof AppLibraryRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    "/_app/generate": {
+      id: "/_app/generate";
+      path: "/generate";
+      fullPath: "/generate";
+      preLoaderRoute: typeof AppGenerateRouteImport;
       parentRoute: typeof AppRoute;
     };
     "/_app/create": {
@@ -769,6 +788,7 @@ interface AppRouteChildren {
   AppAnimasRoute: typeof AppAnimasRouteWithChildren;
   AppAvatarPortraitDebugRoute: typeof AppAvatarPortraitDebugRoute;
   AppCreateRoute: typeof AppCreateRoute;
+  AppGenerateRoute: typeof AppGenerateRoute;
   AppLibraryRoute: typeof AppLibraryRoute;
   AppMemoriesRoute: typeof AppMemoriesRoute;
   AppIndexRoute: typeof AppIndexRoute;
@@ -795,6 +815,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnimasRoute: AppAnimasRouteWithChildren,
   AppAvatarPortraitDebugRoute: AppAvatarPortraitDebugRoute,
   AppCreateRoute: AppCreateRoute,
+  AppGenerateRoute: AppGenerateRoute,
   AppLibraryRoute: AppLibraryRoute,
   AppMemoriesRoute: AppMemoriesRoute,
   AppIndexRoute: AppIndexRoute,

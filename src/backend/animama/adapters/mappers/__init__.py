@@ -19,6 +19,11 @@ from .avatar_map import avatar_domain_to_orm, avatar_domain_to_schema, avatar_or
 from .chat_compaction_map import chat_compaction_domain_to_orm, chat_compaction_orm_to_domain
 from .chat_map import chat_domain_to_orm, chat_orm_to_domain
 from .chat_message_map import chat_message_domain_to_orm, chat_message_orm_to_domain
+from .generation_map import (
+    generation_conversation_orm_to_domain,
+    generation_draft_orm_to_domain,
+    generation_message_orm_to_domain,
+)
 from .model_provider_map import (
     apply_model_provider_to_orm,
     model_provider_domain_to_orm,
@@ -66,6 +71,10 @@ __all__ = [
     "chat_compaction_orm_to_domain",
     "chat_message_domain_to_orm",
     "chat_message_orm_to_domain",
+    # Content assistant
+    "generation_conversation_orm_to_domain",
+    "generation_draft_orm_to_domain",
+    "generation_message_orm_to_domain",
     # Settings
     "user_settings_orm_to_domain",
     "anima_settings_orm_to_domain",

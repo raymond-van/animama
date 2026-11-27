@@ -5,7 +5,10 @@ import { unavailableReasonText } from "@/app/runtime/route-admission";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 
 /** Backend-reported features whose UI entry points the composition can withhold. */
-export type RuntimeFeatureCapability = "chat_file_uploads" | "anima_creation";
+export type RuntimeFeatureCapability =
+  | "chat_file_uploads"
+  | "anima_creation"
+  | "content_generation";
 
 /**
  * Whether entry points for a runtime feature should be offered.

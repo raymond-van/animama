@@ -39,6 +39,7 @@ from animama.server.product_ports import LocalProductPorts
 from animama.server.routers import router
 from animama.server.routers.chatgpt_plan import router as chatgpt_plan_router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
+from animama.server.routers.generation import router as generation_router
 from animama.server.routers.memory_automation import router as memory_automation_router
 from animama.server.routers.model_configuration import router as model_configuration_router
 from animama.server.routers.web_search import router as web_search_router
@@ -123,6 +124,9 @@ def create_local_app(
     # Hosted never processes episode notes in the background, so only this composition
     # mounts the automatic-processing routes (spec #775).
     application.include_router(memory_automation_router)
+    # The content assistant spends the owner's own plan or key on requests this backend
+    # builds, so only this composition mounts its routes (spec #942).
+    application.include_router(generation_router)
     if http_config.desktop is not None:
         # Desktop keys change while this process runs; the runtime store is
         # their only copy (see runtime_credentials).

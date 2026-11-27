@@ -70,12 +70,15 @@
     "includedListFailed": "同梱アバターを読み込めませんでした。",
     "noAnima": "アバターでこのエフェクトをプレビューするには、先に Anima を作成してください。",
     "noAvatar": "選択した Anima には利用できるアバターがありません。",
+    "ownFailed": "選択したアバターを準備できませんでした。",
+    "ownListFailed": "あなたのアバターを読み込めませんでした。",
     "releaseUnavailable": "選択したアバターのリリースは利用できなくなりました。",
     "runtimeFailed": "プレビュー用 Anima のランタイムを読み込めませんでした。",
     "unnamedAnimaModel": "あなたの Anima",
     "versions": {
       "equipped": "プレビュー用 Anima に装備中",
-      "included": "同梱アバター"
+      "included": "同梱アバター",
+      "own": "あなたのアバター"
     }
   },
   "panel": {

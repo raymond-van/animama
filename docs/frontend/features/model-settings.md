@@ -279,6 +279,11 @@ when they follow a Chat default that waits.
 Embeddings shows re-embedding progress, polled while the server reports work in
 flight.
 
+The [content assistant](content-generation.md#the-assistants-model) is not
+one of these roles. Its model is chosen on the Generate page, saved as
+`generation.model_provider_id`, and has no default: with no usable choice the
+page shows its setup.
+
 ## Web search
 
 Models → Web search chooses the installation's search backend for models

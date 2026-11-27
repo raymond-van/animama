@@ -8,7 +8,8 @@ save run.
 
 ## 1. Brief every item together
 
-Prepare each animation's own [interview](interview.md) questions and send
+Prepare each animation's own interview questions
+(`src/backend/animama/resources/authoring/interview.md`) and send
 them all in one message, grouped by animation. With the answers, show one
 table of briefs to confirm:
 
@@ -25,7 +26,7 @@ ID only to revise that Gesture, and tiers of one action sharing a stem
 When the host can run subagents, give each item its own: authoring is the
 slow step, and a fresh context per item keeps attention on one motion. Run
 about five at a time. Each subagent receives the confirmed brief, this skill
-and its references, the draft path to write
+with its references and the authoring guidance, the draft path to write
 (`.animama-drafts/<name>.clip.json` at the repository root), and these
 instructions:
 

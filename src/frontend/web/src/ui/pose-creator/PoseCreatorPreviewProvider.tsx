@@ -80,12 +80,18 @@ export function PoseCreatorPreviewProvider({
   children,
   runtimeOverlay = null,
   sandboxEntries = EMPTY_SANDBOX_ENTRIES,
+  includedAvatars = false,
+  ownAvatars = false,
 }: {
   children: ReactNode;
   /** Exact unsaved closure mounted only for the active creator preview. */
   runtimeOverlay?: AnimaRuntimeCatalogSnapshot | null;
   /** Exact components resolved as the document changes, not when Play is pressed. */
   sandboxEntries?: readonly RuntimeCatalogEntry[];
+  /** Also offer every Included Avatar as a preview model. */
+  includedAvatars?: boolean;
+  /** Also offer the person's own Avatars as preview models. */
+  ownAvatars?: boolean;
 }) {
   const selectedModel = usePoseCreatorStore((state) => state.selectedSource);
   const setModelSource = usePoseCreatorStore((state) => state.setModelSource);
@@ -93,6 +99,8 @@ export function PoseCreatorPreviewProvider({
     ownerKey: "pose-creator",
     selectedModel,
     onSelectModel: setModelSource,
+    includedAvatars,
+    ownAvatars,
   });
   const runtime = useMemo(
     () =>

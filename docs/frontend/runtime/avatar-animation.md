@@ -873,8 +873,20 @@ from `src/frontend/web`:
   file source (in the working directory for a Library item or any file inside
   Library content); `animation review` and `animation resolve` manage them.
 
-The workflow, conventions and review guidance live in the
-`animama-animation` agent skill. The code is in
+The authoring guidance lives in the backend package, under
+`src/backend/animama/resources/authoring/`: what a Gesture clip is and its
+rules, the clip format, movement, hands, faces, what each motion check finding
+means, and the joint table. The backend packages it for the app's authoring
+assistant (`animama.resources.authoring_guidance`), and the
+`animama-animation` agent skill reads the same files and adds the
+command-line workflow and review procedure. `joints.md` there is a copy of
+`src/lib/avatar/motion-authoring/authoring-joints.generated.md`. After
+changing a joint, a range or the base pose, regenerate that file with
+`pnpm authoring:joints --write`, then refresh the copy from the repository
+root with
+`uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`.
+
+The code is in
 `src/lib/avatar/motion-authoring/`. Clips live only as content: drafts in the
 ignored `.animama-drafts/` folder until saved, then Local items in
 `content/local/`, and owner-approved Gestures in `content/included/` (through
@@ -885,7 +897,10 @@ There is no separate generic Pose Creator route or raw package save provider.
 Clip JSON is `animaPoseClip/2.0`; a separate versioned project envelope
 (`animamaActionProject/1.0`) carries the name, AI description, Selector ID and
 typed effect/sound dependencies with the sequence. Import accepts either
-format; the sequence must be `animaPoseClip/2.0`.
+format; the sequence must be `animaPoseClip/2.0`. The Generate page's **Open
+in creator** loads a content assistant draft's project through the same
+import, as a new unsaved Gesture
+([Content generation](../features/content-generation.md#saving-and-opening-in-the-creator)).
 
 For an Action implemented by an Anima Pose Clip, the Action display name is
 the authoritative authoring name. The embedded clip `name` matches it, and the

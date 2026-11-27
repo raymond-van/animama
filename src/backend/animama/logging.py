@@ -79,4 +79,33 @@ def get_logger(name: str | None = None, **context: Any) -> AnimaLoggerAdapter:
     return AnimaLoggerAdapter(base_logger, filtered_context)
 
 
-__all__ = ["get_logger", "AnimaLoggerAdapter"]
+_PACKAGE = __name__.partition(".")[0]
+
+
+def failure_site(error: BaseException) -> str | None:
+    """Where ``error`` was raised, as ``module:line``.
+
+    For logs that may not carry an exception's message, because the message
+    could quote private text: the type says what failed and this says where.
+    The site is the innermost traceback frame that belongs to this package,
+    since a line deep inside a library says little about which of our calls
+    failed; with no such frame, the innermost frame of all. Only a module
+    name and a line number are returned, never a file path. ``None`` for an
+    exception that was never raised.
+    """
+
+    site: str | None = None
+    ours = False
+    traceback = error.__traceback__
+    while traceback is not None:
+        name = traceback.tb_frame.f_globals.get("__name__")
+        module = name if isinstance(name, str) else "?"
+        in_package = module == _PACKAGE or module.startswith(f"{_PACKAGE}.")
+        # Each frame is deeper than the last: take it unless that would leave the package's own code.
+        if in_package or not ours:
+            site, ours = f"{module}:{traceback.tb_lineno}", in_package
+        traceback = traceback.tb_next
+    return site
+
+
+__all__ = ["get_logger", "AnimaLoggerAdapter", "failure_site"]

@@ -20,8 +20,44 @@ def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
     assert evidence["migration_count"] == len(list((resources.runtime_resource("alembic") / "versions").glob("*.py")))
     assert evidence["sql_count"] == 2
     assert evidence["gesture_count"] == 45
+    assert evidence["authoring_guidance_files"] == 9
+    assert evidence["generation_example_beats"] == 4
     assert evidence["starter_policy"] == "builtin:starter-loadout"
     assert evidence["local_http_schema_version"] == 1
+
+
+def test_resource_audit_rejects_missing_authoring_guidance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A frozen build that left out the guidance Markdown fails its audit, naming the file."""
+
+    from animama.resources import authoring_guidance
+
+    monkeypatch.setattr(authoring_guidance, "files", lambda package: tmp_path)
+    with pytest.raises(FileNotFoundError, match=r"authoring guidance is missing: gesture\.md"):
+        resources.audit_resources()
+
+
+def test_resource_audit_rejects_a_missing_generation_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A frozen build that left out the deterministic author's clip fails its audit, naming the file."""
+
+    from animama.app.generation import deterministic_author
+
+    deterministic_author._example_text.cache_clear()
+    monkeypatch.setattr(deterministic_author, "files", lambda package: tmp_path)
+    try:
+        with pytest.raises(FileNotFoundError, match=r"example Gesture is missing: generation-example-gesture\.json"):
+            resources.audit_resources()
+    finally:
+        deterministic_author._example_text.cache_clear()
+
+
+def test_resource_audit_rejects_a_generation_example_that_is_no_draft(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The packaged clip must still pass the validation every draft passes."""
+
+    from animama.app.generation import deterministic_author
+
+    monkeypatch.setattr(deterministic_author, "_example_text", lambda: '{"schema": "animaPoseClip/2.0"}')
+    with pytest.raises(ValueError, match="Packaged example Gesture is not a valid draft"):
+        resources.audit_resources()
 
 
 def test_resource_audit_rejects_embeddings_without_pgvector(monkeypatch: pytest.MonkeyPatch) -> None:

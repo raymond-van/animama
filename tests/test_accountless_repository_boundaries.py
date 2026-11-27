@@ -150,12 +150,14 @@ def test_python_route_tests_do_not_restore_header_authentication_fixtures() -> N
     # model-connection credential tests, OpenRouter connection tests and
     # live-credential tests assert which synthetic upstream key each request
     # sends; ChatGPT plan tests assert which synthetic access token each
-    # request to OpenAI carries and that error text quoting it is redacted.
-    # None of them calls local routes with it.
+    # request to OpenAI carries and that error text quoting it is redacted,
+    # and the generation probe's tests assert the same for the probe's
+    # requests. None of them calls local routes with it.
     credential_rejection_tests = {
         "test_chatgpt_plan_background.py",
         "test_chatgpt_plan_client.py",
         "test_chatgpt_plan_models.py",
+        "test_generation_probe.py",
         "test_key_redirects.py",
         "test_live_credentials.py",
         "test_local_http_lifecycle.py",

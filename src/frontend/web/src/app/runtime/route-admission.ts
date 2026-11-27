@@ -2,14 +2,15 @@ import type { RuntimeCapabilities } from "@animama/runtime-contracts";
 import type { TFunction } from "i18next";
 import { getI18n } from "react-i18next";
 
-/** The six capabilities a hosted runtime withholds from direct navigation and corresponding controls. */
+/** The seven capabilities a hosted runtime withholds from direct navigation and corresponding controls. */
 export type HostedExclusion =
   | "anima_creation"
   | "chat_file_uploads"
   | "document_processing"
   | "provider_credentials"
   | "local_filesystem_administration"
-  | "native_features";
+  | "native_features"
+  | "content_generation";
 
 /** Why a route is unavailable here: a hosted exclusion, or installation setup in a hosted runtime. */
 export type UnavailableRouteReason = HostedExclusion | "hosted_setup";
@@ -35,6 +36,8 @@ export function unavailableReasonText(
       return t("unavailable.reasons.localFilesystemAdministration");
     case "native_features":
       return t("unavailable.reasons.nativeFeatures");
+    case "content_generation":
+      return t("unavailable.reasons.contentGeneration");
     case "hosted_setup":
       return t("unavailable.reasons.hostedSetup");
   }
@@ -63,6 +66,9 @@ export const hostedExclusionReasons: Readonly<Record<HostedExclusion, string>> =
     },
     get native_features() {
       return unavailableReasonText("native_features");
+    },
+    get content_generation() {
+      return unavailableReasonText("content_generation");
     },
   };
 
@@ -102,5 +108,11 @@ export function unavailableRouteReason(
     return "native_features";
   if (pathname === "/setup" && capabilities.runtime_kind === "hosted")
     return "hosted_setup";
+  // The content assistant is local-only: offered only when reported true.
+  if (
+    /^\/generate(?:\/|$)/.test(pathname) &&
+    capabilities.content_generation !== true
+  )
+    return "content_generation";
   return null;
 }

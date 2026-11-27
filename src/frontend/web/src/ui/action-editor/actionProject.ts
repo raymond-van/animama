@@ -197,6 +197,30 @@ export function parseActionImport(
   };
 }
 
+/**
+ * The document an imported project becomes in an editor that holds `current`:
+ * the project's details, clip and exact dependencies replace the document's,
+ * as a timeline document. The creator's Import and the Generate page's drafts
+ * both build their documents here.
+ */
+export function importedProjectDocument(
+  current: ActionDocument,
+  project: ActionProject,
+): ActionDocument {
+  return normalizeActionDocument({
+    ...current,
+    name: project.name,
+    aiDescription: project.aiDescription,
+    semanticKey: project.semanticKey,
+    suggestedEmotion: project.suggestedEmotion,
+    suggestedIntensity: project.suggestedIntensity,
+    notes: project.notes,
+    implementation: "anima_clip",
+    sequence: project.sequence as unknown as Record<string, unknown>,
+    dependencies: project.dependencies,
+  });
+}
+
 function referenceForEvent(value: unknown): UnresolvedActionReference | null {
   if (!isRecord(value)) return null;
   if (

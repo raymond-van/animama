@@ -54,6 +54,8 @@ COPY src/backend/packaging/hatch_build.py src/backend/packaging/shared_catalogs.
 COPY scripts/voices/selection.json ./scripts/voices/selection.json
 COPY src/frontend/web/src/assets/vrm/animations/manifest.json \
     ./src/frontend/web/src/assets/vrm/animations/manifest.json
+COPY src/frontend/web/src/lib/avatar/motion-authoring/authoring-joints.generated.md \
+    ./src/frontend/web/src/lib/avatar/motion-authoring/authoring-joints.generated.md
 
 FROM base AS animama-server-development
 RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \

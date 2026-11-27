@@ -3152,6 +3152,295 @@ export const zPyAnimaUpdateRequest = z.object({
 });
 
 /**
+ * PyGenerationAnswer
+ */
+export const zPyGenerationAnswer = z.object({
+    answer: z.string().min(1).max(1000),
+    question: z.string().min(1).max(300)
+});
+
+/**
+ * PyGenerationAnswers
+ *
+ * What the person said to the questions the assistant last asked: their answers, or that they skipped them.
+ */
+export const zPyGenerationAnswers = z.object({
+    answers: z.optional(z.array(zPyGenerationAnswer).max(4)),
+    skipped: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * PyGenerationCheckExpressionNames
+ *
+ * Keyed expression names that will not show everywhere (decision D20).
+ */
+export const zPyGenerationCheckExpressionNames = z.object({
+    avatar_only: z.optional(z.array(z.string().min(1).max(64)).max(400)),
+    missing: z.optional(z.array(z.string().min(1).max(64)).max(400))
+});
+
+/**
+ * PyGenerationCheckFinding
+ *
+ * One motion check finding, as ``MotionCheckFinding`` in the frontend's ``checks.ts``.
+ */
+export const zPyGenerationCheckFinding = z.object({
+    actualOffset: z.optional(z.union([
+        z.tuple([
+            z.number(),
+            z.number(),
+            z.number()
+        ]),
+        z.null()
+    ])),
+    avatar: z.optional(z.union([
+        z.string().max(500),
+        z.null()
+    ])),
+    category: z.enum([
+        'pose',
+        'range',
+        'smoothness',
+        'oscillation',
+        'intersection',
+        'fingers',
+        'contact',
+        'feet',
+        'loopSeam',
+        'parity'
+    ]),
+    detail: z.string().max(500),
+    from: z.number(),
+    limit: z.number(),
+    severity: z.enum(['fail', 'warn']),
+    subject: z.string().max(500),
+    to: z.number(),
+    unit: z.string().max(500),
+    value: z.number()
+});
+
+/**
+ * PyGenerationCheckIssue
+ *
+ * One validation problem of the clip, by JSON path.
+ */
+export const zPyGenerationCheckIssue = z.object({
+    message: z.string().max(500),
+    path: z.string().max(500)
+});
+
+/**
+ * PyGenerationCheckReport
+ *
+ * The page's checks of one draft version.
+ *
+ * ``loadable`` false means the clip cannot be played. ``issues`` are the
+ * page's validation problems; ``findings`` its motion check findings on the
+ * Included Avatars; ``expression_names`` the keyed names the chosen Avatar
+ * lacks (``missing``) or only such Avatars have (``avatar_only``).
+ */
+export const zPyGenerationCheckReport = z.object({
+    expression_names: z.optional(zPyGenerationCheckExpressionNames),
+    findings: z.optional(z.array(zPyGenerationCheckFinding).max(200)),
+    issues: z.optional(z.array(zPyGenerationCheckIssue).max(200)),
+    loadable: z.boolean(),
+    version: z.int().gte(1)
+});
+
+/**
+ * PyGenerationCreatorScope
+ *
+ * A conversation started in a creator, about the item open in it (``null`` for an unsaved one).
+ */
+export const zPyGenerationCreatorScope = z.object({
+    catalog_item_id: z.optional(z.union([
+        z.string().min(1).max(255),
+        z.null()
+    ])),
+    intent: z.enum(['gesture', 'reaction']),
+    kind: z.literal('creator')
+});
+
+/**
+ * PyGenerationDraft
+ *
+ * A draft as stored: its project, the page's report on ``checked_version``, and where it stands.
+ *
+ * ``project`` is an ``animamaActionProject/1.0`` document the creator's
+ * Import accepts, or ``null`` for a draft that failed before it had one.
+ * ``has_previous_version`` says whether a restore has something to return
+ * to; the earlier project itself stays on the server.
+ */
+export const zPyGenerationDraft = z.object({
+    check_report: z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ]),
+    checked_version: z.union([
+        z.int(),
+        z.null()
+    ]),
+    conversation_id: z.string(),
+    created_at: z.iso.datetime(),
+    failure_reason: z.union([
+        z.string(),
+        z.null()
+    ]),
+    has_previous_version: z.boolean(),
+    id: z.string(),
+    intent: z.enum(['gesture', 'reaction']),
+    position: z.int(),
+    project: z.union([
+        z.record(z.string(), z.unknown()),
+        z.null()
+    ]),
+    repair_count: z.int(),
+    saved_item_id: z.union([
+        z.string(),
+        z.null()
+    ]),
+    status: z.enum([
+        'writing',
+        'checking',
+        'repairing',
+        'reviewing',
+        'ready',
+        'warnings',
+        'failed'
+    ]),
+    updated_at: z.iso.datetime(),
+    version: z.int()
+});
+
+/**
+ * PyGenerationMarkSaved
+ *
+ * The Library item the person saved the draft as.
+ */
+export const zPyGenerationMarkSaved = z.object({
+    item_id: z.string().min(1).max(255)
+});
+
+/**
+ * PyGenerationMessage
+ *
+ * One text turn. ``data`` holds what it carried besides text.
+ *
+ * The person's turn: ``draft_id`` (the draft it revises) and ``answers``.
+ * The assistant's turn: ``run_id``, ``outcome`` (``draft``, ``questions``,
+ * ``reply``, ``failed`` or ``stopped``), ``usage``, and where they apply
+ * ``draft_id``, ``questions`` and ``error`` (``code`` and ``category``).
+ */
+export const zPyGenerationMessage = z.object({
+    created_at: z.iso.datetime(),
+    data: z.record(z.string(), z.unknown()),
+    id: z.string(),
+    role: z.enum(['user', 'assistant']),
+    text: z.string()
+});
+
+/**
+ * PyGenerationPageScope
+ *
+ * A conversation started on the Generate page.
+ */
+export const zPyGenerationPageScope = z.object({
+    kind: z.literal('page')
+});
+
+/**
+ * PyGenerationConversation
+ */
+export const zPyGenerationConversation = z.object({
+    created_at: z.iso.datetime(),
+    id: z.string(),
+    scope: z.union([
+        z.object({
+            kind: z.literal('page')
+        }).and(zPyGenerationPageScope),
+        z.object({
+            kind: z.literal('creator')
+        }).and(zPyGenerationCreatorScope)
+    ]),
+    style_preset: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    title: z.string(),
+    updated_at: z.iso.datetime()
+});
+
+/**
+ * PyGenerationConversationCreate
+ *
+ * Where the new conversation is started.
+ */
+export const zPyGenerationConversationCreate = z.object({
+    scope: z.union([
+        z.object({
+            kind: z.literal('page')
+        }).and(zPyGenerationPageScope),
+        z.object({
+            kind: z.literal('creator')
+        }).and(zPyGenerationCreatorScope)
+    ])
+});
+
+/**
+ * PyGenerationConversationList
+ *
+ * The caller's conversations, the most recently written to first.
+ */
+export const zPyGenerationConversationList = z.object({
+    conversations: z.array(zPyGenerationConversation)
+});
+
+/**
+ * PyGenerationConversationSnapshot
+ *
+ * A conversation with its messages in the order added and its drafts by position.
+ */
+export const zPyGenerationConversationSnapshot = z.object({
+    conversation: zPyGenerationConversation,
+    drafts: z.array(zPyGenerationDraft),
+    messages: z.array(zPyGenerationMessage)
+});
+
+/**
+ * PyGenerationRunRequest
+ *
+ * One request to the assistant.
+ *
+ * ``message`` is the person's own words. With ``answers``, it is the request
+ * the questions were about, sent again. ``draft_id`` names the draft to
+ * revise; without it the run writes a new draft of ``intent``.
+ * ``avatar_expressions`` maps a family (as the page groups them) to the
+ * names of the chosen preview Avatar's expressions: names only, which reach
+ * the model as data.
+ */
+export const zPyGenerationRunRequest = z.object({
+    answers: z.optional(z.union([
+        zPyGenerationAnswers,
+        z.null()
+    ])),
+    avatar_expressions: z.optional(z.union([
+        z.record(z.string(), z.array(z.string().max(256)).max(2000)),
+        z.null()
+    ])),
+    draft_id: z.optional(z.union([
+        z.string().min(1).max(255),
+        z.null()
+    ])),
+    intent: z.optional(z.enum(['gesture', 'reaction'])),
+    message: z.string().min(1).max(4000),
+    model_provider_id: z.string().min(1).max(255),
+    ui_locale: z.optional(z.union([
+        z.string().max(35),
+        z.null()
+    ]))
+});
+
+/**
  * PyGestureBinding
  *
  * One equipped AI-callable Gesture, stored as a ``gesture:<semantic_key>`` binding row.
@@ -7034,6 +7323,7 @@ export const zRuntimeCapabilities = z.object({
     chat_file_uploads: z.boolean(),
     chatgpt_plan: z.optional(z.boolean()).default(false),
     companion_safety: zCompanionSafetyCapability,
+    content_generation: z.optional(z.boolean()).default(false),
     gemini_tts: z.optional(z.union([
         zGeminiTtsCapability,
         z.null()
@@ -8595,6 +8885,131 @@ export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetData = z.object({
  * The voice's sample as a 24 kHz mono WAV.
  */
 export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponse = z.string();
+
+export const zListGenerationConversationsV1GenerationConversationsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListGenerationConversationsV1GenerationConversationsGetResponse = zPyGenerationConversationList;
+
+export const zCreateGenerationConversationV1GenerationConversationsPostData = z.object({
+    body: zPyGenerationConversationCreate,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zCreateGenerationConversationV1GenerationConversationsPostResponse = zPyGenerationConversation;
+
+export const zDeleteGenerationConversationV1GenerationConversationsConversationIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        conversation_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zDeleteGenerationConversationV1GenerationConversationsConversationIdDeleteResponse = z.void();
+
+export const zGetGenerationConversationV1GenerationConversationsConversationIdGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        conversation_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetGenerationConversationV1GenerationConversationsConversationIdGetResponse = zPyGenerationConversationSnapshot;
+
+export const zRunGenerationSseV1GenerationConversationsConversationIdRunsSsePostData = z.object({
+    body: zPyGenerationRunRequest,
+    path: z.object({
+        conversation_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+export const zDeleteGenerationDraftV1GenerationDraftsDraftIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        draft_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zDeleteGenerationDraftV1GenerationDraftsDraftIdDeleteResponse = z.void();
+
+export const zRecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutData = z.object({
+    body: zPyGenerationCheckReport,
+    path: z.object({
+        draft_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRecordGenerationCheckReportV1GenerationDraftsDraftIdCheckReportPutResponse = zPyGenerationDraft;
+
+export const zUploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutData = z.object({
+    body: z.object({
+        frames: z.array(z.string()).min(1).max(2)
+    }),
+    path: z.object({
+        draft_id: z.string()
+    }),
+    query: z.object({
+        version: z.int().gte(1)
+    })
+});
+
+/**
+ * Successful Response
+ */
+export const zUploadGenerationReviewFramesV1GenerationDraftsDraftIdReviewFramesPutResponse = z.void();
+
+export const zMarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostData = z.object({
+    body: zPyGenerationMarkSaved,
+    path: z.object({
+        draft_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zMarkGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPostResponse = zPyGenerationDraft;
+
+export const zRestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        draft_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRestoreGenerationDraftV1GenerationDraftsDraftIdRestorePostResponse = zPyGenerationDraft;
 
 export const zListGesturesData = z.object({
     body: z.optional(z.never()),

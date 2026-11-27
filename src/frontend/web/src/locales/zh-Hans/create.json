@@ -173,6 +173,11 @@
   "hub": {
     "actions": {
       "description": "赋予你的 Anima 肢体表现、个性和情感。",
+      "generate": {
+        "action": "打开生成",
+        "description": "用文字描述一个动作，然后预览、修改并保存结果。",
+        "title": "生成"
+      },
       "gesture": {
         "action": "创建动作",
         "description": "编排富有表现力的动作和可复用的行为。",

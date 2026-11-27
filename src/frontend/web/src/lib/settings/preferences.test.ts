@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
+  generationModelPatch,
   isParakeetWebgpuPreferred,
   mergePreferences,
   offlineSttEnginePreference,
   modelRolePatch,
   modelRolePreferencePath,
+  readGenerationModelId,
   readModelRoleId,
   normalizeThemeSetting,
   resolvePreferences,
@@ -198,6 +200,36 @@ describe("model role preferences", () => {
     expect(modelRolePreferencePath("utility")).toBe(
       "models.utility_model_provider_id",
     );
+  });
+});
+
+describe("the content assistant's model preference", () => {
+  it("is saved without dropping the assistant's other choices or the model roles", () => {
+    const saved = {
+      models: { utility_model_provider_id: "utility-1" },
+      generation: { style_preset: "anime", model_provider_id: "old" },
+    };
+    const merged = mergePreferences(saved, generationModelPatch("model-9"));
+    expect(merged).toEqual({
+      models: { utility_model_provider_id: "utility-1" },
+      generation: { style_preset: "anime", model_provider_id: "model-9" },
+    });
+    expect(readGenerationModelId(merged)).toBe("model-9");
+  });
+
+  it("reads no choice before one is made, after it is cleared, or from a malformed value", () => {
+    for (const preferences of [
+      null,
+      {},
+      { generation: "model-9" },
+      { generation: { model_provider_id: "  " } },
+      { generation: { model_provider_id: 9 } },
+      mergePreferences(
+        { generation: { model_provider_id: "model-9" } },
+        generationModelPatch(null),
+      ),
+    ])
+      expect(readGenerationModelId(preferences)).toBeNull();
   });
 });
 

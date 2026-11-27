@@ -22,8 +22,10 @@ import { queryKeys } from "@/query/keys";
 import { usePreparedContentPreview } from "@/ui/content-preview/usePreparedContentPreview";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import {
+  contentCreatorCatalogAvatarItemId,
   contentCreatorIncludedAvatarSource,
   contentCreatorModelPreviewTarget,
+  contentCreatorOwnAvatarSource,
   contentCreatorModelSourceFromAnima,
   contentCreatorModelSourcesEqual,
   selectContentCreatorPreviewAnima,
@@ -57,21 +59,25 @@ export type ContentCreatorModelPreview = {
 };
 
 /**
- * Resolve the last-active Anima's exact model and, with `includedAvatars`, the
- * Included Avatars, without mutating user settings or any Anima loadout. The
- * Anima's model is chosen first; without one, the first Included Avatar.
+ * Resolve the last-active Anima's exact model and, with `includedAvatars` and
+ * `ownAvatars`, the Included Avatars and the person's own, without mutating
+ * user settings or any Anima loadout. The Anima's model is chosen first;
+ * without one, the first Included Avatar.
  */
 export function useContentCreatorModelPreview({
   ownerKey,
   selectedModel,
   onSelectModel,
   includedAvatars = false,
+  ownAvatars = false,
 }: {
   ownerKey: string;
   selectedModel: ContentCreatorModelSource | null;
   onSelectModel: (source: ContentCreatorModelSource) => void;
   /** Also offer every Included Avatar. */
   includedAvatars?: boolean;
+  /** Also offer the person's own Avatars (the Avatar catalog's first page). */
+  ownAvatars?: boolean;
 }): ContentCreatorModelPreview {
   const { t } = useTranslation("creator");
   const userId = useRuntimeCacheKey();
@@ -121,14 +127,34 @@ export function useContentCreatorModelPreview({
         : [],
     [includedAvatars, includedQuery.data?.pages],
   );
+  const ownQuery = useAvatarCatalog({ origin: "local", enabled: ownAvatars });
+  const ownSources = useMemo(
+    () =>
+      ownAvatars
+        ? (ownQuery.data?.pages ?? [])
+            .flatMap((page) => page.items)
+            .flatMap((item) =>
+              item.catalog_item_id
+                ? [
+                    contentCreatorOwnAvatarSource({
+                      catalog_item_id: item.catalog_item_id,
+                      name: item.name,
+                    }),
+                  ]
+                : [],
+            )
+        : [],
+    [ownAvatars, ownQuery.data?.pages],
+  );
+  const listsAvatars = includedAvatars || ownAvatars;
   const modelOptions = useMemo(
     () => [
       ...(equippedModel
         ? [
             {
               ...equippedModel,
-              // Beside the Included Avatars, name the Anima the model is from.
-              displayName: includedAvatars
+              // Beside other Avatars, name the Anima the model is from.
+              displayName: listsAvatars
                 ? animaSelection.anima?.display_name
                   ? t("modelPreview.animaModel", {
                       name: animaSelection.anima.display_name,
@@ -138,13 +164,15 @@ export function useContentCreatorModelPreview({
             },
           ]
         : []),
+      ...ownSources,
       ...includedSources,
     ],
     [
       animaSelection.anima?.display_name,
       equippedModel,
-      includedAvatars,
       includedSources,
+      listsAvatars,
+      ownSources,
       t,
     ],
   );
@@ -180,16 +208,14 @@ export function useContentCreatorModelPreview({
     selectedModel,
   ]);
 
-  const includedItemId =
-    selectedModel?.sourceType === "included_avatar"
-      ? selectedModel.itemId
-      : null;
-  const includedPreview = useQuery<PyContentPreview>({
+  // An Included or own Avatar is previewed through its catalog item.
+  const catalogItemId = contentCreatorCatalogAvatarItemId(selectedModel);
+  const catalogPreview = useQuery<PyContentPreview>({
     queryKey: queryKeys.avatars.preview(
       userId ?? "__anon__",
-      includedItemId ?? "__none__",
+      catalogItemId ?? "__none__",
     ),
-    enabled: Boolean(userId && includedItemId),
+    enabled: Boolean(userId && catalogItemId),
     // File grants expire; fetch a fresh one shortly before. The preview target
     // below is keyed by the Avatar's revision, so a new grant does not reload
     // an Avatar that is already loaded.
@@ -198,20 +224,20 @@ export function useContentCreatorModelPreview({
       query.state.data ? previewGrantRefreshMs(query.state.data) : false,
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) =>
-      previewCatalogItem(apiClient, includedItemId!, signal, "avatar"),
+      previewCatalogItem(apiClient, catalogItemId!, signal, "avatar"),
   });
 
   const target = useMemo(() => {
-    if (selectedModel?.sourceType === "included_avatar") {
-      if (!includedPreview.data) return null;
+    if (selectedModel && selectedModel.sourceType !== "resolved_entry") {
+      if (!catalogPreview.data) return null;
       const preview = avatarPreviewTarget(
-        includedPreview.data,
+        catalogPreview.data,
         selectedModel.displayName,
       );
       // Identity is the Avatar item and revision, not the file grant.
       return {
         ...preview,
-        key: `included-avatar:${selectedModel.itemId}:${includedPreview.data.revision}`,
+        key: `${selectedModel.sourceType === "included_avatar" ? "included-avatar" : "own-avatar"}:${selectedModel.itemId}:${catalogPreview.data.revision}`,
       };
     }
     return contentCreatorModelPreviewTarget({
@@ -220,7 +246,7 @@ export function useContentCreatorModelPreview({
       runtime,
       ownerKey,
     });
-  }, [includedPreview.data, ownerKey, previewAnimaId, runtime, selectedModel]);
+  }, [catalogPreview.data, ownerKey, previewAnimaId, runtime, selectedModel]);
   const preparedModel = usePreparedContentPreview(target, {
     enabled: Boolean(target),
     owner: "management",
@@ -229,11 +255,14 @@ export function useContentCreatorModelPreview({
     animaSelection.status === "none" &&
     animasQuery.isSuccess &&
     modelOptions.length === 0 &&
-    (!includedAvatars || includedQuery.isSuccess);
+    (!includedAvatars || includedQuery.isSuccess) &&
+    (!ownAvatars || ownQuery.isSuccess);
   const modelError =
     preparedModel.error ??
-    (includedPreview.isError
-      ? t("modelPreview.includedFailed")
+    (catalogPreview.isError
+      ? selectedModel?.sourceType === "own_avatar"
+        ? t("modelPreview.ownFailed")
+        : t("modelPreview.includedFailed")
       : selectedModel &&
           !target &&
           selectedModel.sourceType === "resolved_entry"
@@ -253,13 +282,17 @@ export function useContentCreatorModelPreview({
     isAnimaPending: settingsLoading || animasQuery.isPending,
     isRuntimePending:
       (Boolean(previewAnimaId) && runtimeQuery.isPending) ||
-      (Boolean(includedItemId) && includedPreview.isPending),
-    isModelCatalogPending: includedAvatars && includedQuery.isPending,
+      (Boolean(catalogItemId) && catalogPreview.isPending),
+    isModelCatalogPending:
+      (includedAvatars && includedQuery.isPending) ||
+      (ownAvatars && ownQuery.isPending),
     hasMoreModels: false,
     isLoadingMoreModels: false,
     modelCatalogError: includedQuery.isError
       ? t("modelPreview.includedListFailed")
-      : null,
+      : ownAvatars && ownQuery.isError
+        ? t("modelPreview.ownListFailed")
+        : null,
     animaError: animasQuery.isError ? t("modelPreview.animasFailed") : null,
     runtimeError: runtimeQuery.isError ? t("modelPreview.runtimeFailed") : null,
     modelError,
@@ -270,11 +303,15 @@ export function useContentCreatorModelPreview({
     retryRuntime: async () => {
       await runtimeQuery.refetch();
     },
-    retryModels: async () => undefined,
+    retryModels: async () => {
+      if (includedAvatars && includedQuery.isError)
+        await includedQuery.refetch();
+      if (ownAvatars && ownQuery.isError) await ownQuery.refetch();
+    },
     loadMoreModels: async () => undefined,
     retrySelectedModel: async () => {
-      // A failed Included load may be an expired grant: fetch a fresh one.
-      if (includedItemId) await includedPreview.refetch();
+      // A failed catalog load may be an expired grant: fetch a fresh one.
+      if (catalogItemId) await catalogPreview.refetch();
       await preparedModel.retry();
     },
   };

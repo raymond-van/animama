@@ -644,6 +644,7 @@ describe("hosted admission and transport", () => {
       { ...capabilities, anima_creation: true },
       { ...capabilities, automatic_episode_processing: true },
       { ...capabilities, chatgpt_plan: true },
+      { ...capabilities, content_generation: true },
     ]) {
       const { composition } = fixture({
         ...active,

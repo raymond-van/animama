@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BotMessageSquare } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -118,6 +118,48 @@ function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
           </Link>
         </Button>
       </div>
+    </article>
+  );
+}
+
+/**
+ * The Generate page's entry: one wide card under the two creators, where a
+ * request in words starts a Gesture. Shown only while the runtime offers the
+ * content assistant.
+ */
+function GenerateCreatorCard() {
+  const { t } = useTranslation("create");
+  return (
+    <article
+      className={cn(
+        CREATOR_CARD_CLASS_NAME,
+        "rounded-3xl p-5 md:col-span-2 md:flex-row md:items-center md:gap-5 md:p-6",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-sm"
+      >
+        <BotMessageSquare className="size-5" />
+      </span>
+      <div className="mt-4 flex-1 space-y-1.5 md:mt-0">
+        <h3 className="text-xl font-semibold">
+          {t("hub.actions.generate.title")}
+        </h3>
+        <p className="text-muted-foreground text-sm leading-6">
+          {t("hub.actions.generate.description")}
+        </p>
+      </div>
+      <Button
+        asChild
+        variant="outline"
+        className="mt-4 w-fit rounded-full md:mt-0"
+      >
+        <Link to="/generate">
+          {t("hub.actions.generate.action")}
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      </Button>
     </article>
   );
 }
@@ -305,6 +347,9 @@ export function CreateHubPage({
           {ACTION_CREATORS.map((card) => (
             <ActionCreatorCard key={card.to} card={card} />
           ))}
+          <RuntimeFeatureGate capability="content_generation">
+            <GenerateCreatorCard />
+          </RuntimeFeatureGate>
         </div>
       </section>
 

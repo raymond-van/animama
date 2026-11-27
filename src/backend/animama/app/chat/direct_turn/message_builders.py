@@ -9,17 +9,19 @@ from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from animama.app.chat.memory_cue import MESSAGE_DATA_MEMORY_KEY
-from animama.app.model_clients import (
-    ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
-    ANTHROPIC_TOOL_USE_ITEM_TYPE,
-    MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
-    MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
-    ModelClientFinal,
-    ModelClientToolCall,
-    ModelClientToolResult,
-)
+from animama.app.model_clients import ModelClientFinal, ModelClientToolCall, ModelClientToolResult
 from animama.app.model_clients.event_summary import DEFAULT_STREAM_EVENT_SUMMARY_METADATA_KEY
 from animama.app.model_clients.image_parts import image_part, image_placeholder
+
+# The provider-shaped tool exchange items are shared with other tool loops.
+from animama.app.model_clients.tool_rounds import (
+    anthropic_tool_result_item,
+    anthropic_tool_use_item,
+    assistant_tool_call_prompt_message,
+    model_client_tool_call_prompt_item,
+    model_client_tool_result_prompt_item,
+    tool_result_prompt_message,
+)
 from animama.app.util.json_values import json_safe_copy, safe_json_loads
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
@@ -76,80 +78,6 @@ def user_message_data(request: DirectChatTurnRequest) -> dict[str, Any] | None:
         # The chat shows this text beside the images instead of the placeholder lines.
         data["user_text"] = request.user_message
     return data or None
-
-
-def assistant_tool_call_prompt_message(
-    tool_calls: tuple[ModelClientToolCall, ...],
-) -> dict[str, Any]:
-    """Build an OpenAI-compatible assistant message containing function calls."""
-
-    return {
-        "role": "assistant",
-        "content": None,
-        "tool_calls": [
-            {
-                "id": tool_call.id,
-                "type": "function",
-                "function": {
-                    "name": tool_call.name,
-                    "arguments": tool_call.arguments,
-                },
-            }
-            for tool_call in tool_calls
-        ],
-    }
-
-
-def tool_result_prompt_message(tool_call: ModelClientToolCall, tool_result: str) -> dict[str, Any]:
-    """Build an OpenAI-compatible tool-result message for a function call."""
-
-    return {
-        "role": "tool",
-        "tool_call_id": tool_call.id,
-        "content": tool_result,
-    }
-
-
-def model_client_tool_call_prompt_item(tool_call: ModelClientToolCall) -> dict[str, Any]:
-    """Build one provider-neutral tool-call history item for Responses."""
-
-    return {
-        "type": MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
-        "call_id": tool_call.id,
-        "tool_type": tool_call.tool_type,
-        "name": tool_call.name,
-        "arguments": tool_call.arguments,
-    }
-
-
-def model_client_tool_result_prompt_item(tool_result: ModelClientToolResult) -> dict[str, Any]:
-    """Build one provider-neutral tool-result history item for Responses."""
-
-    return {
-        "type": MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
-        "call_id": tool_result.call_id,
-        "tool_type": tool_result.tool_type,
-        "status": tool_result.status,
-        "output": tool_result.output,
-    }
-
-
-def anthropic_tool_use_item(tool_call: ModelClientToolCall) -> dict[str, Any]:
-    """Build one Anthropic ``tool_use`` prompt/history item; the input is the parsed JSON object."""
-
-    arguments = safe_json_loads(tool_call.arguments)
-    return {
-        "type": ANTHROPIC_TOOL_USE_ITEM_TYPE,
-        "id": tool_call.id,
-        "name": tool_call.name,
-        "input": arguments if isinstance(arguments, Mapping) else {},
-    }
-
-
-def anthropic_tool_result_item(tool_call: ModelClientToolCall, output: str) -> dict[str, Any]:
-    """Build one Anthropic ``tool_result`` prompt/history item for a tool call's output."""
-
-    return {"type": ANTHROPIC_TOOL_RESULT_ITEM_TYPE, "tool_use_id": tool_call.id, "content": output}
 
 
 def internal_tool_call_message(

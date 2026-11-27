@@ -561,6 +561,44 @@ describe("chat model picker settings", () => {
     expect(fixture.save).not.toHaveBeenCalled();
   });
 
+  it("disables the rows chat cannot use and says why", async () => {
+    const ownNoWindow = catalogRow("OpenAIHTTPAgent:my-model", {
+      model_provider: "OpenAIHTTPAgent",
+      connection_name: "My server",
+      api_standard: "chat_completions",
+      source: "owner",
+      context_window_tokens: null,
+    });
+    const noApi = catalogRow("OtherAgent:mystery", {
+      model_provider: "OtherAgent",
+      connection_name: "Elsewhere",
+      api_standard: null,
+    });
+    fixture.catalog = [luna, ownNoWindow, noApi];
+    await renderPicker(LUNA);
+    await click(button("Select model"));
+
+    const unusable = (model: string) => {
+      const element = row(model);
+      return {
+        disabled: element.getAttribute("data-disabled") === "true",
+        text: element.textContent,
+      };
+    };
+    expect(unusable("my-model")).toEqual({
+      disabled: true,
+      text: "my-modelSet its context window in App Settings → Models",
+    });
+    expect(unusable("mystery")).toEqual({
+      disabled: true,
+      text: "mysteryNot available for direct chat yet",
+    });
+    expect(row("gpt-6-luna").getAttribute("data-disabled")).not.toBe("true");
+
+    await click(row("my-model"));
+    expect(modelSaves()).toEqual([]);
+  });
+
   it("explains unavailable web search and omits a slider for fixed models", async () => {
     fixture.catalog = [
       {

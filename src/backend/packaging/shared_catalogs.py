@@ -1,13 +1,16 @@
-"""Refresh or verify generated backend copies of frontend-owned product catalogs."""
+"""Refresh or verify generated backend copies of frontend-owned product catalogs and guidance."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
+# Package resource name (under src/backend/animama/resources) to its canonical source.
 CATALOG_INPUTS = {
     "pocket-voice-selection.json": "scripts/voices/selection.json",
     "animation-manifest.json": "src/frontend/web/src/assets/vrm/animations/manifest.json",
+    # The authoring joint table, written by `node scripts/authoring-joints.mjs --write` in src/frontend/web.
+    "authoring/joints.md": "src/frontend/web/src/lib/avatar/motion-authoring/authoring-joints.generated.md",
 }
 
 

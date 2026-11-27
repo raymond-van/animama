@@ -3,8 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { PyAnimaListItem } from "@/lib/content/catalogTypes";
 import type { AnimaRuntimeCatalogSnapshot } from "@/lib/runtime-content/types";
 import {
+  contentCreatorCatalogAvatarItemId,
+  contentCreatorIncludedAvatarSource,
+  contentCreatorModelCatalogItemId,
   contentCreatorModelPreviewTarget,
   contentCreatorModelSourceFromAnima,
+  contentCreatorOwnAvatarSource,
   selectContentCreatorPreviewAnima,
 } from "./contentCreatorModelPreview";
 
@@ -101,5 +105,42 @@ describe("Content Creator model preview", () => {
         ownerKey: "particle-vfx-creator",
       }),
     ).toBeNull();
+  });
+
+  it("previews an Included or own Avatar through its catalog item", () => {
+    const item = { catalog_item_id: "item-1", name: "Fox" };
+    const own = contentCreatorOwnAvatarSource(item);
+    const included = contentCreatorIncludedAvatarSource(item);
+    expect(own).toMatchObject({
+      key: "own:item-1",
+      sourceType: "own_avatar",
+      itemId: "item-1",
+      displayName: "Fox",
+      sourceLabel: "My Avatar",
+      versionLabel: "Your Avatar",
+    });
+    // One Avatar listed both ways is two different choices.
+    expect(own.key).not.toBe(included.key);
+    expect(own.runtimeId).not.toBe(included.runtimeId);
+    for (const source of [own, included]) {
+      expect(contentCreatorCatalogAvatarItemId(source)).toBe("item-1");
+      expect(contentCreatorModelCatalogItemId(source)).toBe("item-1");
+      // Neither resolves through an Anima's runtime.
+      expect(
+        contentCreatorModelPreviewTarget({
+          source,
+          animaId: "anima-a",
+          runtime: runtime(),
+          ownerKey: "pose-creator",
+        }),
+      ).toBeNull();
+    }
+  });
+
+  it("previews an Anima's model through that Anima's runtime, not a catalog item", () => {
+    const source = contentCreatorModelSourceFromAnima("anima-a", runtime());
+    expect(contentCreatorCatalogAvatarItemId(source)).toBeNull();
+    expect(contentCreatorCatalogAvatarItemId(null)).toBeNull();
+    expect(contentCreatorModelCatalogItemId(source)).toBeNull();
   });
 });

@@ -193,6 +193,7 @@
     "reasons": {
       "animaCreation": "此托管应用不支持创建 Anima。",
       "chatFileUploads": "此托管应用不支持聊天附件。",
+      "contentGeneration": "此托管应用不支持生成内容。",
       "documentProcessing": "此托管应用不支持文档导入和 OCR。",
       "hostedSetup": "安装设置属于本地应用。你的托管账户由运行时准备。",
       "localFilesystemAdministration": "管理本地文件系统需要本地应用。",

@@ -151,6 +151,16 @@ export type SafetyPreferences = {
   [key: string]: unknown;
 };
 
+/**
+ * The content assistant's remembered choices. Its model is a choice of its
+ * own, not a model role: a run names it, and with none (or one that can no
+ * longer be used) the assistant shows setup instead of using another model.
+ */
+export type GenerationPreferences = {
+  model_provider_id?: string | null;
+  [key: string]: unknown;
+};
+
 export type SettingsPreferences = {
   /** Keeps first-message suggestions dismissed across chats and deleted history. */
   has_sent_chat_message?: boolean;
@@ -158,6 +168,8 @@ export type SettingsPreferences = {
   chat?: { default_model_provider_id?: string | null };
   /** Other model role assignments chosen in App Settings → Models. */
   models?: ModelRolePreferences;
+  /** The content assistant's model, chosen on the Generate page. */
+  generation?: GenerationPreferences;
   /** Per-mode colour overrides; see `lib/theme/appearance-overrides.ts`. */
   appearance?: AppearanceOverrides;
   memory?: MemoryPreferences;
@@ -229,8 +241,10 @@ export function mergePreferences(
   const appearance = mergeSection(baseObj, patchObj, "appearance");
   const chat = mergeSection(baseObj, patchObj, "chat");
   const models = mergeSection(baseObj, patchObj, "models");
+  const generation = mergeSection(baseObj, patchObj, "generation");
   if (chat) merged.chat = chat as SettingsPreferences["chat"];
   if (models) merged.models = models as ModelRolePreferences;
+  if (generation) merged.generation = generation as GenerationPreferences;
 
   if (memory) merged.memory = memory as PreferenceToggleSection;
   if (emotion) merged.emotion = emotion as PreferenceToggleSection;
@@ -307,6 +321,20 @@ export function modelRolePatch(
 ): SettingsPreferences {
   const [section, key] = MODEL_ROLE_PREFERENCE_PATHS[role];
   return { [section]: { [key]: modelProviderId } };
+}
+
+/** The model the owner chose for the content assistant, or null before any choice. */
+export function readGenerationModelId(preferences: unknown): string | null {
+  if (!isRecord(preferences) || !isRecord(preferences.generation)) return null;
+  const value = preferences.generation.model_provider_id;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** A preferences patch that sets (or, with null, clears) the assistant's model. */
+export function generationModelPatch(
+  modelProviderId: string | null,
+): SettingsPreferences {
+  return { generation: { model_provider_id: modelProviderId } };
 }
 
 export function resolvePreferences(

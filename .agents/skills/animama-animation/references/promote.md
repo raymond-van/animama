@@ -98,7 +98,8 @@ them:
 Every event's `effectId`, `presetId` or `cueId` must name a declared `alias`
 of the matching type, and every `ref` must already be Included content of
 that `content_type`. Prefer an Included effect placed through the event's
-`override` ([clip format](clip-format.md#avatar-effect-events)) to a new
+`override` (Avatar Effect events in
+`src/backend/animama/resources/authoring/clip-format.md`) to a new
 variant effect: two events may play one dependency, such as the same ticks
 on each hand. Promote a new effect only for new art or a new attachment
 kind. A new effect is promoted first, with the

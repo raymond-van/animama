@@ -83,6 +83,11 @@ class RuntimeCapabilities(BaseModel):
     """
     chatgpt_plan: bool = False
     """Whether the owner may sign in with a ChatGPT plan (spec #919): local compositions only."""
+    content_generation: bool = False
+    """Whether the owner may write content with the in-app assistant (spec #942): local compositions only.
+
+    When true the composition serves ``/v1/generation``. Absent means false.
+    """
     library_previews: bool = True
     """Whether Library cards load item previews; when false they show family icons and request none.
 

@@ -1,12 +1,8 @@
 # Clip format
 
-You write Gestures directly as `animaPoseClip/2.0` JSON: named **beats** on a
-timeline, and per-joint **tracks** whose keys belong to a beat. The same file
-plays in chat, opens in the Gesture creator and is what Save stores, so a
-saved Gesture stays editable from its Library item. `pnpm -s animation
-validate` reports every problem with a JSON path and writes nothing when
-anything is invalid. The full format is described in
-`docs/frontend/runtime/avatar-animation.md` (Pose and clip JSON artifacts).
+A clip is `animaPoseClip/2.0` JSON: named **beats** on a timeline, and
+per-joint **tracks** whose keys belong to a beat. Validation reports every
+problem with a JSON path.
 
 ```json
 {
@@ -42,12 +38,9 @@ anything is invalid. The full format is described in
 }
 ```
 
-Full examples are the Included 2.0 Gestures in
-`content/included/gestures/<slug>/<slug>.json` (for example `wave-hello`,
-the laugh tiers `mild-laugh`, `medium-laugh` and `hysterical-laughter`, and
-`have-an-idea`, which solves hand contacts and plays an Avatar Effect); preview
-any of them with
-`pnpm -s animation:preview library:included/<slug>`.
+Full examples are the Included 2.0 Gestures, for example `wave-hello`, the
+laugh tiers `mild-laugh`, `medium-laugh` and `hysterical-laughter`, and
+`have-an-idea`, which solves hand contacts and plays an Avatar Effect.
 
 ## Fields
 
@@ -61,10 +54,10 @@ any of them with
 | `plantFeet` | `true` solves the legs on each Avatar so both feet stay still; leg joints cannot then be keyed. Omit it only to key the legs yourself. |
 | `mutedProceduralLayers` | Live layers muted while playing; usually all but `breathing`. |
 | `beats` | `{ id, label, time, ease? }` in time order, at least 0.5 ms apart. `label` is what the creator shows; `ease` is the default arrival for the beat's keys. |
-| `joints` | `{ jointId: { component: keys[] } }`; see `pnpm -s animation joints`. |
+| `joints` | `{ jointId: { component: keys[] } }`; the [joint list](joints.md) gives each joint's components and ranges. |
 | `hipsPosition` | `{ x, y, z }` metres from rest: x toward the Avatar's left, y up, z forward. |
-| `hands` | `{ left, right }` hand-shape keys (see hands-and-face.md). |
-| `expressions` | `{ vrmPreset: keys[] }`, weights 0–1. |
+| `hands` | `{ left, right }` hand-shape keys (see [hands](hands.md)). |
+| `expressions` | `{ name: keys[] }`, one track per named face shape, weights 0–1 (see [faces](faces.md)). |
 | `contacts` | Intended touches: the checks measure them, and `solve` makes playback land them (see Contacts below). |
 | `events` | Effects the Gesture plays on its timeline (see Avatar Effect events below). |
 | `rotations` | Raw quaternion tracks used by hand-made and converted clips; do not author them. |
@@ -82,8 +75,8 @@ any of them with
 - Assign each key to the beat it belongs to musically, with a small `dt` for
   staggered arrival: a hand that lands 0.1 s after the arm is
   `{ "beat": "raise", "dt": 0.1, … }`. Keys stay with their beat when it moves.
-- `"base"` means the Relaxed Rest value of that component
-  (`pnpm -s animation base`); expressions have no base.
+- `"base"` means the Relaxed Rest value of that component, which the
+  [joint list](joints.md) gives; expressions have no base.
 - `ease` says how motion arrives at the key: `smooth` (the default for joints,
   hips and expressions; monotone cubic, keeps speed through a key unless it is
   a peak or valley), `linear` (constant speed, kinks at keys), `hold` (stay on
@@ -97,7 +90,7 @@ any of them with
   equal values to hold at the seam.
 - A joint you never mention stays at the base pose; a component you omit
   holds its base value. A joint must name at least one component.
-- Values beyond a component's anatomical limit fail `validate`.
+- Values beyond a component's anatomical limit fail validation.
 
 ## Contacts
 
@@ -136,7 +129,7 @@ any of them with
 - Only crossed arms solve both ways. A clap solves one palm onto the other
   (that arm meets the other hand). Two solved contacts whose targets each lie
   on the other arm, at overlapping times (windows with blends), fail
-  `validate` unless both target an upper arm or forearm: when each hand rests
+  validation unless both target an upper arm or forearm: when each hand rests
   on the other upper arm or forearm, solve both; they are solved together.
 - A target at or beyond full reach stops short (about 1 cm at full reach), and
   a large correction in a short ramp moves fast: pose the arm close to the
@@ -156,7 +149,7 @@ An `avatar_vfx` event in `events` plays an Avatar Effect:
 | `id` | Unique within the clip. |
 | `time` | Start, in seconds from the clip's start. |
 | `kind` | `"avatar_vfx"`. |
-| `effectId` | The `alias` of an `avatar_effect` dependency in the Gesture's metadata (see [promote](promote.md)), not a content ID. |
+| `effectId` | The `alias` of one of the Gesture's `avatar_effect` dependencies, not a content ID. |
 | `duration` | Seconds it shows; omit it to keep the effect until the Gesture ends. |
 | `envelope` | `{ "intensity": { "fadeIn": s, "fadeOut": s } }` fades the art in and out; only for an event with a `duration`. |
 | `parameterKeyframes` | Not supported for Avatar Effects; leave it out. |
@@ -167,12 +160,10 @@ Use `override` to place an existing effect differently, change its look or
 motion, or pick another of its sounds, instead of asking for a variant effect:
 
 - Each part present replaces the effect's part whole; nothing is merged
-  field by field. Copy the part from the effect's definition
-  (`content/included/vfx/avatar/<stem>/<stem>.json`) and change what this
-  use needs; leave a part out to keep the effect's own.
+  field by field. Copy the part from the effect's definition and change
+  what this use needs; leave a part out to keep the effect's own.
 - `attachment.kind` must equal the effect's kind. The fields follow the
-  effect definition (the `animama-avatar-vfx` skill's effect folder
-  reference).
+  effect definition.
 - `soundAlias` should name one of the effect's declared sounds; an unknown
   or unmounted one plays silently.
 - The art, flipbook, region and face options stay the effect's.
@@ -204,15 +195,15 @@ because another event plays the right-hand ticks with their sound:
 (`left…`/`right…`): `Shoulder`, `UpperArm`, `LowerArm`, `Hand`, `UpperLeg`,
 `LowerLeg`, `Foot`, `Toes`, finger segments such as `rightIndexProximal`,
 `rightMiddleIntermediate`, `rightRingDistal`, and `rightThumbProximal`,
-`rightThumbDistal`. Sides are the Avatar's own. Components marked auxiliary
-in `pnpm -s animation joints` complete a joint's three axes for converted
-clips; leave them at their base.
+`rightThumbDistal`. Sides are the Avatar's own. Components the
+[joint list](joints.md) marks auxiliary complete a joint's three axes for
+converted clips; leave them at their base.
 
 ## Size and playback
 
 Clips store keys, not frames: the six migrated evaluation Gestures save at
 3–13 KB, 1.1–8.2% of their former baked size, and a 20 s Gesture stays far below the 2 MB the app loads
-(`validate` reports the saved size). Each Avatar prepares the clip when it
+(validation reports the saved size). Each Avatar prepares the clip when it
 starts playing: hand presets are fitted to its fingers and planted legs are
 solved on its own rig, so both Included Avatars keep their feet still (within
 about a millimetre on Andrew, whose straight rest legs leave a wide hip shift

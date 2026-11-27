@@ -30,6 +30,7 @@ describe("user-visible diagnostic codes", () => {
     expect(Object.keys(codes).sort()).toEqual([
       "contentSave",
       "creation",
+      "generation",
       "loadout",
       "modelConfiguration",
       "profile",

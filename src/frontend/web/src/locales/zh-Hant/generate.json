@@ -1,0 +1,208 @@
+{
+  "composer": {
+    "label": "給助理的請求",
+    "newDraftInstead": "改為寫一份新草稿",
+    "placeholder": "描述一個動作…",
+    "revisePlaceholder": "說說要改什麼…",
+    "revises": "下一則訊息將修改「{{name}}」。",
+    "send": "傳送請求",
+    "stop": "停止助理",
+    "tooLong": "請將請求縮短到 {{max}} 個字元以內。",
+    "writesNew": "下一則訊息將寫一份新草稿。"
+  },
+  "drafts": {
+    "actions": {
+      "discard": "捨棄",
+      "open": "在創作器中開啟",
+      "restore": "還原上一版本",
+      "retryCheck": "重新檢查",
+      "save": "儲存",
+      "saveAgain": "再次儲存",
+      "saving": "正在儲存…"
+    },
+    "checksUnavailable": "無法執行檢查",
+    "count_other": "{{count}} 份草稿",
+    "discard": {
+      "cancel": "取消",
+      "confirm": "捨棄草稿",
+      "description": "將刪除此草稿及其上次修改前的版本。此操作無法復原。",
+      "savedDescription": "將從此對話中刪除此草稿。你已儲存的項目仍保留在資源庫中。",
+      "title": "要捨棄「{{name}}」嗎？"
+    },
+    "emptyDescription": "請助理寫一個動作。每份草稿都會連同檢查結果顯示在這裡，可以播放、修改或儲存。",
+    "emptyTitle": "還沒有草稿",
+    "loadFailed": "無法載入草稿。",
+    "loading": "正在載入草稿…",
+    "openSaved": "開啟已儲存的項目",
+    "saved": "已儲存到資源庫",
+    "select": "選擇草稿「{{name}}」",
+    "showAll": "顯示全部 {{total}} 則",
+    "showFewer": "收合",
+    "status": {
+      "checking": "正在檢查…",
+      "failed": "失敗",
+      "ready": "已就緒",
+      "repairing": "正在修復…",
+      "reviewing": "正在檢視影格…",
+      "warnings": "已就緒（有警告）",
+      "writing": "正在撰寫…"
+    },
+    "toasts": {
+      "saved": "已將「{{name}}」儲存到資源庫。",
+      "saveFailed": "無法儲存此草稿。"
+    },
+    "unnamed": "未命名草稿",
+    "unplayable": "此草稿無法播放或儲存。",
+    "waitForRun": "助理完成後即可使用。"
+  },
+  "failure": {
+    "dismiss": "關閉",
+    "kept": "你的對話和草稿都已保留。",
+    "model": "助理未能完成此請求。",
+    "retry": "重試"
+  },
+  "header": {
+    "conversations": "先前的對話",
+    "discard": {
+      "cancel": "取消",
+      "confirm": "捨棄對話",
+      "description": "將刪除其中的訊息和未儲存的草稿。你已儲存的項目仍保留在資源庫中。此操作無法復原。",
+      "title": "要捨棄此對話嗎？"
+    },
+    "discardConversation": "捨棄此對話…",
+    "newConversation": "新對話",
+    "untitled": "新對話",
+    "waitForRun": "助理完成後即可使用。"
+  },
+  "model": {
+    "chooseFailed": "無法儲存模型選擇。",
+    "description": "助理使用此模型撰寫和修復草稿。",
+    "empty": "找不到模型。",
+    "noFrames": "此模型無法檢視圖片，因此助理會略過對算繪影格的檢視。檢查仍會執行。",
+    "none": "選擇模型",
+    "search": "搜尋模型…",
+    "setup": "設定模型",
+    "title": "助理模型",
+    "trigger": "助理模型：{{model}}"
+  },
+  "page": {
+    "conversationsFailed": "無法載入你與助理的對話。",
+    "loading": "正在開啟生成…",
+    "modelsFailed": "無法載入你的模型。",
+    "panels": {
+      "conversation": "助理",
+      "drafts": "草稿"
+    },
+    "retry": "重試",
+    "title": "生成"
+  },
+  "preview": {
+    "avatar": "虛擬形象",
+    "chooseAvatar": "選擇虛擬形象",
+    "empty": "助理寫出草稿後會立即在這裡播放。",
+    "loadingAvatars": "正在載入虛擬形象…",
+    "loadingDraft": "正在載入草稿…",
+    "loop": "循環",
+    "loopLabel": "循環播放草稿",
+    "selectDraft": "選擇一份草稿即可播放。",
+    "target": "草稿",
+    "unplayable": "此草稿無法播放。"
+  },
+  "progress": {
+    "checking": "正在檢查草稿…",
+    "framesUnavailable": "無法繪製影格，因此助理將不檢視影格並繼續。",
+    "repairing": "正在修復檢查發現的問題…",
+    "reviewingFrames": "正在檢視算繪影格…",
+    "starting": "正在開始…",
+    "thinking": "正在思考…",
+    "writing": "正在撰寫草稿…"
+  },
+  "questions": {
+    "answerFor": "回答：{{question}}",
+    "answerPlaceholder": "輸入你的回答",
+    "hint": "想回答哪些就回答哪些，也可以略過，交給助理決定。",
+    "skip": "略過",
+    "submit": "傳送回答",
+    "title": "助理有幾個問題"
+  },
+  "setup": {
+    "claudeNote": "Claude 的 API 金鑰也可以使用。請在「應用程式設定 → 模型」的模型連線中新增它，或新增其他能夠呼叫工具的模型。",
+    "description": "助理根據文字請求撰寫動作，然後進行檢查和修復。它需要一個能夠呼叫工具的模型。",
+    "done": "返回生成",
+    "modelsDescription": "只列出能夠呼叫工具且可用於聊天的模型。你的選擇會被記住，並且可以隨時變更。",
+    "modelsTitle": "可以使用的模型",
+    "modelTitle": "為助理選擇模型",
+    "noModels": "目前還沒有可用的模型。請使用上方的「使用 ChatGPT 繼續」，或在模型連線中新增模型。",
+    "openConnections": "開啟模型連線",
+    "otherTitle": "其他模型",
+    "title": "設定生成"
+  },
+  "transcript": {
+    "answer": "{{question}} — {{answer}}",
+    "emptyDescription": "說說虛擬形象該做什麼，例如「害羞地輕輕揮手」。助理會寫出草稿、進行檢查，並在預覽中播放。",
+    "emptyTitle": "描述一個動作",
+    "failed": "助理未能完成此請求。",
+    "loadFailed": "無法載入此對話。",
+    "loading": "正在載入對話…",
+    "scrollToLatest": "捲動到最新訊息",
+    "skippedQuestions": "已略過這些問題。",
+    "stopped": "已停止。已完成的草稿會保留。"
+  },
+  "warnings": {
+    "avatarOnlyExpressions": "僅在具有以下表情的虛擬形象上播放：{{names, list}}。",
+    "contact": {
+      "fail": "手沒有碰到它應該觸碰的位置。",
+      "warn": "手略微偏離了它應該觸碰的位置。"
+    },
+    "feet": {
+      "fail": "踩在地上的腳發生了滑動或抬起。",
+      "warn": "踩在地上的腳有輕微移動。"
+    },
+    "fingers": {
+      "fail": "手指相互穿過。",
+      "warn": "手指幾乎相互穿過。"
+    },
+    "intersection": {
+      "fail": "身體部位相互穿過。",
+      "warn": "身體部位幾乎相互穿過。"
+    },
+    "issue": "片段中有一部分無效。",
+    "issueAt": "{{path}}：{{message}}",
+    "loopSeam": {
+      "fail": "循環的結尾與開頭不銜接。",
+      "warn": "循環重複處有輕微跳動。"
+    },
+    "missingExpressions": "所選虛擬形象無法顯示以下表情：{{names, list}}。",
+    "oscillation": {
+      "fail": "某個身體部位來回抖動得太快。",
+      "warn": "某個身體部位在快速來回移動。"
+    },
+    "parity": {
+      "fail": "該動作在兩個內建虛擬形象上的效果不同。",
+      "warn": "該動作在兩個內建虛擬形象上的效果略有不同。"
+    },
+    "pose": {
+      "fail": "找不到草稿使用的某個姿勢。",
+      "warn": "草稿使用的某個姿勢看起來可能不對。"
+    },
+    "range": {
+      "fail": "某個關節彎曲得超出了身體能做到的範圍。",
+      "warn": "某個關節彎曲得超出了看起來自然的範圍。"
+    },
+    "smoothness": {
+      "fail": "某個動作突然猛地一動。",
+      "warn": "某個動作有點突兀。"
+    },
+    "unchecked": "此版本尚未檢查。",
+    "unknown": {
+      "fail": "一項運動檢查未通過。",
+      "warn": "一項運動檢查給出了警告。"
+    },
+    "where": {
+      "at": "{{time}} 秒",
+      "avatar": "在 {{avatar}} 上",
+      "avatarWhen": "{{avatar}} · {{when}}",
+      "range": "{{from}}–{{to}} 秒"
+    }
+  }
+}

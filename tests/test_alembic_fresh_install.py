@@ -484,3 +484,94 @@ def test_fresh_avatar_setting_overrides_store_only_non_automatic_modes(
         with engine.begin() as connection:
             connection.execute(text("DELETE FROM content_catalog_items WHERE id = 'avatar-item'"))
             assert connection.scalar(text("SELECT count(*) FROM avatar_setting_overrides")) == 0
+
+
+def test_previous_head_gains_the_content_assistant_tables(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A profile at the previous head keeps its rows; the new tables hold valid values and reference no Chat."""
+
+    previous_head = "sidebar_pins_20261126"
+    generation_tables = {"generation_conversations", "generation_messages", "generation_drafts"}
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        with engine.connect() as connection:
+            schema = connection.scalar(text("SELECT current_schema()"))
+
+        def migrated_tables() -> set[str]:
+            # Named by schema: tables another test created in public are visible on the search path too.
+            return set(inspect(engine).get_table_names(schema=schema))
+
+        command.upgrade(config, previous_head)
+        assert generation_tables.isdisjoint(migrated_tables())
+        with engine.begin() as connection:
+            principal = connection.scalar(text("SELECT installation_principal_id FROM installation_settings"))
+            connection.execute(text("INSERT INTO anima (id, display_name) VALUES ('anima', 'Annie')"))
+
+        command.upgrade(config, "head")
+
+        assert generation_tables <= migrated_tables()
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
+            assert connection.scalar(text("SELECT installation_principal_id FROM installation_settings")) == principal
+            assert connection.scalar(text("SELECT display_name FROM anima")) == "Annie"
+        # Messages and drafts go with their conversation, and nothing references a Chat or an Anima.
+        assert inspect(engine).get_foreign_keys("generation_conversations", schema=schema) == []
+        for table in ("generation_messages", "generation_drafts"):
+            (conversation_fk,) = inspect(engine).get_foreign_keys(table, schema=schema)
+            assert conversation_fk["referred_table"] == "generation_conversations"
+            assert conversation_fk["options"]["ondelete"] == "CASCADE"
+
+        message = text(
+            "INSERT INTO generation_messages (id, conversation_id, role, text) "
+            "VALUES (:id, 'conversation', :role, 'Hi')"
+        )
+        draft = text(
+            "INSERT INTO generation_drafts (id, conversation_id, owner_user_id, intent, position, status) "
+            "VALUES (:id, 'conversation', 'owner', :intent, 0, :status)"
+        )
+        statuses = ("writing", "checking", "repairing", "reviewing", "ready", "warnings", "failed")
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO generation_conversations (id, owner_user_id, scope) "
+                    "VALUES ('conversation', 'owner', CAST('{\"kind\": \"page\"}' AS jsonb))"
+                )
+            )
+            for role in ("user", "assistant"):
+                connection.execute(message, {"id": role, "role": role})
+            for status in statuses:
+                connection.execute(draft, {"id": status, "intent": "gesture", "status": status})
+            connection.execute(draft, {"id": "reaction", "intent": "reaction", "status": "ready"})
+            assert connection.scalar(text("SELECT title FROM generation_conversations")) == ""
+            assert connection.scalar(text("SELECT data FROM generation_messages WHERE id = 'user'")) == {}
+            assert tuple(
+                connection.execute(
+                    text("SELECT version, repair_count, project FROM generation_drafts WHERE id = 'ready'")
+                ).one()
+            ) == (1, 0, None)
+        for role in ("system", "tool", "User", ""):
+            with (
+                pytest.raises(IntegrityError, match="ck_generation_messages_role_values"),
+                engine.begin() as connection,
+            ):
+                connection.execute(message, {"id": "refused", "role": role})
+        for intent in ("pose", "idle", "Gesture"):
+            with (
+                pytest.raises(IntegrityError, match="ck_generation_drafts_intent_values"),
+                engine.begin() as connection,
+            ):
+                connection.execute(draft, {"id": "refused", "intent": intent, "status": "ready"})
+        for status in ("done", "saved", "Ready"):
+            with (
+                pytest.raises(IntegrityError, match="ck_generation_drafts_status_values"),
+                engine.begin() as connection,
+            ):
+                connection.execute(draft, {"id": "refused", "intent": "gesture", "status": status})
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM generation_conversations WHERE id = 'conversation'"))
+            assert connection.scalar(text("SELECT count(*) FROM generation_messages")) == 0
+            assert connection.scalar(text("SELECT count(*) FROM generation_drafts")) == 0
+
+        command.downgrade(config, previous_head)
+        assert generation_tables.isdisjoint(migrated_tables())
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == previous_head
+            assert connection.scalar(text("SELECT display_name FROM anima")) == "Annie"

@@ -70,12 +70,15 @@
     "includedListFailed": "无法加载内置虚拟形象。",
     "noAnima": "请先创建一个 Anima，再在虚拟形象上预览此特效。",
     "noAvatar": "所选 Anima 没有可用的虚拟形象。",
+    "ownFailed": "无法准备所选的虚拟形象。",
+    "ownListFailed": "无法加载你的虚拟形象。",
     "releaseUnavailable": "所选虚拟形象版本已不可用。",
     "runtimeFailed": "无法加载预览 Anima 的运行时。",
     "unnamedAnimaModel": "你的 Anima",
     "versions": {
       "equipped": "已装备在预览 Anima 上",
-      "included": "内置虚拟形象"
+      "included": "内置虚拟形象",
+      "own": "你的虚拟形象"
     }
   },
   "panel": {

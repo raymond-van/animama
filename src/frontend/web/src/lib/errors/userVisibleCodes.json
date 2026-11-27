@@ -70,6 +70,26 @@
     "voice_codec_invalid",
     "voice_preset_unavailable"
   ],
+  "generation": [
+    "generation_draft_empty",
+    "generation_draft_unloadable",
+    "generation_intent_unavailable",
+    "generation_model_unusable",
+    "generation_model_unusable_connection_inactive",
+    "generation_model_unusable_inactive",
+    "generation_model_unusable_no_model_client",
+    "generation_model_unusable_not_chat_model",
+    "generation_model_unusable_not_found",
+    "generation_model_unusable_tools_unsupported",
+    "generation_model_unusable_unsupported",
+    "generation_no_valid_draft",
+    "generation_not_found",
+    "generation_nothing_to_restore",
+    "generation_request_failed",
+    "generation_run_failed",
+    "generation_run_in_progress",
+    "generation_stream_interrupted"
+  ],
   "loadout": [
     "anima_definition_already_initialized",
     "anima_display_name_invalid",

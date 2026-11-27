@@ -103,6 +103,26 @@
     "voice_codec_invalid": "请选择已保存的 PocketTTS 语音克隆。",
     "voice_preset_unavailable": "请选择可用的 PocketTTS 语音。"
   },
+  "generation": {
+    "generation_draft_empty": "此草稿还没有可修改的内容。请发送新的请求。",
+    "generation_draft_unloadable": "此草稿无法播放，因此无法保存。请重新请求或要求修改。",
+    "generation_intent_unavailable": "助手目前只能创作动作。",
+    "generation_model_unusable": "助手无法使用所选模型。请选择其他模型。",
+    "generation_model_unusable_connection_inactive": "所选模型的连接已关闭。请在应用设置中开启，或选择其他模型。",
+    "generation_model_unusable_inactive": "所选模型已关闭。请选择其他模型。",
+    "generation_model_unusable_no_model_client": "此安装无法运行所选模型。请选择其他模型。",
+    "generation_model_unusable_not_chat_model": "所选模型不是聊天模型。请选择其他模型。",
+    "generation_model_unusable_not_found": "所选模型已不可用。请选择其他模型。",
+    "generation_model_unusable_tools_unsupported": "所选模型不支持助手所需的工具调用。请选择其他模型。",
+    "generation_model_unusable_unsupported": "所选模型无法在其连接上使用。请选择其他模型。",
+    "generation_no_valid_draft": "助手未能生成可用的草稿。请重试，或换一种方式描述。",
+    "generation_not_found": "此对话或草稿已不存在。",
+    "generation_nothing_to_restore": "此草稿没有可恢复的早期版本。",
+    "generation_request_failed": "请求未能送达助手。请重试。",
+    "generation_run_failed": "助手遇到了意外问题。请重试。",
+    "generation_run_in_progress": "助手仍在处理此对话。请等待完成，或先停止。",
+    "generation_stream_interrupted": "助手完成之前连接已中断。已保存的草稿会保留。"
+  },
   "generic": {
     "unexpected": "出现问题。请重试。",
     "withDetail": "{{message}}（{{detail}}）"

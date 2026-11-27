@@ -2,7 +2,7 @@
 
 Use when choosing joint values. Angles are degrees in Animama's anatomical
 convention; the canonical basis has the Avatar facing +Z with its own left at
-+X. Run `pnpm -s animation joints` for every component's meaning, natural
++X. The [joint list](joints.md) gives every component's meaning, natural
 (soft) range and anatomical (hard) limit; values beyond the soft range are
 reported as warnings, beyond the hard limit as failures. Limits summarize AAOS
 and Soucie et al. (2011) adult normative ranges, distributed by Animama across

@@ -29,6 +29,7 @@ from .content_catalog import (
     ORMContentPreviewFile,
 )
 from .content_mutation import ORMContentMutationReceipt
+from .generation import ORMGenerationConversation, ORMGenerationDraft, ORMGenerationMessage
 from .memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 from .memory_episode import ORMMemoryEpisodeItem
 from .memory_manager import ORMMemoryManagerApproval, ORMMemoryManagerMessage, ORMMemoryManagerRun
@@ -77,6 +78,9 @@ __all__ = [
     "ORMContentMutationReceipt",
     "ORMContentPreview",
     "ORMContentPreviewFile",
+    "ORMGenerationConversation",
+    "ORMGenerationDraft",
+    "ORMGenerationMessage",
     "ORMAnimaContentBinding",
     "ORMAvatar",
     "ORMAvatarFacePartOverride",

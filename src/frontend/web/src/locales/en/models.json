@@ -22,7 +22,7 @@
     "confirmation": {
       "background": "Also let automatic memory updates use my plan",
       "backgroundHint": "You can change this later in App Settings → Models.",
-      "description": "Eligible AI requests in Animama now use your ChatGPT plan: chats with plan models, chat titles and summaries, and memory updates you start. Review and limit this usage in ChatGPT's settings.",
+      "description": "Eligible AI requests in Animama now use your ChatGPT plan: chats with plan models, chat titles and summaries, memory updates you start, and drafts the assistant writes on the Generate page with a plan model. Review and limit this usage in ChatGPT's settings.",
       "gotIt": "Got it",
       "title": "You're using your ChatGPT plan"
     },

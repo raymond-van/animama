@@ -30,9 +30,9 @@ export type PreparedVrm = {
 
 /**
  * The load-time installs every place that loads an Avatar for display runs,
- * in order, so the app (`Avatar.load`), the Gesture review renderer
- * (`scripts/animation-render`) and Avatar test helpers play a model the same
- * way. Call it once after loading and expression canonicalization.
+ * in order, so the app (`Avatar.load`), the Gesture review sheets
+ * (`motion-authoring/reviewSheet.ts`) and Avatar test helpers play a model the
+ * same way. Call it once after loading and expression canonicalization.
  *
  * Blink and viseme presets the file leaves empty are filled from other
  * shapes first (`faceSignals.ts`), then the face names content keys are

@@ -31,10 +31,15 @@ shared model clients, streams direct chat events, and persists side effects.
   assembly, request options, `DirectChatTurnExecutor`, and direct-turn helpers
   for model stream collection, provider state, response formatting, and
   persistence payloads.
+- `app/generation/`: the content assistant of local compositions: storage of
+  its conversations and drafts, draft validation, the authoring tools and
+  prompts, one model pass, and the run pipeline that the
+  [`/v1/generation` routes](http-api.md#content-assistant) stream.
 - `app/model_clients/`: provider-neutral direct model-client contracts, `MC*`
   stream-event types, event sanitization, compact event summaries, connection
-  credential resolution, the capability-probe port, error categories and usage
-  estimates.
+  credential resolution, the capability-probe port, error categories, usage
+  estimates, and the tool-round helpers (`tool_rounds.py`) that chat and the
+  content assistant build their next request with.
 - `adapters/`: concrete implementations. The containment-safe content
   filesystem store, SQLAlchemy repositories, ORM/domain mappers, and direct
   model-client adapters live here. OpenAI Chat Completions, OpenAI Responses

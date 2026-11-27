@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+  BotMessageSquare,
   ChevronRight,
   Hand,
   HeartPulse,
@@ -65,6 +66,11 @@ const PRIMARY_CREATE_LINKS = [
     icon: HeartPulse,
     iconClassName: "bg-secondary text-secondary-foreground",
   },
+  {
+    to: "/generate" as const,
+    icon: BotMessageSquare,
+    iconClassName: "bg-secondary text-secondary-foreground",
+  },
 ] as const;
 
 /** The card look shared by every Create menu item, including a disabled one. */
@@ -96,11 +102,14 @@ export function SidebarCreateMenu() {
   // A withheld Anima creator keeps its item, disabled with the shared reason.
   const animaCreationUnavailable =
     useRuntimeFeatureUnavailableReason("anima_creation");
-  const primaryLinks = PRIMARY_CREATE_LINKS.filter(
-    (item) =>
-      animaCreation ||
-      animaCreationUnavailable !== null ||
-      item.to !== "/animas/new",
+  // The content assistant is local-only; its item is hidden unless offered.
+  const contentGeneration = useRuntimeFeatureEnabled("content_generation");
+  const primaryLinks = PRIMARY_CREATE_LINKS.filter((item) =>
+    item.to === "/generate"
+      ? contentGeneration
+      : animaCreation ||
+        animaCreationUnavailable !== null ||
+        item.to !== "/animas/new",
   );
   /** Each creation destination's menu label. */
   const createLabel = (to: (typeof PRIMARY_CREATE_LINKS)[number]["to"]) => {
@@ -111,6 +120,8 @@ export function SidebarCreateMenu() {
         return t("create.gesture");
       case "/reactions/new":
         return t("create.reaction");
+      case "/generate":
+        return t("create.generate");
     }
   };
   const trigger: SidebarLinkItem = {

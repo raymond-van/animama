@@ -22,7 +22,7 @@
     "confirmation": {
       "background": "자동 기억 업데이트에도 플랜 사용",
       "backgroundHint": "나중에 앱 설정 → 모델에서 바꿀 수 있습니다.",
-      "description": "이제 Animama의 해당 AI 요청에 ChatGPT 플랜이 사용됩니다. 플랜 모델과의 채팅, 채팅 제목과 요약, 직접 시작한 기억 업데이트가 해당됩니다. 이 사용량은 ChatGPT 설정에서 확인하고 제한할 수 있습니다.",
+      "description": "이제 Animama의 해당 AI 요청에 ChatGPT 플랜이 사용됩니다. 플랜 모델과의 채팅, 채팅 제목과 요약, 직접 시작한 기억 업데이트, 어시스턴트가 생성 페이지에서 플랜 모델로 작성하는 초안이 해당됩니다. 이 사용량은 ChatGPT 설정에서 확인하고 제한할 수 있습니다.",
       "gotIt": "확인",
       "title": "ChatGPT 플랜을 사용하고 있습니다"
     },

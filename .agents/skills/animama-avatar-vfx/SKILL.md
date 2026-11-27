@@ -171,9 +171,11 @@ promotion with `"mode": "replace"`.
   effect's motion short and loop-friendly.
 - Reuse before adding: when a Gesture or Reaction needs an existing Library
   effect in a different place, look or motion, or with another of its
-  declared sounds, place it through that event's `override` (fields in the
-  `animama-animation` skill's clip format) instead of authoring a variant
-  effect. Create a new effect only for new art or a new attachment kind.
+  declared sounds, place it through that event's `override` (fields under
+  Avatar Effect events in
+  `src/backend/animama/resources/authoring/clip-format.md`) instead of
+  authoring a variant effect. Create a new effect only for new art or a new
+  attachment kind.
 - Use a flipbook when the shape itself changes (a drop forms, a puff
   billows, lines shoot out) or should look hand-drawn (line boil); use pulse,
   spin, drift or keyframes to move, scale, turn or fade the art. Combine them

@@ -6,10 +6,7 @@ import {
   ANIMA_POSE_CLIP_V2_SCHEMA,
   MAX_ANIMA_POSE_CLIP_BYTES,
   parseAnimaPoseClip,
-  serializeAnimaPoseClipFile,
-  validateAnimaPoseClipV2,
   type AnimaPoseClipV2,
-  type AnimaPoseClipV2Issue,
 } from "../poses/animaPoseClip";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../poses/catalog";
 import {
@@ -38,7 +35,11 @@ import {
   RETIRED_DESCRIPTION_SCHEMA,
   sourceVersion,
 } from "./preview/sources";
-import { isRecord } from "@/lib/records";
+import {
+  formatKilobytes,
+  validateClip,
+  type ClipValidation,
+} from "./validateClip";
 
 export type MotionCliContext = {
   /** Directory holding the Included `.vrm` files. */
@@ -138,70 +139,21 @@ async function validate(
   return 0;
 }
 
-/** A valid clip and the compact file the creator saves for it. */
-export type CompactClipFile =
-  | { ok: true; clip: AnimaPoseClipV2; saved: string; savedBytes: number }
-  | { ok: false; message: string };
-
 /**
- * Validate a 2.0 clip (structure, anatomical limits and saved size) and
- * serialize the file the creator saves. Shared by `validate --out` and the
- * Included promotion tool, so both write the same bytes.
+ * Validate a 2.0 clip and serialize the file the creator saves
+ * (`validateClip`), after turning away a retired motion description with the
+ * command line's own message. Shared by `validate --out` and the Included
+ * promotion tool, so both write the same bytes.
  */
-export function compactClipFile(value: unknown): CompactClipFile {
+export function compactClipFile(value: unknown): ClipValidation {
   if (schemaOf(value) === RETIRED_DESCRIPTION_SCHEMA)
-    return { ok: false, message: RETIRED_DESCRIPTION_MESSAGE };
-  const result = validateAnimaPoseClipV2(value);
-  // Both kinds of problem at once, so one run lists everything to fix.
-  const issues = [
-    ...(result.ok ? [] : result.issues),
-    ...anatomicalLimitIssues(value),
-  ];
-  if (!result.ok || issues.length > 0)
     return {
       ok: false,
-      message:
-        `Invalid ${ANIMA_POSE_CLIP_V2_SCHEMA} (${issues.length} issue(s)):\n` +
-        issues.map(({ path, message }) => `  ${path}: ${message}`).join("\n"),
+      loadable: false,
+      issues: [{ path: "schema", message: RETIRED_DESCRIPTION_MESSAGE }],
+      message: RETIRED_DESCRIPTION_MESSAGE,
     };
-  const saved = serializeAnimaPoseClipFile(result.clip);
-  const savedBytes = Buffer.byteLength(saved);
-  if (savedBytes > MAX_ANIMA_POSE_CLIP_BYTES)
-    return {
-      ok: false,
-      message: `Too large: the clip saves as ${formatKilobytes(savedBytes)}, over the ${formatKilobytes(MAX_ANIMA_POSE_CLIP_BYTES)} the app will load.`,
-    };
-  return { ok: true, clip: result.clip, saved, savedBytes };
-}
-
-/**
- * Joint values beyond each component's hard (anatomical) limit. Reads the
- * raw clip, so it also reports clips with structural problems.
- */
-function anatomicalLimitIssues(value: unknown): AnimaPoseClipV2Issue[] {
-  const issues: AnimaPoseClipV2Issue[] = [];
-  const joints = isRecord(value) && isRecord(value.joints) ? value.joints : {};
-  for (const [jointId, components] of Object.entries(joints)) {
-    const joint = resolveJoint(jointId);
-    if (!joint || !isRecord(components)) continue;
-    const definitions = JOINT_DEFINITIONS[joint.type].components as Record<
-      string,
-      JointComponentDefinition
-    >;
-    for (const [name, keys] of Object.entries(components)) {
-      if (!Object.hasOwn(definitions, name) || !Array.isArray(keys)) continue;
-      const [min, max] = definitions[name].hard;
-      keys.forEach((key: unknown, index) => {
-        const v = isRecord(key) ? key.v : undefined;
-        if (typeof v === "number" && (v < min || v > max))
-          issues.push({
-            path: `joints.${jointId}.${name}[${index}].v`,
-            message: `${v}° is beyond the anatomical limit ${min}..${max}.`,
-          });
-      });
-    }
-  }
-  return issues;
+  return validateClip(value);
 }
 
 function countTracks(clip: AnimaPoseClipV2): { tracks: number; keys: number } {
@@ -459,8 +411,4 @@ function formatJointTable(): string {
       );
   }
   return lines.join("\n");
-}
-
-function formatKilobytes(bytes: number): string {
-  return `${Math.round(bytes / 1024)} KB`;
 }

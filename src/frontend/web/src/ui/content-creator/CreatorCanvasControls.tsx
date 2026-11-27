@@ -26,6 +26,8 @@ export type CreatorCanvasSelect = {
   onValueChange: (value: string) => void;
   triggerClassName?: string;
   disabled?: boolean;
+  /** `data-testid` of the select's trigger. */
+  testId?: string;
 };
 
 /** Value and callback are either both present or both omitted. */
@@ -128,6 +130,7 @@ function CreatorCanvasSelectControl({
             control.triggerClassName,
           )}
           aria-label={t("canvas.select", { label: control.label })}
+          data-testid={control.testId}
         >
           <SelectValue placeholder={control.placeholder} />
         </SelectTrigger>

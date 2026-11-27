@@ -54,7 +54,16 @@ Typed creators use stable product routes such as `/particle-effects/new`,
   Uploads also owns upload management and retrieval-debug
   tools.
 - `_app/gestures.new.tsx` and `_app/gestures.$gestureId.edit.tsx`: Gesture creation
-  and stable-item editing with VRMA or Pose Clip motion.
+  and stable-item editing with VRMA or Pose Clip motion. `/gestures/new` also
+  accepts `draft` with `conversation`, the ids of a content assistant draft
+  and its conversation: the creator loads that draft's project as an unsaved
+  document
+  ([Open in creator](../features/content-generation.md#saving-and-opening-in-the-creator)).
+  One id without the other is ignored.
+- `_app/generate.tsx`: the
+  [Generate page](../features/content-generation.md), where the content
+  assistant writes Gesture drafts. Route admission withholds it unless the
+  runtime reports `content_generation`.
 - `_app/reactions.new.tsx` and `_app/reactions.$reactionId.edit.tsx`: Reaction
   creation and stable-item editing with expression/effect/sound timelines.
 - `_app/particle-effects.new.tsx` and `_app/particle-effects.$particleEffectId.edit.tsx`:
@@ -142,7 +151,9 @@ chat or URL.
   enter route search state. The public JSON interchange is `animaPoseClip/2.0`
   (the retired 1.0 format is rejected); an optional versioned typed-project
   envelope retains exact
-  dependency pins without placing draft IDs or save state in the URL.
+  dependency pins without placing draft IDs or save state in the URL. The
+  `draft` and `conversation` ids of **Open in creator** name a content
+  assistant draft kept on the backend, not the creator's own document.
 - Effect handoffs use only `component=<stable item id>` and
   `componentType=particle_effect|avatar_effect|scene_effect|sound_effect`.
   The destination resolves the item's current exact source through its typed

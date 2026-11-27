@@ -1391,6 +1391,7 @@ export default interface Resources {
       "reasons": {
         "animaCreation": "Creating Animas is unavailable in this hosted application.",
         "chatFileUploads": "Chat attachments are unavailable in this hosted application.",
+        "contentGeneration": "Content generation is unavailable in this hosted application.",
         "documentProcessing": "Document ingestion and OCR are unavailable in this hosted application.",
         "hostedSetup": "Installation setup belongs to the local application. Your hosted account is prepared by the runtime.",
         "localFilesystemAdministration": "Local filesystem administration requires the local application.",
@@ -1985,6 +1986,11 @@ export default interface Resources {
     "hub": {
       "actions": {
         "description": "Give your Anima movement, personality, and emotion.",
+        "generate": {
+          "action": "Open Generate",
+          "description": "Describe a Gesture in words, then preview, revise and save the result.",
+          "title": "Generate"
+        },
         "gesture": {
           "action": "Create Gesture",
           "description": "Choreograph expressive movement and reusable actions.",
@@ -2310,12 +2316,15 @@ export default interface Resources {
       "includedListFailed": "Could not load the Included Avatars.",
       "noAnima": "Create an Anima before previewing this effect on an Avatar.",
       "noAvatar": "The selected Anima does not have an available Avatar.",
+      "ownFailed": "The selected Avatar could not be prepared.",
+      "ownListFailed": "Could not load your Avatars.",
       "releaseUnavailable": "The selected Avatar release is no longer available.",
       "runtimeFailed": "Could not load the preview Anima's runtime.",
       "unnamedAnimaModel": "Your (Anima)",
       "versions": {
         "equipped": "Equipped on preview Anima",
-        "included": "Included Avatar"
+        "included": "Included Avatar",
+        "own": "Your Avatar"
       }
     },
     "panel": {
@@ -3549,6 +3558,26 @@ export default interface Resources {
       "voice_codec_invalid": "Choose a saved PocketTTS voice clone.",
       "voice_preset_unavailable": "Choose an available PocketTTS voice."
     },
+    "generation": {
+      "generation_draft_empty": "This draft has nothing to revise yet. Send a new request instead.",
+      "generation_draft_unloadable": "This draft cannot be played, so it cannot be saved. Ask for it again or ask for a revision.",
+      "generation_intent_unavailable": "The assistant writes Gestures only for now.",
+      "generation_model_unusable": "The assistant cannot use the chosen model. Choose another model.",
+      "generation_model_unusable_connection_inactive": "The chosen model's connection is turned off. Turn it on in App Settings or choose another model.",
+      "generation_model_unusable_inactive": "The chosen model is turned off. Choose another model.",
+      "generation_model_unusable_no_model_client": "This installation cannot run the chosen model. Choose another model.",
+      "generation_model_unusable_not_chat_model": "The chosen model is not a chat model. Choose another model.",
+      "generation_model_unusable_not_found": "The chosen model is no longer available. Choose another model.",
+      "generation_model_unusable_tools_unsupported": "The chosen model cannot call tools, which the assistant needs. Choose another model.",
+      "generation_model_unusable_unsupported": "The chosen model cannot be used on its connection. Choose another model.",
+      "generation_no_valid_draft": "The assistant did not produce a draft that works. Try again, or describe it differently.",
+      "generation_not_found": "This conversation or draft no longer exists.",
+      "generation_nothing_to_restore": "This draft has no earlier version to restore.",
+      "generation_request_failed": "The request did not reach the assistant. Try again.",
+      "generation_run_failed": "The assistant ran into an unexpected problem. Try again.",
+      "generation_run_in_progress": "The assistant is still working on this conversation. Wait for it to finish or stop it first.",
+      "generation_stream_interrupted": "The connection was lost before the assistant finished. Drafts it had stored are kept."
+    },
     "generic": {
       "unexpected": "Something went wrong. Try again.",
       "withDetail": "{{message}} ({{detail}})"
@@ -3719,6 +3748,215 @@ export default interface Resources {
       "rate_limited": "The search service is limiting requests. Try again later.",
       "timeout": "The search service did not answer in time.",
       "unreachable": "The search service could not be reached. Check the address and that it is running."
+    }
+  },
+  "generate": {
+    "composer": {
+      "label": "Request to the assistant",
+      "newDraftInstead": "Write a new draft instead",
+      "placeholder": "Describe a Gesture…",
+      "revisePlaceholder": "Say what to change…",
+      "revises": "Your next message revises “{{name}}”.",
+      "send": "Send request",
+      "stop": "Stop the assistant",
+      "tooLong": "Shorten your request to {{max}} characters or fewer.",
+      "writesNew": "Your next message writes a new draft."
+    },
+    "drafts": {
+      "actions": {
+        "discard": "Discard",
+        "open": "Open in creator",
+        "restore": "Restore previous version",
+        "retryCheck": "Check again",
+        "save": "Save",
+        "saveAgain": "Save again",
+        "saving": "Saving…"
+      },
+      "checksUnavailable": "Checks could not run",
+      "count_one": "{{count}} draft",
+      "count_other": "{{count}} drafts",
+      "discard": {
+        "cancel": "Cancel",
+        "confirm": "Discard draft",
+        "description": "The draft and the version before its last revision are removed. This cannot be undone.",
+        "savedDescription": "The draft is removed from this conversation. The item you saved stays in your Library.",
+        "title": "Discard “{{name}}”?"
+      },
+      "emptyDescription": "Ask the assistant for a Gesture. Each draft appears here with its checks, ready to play, revise or save.",
+      "emptyTitle": "No drafts yet",
+      "loadFailed": "The drafts could not be loaded.",
+      "loading": "Loading drafts…",
+      "openSaved": "Open the saved item",
+      "saved": "Saved to your Library",
+      "select": "Select draft {{name}}",
+      "showAll": "Show all {{total}}",
+      "showFewer": "Show fewer",
+      "status": {
+        "checking": "Checking…",
+        "failed": "Failed",
+        "ready": "Ready",
+        "repairing": "Repairing…",
+        "reviewing": "Reviewing frames…",
+        "warnings": "Ready, with warnings",
+        "writing": "Writing…"
+      },
+      "toasts": {
+        "saveFailed": "The draft could not be saved.",
+        "saved": "Saved “{{name}}” to your Library."
+      },
+      "unnamed": "Untitled draft",
+      "unplayable": "This draft cannot be played or saved.",
+      "waitForRun": "Available when the assistant has finished."
+    },
+    "failure": {
+      "dismiss": "Dismiss",
+      "kept": "Your conversation and drafts are kept.",
+      "model": "The assistant could not finish this request.",
+      "retry": "Try again"
+    },
+    "header": {
+      "conversations": "Earlier conversations",
+      "discard": {
+        "cancel": "Cancel",
+        "confirm": "Discard conversation",
+        "description": "Its messages and unsaved drafts are removed. Items you saved stay in your Library. This cannot be undone.",
+        "title": "Discard this conversation?"
+      },
+      "discardConversation": "Discard this conversation…",
+      "newConversation": "New conversation",
+      "untitled": "New conversation",
+      "waitForRun": "Available when the assistant has finished."
+    },
+    "model": {
+      "chooseFailed": "The model choice could not be saved.",
+      "description": "The assistant writes and repairs drafts with this model.",
+      "empty": "No models found.",
+      "noFrames": "This model cannot look at images, so the assistant skips reviewing rendered frames. The checks still run.",
+      "none": "Choose a model",
+      "search": "Search models…",
+      "setup": "Model setup",
+      "title": "Assistant model",
+      "trigger": "Assistant model: {{model}}"
+    },
+    "page": {
+      "conversationsFailed": "Your conversations with the assistant could not be loaded.",
+      "loading": "Opening Generate…",
+      "modelsFailed": "Your models could not be loaded.",
+      "panels": {
+        "conversation": "Assistant",
+        "drafts": "Drafts"
+      },
+      "retry": "Try again",
+      "title": "Generate"
+    },
+    "preview": {
+      "avatar": "Avatar",
+      "chooseAvatar": "Choose an Avatar",
+      "empty": "Drafts play here as soon as the assistant writes one.",
+      "loadingAvatars": "Loading Avatars…",
+      "loadingDraft": "Loading the draft…",
+      "loop": "Loop",
+      "loopLabel": "Loop the draft",
+      "selectDraft": "Select a draft to play it.",
+      "target": "draft",
+      "unplayable": "This draft cannot be played."
+    },
+    "progress": {
+      "checking": "Checking the draft…",
+      "framesUnavailable": "Frames could not be drawn, so the assistant continues without looking at them.",
+      "repairing": "Repairing what the checks found…",
+      "reviewingFrames": "Looking at rendered frames…",
+      "starting": "Starting…",
+      "thinking": "Thinking…",
+      "writing": "Writing the draft…"
+    },
+    "questions": {
+      "answerFor": "Answer to: {{question}}",
+      "answerPlaceholder": "Type your answer",
+      "hint": "Answer what you like, or skip and let the assistant decide.",
+      "skip": "Skip",
+      "submit": "Send answers",
+      "title": "The assistant has a few questions"
+    },
+    "setup": {
+      "claudeNote": "A Claude API key works too. Add it, or any other model that can call tools, under model connections in App Settings → Models.",
+      "description": "The assistant writes Gestures from a request in words, then checks and repairs them. It needs a model that can call tools.",
+      "done": "Back to Generate",
+      "modelTitle": "Choose a model for the assistant",
+      "modelsDescription": "Only models that can call tools and that chat can use are listed. Your choice is remembered, and you can change it at any time.",
+      "modelsTitle": "Models you can use",
+      "noModels": "No model can be used yet. Continue with ChatGPT above, or add a model under model connections.",
+      "openConnections": "Open model connections",
+      "otherTitle": "Other models",
+      "title": "Set up Generate"
+    },
+    "transcript": {
+      "answer": "{{question}} — {{answer}}",
+      "emptyDescription": "Say what the Avatar should do, such as “a shy little wave”. The assistant writes a draft, checks it and plays it in the preview.",
+      "emptyTitle": "Describe a Gesture",
+      "failed": "The assistant could not finish this request.",
+      "loadFailed": "This conversation could not be loaded.",
+      "loading": "Loading the conversation…",
+      "scrollToLatest": "Scroll to the latest message",
+      "skippedQuestions": "Skipped the questions.",
+      "stopped": "Stopped. Drafts finished so far are kept."
+    },
+    "warnings": {
+      "avatarOnlyExpressions": "Plays only on Avatars that have these expressions: {{names, list}}.",
+      "contact": {
+        "fail": "A hand misses the spot it is meant to touch.",
+        "warn": "A hand is slightly off the spot it is meant to touch."
+      },
+      "feet": {
+        "fail": "A planted foot slides or lifts.",
+        "warn": "A planted foot shifts slightly."
+      },
+      "fingers": {
+        "fail": "Fingers pass through each other.",
+        "warn": "Fingers come close to passing through each other."
+      },
+      "intersection": {
+        "fail": "Body parts pass through each other.",
+        "warn": "Body parts come close to passing through each other."
+      },
+      "issue": "Part of the clip is not valid.",
+      "issueAt": "{{path}}: {{message}}",
+      "loopSeam": {
+        "fail": "The end of the loop does not match its start.",
+        "warn": "The loop jumps a little where it repeats."
+      },
+      "missingExpressions": "The chosen Avatar cannot show these expressions: {{names, list}}.",
+      "oscillation": {
+        "fail": "A body part shakes back and forth too fast.",
+        "warn": "A body part moves back and forth quickly."
+      },
+      "parity": {
+        "fail": "The motion comes out differently on the two Included Avatars.",
+        "warn": "The motion comes out slightly differently on the two Included Avatars."
+      },
+      "pose": {
+        "fail": "A pose the draft uses could not be found.",
+        "warn": "A pose the draft uses may not look right."
+      },
+      "range": {
+        "fail": "A joint bends further than a body can.",
+        "warn": "A joint bends further than looks natural."
+      },
+      "smoothness": {
+        "fail": "A movement jerks sharply.",
+        "warn": "A movement is a little abrupt."
+      },
+      "unchecked": "This version was not checked.",
+      "unknown": {
+        "fail": "A motion check failed.",
+        "warn": "A motion check raised a warning."
+      },
+      "where": {
+        "at": "At {{time}} s",
+        "avatar": "On {{avatar}}",
+        "avatarWhen": "On {{avatar}} · {{when}}",
+        "range": "{{from}}–{{to}} s"
+      }
     }
   },
   "library": {
@@ -4652,7 +4890,7 @@ export default interface Resources {
       "confirmation": {
         "background": "Also let automatic memory updates use my plan",
         "backgroundHint": "You can change this later in App Settings → Models.",
-        "description": "Eligible AI requests in Animama now use your ChatGPT plan: chats with plan models, chat titles and summaries, and memory updates you start. Review and limit this usage in ChatGPT's settings.",
+        "description": "Eligible AI requests in Animama now use your ChatGPT plan: chats with plan models, chat titles and summaries, memory updates you start, and drafts the assistant writes on the Generate page with a plan model. Review and limit this usage in ChatGPT's settings.",
         "gotIt": "Got it",
         "title": "You're using your ChatGPT plan"
       },
@@ -6892,6 +7130,7 @@ export default interface Resources {
     "create": {
       "anima": "Anima",
       "effects": "Effects",
+      "generate": "Generate",
       "gesture": "Gesture",
       "label": "Create",
       "reaction": "Reaction"

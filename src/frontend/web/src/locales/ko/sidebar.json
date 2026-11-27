@@ -27,6 +27,7 @@
   "create": {
     "anima": "Anima",
     "effects": "효과",
+    "generate": "생성",
     "gesture": "제스처",
     "label": "만들기",
     "reaction": "리액션"

@@ -27,6 +27,7 @@
   "create": {
     "anima": "Anima",
     "effects": "特效",
+    "generate": "生成",
     "gesture": "動作",
     "label": "建立",
     "reaction": "反應"

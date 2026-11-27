@@ -1,0 +1,278 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { PyGenerationDraft } from "@animama/runtime-contracts/api-types";
+
+import { useGenerationConversation } from "@/query/hooks/useGeneration";
+import { generationRunDraftIds } from "@/stores/generation-store";
+import { AppShellPage } from "@/ui/app/AppShellPage";
+import { Button } from "@/ui/components/button";
+import {
+  CreatorFloatingPanel,
+  CreatorLoading,
+  CreatorWorkspaceShell,
+} from "@/ui/content-creator";
+import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
+import { GenerateConversation } from "./GenerateConversation";
+import { GenerateDraftList } from "./GenerateDraftList";
+import { GenerateConversationMenu, GenerateHeader } from "./GenerateHeader";
+import { GenerateModelControl } from "./GenerateModelControl";
+import {
+  GeneratePreviewControls,
+  GeneratePreviewProvider,
+  GeneratePreviewStage,
+  useGeneratePreviewAvatarExpressions,
+  useGeneratePreviewPlayer,
+} from "./GeneratePreview";
+import { GenerateSetup } from "./GenerateSetup";
+import { useDraftWorker } from "./useDraftWorker";
+import {
+  useGenerationConversationChoice,
+  type GenerationConversationChoice,
+  type OpenGenerationConversation,
+} from "./useGenerationConversationChoice";
+import {
+  useGenerationModel,
+  type GenerationModelChoice,
+} from "./useGenerationModel";
+import { useGenerationRun } from "./useGenerationRun";
+import { useSelectedDraft } from "./useSelectedDraft";
+
+/** The creators' full-bleed page: the stage fills it and panels float above. */
+const STAGE_PAGE = {
+  sidebarBehavior: "adaptive-canvas",
+  className: "overflow-hidden",
+  contentClassName: "h-full max-w-none gap-0 px-0 py-0 md:px-0 lg:px-0",
+} as const;
+
+/** One array for every render without drafts, so their readers stay still. */
+const NO_DRAFTS: readonly PyGenerationDraft[] = [];
+
+/**
+ * The three areas around the stage: the conversation, the preview and the
+ * drafts, wired to one conversation's run and to the page's draft worker.
+ * Rendered inside the preview provider, whose Avatar the run and the checks
+ * read expression names from.
+ */
+function GenerateWorkspace({
+  modelChoice,
+  conversations,
+  onOpenSetup,
+}: {
+  modelChoice: GenerationModelChoice;
+  conversations: GenerationConversationChoice;
+  onOpenSetup: () => void;
+}) {
+  const { t } = useTranslation("generate");
+  const { conversationId } = conversations;
+  const conversation = useGenerationConversation(conversationId);
+  const snapshot = conversation.data;
+  const drafts = snapshot?.drafts ?? NO_DRAFTS;
+  const expressions = useGeneratePreviewAvatarExpressions();
+  const controller = useGenerationRun({
+    conversationId,
+    modelProviderId: modelChoice.model?.id ?? null,
+    avatarExpressionNames: expressions?.names ?? null,
+    arkitNames: expressions?.arkitNames,
+  });
+  const worker = useDraftWorker({
+    conversationId,
+    drafts,
+    // `undefined` while the Avatar loads; `null` when none can be shown.
+    avatarExpressionNames: expressions ? expressions.names : expressions,
+  });
+  const [selectedDraft, selectDraft] = useSelectedDraft(
+    conversationId,
+    snapshot,
+  );
+  const validation = selectedDraft
+    ? worker.validations[selectedDraft.id]
+    : undefined;
+  const player = useGeneratePreviewPlayer(selectedDraft, validation);
+  const { running } = controller.run;
+  const opening = !snapshot && !conversation.isError;
+  const title = snapshot?.conversation.title.trim();
+
+  return (
+    <CreatorWorkspaceShell
+      canvas={
+        <GeneratePreviewStage
+          draft={selectedDraft}
+          validation={validation}
+          player={player}
+          hasDrafts={drafts.length > 0}
+        />
+      }
+      toolbar={
+        <GenerateHeader
+          conversationMenu={
+            <GenerateConversationMenu
+              choice={conversations}
+              running={running}
+              currentIsEmpty={
+                !snapshot ||
+                (snapshot.messages.length === 0 && drafts.length === 0)
+              }
+            />
+          }
+          modelControl={
+            <GenerateModelControl
+              choice={modelChoice}
+              disabled={running}
+              onOpenSetup={onOpenSetup}
+            />
+          }
+        />
+      }
+      leftPanelLabel={t("page.panels.conversation")}
+      rightPanelLabel={t("page.panels.drafts")}
+      leftPanelWidth={440}
+      leftPanel={
+        <CreatorFloatingPanel
+          title={t("page.panels.conversation")}
+          summary={title || t("header.untitled")}
+          bodyClassName="flex flex-col overflow-hidden p-0"
+        >
+          <GenerateConversation
+            // Another conversation starts with an empty request field.
+            key={conversationId ?? "none"}
+            snapshot={snapshot}
+            isLoading={opening}
+            loadFailed={conversation.isError && !snapshot}
+            onReload={() => void conversation.refetch()}
+            controller={controller}
+            selectedDraft={selectedDraft}
+            onStartNewDraft={() => selectDraft(null)}
+            framesStatus={worker.frames.status}
+          />
+        </CreatorFloatingPanel>
+      }
+      rightPanel={
+        <CreatorFloatingPanel
+          title={t("page.panels.drafts")}
+          summary={t("drafts.count", { count: drafts.length })}
+          bodyClassName="overflow-y-auto"
+        >
+          <GenerateDraftList
+            drafts={drafts}
+            isLoading={opening}
+            loadFailed={conversation.isError && !snapshot}
+            worker={worker}
+            selectedDraftId={selectedDraft?.id ?? null}
+            onSelect={selectDraft}
+            running={running}
+            runDraftIds={generationRunDraftIds(controller.run)}
+          />
+        </CreatorFloatingPanel>
+      }
+      canvasControls={<GeneratePreviewControls playable={player.playable} />}
+    />
+  );
+}
+
+/** A page-level failure with one way on. */
+function GeneratePageNotice({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation("generate");
+  return (
+    <div className="flex items-start gap-2">
+      <SidebarMenuButton />
+      <div className="space-y-3" role="alert">
+        <h1 className="text-lg font-semibold">{t("page.title")}</h1>
+        <p className="text-muted-foreground text-sm">{message}</p>
+        <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+          {t("page.retry")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** The page once the assistant has a model: its conversations and workspace. */
+function GenerateConversations({
+  modelChoice,
+  openConversation,
+  onOpenSetup,
+}: {
+  modelChoice: GenerationModelChoice;
+  /** The open conversation's id, held by the page across Model setup. */
+  openConversation: OpenGenerationConversation;
+  onOpenSetup: () => void;
+}) {
+  const { t } = useTranslation("generate");
+  const conversations = useGenerationConversationChoice(openConversation);
+  if (conversations.isError && !conversations.conversationId)
+    return (
+      <AppShellPage>
+        <GeneratePageNotice
+          message={t("page.conversationsFailed")}
+          onRetry={conversations.retry}
+        />
+      </AppShellPage>
+    );
+  return (
+    <AppShellPage {...STAGE_PAGE}>
+      {conversations.conversationId ? (
+        <GeneratePreviewProvider>
+          <GenerateWorkspace
+            modelChoice={modelChoice}
+            conversations={conversations}
+            onOpenSetup={onOpenSetup}
+          />
+        </GeneratePreviewProvider>
+      ) : (
+        <CreatorLoading message={t("page.loading")} />
+      )}
+    </AppShellPage>
+  );
+}
+
+/**
+ * The Generate page (R1.1): a conversation with the content assistant, an
+ * Avatar preview and the conversation's drafts. Without a usable model it
+ * shows setup instead (R1.4), which the model control reopens later.
+ */
+export function GeneratePage() {
+  const { t } = useTranslation("generate");
+  const modelChoice = useGenerationModel();
+  const [setupOpen, setSetupOpen] = useState(false);
+  // Held here, above the workspace, so the conversation the person had open
+  // is the one they return to from Model setup.
+  const openConversation = useState<string | null>(null);
+
+  if (modelChoice.isPending)
+    return (
+      <AppShellPage {...STAGE_PAGE}>
+        <CreatorLoading message={t("page.loading")} />
+      </AppShellPage>
+    );
+  if (modelChoice.isError && !modelChoice.model)
+    return (
+      <AppShellPage>
+        <GeneratePageNotice
+          message={t("page.modelsFailed")}
+          onRetry={modelChoice.retry}
+        />
+      </AppShellPage>
+    );
+  if (!modelChoice.model || setupOpen)
+    return (
+      <AppShellPage>
+        <GenerateSetup
+          choice={modelChoice}
+          onDone={() => setSetupOpen(false)}
+        />
+      </AppShellPage>
+    );
+  return (
+    <GenerateConversations
+      modelChoice={modelChoice}
+      openConversation={openConversation}
+      onOpenSetup={() => setSetupOpen(true)}
+    />
+  );
+}

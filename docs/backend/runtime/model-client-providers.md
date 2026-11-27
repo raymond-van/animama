@@ -480,7 +480,8 @@ and no redirects. A request hook keeps only an allowlist of headers (plus the
 SDK's `x-stainless-*` ones), so `OpenAI-Organization`, `OpenAI-Project` and
 `OPENAI_CUSTOM_HEADERS` never reach the plan, and each request sets
 `Authorization` from the session's access token. Every request this client
-serves is the owner's own (a chat turn, its compaction or its title), so it asks
+serves is the owner's own (a chat turn, its compaction or its title, or a pass
+of the content assistant), so it asks
 the session for an `interactive` token when the request starts; a session that
 cannot give one fails the turn before anything is sent. Before any output:
 
