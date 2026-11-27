@@ -10,6 +10,7 @@ import {
   MODEL_LOCATION_PROVIDERS,
   MODEL_LOCATION_TABS,
   capabilitiesFromProbe,
+  connectionEditPresets,
   connectionLocation,
   connectionStatusText,
   detectionMessage,
@@ -547,6 +548,36 @@ describe("Cloud and Local tabs", () => {
   ])("places a custom connection at %s on %s", (baseUrl, location) => {
     expect(connectionLocation(owner("custom", baseUrl))).toBe(location);
     expect(isPrivateNetworkUrl(baseUrl)).toBe(location === "local");
+  });
+
+  it("offers the cloud server types when editing a cloud connection, and only its own type for a local one", () => {
+    const presets = ["openrouter", "deepseek", "custom", "ollama", "vllm"].map(
+      (id) => ({
+        id,
+        label: id,
+        local: id === "ollama" || id === "vllm",
+        expects_key: true,
+        compatibility: {},
+        timeout_seconds: 60,
+      }),
+    );
+    const ids = (connection: Parameters<typeof connectionEditPresets>[0]) =>
+      connectionEditPresets(connection, presets).map((preset) => preset.id);
+    expect(ids(owner("custom", "https://llm.example.com/v1"))).toEqual([
+      "openrouter",
+      "deepseek",
+      "custom",
+    ]);
+    expect(ids(owner("openrouter"))).toEqual([
+      "openrouter",
+      "deepseek",
+      "custom",
+    ]);
+    expect(ids(owner("vllm", "http://127.0.0.1:8000/v1"))).toEqual(["vllm"]);
+    // A custom server on the local network keeps the Custom type.
+    expect(ids(owner("custom", "http://192.168.1.20:11434/v1"))).toEqual([
+      "custom",
+    ]);
   });
 
   it("groups connections under their provider tabs in tab order", () => {

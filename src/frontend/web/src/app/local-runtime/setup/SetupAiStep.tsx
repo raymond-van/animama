@@ -38,14 +38,19 @@ import {
   useDesktopCredentialsAvailable,
   type DesktopCredentialsController,
 } from "@/ui/settings/DesktopCredentialsPanel";
-import { ModelConnectionForm } from "@/ui/settings/models/ModelConnectionDialog";
+import {
+  ModelConnectionDialog,
+  ModelConnectionForm,
+} from "@/ui/settings/models/ModelConnectionDialog";
 import { OwnerModelDialog } from "@/ui/settings/models/OwnerModelDialog";
+import { useModelRemoval } from "@/ui/settings/models/useModelRemoval";
 import { ModelLocationTabsList } from "@/ui/settings/models/ModelLocationTabsList";
 import { ChatGPTPlanCard } from "@/ui/settings/models/ChatGPTPlanCard";
 import { ModelProviderTabsList } from "@/ui/settings/models/ModelProviderTabsList";
 import {
   baseUrlHost,
   builtinConnectionKey,
+  connectionEditPresets,
   connectionLocation,
   connectionProviderEntry,
   connectionStatusText,
@@ -319,6 +324,8 @@ function ModelChooser({
   const roles = useModelRoles(true);
   const presets = useModelConnectionPresets(true);
   const [adder, setAdder] = useState<ModelAdder | null>(null);
+  const [editing, setEditing] = useState<PyModelConnection | null>(null);
+  const { startRemoval, dialog: removalDialog } = useModelRemoval(managedKeys);
   // The owner's provider tab per location; unset opens the default one.
   const [providerTab, setProviderTab] = useState<
     Partial<Record<SetupModelLocation, string>>
@@ -389,6 +396,13 @@ function ModelChooser({
   const presetById = (id: string) =>
     presets.data?.find((preset) => preset.id === id);
   const openAdder = (next: ModelAdder) => setAdder(next);
+  // A mistyped address or key is fixed or removed here, as in App Settings.
+  const rowActions: ConnectionRowActions = {
+    canEdit: presets.isSuccess,
+    onEdit: setEditing,
+    onRemove: (connection) =>
+      startRemoval({ kind: "connection", connection, usage: null }),
+  };
 
   // Setup offers the ChatGPT plan sign-in as one of its choices (spec P8).
   const chatgptPlan = useChatGPTPlanAvailable();
@@ -497,6 +511,7 @@ function ModelChooser({
           serverConnections={items}
           presetById={presetById}
           onAddModel={openAdder}
+          rowActions={rowActions}
           onSetUpLater={onSetUpLater}
           hasLocalModel={choices.local.length > 0}
         />
@@ -511,6 +526,7 @@ function ModelChooser({
         keys={connectFormKeys(entry.id)}
         onConnected={connected}
         onAddModel={(connection) => openAdder({ connection })}
+        rowActions={rowActions}
       />
     );
   };
@@ -571,6 +587,16 @@ function ModelChooser({
           }}
         />
       ) : null}
+      {editing ? (
+        <ModelConnectionDialog
+          open
+          onOpenChange={(open) => !open && setEditing(null)}
+          presets={connectionEditPresets(editing, presets.data ?? [])}
+          connection={editing}
+          managedKeys={managedKeys}
+        />
+      ) : null}
+      {removalDialog}
     </div>
   );
 }
@@ -590,6 +616,7 @@ function ConnectProvider({
   keys,
   onConnected,
   onAddModel,
+  rowActions,
 }: {
   entry: ModelProviderEntry;
   location: SetupModelLocation;
@@ -599,6 +626,7 @@ function ConnectProvider({
   keys: ConnectFormKeys;
   onConnected: (connection: PyModelConnection) => void;
   onAddModel: (connection: PyModelConnection) => void;
+  rowActions: ConnectionRowActions;
 }) {
   const { t } = useTranslation("setup");
   const custom = entry.presetId === "custom";
@@ -624,6 +652,7 @@ function ConnectProvider({
                 : connectionStatusText(connection)
           }
           onAddModel={() => onAddModel(connection)}
+          actions={rowActions}
         />
       ))}
       {custom && !addingCustom ? (
@@ -673,33 +702,72 @@ function ConnectProvider({
   );
 }
 
-/** A connected provider or server with its status and an Add model action. */
+/** Edit and Remove for a connection row, as App Settings → Models offers. */
+type ConnectionRowActions = {
+  /** The server types to edit with have loaded. */
+  canEdit: boolean;
+  onEdit: (connection: PyModelConnection) => void;
+  onRemove: (connection: PyModelConnection) => void;
+};
+
+/**
+ * A connected provider or server with its status, Edit and Remove, and an
+ * Add model action.
+ */
 function ConnectionRow({
   connection,
   detail,
   onAddModel,
+  actions,
 }: {
   connection: PyModelConnection;
   detail: string;
   onAddModel: () => void;
+  actions: ConnectionRowActions;
 }) {
   const { t } = useTranslation("setup");
+  const { t: tModels } = useTranslation("models");
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="min-w-0">
         <p className="text-sm">{connection.name}</p>
         <p className="text-muted-foreground truncate text-xs">{detail}</p>
       </div>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        aria-label={t("ai.addModelTo", { name: connection.name })}
-        onClick={onAddModel}
-      >
-        <Plus className="size-4" aria-hidden />
-        {t("ai.addModel")}
-      </Button>
+      <div className="flex flex-wrap items-center gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={!actions.canEdit}
+          aria-label={tModels("connections.editNamed", {
+            name: connection.name,
+          })}
+          onClick={() => actions.onEdit(connection)}
+        >
+          {tModels("actions.edit")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-label={tModels("connections.removeNamed", {
+            name: connection.name,
+          })}
+          onClick={() => actions.onRemove(connection)}
+        >
+          {tModels("actions.remove")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-label={t("ai.addModelTo", { name: connection.name })}
+          onClick={onAddModel}
+        >
+          <Plus className="size-4" aria-hidden />
+          {t("ai.addModel")}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -724,6 +792,7 @@ function LocalServer({
   serverConnections,
   presetById,
   onAddModel,
+  rowActions,
   onSetUpLater,
   hasLocalModel,
 }: {
@@ -735,6 +804,7 @@ function LocalServer({
   serverConnections: readonly PyModelConnection[];
   presetById: (id: string) => PyModelConnectionPreset | undefined;
   onAddModel: (adder: ModelAdder) => void;
+  rowActions: ConnectionRowActions;
   onSetUpLater: () => void;
   /** A local model is already available, so "Set up later" is unnecessary. */
   hasLocalModel: boolean;
@@ -877,6 +947,7 @@ function LocalServer({
           connection={connection}
           detail={baseUrlHost(connection.base_url)}
           onAddModel={() => onAddModel({ connection })}
+          actions={rowActions}
         />
       ))}
       {nothing ? (

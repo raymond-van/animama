@@ -66,7 +66,9 @@ first and the API key card, titled "Use an API key", after it (the plan
 connection's preset is in the OpenAI entry's `alsoPresetIds`). Setup's AI step
 shows the same tabs; its OpenAI and Anthropic tabs hold their key field
 (desktop) or name the server variable (web), with the plan card above
-OpenAI's. Saving
+OpenAI's. Its owner connections are rows with Edit, Remove and **Add model**,
+using App Settings' edit dialog and removal confirmation (`useModelRemoval`),
+so a mistyped address can be fixed without leaving setup. Saving
 a key there chooses that provider's model for new Animas (OpenAI's default, or
 Claude Haiku 5.5 on Anthropic) unless its row is hidden; signing in with a
 ChatGPT plan chooses a plan model once the catalog lists them (the system

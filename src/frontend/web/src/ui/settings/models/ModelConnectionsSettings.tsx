@@ -6,13 +6,10 @@ import { toast } from "sonner";
 import type {
   PyConfiguredModel,
   PyModelConnection,
-  PyModelConnectionPreset,
-  PyModelUsage,
   WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
 import { alternateModelIds, modelDisplayName } from "@/lib/chat/model-catalog";
 import { cn } from "@/lib/utils";
-import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   useConnectionReachability,
   useModelConnectionPresets,
@@ -21,19 +18,7 @@ import {
 import { useChatGPTPlanAvailable } from "@/query/hooks/useChatGPTPlan";
 import { useRefreshChatGPTPlanModels } from "@/query/mutations/useChatGPTPlan";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
-import {
-  useRemoveModel,
-  useRemoveModelConnection,
-} from "@/query/mutations/useModelConfiguration";
 import { Button } from "@/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/components/dialog";
 import { ModelSelectorLogo } from "@/ui/components/model-selector";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
@@ -45,6 +30,7 @@ import {
   CHATGPT_PLAN_PRESET,
   baseUrlHost,
   builtinConnectionKey,
+  connectionEditPresets,
   connectionLocation,
   connectionProviderEntry,
   connectionStatusText,
@@ -52,13 +38,9 @@ import {
   locationProviderGroups,
   modelCapabilityChips,
   modelConfigurationErrorCode,
-  modelConfigurationErrorMessage,
-  modelInUseUsage,
   modelLocationLabel,
   modelProviderPurpose,
   modelSettingsAvailability,
-  removalConsequences,
-  removalUsageSummary,
   visibleModelLocations,
   type BuiltinConnectionKey,
   type ConnectionReachability,
@@ -67,7 +49,6 @@ import {
   type ModelProviderGroup,
 } from "./model-configuration-state";
 import {
-  deleteConnectionKey,
   ModelConnectionDialog,
   ModelConnectionForm,
 } from "./ModelConnectionDialog";
@@ -76,14 +57,7 @@ import { ModelLocationTabsList } from "./ModelLocationTabsList";
 import { ChatGPTPlanCard } from "./ChatGPTPlanCard";
 import { ModelProviderTabsList } from "./ModelProviderTabsList";
 import { OwnerModelDialog, ShowModelButton } from "./OwnerModelDialog";
-
-type Removal =
-  | {
-      kind: "connection";
-      connection: PyModelConnection;
-      usage: PyModelUsage | null;
-    }
-  | { kind: "model"; model: PyConfiguredModel; usage: PyModelUsage | null };
+import { useModelRemoval } from "./useModelRemoval";
 
 const BASE_URL_PLACEHOLDER: Record<ModelLocation, string> = {
   cloud: "https://api.example.com/v1",
@@ -122,10 +96,8 @@ export function ModelConnectionsSettings({
   const chatgptPlan = useChatGPTPlanAvailable();
   const presets = useModelConnectionPresets(enabled);
   const connections = useModelConnections(enabled);
-  const removeConnection = useRemoveModelConnection();
-  const removeModel = useRemoveModel();
-  const platform = useRuntimePlatform();
   const managedKeys = useDesktopCredentialsAvailable();
+  const { startRemoval, dialog: removalDialog } = useModelRemoval(managedKeys);
   const [tab, setTab] = useState<ModelLocation>(defaultTab);
   // The owner's provider tab per location; unset opens the default one.
   const [providerTab, setProviderTab] = useState<
@@ -140,8 +112,6 @@ export function ModelConnectionsSettings({
     connectionId: string;
     modelId: string;
   } | null>(null);
-  const [removal, setRemoval] = useState<Removal | null>(null);
-  const [removing, setRemoving] = useState(false);
 
   const all = connections.data ?? [];
   const locations = visibleModelLocations(all);
@@ -160,74 +130,6 @@ export function ModelConnectionsSettings({
     (model) => model.id === info?.modelId,
   );
 
-  const credentials =
-    platform.kind === "desktop"
-      ? platform.desktopBridge.credentials
-      : undefined;
-
-  /**
-   * The vault variable that may hold a connection's desktop key. Removing the
-   * connection deletes it, even a key the backend withholds because it was
-   * entered for another address.
-   */
-  const managedKeyEnv = (connection: PyModelConnection): string | null =>
-    managedKeys && connection.credential_env?.startsWith("ANIMAMA_CONNECTION_")
-      ? connection.credential_env
-      : null;
-  /** A saved key in use; removal asks first, because it cannot be recovered. */
-  const savedKey = (connection: PyModelConnection): string | null =>
-    connection.credential_state === "configured"
-      ? managedKeyEnv(connection)
-      : null;
-
-  /**
-   * Without confirmation the server removes only an unused item and otherwise
-   * refuses with its usage, which the dialog then shows.
-   */
-  const remove = async (target: Removal, confirm: boolean) => {
-    try {
-      if (target.kind === "connection")
-        await removeConnection.mutateAsync({
-          connectionId: target.connection.id,
-          confirm,
-        });
-      else
-        await removeModel.mutateAsync({
-          modelProviderId: target.model.id,
-          confirm,
-        });
-    } catch (error) {
-      const usage = confirm ? null : modelInUseUsage(error);
-      if (usage) setRemoval({ ...target, usage });
-      else toast.error(modelConfigurationErrorMessage(error));
-      return;
-    }
-    setRemoval(null);
-    toast.success(
-      target.kind === "connection"
-        ? t("connections.removed")
-        : t("ownerModel.removed"),
-    );
-    const env =
-      target.kind === "connection" ? managedKeyEnv(target.connection) : null;
-    if (env && credentials) await deleteConnectionKey(credentials, env);
-  };
-
-  /** A connection with a saved key always confirms first: the key cannot be recovered. */
-  const startRemoval = (target: Removal) => {
-    if (target.kind === "connection" && savedKey(target.connection))
-      setRemoval(target);
-    else void remove(target, false);
-  };
-
-  const confirmRemoval = async () => {
-    if (!removal) return;
-    setRemoving(true);
-    // Confirm only once the usage has been shown.
-    await remove(removal, removal.usage !== null);
-    setRemoving(false);
-  };
-
   if (!enabled) return null;
   if (connections.isError)
     return (
@@ -239,19 +141,6 @@ export function ModelConnectionsSettings({
 
   const presetById = (id: string) =>
     presets.data?.find((preset) => preset.id === id);
-
-  /**
-   * Server types offered when editing: a cloud connection may switch among
-   * the cloud types, as the old Custom tab allowed; a local one keeps its own.
-   */
-  const editPresets = (
-    connection: PyModelConnection,
-  ): PyModelConnectionPreset[] =>
-    connectionLocation(connection) === "cloud"
-      ? (presets.data ?? []).filter((preset) => !preset.local)
-      : (presets.data ?? []).filter(
-          (preset) => preset.id === connection.preset,
-        );
 
   /** Show a new connection's provider tab and add its first model. */
   const connected = (saved: PyModelConnection) => {
@@ -448,7 +337,7 @@ export function ModelConnectionsSettings({
         <ModelConnectionDialog
           open
           onOpenChange={(open) => !open && setConnectionEditor(null)}
-          presets={editPresets(connectionEditor)}
+          presets={connectionEditPresets(connectionEditor, presets.data ?? [])}
           connection={connectionEditor}
           managedKeys={managedKeys}
         />
@@ -474,53 +363,7 @@ export function ModelConnectionsSettings({
           }}
         />
       ) : null}
-      <Dialog
-        open={Boolean(removal)}
-        onOpenChange={(open) => !open && !removing && setRemoval(null)}
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>
-              {t("removal.title", {
-                name:
-                  (removal?.kind === "connection"
-                    ? removal.connection.name
-                    : removal?.model.model_label) ?? "",
-              })}
-            </DialogTitle>
-            <DialogDescription>
-              {[
-                removal?.usage
-                  ? `${removalUsageSummary(removal.usage)} ${removalConsequences(removal.usage)}`
-                  : null,
-                removal?.kind === "connection" && savedKey(removal.connection)
-                  ? t("removal.savedKeyDeleted")
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={removing}
-              onClick={() => setRemoval(null)}
-            >
-              {t("actions.cancel")}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={removing}
-              onClick={() => void confirmRemoval()}
-            >
-              {removing ? t("actions.removing") : t("actions.remove")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {removalDialog}
     </div>
   );
 }

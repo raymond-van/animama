@@ -3,6 +3,7 @@ import type {
   PyEmbeddingRefreshStatus,
   PyModelConnection,
   PyModelConnectionDetection,
+  PyModelConnectionPreset,
   PyModelProbeReport,
   PyModelProviderCatalogItem,
   PyModelUsage,
@@ -358,6 +359,20 @@ export function connectionLocation(
   if (connection.preset === "custom")
     return isPrivateNetworkUrl(connection.base_url) ? "local" : "cloud";
   return "cloud";
+}
+
+/**
+ * Server types offered when editing a connection: a cloud connection may
+ * switch among the cloud types, as the old Custom tab allowed; a local one
+ * keeps its own.
+ */
+export function connectionEditPresets(
+  connection: Pick<PyModelConnection, "source" | "preset" | "base_url">,
+  presets: readonly PyModelConnectionPreset[],
+): PyModelConnectionPreset[] {
+  return connectionLocation(connection) === "cloud"
+    ? presets.filter((preset) => !preset.local)
+    : presets.filter((preset) => preset.id === connection.preset);
 }
 
 /**

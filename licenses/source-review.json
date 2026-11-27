@@ -25527,6 +25527,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/app/local-runtime/setup/SetupAiStep.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Outside contribution under the Contributor Licence Agreement",
+      "copyright": "2026 Kaustubh Singh",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/app/local-runtime/setup/SetupAiStep.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -41734,6 +41741,20 @@
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/settings/models/useModelRemoval.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Outside contribution under the Contributor Licence Agreement",
+      "copyright": "2026 Kaustubh Singh",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/settings/models/useModelRemoval.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Outside contribution under the Contributor Licence Agreement; removal logic moved unchanged from ModelConnectionsSettings.tsx",
+      "copyright": "2026 Raymond Van, 2026 Kaustubh Singh",
       "review": "prepared-not-release-approved"
     },
     {
