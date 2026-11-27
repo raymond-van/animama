@@ -406,11 +406,6 @@
     "copyJson": "复制 JSON",
     "current": "当前",
     "defaultName": "新姿势",
-    "delete": {
-      "confirm": "要从本地内容中删除“{{name}}”吗？",
-      "deleted": "已删除本地姿势。",
-      "failed": "无法删除此姿势。"
-    },
     "download": "下载",
     "draftName": "草稿名称",
     "empty": "没有可用的内置或本地姿势。",

@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
+import { MENU_CLOSES_AT_ONCE_CLASS } from "@/ui/components/menu-classes";
 
 /** The menu item component of the More menu or the right-click menu. */
 type RowMenuItem = ComponentType<{
@@ -75,12 +76,6 @@ export function SidebarPinIndicator() {
     />
   );
 }
-
-/**
- * Menus close at once, without their exit animation, so a closing menu (z-130,
- * above the sidebar) never shows beside the delete dialog it opened.
- */
-export const SIDEBAR_ROW_MENU_CONTENT_CLASS = "data-[state=closed]:hidden";
 
 /**
  * Focus targets for a row's delete dialog: its More button while the row
@@ -164,16 +159,14 @@ export function SidebarRowMenu({
               side="right"
               align="start"
               sideOffset={8}
-              className={cn("z-[130] min-w-36", SIDEBAR_ROW_MENU_CONTENT_CLASS)}
+              className={cn("z-[130] min-w-36", MENU_CLOSES_AT_ONCE_CLASS)}
             >
               <SidebarRowActionItems Item={DropdownMenuItem} {...actions} />
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent
-        className={cn("z-[130]", SIDEBAR_ROW_MENU_CONTENT_CLASS)}
-      >
+      <ContextMenuContent className={cn("z-[130]", MENU_CLOSES_AT_ONCE_CLASS)}>
         <SidebarRowActionItems Item={ContextMenuItem} {...actions} />
       </ContextMenuContent>
     </ContextMenu>

@@ -570,12 +570,6 @@
       "chooseHint": "每个 Anima 都在其页面的“语音”中选择自己的语音。",
       "clone": "克隆语音",
       "cloningVoice": "正在克隆语音…",
-      "delete": {
-        "confirm": "删除语音",
-        "description": "这会删除保存的克隆和所有原始样本。Anima 正在使用的语音必须先替换才能删除。",
-        "title": "删除 {{name}}？"
-      },
-      "deleted": "语音克隆已删除。",
       "download": {
         "cancel": "取消下载",
         "cancelling": "正在取消…",
@@ -598,8 +592,6 @@
         "cancelFailed": "无法取消下载。请重试。",
         "cancelled": "已取消下载。你的样本可随时重试。",
         "changed": "此语音已更改。请刷新语音库后重试。",
-        "deleteFailed": "无法删除语音。请重试。",
-        "inUse": "此语音正被 Anima 使用。删除前，请为每个使用它的 Anima 选择其他语音。",
         "saveFailed": "无法保存语音。你的样本可随时重试。"
       },
       "fileLabel": "上传自定义语音样本",

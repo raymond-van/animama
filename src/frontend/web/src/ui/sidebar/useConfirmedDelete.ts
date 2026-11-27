@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { createLogger } from "@/lib/logger";
 import { DeleteRequestError } from "@/query/chatAndAnimaDeletion";
@@ -7,16 +7,14 @@ import {
   stopStreamingReplies,
   type ChatDeleteTarget,
 } from "@/stores/chat-delete-coordination-store";
+import {
+  useDeleteReturnFocus,
+  type DeleteFocusTargets,
+} from "@/ui/components/useDeleteReturnFocus";
+
+export type { DeleteFocusTargets };
 
 const logger = createLogger("Delete");
-
-/** Where focus goes when a delete dialog closes. */
-export type DeleteFocusTargets = {
-  /** Nothing was deleted (Cancel, Escape, or closed after a failure). */
-  kept: () => HTMLElement | null;
-  /** The item is gone: a surviving element near where it was. */
-  deleted: () => HTMLElement | null;
-};
 
 /** The steps of one confirmed chat or Anima delete. */
 export type ConfirmedDeleteSteps = {
@@ -38,15 +36,7 @@ export type ConfirmedDeleteSteps = {
 export function useConfirmedDelete(focus: DeleteFocusTargets | undefined) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  // The dialog's target is cleared as it closes, and the dialog may unmount
-  // with its page after a delete, so focus is chosen from what was kept here.
-  const focusRef = useRef<DeleteFocusTargets | undefined>(undefined);
-  const deletedRef = useRef(false);
-  useEffect(() => {
-    if (!focus) return;
-    focusRef.current = focus;
-    deletedRef.current = false;
-  }, [focus]);
+  const { markDeleted, returnFocus } = useDeleteReturnFocus(focus);
 
   const run = useCallback(
     async ({ target, request, leave, settle }: ConfirmedDeleteSteps) => {
@@ -56,7 +46,7 @@ export function useConfirmedDelete(focus: DeleteFocusTargets | undefined) {
       try {
         stopStreamingReplies(target);
         await request();
-        deletedRef.current = true;
+        markDeleted();
       } catch (failure) {
         logger.warn(
           "Delete",
@@ -81,14 +71,9 @@ export function useConfirmedDelete(focus: DeleteFocusTargets | undefined) {
       }
       return true;
     },
-    [],
+    [markDeleted],
   );
   const reset = useCallback(() => setError(null), []);
-  /** For `ConfirmDeleteDialog.returnFocus`. */
-  const returnFocus = useCallback(() => {
-    const targets = focusRef.current;
-    return (deletedRef.current ? targets?.deleted() : targets?.kept()) ?? null;
-  }, []);
 
   return { pending, error, run, reset, returnFocus };
 }

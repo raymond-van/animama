@@ -7,12 +7,6 @@ import { LibrarySoundDialog } from "./LibrarySoundDialog";
 vi.mock("@/hooks/useContentEditorSaveSource", () => ({
   useContentEditorSaveSource: () => ({ saved: vi.fn() }),
 }));
-vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeCacheKey: () => "owner",
-}));
-vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
-}));
 vi.mock("@/ui/components/dialog", () => {
   const Container = ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
@@ -40,15 +34,15 @@ const item: PyCatalogViewItem = {
 };
 
 describe("Library sound management", () => {
-  it("offers rename, replacement and guarded delete with unchanged Save disabled", () => {
+  it("offers rename and replacement with unchanged Save disabled", () => {
     const html = renderToString(
       <LibrarySoundDialog item={item} onClose={() => {}} />,
     );
     expect(html).toContain('value="Bell"');
     expect(html).toContain("Replace audio");
-    expect(html).toContain("Delete</button>");
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Save<\/button>/);
-    expect(html).not.toContain("Confirm delete");
+    // Delete is the Sound's Library item menu, as for every other kind.
+    expect(html).not.toContain("Delete");
     expect(html).not.toContain("Old metadata");
     expect(html).not.toContain('type="range"');
   });

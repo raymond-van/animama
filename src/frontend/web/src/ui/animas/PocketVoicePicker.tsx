@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
 import {
@@ -28,6 +28,7 @@ import {
 } from "@/lib/speech/pocket/voice-sample-player";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
+import type { DeleteFocusTargets } from "@/ui/components/useDeleteReturnFocus";
 import { Input } from "@/ui/components/input";
 import {
   Popover,
@@ -83,7 +84,8 @@ type PocketVoicePickerProps = {
   clones?: VoiceSampleSource[];
   unavailableSelection?: string;
   onSelect: (id: string) => Promise<void>;
-  onDeleteClone?: (id: string) => void;
+  /** Open a clone's delete confirmation, returning focus to `focus`. */
+  onDeleteClone?: (id: string, focus: DeleteFocusTargets) => void;
   availability: (id: string) => PocketVoiceAvailability | null;
   onDownload: (assetId: string) => void;
   onRemove?: (assetId: string) => void;
@@ -121,6 +123,16 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
   const [open, setOpen] = useState(false);
   const [sample, setSample] = useState(IDLE_VOICE_SAMPLE);
   const player = useMemo(() => createVoiceSamplePlayer(setSample), []);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Focus returns to the button that asked, or to the picker once the list
+  // that asked has closed or the clone is gone.
+  const deleteClone = props.onDeleteClone
+    ? (id: string, opener: HTMLElement | null) =>
+        props.onDeleteClone?.(id, {
+          kept: () => (opener?.isConnected ? opener : triggerRef.current),
+          deleted: () => triggerRef.current,
+        })
+    : undefined;
   useEffect(() => () => player.dispose(), [player]);
   useEffect(() => player.stop(), [player, props.value]);
   const voice =
@@ -141,6 +153,7 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
       <div className="flex items-center gap-2">
         <PopoverTrigger asChild>
           <Button
+            ref={triggerRef}
             variant="outline"
             disabled={props.disabled}
             className="min-w-0 flex-1 justify-between"
@@ -153,7 +166,7 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
         <VoiceSampleButton voice={voice} sample={sample} player={player} />
         {voice &&
         props.clones?.some((clone) => clone.id === voice.id) &&
-        props.onDeleteClone ? (
+        deleteClone ? (
           <Button
             type="button"
             variant="ghost"
@@ -161,9 +174,9 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
             className="text-destructive hover:text-destructive"
             aria-label={t("voices.picker.delete", { name: voice.name })}
             disabled={props.disabled}
-            onClick={() => {
+            onClick={(event) => {
               player.stop();
-              props.onDeleteClone?.(voice.id);
+              deleteClone(voice.id, event.currentTarget);
             }}
           >
             <Trash2 className="size-4" />
@@ -188,6 +201,9 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
         {open ? (
           <PocketVoiceList
             {...props}
+            onDeleteClone={
+              deleteClone ? (id) => deleteClone(id, null) : undefined
+            }
             sample={sample}
             player={player}
             onSelected={() => changeOpen(false)}
@@ -218,7 +234,12 @@ export function PocketVoiceList({
   onSelected,
   sample,
   player,
-}: PocketVoicePickerProps & VoiceSamplePlayback & { onSelected: () => void }) {
+}: Omit<PocketVoicePickerProps, "onDeleteClone"> &
+  VoiceSamplePlayback & {
+    onSelected: () => void;
+    /** The list closes before the confirmation opens. */
+    onDeleteClone?: (id: string) => void;
+  }) {
   const { t } = useTranslation("animas");
   const formatters = useFormatters();
   const [gender, setGender] = useState<VoiceFilter["gender"]>("any");

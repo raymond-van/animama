@@ -57,7 +57,8 @@ Relevant code:
 - [x] Phase 2: sidebar pins (backend, schema and API). Review passed after 1 repair round.
 - [x] Phase 3: Local content delete hardening (backend). Review passed after 1 repair round. The contracts bump is deferred to D6.
 - [x] Phase 4: sidebar row menu, Anima page delete and dialogs (frontend). Review passed after 1 repair round. Focus residuals are recorded for G2.
-- [ ] Phase 5: Library Delete action (frontend).
+- [x] Phase 5: Library Delete action (frontend). Review passed after 1 repair round. Owner question Q2 is open for G2.
+- [ ] Flaky journey fix (owner-added scope).
 - [ ] Final integration review, full pre-push suite and full browser journeys
   (gate G1).
 - [ ] Owner manual acceptance on a task stack (gate G2).
@@ -104,6 +105,11 @@ Relevant code:
   pending episodes, no Cloud work. Source: issue #950.
 - 2026-11-26, owner: approved this plan, including D1–D5 below, and authorized
   Phases 1–5.
+- 2026-11-26, owner (added scope): fix or remove the flaky "accountless
+  Local Gesture discard" browser journey in this PR. Clicking Edit on "Have an
+  Idea" in the Library sometimes never opens the creator. It already fails on
+  `main` (2 of 10 runs at `0703ca137`). Tracked under "Flaky journey fix"
+  below.
 - 2026-11-26, agent (accepted by the owner with the plan):
   - **D1.** Removing a pending episode item also removes its line from the
     generated episode log, because the log is rendered from items. Processed
@@ -145,6 +151,12 @@ Relevant code:
 - Open question Q1 (owner, before G2): when a delete removes pending
   episode lines from a log, should the log's earlier versions that still
   contain them be purged too? Today they are kept (Phase 1, P1-F3).
+
+- Open question Q2 (owner, before G2): R13 lists Appearance and Anima
+  content items, but the Library shows no rows for either kind. So Phase 5
+  gives them no Delete; the shared dialog supports them, but nothing opens it.
+  Adding Library rows for them would be a redesign. Accept this exception,
+  or add those rows in a follow-up? (Phase 5, P5-F3.)
 
 ## Phased implementation
 
@@ -722,7 +734,125 @@ Checks:
 
 Completion: tests and the walk-through pass, and the review passes.
 
-Check record, commits, Code Review #1 Findings/Revisions: _to be filled in._
+#### Results
+
+- **Library menu.** `LibraryItemMenu` adds a "…" menu with Delete on every
+  Local item that has a revision, in grid and list layouts: Gestures,
+  Reactions, Poses, Particle/Avatar/Scene Effects, Sounds and Local Avatars.
+  Included items have no menu.
+- **One dialog.** `ContentDeleteDialog`, built on `ConfirmDeleteDialog`:
+  - reads `/usage` first, lists each use and disables Delete when the item is
+    in use;
+  - maps `catalog_revision_conflict` and `catalog_item_changed` to the R17
+    message, then retries at the server's `current_revision`.
+- **One mutation.** `useDeleteContentItem` refreshes the kind's queries and
+  `content.catalog` on success and on refusal. An Avatar delete also refreshes
+  the Avatar, Appearance and Anima-creation lists.
+- **Old entry points.**
+  - The Pose Load list's trash button and voice clone trash open the shared
+    dialog; the #948 open-Pose behaviour is kept.
+  - The Sound Manage dialog no longer offers Delete.
+  - `deletePose`, `deleteVoiceClone` and their dialogs are removed.
+- **R18.** Effect, Gesture and Reaction editors already keep their cached
+  item on a failed refetch, so nothing changed there.
+
+#### Check record
+
+Working directory: `src/frontend` unless noted. Tree `855dfabdd`.
+
+- `pnpm check`, `tsc -b`, `pnpm web:lint` and `pnpm i18n:check` → pass.
+- `npx vitest run` (`web/`) over library, pose-creator, pose-editor, animas,
+  content-delete, components, sidebar, create-anima, settings,
+  content-creator, action-editor, query and lib/content → 245 files, 1965
+  tests passed. Four deliberate breaks failed 16 tests.
+- `prettier --check` → clean. `check_source.py` → pass.
+- **Browser walk-through** (coordinator, dev stack at 1440×900):
+  - the Library "…" → Delete on Local Pose "Arms Crossed 1" showed the R14
+    dialog;
+  - after its file was edited on disk, Delete gave 409 and "This item changed.
+    Review it and try again.";
+  - Delete again gave 204: the card was gone and focus moved to the next card.
+  - In-use cases are not browser-verified; they rest on the backend and
+    frontend tests and are flagged for G2.
+
+#### Code Review #1 Findings
+
+Reviewed `855dfabdd`, standard tier. The reviewer reran the full web unit
+suite (`test:source`: 694 files and 6646 tests passed) and
+`voice-clone-library.browser.test.mjs` (5/5 passed).
+`hosted-workflows.browser.test.mjs` failed.
+
+- **P5-F1 (blocking).** The hosted-workflows fixture still calls the removed
+  `deleteVoiceClone`. Its mount throws a TypeError, and `tsc -b` doesn't cover
+  `web/tests`.
+- **P5-F2 (blocking, R15).** The "how to free it" copy sends voice,
+  Appearance, Avatar and music uses to the Anima's Settings tab, where none of
+  them can be changed.
+- **P5-F3 (blocking until recorded).** There is no Delete for Appearance or
+  Anima items (R13). This is owner question Q2.
+- Non-blocking:
+  - **P5-F4:** the in-use result is not announced (no live region).
+  - **P5-F5:** a usage 404 doesn't refresh the stale card.
+  - **P5-F6:** "Checking…" flashes while the dialog closes.
+  - **P5-F7:** dead voice in-use error code, locale keys and fixture props.
+  - **P5-F8:** a hand-built query key, needed to avoid a product-ui bump.
+  - **P5-F9:** the Library imports a sidebar constant.
+  - **P5-F10:** the docs say no menu without a revision, but Avatar rows
+    always have one.
+  - **P5-F11 (residuals):** a stale Save from another tab's editor is refused;
+    a `catalog_item_changed` with a null revision keeps retrying at the old
+    one.
+
+#### Code Review #1 Revisions
+
+- **Accepted:** P5-F1, P5-F2, P5-F4, P5-F5, P5-F6, P5-F7, P5-F9 and P5-F10.
+- **Recorded:**
+  - P5-F3 as owner question Q2;
+  - P5-F8 as a known exception (avoids a product-ui declaration bump);
+  - P5-F11 as residuals for G2.
+- **Repair implementation.**
+  - The hosted-workflows fixture deletes clones through
+    `useDeleteContentItem`, and the stale voice-clone-library fixture props
+    are removed.
+  - Per-use hints in all five locales; `freeSettings` is removed.
+  - One `aria-live` container; the usage read refreshes on 404 and follows the
+    open state.
+  - Dead voice in-use code and keys are removed.
+  - `MENU_CLOSES_AT_ONCE_CLASS` lives in `ui/components/menu-classes.ts`.
+  - The docs are corrected, and there is a new preflight hook test.
+- **Implementer checks.** `pnpm check`, `pnpm web:lint` and `pnpm i18n:check`
+  pass. The 188-file vitest run passes (1245 tests).
+  `hosted-workflows.browser.test.mjs` + `voice-clone-library.browser.test.mjs`
+  (via heavy-slot) → 30/30. Prettier and `check_source.py` pass. Four
+  deliberate breaks failed 4 tests.
+- **Code Review #2 (repair round 1): pass.** Reviewed `73b4082e9`.
+  - All accepted findings are resolved, with no regressions. The two type
+    errors in the `web/tests` fixtures predate the branch.
+  - The reviewer reran 15 files / 85 tests and the two browser tests (30/30).
+  - Repair rounds used: 1 of 2.
+- **Follow-up after merging main.** PR #949 added changing an Anima's Avatar
+  from its settings, so the Avatar hint ("can't be changed") is updated in
+  the integration commit.
+
+### Flaky journey fix (owner-added scope)
+
+Review tier: standard (browser test or Library navigation).
+
+The failing journey is
+`src/frontend/e2e/journeys/accountless-creator-discard-local.spec.ts`.
+`expect(nameInput).toHaveValue("Have an Idea Custom")` times out with
+"element(s) not found": after the Edit click, the `gesture name` textbox
+never appears.
+
+Approach:
+1. Reproduce on a disposable built stack in a separate worktree at `main`.
+2. Find the root cause from the traces.
+3. Fix the app if it drops the navigation; otherwise make the test wait on
+   the right condition. No added sleeps or raised timeouts.
+4. Verify 0 failures in 20 runs of the pair.
+5. Bring the fix into this branch.
+
+Results, check record and review: _to be filled in._
 
 ## Final integration review
 

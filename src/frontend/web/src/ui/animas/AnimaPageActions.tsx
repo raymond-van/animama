@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
+import { MENU_CLOSES_AT_ONCE_CLASS } from "@/ui/components/menu-classes";
 import {
   Tooltip,
   TooltipContent,
@@ -21,7 +22,6 @@ import {
   type AnimaToDelete,
 } from "@/ui/sidebar/AnimaDeleteDialog";
 import {
-  SIDEBAR_ROW_MENU_CONTENT_CLASS,
   SidebarRowActionItems,
   useSidebarPinToggle,
 } from "@/ui/sidebar/SidebarRowMenu";
@@ -79,7 +79,7 @@ export function AnimaPageActions({
         </Tooltip>
         <DropdownMenuContent
           align="end"
-          className={cn("min-w-36", SIDEBAR_ROW_MENU_CONTENT_CLASS)}
+          className={cn("min-w-36", MENU_CLOSES_AT_ONCE_CLASS)}
         >
           <SidebarRowActionItems
             Item={DropdownMenuItem}

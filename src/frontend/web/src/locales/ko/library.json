@@ -65,6 +65,37 @@
       }
     }
   },
+  "delete": {
+    "avatarPortrait": "다른 곳에서 사용하지 않으면 생성된 초상화도 삭제됩니다.",
+    "changed": "이 항목이 변경되었습니다. 확인한 후 다시 시도하세요.",
+    "checkFailed": "이 항목을 확인할 수 없습니다. 닫은 후 다시 시도하세요.",
+    "checking": "사용 여부를 확인하는 중…",
+    "deleted": "“{{name}}”을(를) 삭제했습니다.",
+    "description": "이 {{kind}}과(와) 로컬 파일이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+    "failed": "“{{name}}”을(를) 삭제할 수 없습니다. 다시 시도하세요.",
+    "inUse": {
+      "animaAppearance": "{{name}}의 프로필 또는 배경 이미지로 사용 중입니다.",
+      "animaAvatar": "{{name}}의 아바타로 사용 중입니다.",
+      "animaGesture": "{{name}}의 제스처로 장착되어 있습니다.",
+      "animaIdle": "{{name}}의 대기에 포함되어 있습니다.",
+      "animaMusic": "{{name}}의 음악으로 사용 중입니다.",
+      "animaReaction": "{{name}}의 행동에 있는 리액션 셀에 포함되어 있습니다.",
+      "animaVoice": "{{name}}의 음성으로 사용 중입니다.",
+      "content": "“{{name}}”이(가) 이 항목에 의존합니다.",
+      "freeAppearance": "삭제하려면 먼저 각 Anima 페이지에서 Anima 이미지를 눌러 외형을 열고 다른 이미지를 선택하세요.",
+      "freeAvatar": "Anima의 아바타는 변경할 수 없으므로, 사용을 해제하려면 먼저 해당 Anima를 삭제하세요.",
+      "freeBehavior": "삭제하려면 먼저 각 Anima의 행동에서 제거하세요.",
+      "freeContent": "삭제하려면 먼저 이 항목에 의존하는 항목을 삭제하세요.",
+      "freeMusic": "음악은 앱에서 변경할 수 없으므로 여기에서 삭제할 수 없습니다.",
+      "freeVoice": "삭제하려면 먼저 각 Anima의 행동에 있는 음성에서 다른 음성을 선택하세요.",
+      "heading": "사용 중이므로 삭제할 수 없습니다:",
+      "more": "여기에 표시되지 않은 사용처가 더 있을 수 있습니다.",
+      "other": "{{name}}에서 사용 중입니다."
+    },
+    "noRevision": "파일을 읽을 수 없어 여기에서 삭제할 수 없습니다. 파일을 수정하거나 제거한 후 스캔을 다시 시도하세요.",
+    "title": "“{{name}}”을(를) 삭제할까요?",
+    "unavailable": "이 항목은 더 이상 삭제할 수 없습니다. 이미 삭제되었을 수 있습니다."
+  },
   "filters": {
     "all": "전체",
     "allStatuses": "모든 상태",
@@ -102,11 +133,13 @@
   "inventory": {
     "actions": {
       "createAnima": "Anima 만들기",
+      "delete": "삭제",
       "draft": "초안",
       "edit": "편집",
       "manage": "추가 / 관리",
       "manageShort": "관리",
       "manageSound": "사운드 관리",
+      "more": "{{name}} 추가 작업",
       "notEditable": "편집 불가",
       "play": "재생",
       "preview": "미리 보기",
@@ -362,11 +395,7 @@
     "yourPackage": "내 패키지"
   },
   "sound": {
-    "cancel": "취소",
     "changed": "이 사운드가 변경되었습니다. 저장하기 전에 닫았다가 다시 여세요.",
-    "confirmDelete": "삭제 확인",
-    "confirmDeleteQuestion": "“{{name}}”을(를) 삭제할까요? 다른 콘텐츠에서 아직 사용 중인 사운드는 삭제할 수 없습니다.",
-    "delete": "삭제",
     "description": "라이브러리에서 이 사운드의 이름을 바꾸거나 오디오를 교체합니다.",
     "name": "이름",
     "readOnly": "기본 제공 사운드는 읽기 전용입니다.",

@@ -97,6 +97,10 @@ vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({
 vi.mock("@/ui/content-preview/useContentPreviewAudio", () => ({
   useContentPreviewAudio: () => ({}),
 }));
+// The shared delete confirmation has its own tests.
+vi.mock("@/ui/content-delete/ContentDeleteDialog", () => ({
+  ContentDeleteDialog: () => null,
+}));
 vi.mock("@/ui/action-manage/ActionManageDialog", () => ({
   ActionManageDialog: () => null,
 }));
@@ -438,6 +442,90 @@ describe("Library avatar settings action", () => {
       if (layout === "list") expect(rows.aiko).toContain(" Settings");
     },
   );
+});
+
+describe("Library Delete", () => {
+  const families = [
+    "gesture",
+    "reaction",
+    "particle",
+    "avatar-effect",
+    "scene",
+    "sound",
+  ];
+  it.each(["grid", "list"] as const)(
+    "offers Delete on every Local kind with a revision and on no Included item in the %s layout",
+    (layout) => {
+      vi.stubGlobal("window", { localStorage: { getItem: () => layout } });
+      mocks.otherRows = families.flatMap((family) =>
+        ["builtin", "owned"].map((origin) => ({
+          family,
+          origin,
+          item_id: `${family}-${origin}`,
+          name: `${family} ${origin}`,
+          description: "",
+          source: { type: "catalog", catalog_item_id: `${family}-${origin}` },
+          revision_sha256: "revision",
+        })),
+      );
+      mocks.avatars = [
+        {
+          avatar_id: "avatar-1",
+          catalog_item_id: "catalog-avatar-1",
+          name: "Aiko",
+          description: "",
+          origin: "included",
+          preview_url: null,
+        },
+        {
+          avatar_id: "avatar-2",
+          catalog_item_id: "catalog-avatar-2",
+          name: "Mika",
+          description: "",
+          origin: "local",
+          preview_url: null,
+        },
+      ];
+      const html = renderToString(
+        <LibraryContentInventory
+          search={normalizeContentLibrarySearch({})}
+          onSearchChange={() => {}}
+        />,
+      );
+      const more = (name: string) => `aria-label="More actions for ${name}"`;
+      for (const family of families) {
+        expect(html).toContain(more(`${family} owned`));
+        expect(html).not.toContain(more(`${family} builtin`));
+      }
+      // The Pose fixtures: Included "Salute" and Local "My Wave".
+      expect(html).toContain(more("My Wave"));
+      expect(html).not.toContain(more("Salute"));
+      expect(html).toContain(more("Mika"));
+      expect(html).not.toContain(more("Aiko"));
+    },
+  );
+
+  it("offers no Delete for a Local item without a revision", () => {
+    mocks.otherRows = [
+      {
+        family: "gesture",
+        origin: "owned",
+        item_id: "unreadable",
+        name: "Unreadable",
+        description: "",
+        source: { type: "catalog", catalog_item_id: "unreadable" },
+        revision_sha256: null,
+      },
+    ];
+    const html = renderToString(
+      <LibraryContentInventory
+        search={normalizeContentLibrarySearch({ type: "gestures" })}
+        onSearchChange={() => {}}
+      />,
+    );
+    expect(html).toContain('aria-label="Unreadable"');
+    expect(html).not.toContain("More actions for Unreadable");
+  });
 });
 
 describe("Library tile previews", () => {

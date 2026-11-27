@@ -30,6 +30,11 @@ export type ConfirmDeleteDialogProps = {
    * dismissed, so nothing else can happen until it settles.
    */
   pending: boolean;
+  /**
+   * Delete cannot be confirmed yet, or at all, such as while checking what
+   * uses the item or when something does. Cancel stays available.
+   */
+  confirmDisabled?: boolean;
   /** Why the last attempt failed; the dialog stays open to retry or cancel. */
   error?: string | null;
   /**
@@ -54,6 +59,7 @@ export function ConfirmDeleteDialog({
   confirmLabel,
   onConfirm,
   pending,
+  confirmDisabled = false,
   error = null,
   returnFocus,
 }: ConfirmDeleteDialogProps) {
@@ -112,7 +118,7 @@ export function ConfirmDeleteDialog({
           <Button
             type="button"
             variant="destructive"
-            disabled={pending}
+            disabled={pending || confirmDisabled}
             onClick={onConfirm}
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}

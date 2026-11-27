@@ -65,6 +65,37 @@
       }
     }
   },
+  "delete": {
+    "avatarPortrait": "如果沒有其他內容使用，產生的肖像也會被刪除。",
+    "changed": "此項目已變更。請檢查後再試一次。",
+    "checkFailed": "無法檢查此項目。請關閉後再試一次。",
+    "checking": "正在檢查是否有內容使用它…",
+    "deleted": "已刪除「{{name}}」。",
+    "description": "此{{kind}}及其本機檔案將被刪除。此操作無法復原。",
+    "failed": "無法刪除「{{name}}」。請再試一次。",
+    "inUse": {
+      "animaAppearance": "用作 {{name}} 的個人檔案或背景圖片。",
+      "animaAvatar": "用作 {{name}} 的虛擬形象。",
+      "animaGesture": "已裝備為 {{name}} 的動作。",
+      "animaIdle": "在 {{name}} 的待機中。",
+      "animaMusic": "用作 {{name}} 的音樂。",
+      "animaReaction": "在 {{name}} 行為中的反應格裡。",
+      "animaVoice": "用作 {{name}} 的語音。",
+      "content": "「{{name}}」依賴它。",
+      "freeAppearance": "若要刪除，請先在每個 Anima 的頁面上點選 Anima 的圖片開啟外觀，並選擇其他圖片。",
+      "freeAvatar": "Anima 的虛擬形象無法變更，因此若要釋放它，請先刪除該 Anima。",
+      "freeBehavior": "若要刪除，請先從每個 Anima 的行為中移除它。",
+      "freeContent": "若要刪除，請先刪除依賴它的項目。",
+      "freeMusic": "音樂無法在應用程式中變更，因此無法在此刪除。",
+      "freeVoice": "若要刪除，請先在每個 Anima 的行為中的語音裡選擇其他語音。",
+      "heading": "它正在使用中，無法刪除：",
+      "more": "可能還有未列出的其他用途。",
+      "other": "由 {{name}} 使用。"
+    },
+    "noRevision": "無法讀取它的檔案，因此無法在此刪除。請修正或移除這些檔案，然後重新掃描。",
+    "title": "要刪除「{{name}}」嗎？",
+    "unavailable": "此項目已無法刪除，可能已被刪除。"
+  },
   "filters": {
     "all": "全部",
     "allStatuses": "所有狀態",
@@ -102,11 +133,13 @@
   "inventory": {
     "actions": {
       "createAnima": "建立 Anima",
+      "delete": "刪除",
       "draft": "草稿",
       "edit": "編輯",
       "manage": "新增 / 管理",
       "manageShort": "管理",
       "manageSound": "管理音效",
+      "more": "{{name}} 的更多操作",
       "notEditable": "無法編輯",
       "play": "播放",
       "preview": "預覽",
@@ -362,11 +395,7 @@
     "yourPackage": "你的套件"
   },
   "sound": {
-    "cancel": "取消",
     "changed": "此音效已變更。儲存前請關閉並重新開啟。",
-    "confirmDelete": "確認刪除",
-    "confirmDeleteQuestion": "要刪除「{{name}}」嗎？仍被其他內容使用的音效無法刪除。",
-    "delete": "刪除",
     "description": "在資源庫中重新命名此音效或替換其音訊。",
     "name": "名稱",
     "readOnly": "內建音效為唯讀。",

@@ -34,6 +34,8 @@ export type LibraryProductCard = {
   intensity?: number;
   /** Usable here but never customized, copied or exported. */
   nonPortable?: boolean;
+  /** The revision this view shows, which a delete is fenced on. */
+  revision?: string | null;
 };
 
 export type LibraryProductActionPolicy = {
@@ -44,6 +46,8 @@ export type LibraryProductActionPolicy = {
   editUnavailableReason?: string;
   useInGesture: boolean;
   useInReaction: boolean;
+  /** A Local item with a known revision can be deleted (issue #950, R13). */
+  delete: boolean;
 };
 
 type LibraryGestureFilters = Pick<
@@ -95,6 +99,9 @@ export function libraryProductActionPolicy(
     ...(editBlocked ? { editUnavailableReason: nonPortableReason() } : {}),
     useInGesture: reusableEffect && Boolean(card.source),
     useInReaction: reusableEffect && Boolean(card.source),
+    // Included content is read-only; an item none of whose files could be
+    // read has no revision and cannot be deleted from the app.
+    delete: card.origin === "Mine" && Boolean(card.revision),
   };
 }
 
@@ -191,6 +198,7 @@ export function actionLibraryCard(
     ),
     source: value.source,
     nonPortable: isNonPortable(value),
+    revision: value.revision_sha256 ?? null,
     ...(family === "reaction" ? reactionPlacement(value as PyReaction) : {}),
   };
 }
@@ -223,6 +231,7 @@ export function effectLibraryCard(
     equippedCount: 0,
     includedCount: 0,
     source: value.source,
+    revision: value.revision_sha256 ?? null,
   };
 }
 
@@ -244,5 +253,6 @@ export function poseLibraryCard(item: PyPose): LibraryProductCard {
       catalog_item_id: item.item_id,
       logical_key: item.logical_key ?? item.pose_id,
     },
+    revision: item.revision_sha256,
   };
 }

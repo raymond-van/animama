@@ -1062,12 +1062,6 @@ export default interface Resources {
         "chooseHint": "Each Anima chooses its own voice under Voices on its page.",
         "clone": "Clone voice",
         "cloningVoice": "Cloning voice…",
-        "delete": {
-          "confirm": "Delete voice",
-          "description": "This removes the saved clone and any original sample. Voices used by an Anima must be replaced before deletion.",
-          "title": "Delete {{name}}?"
-        },
-        "deleted": "Voice clone deleted.",
         "download": {
           "cancel": "Cancel download",
           "cancelling": "Cancelling…",
@@ -1091,8 +1085,6 @@ export default interface Resources {
           "cancelFailed": "The download could not be cancelled. Try again.",
           "cancelled": "Download cancelled. Your sample is ready to retry.",
           "changed": "This voice changed. Refresh the voice library and try again.",
-          "deleteFailed": "Voice could not be deleted. Try again.",
-          "inUse": "This voice is used by an Anima. Choose another voice for each Anima using it before deleting.",
           "saveFailed": "Voice could not be saved. Your sample is ready to retry."
         },
         "fileLabel": "Upload custom voice sample",
@@ -3797,6 +3789,37 @@ export default interface Resources {
         }
       }
     },
+    "delete": {
+      "avatarPortrait": "Its generated portrait is removed too, unless something else uses it.",
+      "changed": "This item changed. Review it and try again.",
+      "checkFailed": "This item couldn't be checked. Close this and try again.",
+      "checking": "Checking whether anything uses it…",
+      "deleted": "“{{name}}” deleted.",
+      "description": "This {{kind}} and its Local files will be removed. This can't be undone.",
+      "failed": "“{{name}}” could not be deleted. Try again.",
+      "inUse": {
+        "animaAppearance": "Used as {{name}}'s profile or background image.",
+        "animaAvatar": "Used as {{name}}'s Avatar.",
+        "animaGesture": "Equipped as one of {{name}}'s Gestures.",
+        "animaIdle": "In {{name}}'s Idle pool.",
+        "animaMusic": "Used as {{name}}'s music.",
+        "animaReaction": "In a Reaction cell of {{name}}'s Behavior.",
+        "animaVoice": "Used as {{name}}'s voice.",
+        "content": "“{{name}}” depends on it.",
+        "freeAppearance": "To delete it, first choose another image in each Anima's Appearance, which opens from the Anima's picture on its page.",
+        "freeAvatar": "An Anima's Avatar can't be changed, so to free it, delete that Anima first.",
+        "freeBehavior": "To delete it, first remove it from each Anima's Behavior.",
+        "freeContent": "To delete it, first delete the items that depend on it.",
+        "freeMusic": "Music can't be changed in the app, so it can't be deleted here.",
+        "freeVoice": "To delete it, first choose another voice under Voices in each Anima's Behavior tab.",
+        "heading": "It's in use, so it can't be deleted:",
+        "more": "It may have more uses than these.",
+        "other": "Used by {{name}}."
+      },
+      "noRevision": "Its files couldn't be read, so it can't be deleted here. Fix or remove its files, then Retry scan.",
+      "title": "Delete “{{name}}”?",
+      "unavailable": "This item is no longer available to delete. It may have been deleted already."
+    },
     "filters": {
       "all": "All",
       "allStatuses": "All statuses",
@@ -3836,11 +3859,13 @@ export default interface Resources {
         "avatarSettings": "Avatar settings",
         "avatarSettingsShort": "Settings",
         "createAnima": "Create Anima",
+        "delete": "Delete",
         "draft": "Draft",
         "edit": "Edit",
         "manage": "Add / Manage",
         "manageShort": "Manage",
         "manageSound": "Manage sound",
+        "more": "More actions for {{name}}",
         "notEditable": "Not editable",
         "play": "Play",
         "preview": "Preview",
@@ -4117,11 +4142,7 @@ export default interface Resources {
       "yourPackage": "Your package"
     },
     "sound": {
-      "cancel": "Cancel",
       "changed": "This sound changed. Close and reopen it before saving.",
-      "confirmDelete": "Confirm delete",
-      "confirmDeleteQuestion": "Delete “{{name}}”? Sounds still used by other content cannot be deleted.",
-      "delete": "Delete",
       "description": "Rename this sound or replace its audio in your Library.",
       "name": "Name",
       "readOnly": "Included sounds are read-only.",
@@ -5976,11 +5997,6 @@ export default interface Resources {
       "copyJson": "Copy JSON",
       "current": "Current",
       "defaultName": "New Pose",
-      "delete": {
-        "confirm": "Delete \"{{name}}\" from Local content?",
-        "deleted": "Local pose deleted.",
-        "failed": "Could not delete this pose."
-      },
       "download": "Download",
       "draftName": "Draft name",
       "empty": "No Included or Local poses are available.",

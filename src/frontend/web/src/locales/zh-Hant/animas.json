@@ -570,12 +570,6 @@
       "chooseHint": "每個 Anima 都在其頁面的「語音」中選擇自己的語音。",
       "clone": "複製語音",
       "cloningVoice": "正在複製語音…",
-      "delete": {
-        "confirm": "刪除語音",
-        "description": "這會刪除儲存的複製語音和所有原始樣本。Anima 正在使用的語音必須先替換才能刪除。",
-        "title": "刪除 {{name}}？"
-      },
-      "deleted": "複製語音已刪除。",
       "download": {
         "cancel": "取消下載",
         "cancelling": "正在取消…",
@@ -598,8 +592,6 @@
         "cancelFailed": "無法取消下載。請再試一次。",
         "cancelled": "已取消下載。你的樣本可隨時重試。",
         "changed": "此語音已變更。請重新整理語音庫後再試一次。",
-        "deleteFailed": "無法刪除語音。請再試一次。",
-        "inUse": "此語音正被 Anima 使用。刪除前，請為每個使用它的 Anima 選擇其他語音。",
         "saveFailed": "無法儲存語音。你的樣本可隨時重試。"
       },
       "fileLabel": "上傳自訂語音樣本",

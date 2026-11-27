@@ -62,8 +62,8 @@ when content is invalid, missing, awaiting a scan or unavailable. Valid content 
 Edit follows Preview for Poses, Gestures, Reactions and Particle/Avatar/Scene Effects.
 It opens the selected item in its creator: Local content updates that
 item, while Included content starts a Local copy. Gesture/Reaction rows can Add or Manage Anima
-loadout selections. Sounds offer Play/Stop and Manage for Local rename, same-format replacement and
-guarded deletion. Included Sounds are read-only. Licensed built-in sounds are not
+loadout selections. Sounds offer Play/Stop and Manage for Local rename and same-format replacement.
+Included Sounds are read-only. Licensed built-in sounds are not
 listed: they play only through their built-in effects. A Local file with the same
 licensed bytes is hidden too; remove it from the Local folder by hand. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
@@ -76,7 +76,7 @@ replacing a suspended clip draft. Included customization creates a new Local
 identity; it never changes the starter. The five starter Poses are Relaxed Rest,
 Shy Finger Poke 1 and 2, and Thinking Head Scratch 1 and 2; the other Included
 Poses are the hand-made poses the Included Gestures were built from. Poses have no Add/Manage
-equipment action; only Local poses offer deletion in the creator load panel.
+equipment action.
 
 Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
 catalog model and registered portrait Appearance. Each row uses that model's
@@ -145,6 +145,39 @@ retry.
 Equip advances future loadout resolution only. The current chat remains pinned
 to its prepared runtime revision until the route remounts. Effects and Sounds
 remain transitive dependencies of their owning Gesture or Reaction.
+
+## Deleting Local content
+
+Every Local item, of every kind the Library lists (Avatars, Gestures,
+Reactions, Poses, Effects and Sounds), has a More (…) menu with **Delete**, in
+grid and list layouts. Included items have none. Neither does a Gesture,
+Reaction, Pose, Effect or Sound whose files could not be read, because it has
+no revision to delete at; an Avatar row always has the menu, and its
+confirmation reads the revision and says when the Avatar cannot be deleted.
+The Pose editor's Load list and the Pocket voice picker's clone delete buttons
+open the same confirmation.
+
+The confirmation names the item and its kind and says its Local files are
+removed for good; a Local Avatar's generated portrait goes with it unless
+something else uses it. It first reads what uses the item. An item in use
+cannot be confirmed: the dialog names each use and how to free it:
+
+- Gestures, Idle and Reaction cells: remove it in each Anima's Behavior tab.
+- Voice: choose another voice under Voices in that Behavior tab.
+- Profile or background image: choose another in the Anima's Appearance,
+  opened from its picture on the Anima page.
+- Avatar: an Anima's Avatar cannot be changed, so delete that Anima first.
+- Music: no screen changes it, so the item cannot be deleted from the app.
+- Another item that depends on it: delete that item first.
+
+A delete refused because the item changed (a stale revision or a file changed
+on disk) says "This item changed. Review it and try again."; the item's views
+refresh, and Delete retries at its current revision. An item that is already
+gone says so and leaves its views. After a delete the item leaves every Library
+view and picker, and a success toast names it. Deleting the Pose open in the
+editor keeps its draft as unsaved work, which Save stores as a new Pose. See
+[Deleting Local content](../../backend/features/custom-animas-and-content.md#deleting-local-content)
+for the server rules.
 
 ## Creation
 

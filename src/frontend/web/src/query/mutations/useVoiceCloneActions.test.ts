@@ -4,7 +4,6 @@ import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 const api = vi.hoisted(() => ({
   save: vi.fn(),
   get: vi.fn(),
-  remove: vi.fn(),
   stream: vi.fn(),
   encode: vi.fn(),
 }));
@@ -12,14 +11,12 @@ vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
   ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   saveVoiceContent: api.save,
   getContentItemV1ContentItemsItemIdGet: api.get,
-  deleteContentItemV1ContentItemsItemIdDelete: api.remove,
   streamContentFileV1ContentFilesFileRefGet: api.stream,
 }));
 vi.mock("@/lib/speech/pocket/catalog-builder", () => ({
   buildPocketVoiceCatalogFile: api.encode,
 }));
 import {
-  deleteSavedVoiceClone,
   renameSavedVoiceClone,
   savePreparedVoiceClone,
 } from "./useVoiceCloneActions";
@@ -88,7 +85,6 @@ const descriptor = {
 beforeEach(() => {
   vi.clearAllMocks();
   api.save.mockResolvedValue({ data: clone });
-  api.remove.mockResolvedValue({});
   api.encode.mockResolvedValue(new File(["catalog"], "voice.bin"));
   api.get.mockResolvedValue({
     data: {
@@ -234,57 +230,28 @@ describe("voice clone library writes", () => {
     expect(api.save).not.toHaveBeenCalled();
   });
 
-  it("deletes with the displayed revision and explains references without losing the API code", async () => {
-    api.remove.mockResolvedValueOnce({
-      error: { detail: { code: "catalog_item_in_use" } },
-      response: { status: 409 },
-    });
-    await expect(
-      deleteSavedVoiceClone(testApiClient, clone),
-    ).rejects.toMatchObject({
-      status: 409,
-      code: "catalog_item_in_use",
-      message: expect.stringContaining("Choose another voice"),
-    });
-    expect(api.remove).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        path: { item_id: clone.item_id },
-        query: { expected_revision: "revision-1" },
-      }),
-    );
-  });
-
-  it("reports a lost save or delete reply as a connection failure", async () => {
+  it("reports a lost save reply as a connection failure", async () => {
     // A lost connection or paused runtime scope yields no HTTP response.
     const lost = { error: new TypeError("Failed to fetch") };
     api.save.mockResolvedValueOnce(lost);
-    api.remove.mockResolvedValueOnce(lost);
     const prepared = await prepareVoiceClone(testApiClient, {
       name: "New voice",
       file: new File(["original"], "source.wav"),
       operationId: "create-operation",
     });
-    for (const failure of [
-      savePreparedVoiceClone(testApiClient, prepared),
-      deleteSavedVoiceClone(testApiClient, clone),
-    ]) {
-      await expect(failure).rejects.toMatchObject({
-        status: null,
-        message: expect.stringContaining("could not be reached"),
-      });
-      await expect(failure).rejects.not.toThrow(/Cannot read properties/);
-    }
+    const failure = savePreparedVoiceClone(testApiClient, prepared);
+    await expect(failure).rejects.toMatchObject({
+      status: null,
+      message: expect.stringContaining("could not be reached"),
+    });
+    await expect(failure).rejects.not.toThrow(/Cannot read properties/);
   });
 
   it("refuses mutations to Included content", async () => {
     const included = { ...clone, source: "included" as const, editable: false };
     await expect(
-      deleteSavedVoiceClone(testApiClient, included),
-    ).rejects.toThrow("Local");
-    await expect(
       renameSavedVoiceClone(testApiClient, { clone: included, name: "Rename" }),
     ).rejects.toThrow("Local");
-    expect(api.remove).not.toHaveBeenCalled();
     expect(api.save).not.toHaveBeenCalled();
   });
 });
