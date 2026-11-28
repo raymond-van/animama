@@ -72,7 +72,7 @@ keeping you company while you work, play and power through the day.
 
 | Platform | Requires | Installer | Size |
 | --- | --- | --- | --- |
-| macOS | macOS 15 or later, Apple silicon | [Animama-0.1.5-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.5/Animama-0.1.5-arm64.dmg) | 418 MB (889 MB installed) |
+| macOS | macOS 15 or later, Apple silicon | [Animama-0.1.7-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.7/Animama-0.1.7-arm64.dmg) | 419 MB (893 MB installed) |
 | Windows | Windows 11 x64, build 22000 or later | [Animama-0.1.6-x64-setup.exe](https://downloads.animama.ai/desktop/v0.1.6/Animama-0.1.6-x64-setup.exe) | 377 MB (988 MB installed) |
 
 On Windows, SmartScreen may say "Windows protected your PC" because Animama is
