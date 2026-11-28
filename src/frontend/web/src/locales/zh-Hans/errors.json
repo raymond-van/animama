@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "请选择可用的 PocketTTS 语音。"
   },
   "generation": {
+    "attached_image_unavailable": "你附加的一张图片已不可用。请重新附加，然后再次发送请求。",
     "generation_batch_time_limit": "这次请求已超出时间限制。已完成的草稿会保留。",
     "generation_document_invalid": "助手无法处理此项目当前的内容。请检查时间轴是否有问题，然后重试。",
     "generation_document_invalid_details": "此项目的名称、描述、选择器 ID 或建议情绪有问题，助手无法处理。请检查后重试。",
@@ -125,10 +126,20 @@
     "generation_not_found": "此对话或草稿已不存在。",
     "generation_nothing_to_restore": "此草稿没有可恢复的早期版本。",
     "generation_reasoning_effort_unsupported": "所选模型无法以此推理强度运行助手。请选择其他强度或其他模型。",
+    "generation_reference_refused": "助手无法使用你选择的一项参考。请去掉它，然后再次发送请求。",
+    "generation_reference_refused_invalid": "你选为起点的动作目前无法使用。请另选一个，然后再次发送请求。",
+    "generation_reference_refused_non_portable": "你选为参考的一个动作是仅供在本应用内使用的内置内容，助手无法读取。请另选一个，然后再次发送请求。",
+    "generation_reference_refused_not_a_clip": "你选为参考的一个动作是导入的动画，助手无法读取。请另选一个，然后再次发送请求。",
+    "generation_reference_refused_not_allowed": "只有写新动作草稿的请求才能指定起点动作。请去掉起点，然后再次发送请求。",
+    "generation_reference_refused_not_found": "你选为参考的一个动作已不在资源库中。请另选一个，然后再次发送请求。",
+    "generation_reference_refused_too_large": "示例动作超出了一次请求可向助手展示的量。请减少示例或改用较短的示例，然后再次发送请求。",
+    "generation_reference_refused_unavailable": "无法读取资源库，因此助手未能使用你的参考。请重试。",
     "generation_request_failed": "请求未能送达助手。请重试。",
     "generation_run_failed": "助手遇到了意外问题。请重试。",
     "generation_run_in_progress": "助手仍在处理此对话。请等待完成，或先停止。",
-    "generation_stream_interrupted": "助手完成之前连接已中断。已保存的草稿会保留。"
+    "generation_stream_interrupted": "助手完成之前连接已中断。已保存的草稿会保留。",
+    "too_many_images": "此请求附带的图片过多。请减少图片后再次发送。",
+    "uploads_unavailable": "目前无法访问你存储的文件，因此助手无法读取你的图片。请稍后重试。"
   },
   "generic": {
     "unexpected": "出现问题。请重试。",

@@ -7,6 +7,10 @@ import type {
   PendingGenerationQuestions,
 } from "@/ui/generate/generationDrafts";
 import type { GenerationRunEvent } from "@/ui/generate/generationStream";
+import {
+  hasGenerationReferences,
+  type GenerationRunReferences,
+} from "@/ui/generate/references/generationReferences";
 
 /**
  * The content assistant's transient state, per conversation: what the run in
@@ -49,6 +53,11 @@ export type GenerationRunRequest = {
   intent?: "gesture" | "reaction";
   /** Answers to the previous run's questions (or that they were skipped). */
   answers: PyGenerationAnswers | null;
+  /**
+   * The Library Gestures and images given with the request. A retry and an
+   * answer to the run's questions send them again.
+   */
+  references?: GenerationRunReferences | null;
 };
 
 /**
@@ -83,6 +92,8 @@ export type GenerationPendingTurn = {
   draftId: string | null;
   /** The assistant's text so far. */
   text: string;
+  /** What the request carries besides its words; absent when nothing. */
+  references?: GenerationRunReferences;
 };
 
 export type GenerationRunState = {
@@ -283,9 +294,19 @@ export function beginGenerationRun(
       message: request.message,
       draftId: request.draftId,
       text: "",
+      ...carried(request),
     },
   }));
   return true;
+}
+
+/** A request's references as a property to spread; none when it carries none. */
+function carried(request: GenerationRunRequest): {
+  references?: GenerationRunReferences;
+} {
+  return hasGenerationReferences(request.references)
+    ? { references: request.references }
+    : {};
 }
 
 /** The statuses a draft is left in once a run has finished with it. */
@@ -359,7 +380,14 @@ export function reduceGenerationRunEvent(
             ...run,
             questions: {
               questions: event.questions,
-              request: { message: request.message, draftId: request.draftId },
+              request: {
+                message: request.message,
+                draftId: request.draftId,
+                // The kind asked for: an answer sent in this session writes
+                // that kind, as one sent after a reload does.
+                ...(request.intent ? { intent: request.intent } : {}),
+                ...carried(request),
+              },
             },
           }
         : run;
@@ -386,11 +414,14 @@ export function reduceGenerationRunEvent(
       // The run has finished with a draft it leaves settled.
       const stepEnds =
         SETTLED_STATUSES.has(draft.status) && draft.id in run.draftPhases;
-      // The backend sends a draft only once it is stored.
-      if (!movedOn && !stepEnds && run.draftStored) return run;
+      // A draft that holds a project is one the run stored. A batch's planned
+      // items arrive empty, and so does an item that failed with nothing
+      // written: neither is a draft the run kept.
+      const draftStored = run.draftStored || draft.project !== null;
+      if (!movedOn && !stepEnds && draftStored === run.draftStored) return run;
       return {
         ...run,
-        draftStored: true,
+        draftStored,
         framesRequests: movedOn
           ? withoutFramesOf(run.framesRequests, draft.id)
           : run.framesRequests,

@@ -18,6 +18,10 @@ import { isRecord } from "@/lib/records";
  * registers it here while the canvas is mounted, and the draft worker asks
  * here when a run requests sheets. With no canvas there is no renderer, and
  * the page says that the frames cannot be drawn.
+ *
+ * The renderer has more than one caller (a run's frame review, and the
+ * stills of the Inspirations dialog), and a sheet is drawn across several
+ * awaits. Requests are therefore drawn one at a time, in the order asked.
  */
 
 /**
@@ -54,8 +58,9 @@ export function usePreviewSheetRenderer(): PreviewSheetRenderer | null {
 /**
  * Offer `renderer` for review sheets until the returned function is called.
  * Nothing is drawn after that: a request in flight stops before its next
- * Avatar, and sheets that finish afterwards are discarded, since a renderer
- * whose canvas has gone may have drawn nothing.
+ * Avatar, a request still waiting its turn is refused, and sheets that
+ * finish afterwards are discarded, since a renderer whose canvas has gone may
+ * have drawn nothing.
  */
 export function registerPreviewSheetRenderer(
   renderer: WebGLRenderer,
@@ -65,7 +70,7 @@ export function registerPreviewSheetRenderer(
     if (!registered || renderer.getContext().isContextLost())
       throw new PreviewRendererUnavailableError();
   };
-  const render: PreviewSheetRenderer = async (request) => {
+  const draw: PreviewSheetRenderer = async (request) => {
     assertUsable();
     const sheets = await renderIncludedAvatarReviewSheets({
       renderer,
@@ -82,6 +87,14 @@ export function registerPreviewSheetRenderer(
       },
     });
     assertUsable();
+    return sheets;
+  };
+  // One request at a time: each starts when the one before it has settled,
+  // whether that one drew its sheets or failed.
+  let last: Promise<unknown> = Promise.resolve();
+  const render: PreviewSheetRenderer = (request) => {
+    const sheets = last.then(() => draw(request));
+    last = sheets.catch(() => undefined);
     return sheets;
   };
   usePreviewSheetRendererStore.setState({ render });

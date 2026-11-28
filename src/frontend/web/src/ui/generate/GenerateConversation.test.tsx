@@ -23,6 +23,8 @@ import {
   type MountedInDocument,
 } from "./testing/generationHarness";
 import { enterPseudoLocale, unmarkedText } from "./testing/pseudoLocale";
+import type { GenerationRunReferences } from "./references/generationReferences";
+import type { GenerateReferencesController } from "./references/useGenerateReferences";
 import type { GenerationRunController } from "./useGenerationRun";
 
 let mounted: MountedInDocument | null = null;
@@ -65,6 +67,7 @@ function conversation(
     framesStatus?: "idle" | "rendering" | "unavailable" | "failed";
     newDraftKind?: Parameters<typeof GenerateConversation>[0]["newDraftKind"];
     composerNote?: Parameters<typeof GenerateConversation>[0]["composerNote"];
+    references?: GenerateReferencesController;
   } = {},
 ) {
   const node = (
@@ -77,6 +80,7 @@ function conversation(
       framesStatus={options.framesStatus}
       newDraftKind={options.newDraftKind}
       composerNote={options.composerNote}
+      references={options.references}
     />
   );
   if (mounted) mounted.rerender(node);
@@ -110,6 +114,44 @@ const failure = (
   request: { message: "a shy little wave", draftId: null, answers: null },
   ...overrides,
 });
+
+const REFERENCES: GenerationRunReferences = {
+  startingPoint: { itemId: "wave", name: "Wave Hello" },
+  examples: [
+    { itemId: "bow", name: "Deep Bow" },
+    { itemId: "nod", name: "Nod" },
+  ],
+  images: [],
+};
+
+/** A composer's references as the Generate page gives them, holding `held`. */
+function composerReferences(
+  held: GenerationRunReferences | null = REFERENCES,
+): GenerateReferencesController & { restore: ReturnType<typeof vi.fn> } {
+  const restore = vi.fn();
+  return {
+    offersStartingPoint: true,
+    startingPoint: held?.startingPoint ?? null,
+    chooseStartingPoint: vi.fn(),
+    examples: held?.examples ?? [],
+    addExample: vi.fn(),
+    removeExample: vi.fn(),
+    gestures: {
+      local: [],
+      included: [],
+      loading: false,
+      error: false,
+      retry: vi.fn(),
+      has: () => true,
+    },
+    images: null,
+    video: null,
+    hold: "none",
+    getHold: () => "none",
+    take: vi.fn(() => ({ references: held, restore })),
+    restore,
+  };
+}
 
 const asked = [
   { question: "Which hand?", options: ["Right", "Left"] },
@@ -256,9 +298,126 @@ describe("the conversation with the assistant", () => {
     expect(find("creator-note")!.textContent).toBe("Changes the open item.");
     expect(find("generate-revision-target")).toBeNull();
     expect(find("generate-draft-kind")).toBeNull();
+    // A creator's panel has no references, and no style choice.
+    expect(find("generate-references")).toBeNull();
+    expect(find("generate-style")).toBeNull();
     expect(find("generate-request")!.getAttribute("placeholder")).toBe(
       "Say what to change…",
     );
+  });
+
+  it("shows the references row only where the page gives it references", () => {
+    conversation(controller(), {
+      newDraftKind: { value: "gesture", onChange: () => {} },
+    });
+    expect(find("generate-references")).toBeNull();
+
+    conversation(controller(), {
+      newDraftKind: { value: "gesture", onChange: () => {} },
+      references: composerReferences(),
+    });
+    const row = find("generate-references")!;
+    expect(row.getAttribute("role")).toBe("group");
+    expect(row.getAttribute("aria-label")).toBe(
+      "References for your next message",
+    );
+    // Between the line about what the message writes and the request field.
+    const before = Node.DOCUMENT_POSITION_PRECEDING;
+    const after = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(
+      row.compareDocumentPosition(find("generate-draft-kind")!) & before,
+    ).toBeTruthy();
+    expect(
+      row.compareDocumentPosition(find("generate-request")!) & after,
+    ).toBeTruthy();
+  });
+
+  it("sends the composer's references with the message, taking them out", async () => {
+    const control = controller();
+    const references = composerReferences();
+    conversation(control, { references });
+    type("a wave like this");
+    await click(find("generate-send"));
+    expect(references.take).toHaveBeenCalledTimes(1);
+    expect(control.send).toHaveBeenCalledWith("a wave like this", {
+      draftId: null,
+      references: REFERENCES,
+    });
+    expect(references.restore).not.toHaveBeenCalled();
+  });
+
+  it("sends no references when the composer holds none", async () => {
+    const control = controller();
+    conversation(control, { references: composerReferences(null) });
+    type("a wave");
+    await click(find("generate-send"));
+    expect(control.send).toHaveBeenCalledWith("a wave", { draftId: null });
+  });
+
+  it("puts the references back with a request the run did not take", async () => {
+    const control = controller({ send: vi.fn(async () => false) });
+    const references = composerReferences();
+    conversation(control, { references });
+    const field = type("a wave like this");
+    await click(find("generate-send"));
+    expect(field.value).toBe("a wave like this");
+    expect(references.restore).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows by name what a turn carried, stored or still in flight", () => {
+    const root = conversation(
+      controller({
+        run: {
+          running: true,
+          pendingTurn: {
+            message: "and a bow like that",
+            draftId: null,
+            text: "",
+            references: { ...REFERENCES, startingPoint: null },
+          },
+        },
+      }),
+      {
+        snapshot: generationSnapshot({
+          messages: [
+            generationMessage({
+              data: {
+                references: {
+                  starting_point: { item_id: "wave", name: "Wave Hello" },
+                  examples: [{ item_id: "bow", name: "Deep Bow" }],
+                },
+              },
+            }),
+            generationMessage({
+              id: "message-2",
+              role: "assistant",
+              text: "Here is a shy wave.",
+              data: { outcome: "draft", draft_id: "draft-1" },
+            }),
+          ],
+        }),
+      },
+    );
+    const [stored, pending] = findAll("generate-turn-references");
+    expect(stored!.querySelector("ul")!.getAttribute("aria-label")).toBe(
+      "References sent with this message",
+    );
+    expect(
+      [...stored!.querySelectorAll("li")].map((line) => line.textContent),
+    ).toEqual(["Starts from Wave Hello", "Examples of the feel: Deep Bow"]);
+    expect(
+      [...pending!.querySelectorAll("li")].map((line) => line.textContent),
+    ).toEqual(["Examples of the feel: Deep Bow and Nod"]);
+    // Shown with the turn that carried them, above its words.
+    expect(
+      stored!.compareDocumentPosition(
+        [...root.querySelectorAll("*")].find(
+          (element) => element.textContent === "a shy little wave",
+        )!,
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // A turn without references shows nothing of the kind.
+    expect(findAll("generate-turn-references")).toHaveLength(2);
   });
 
   it("never revises a draft that has no project, though it is selected", async () => {
@@ -537,12 +696,29 @@ describe("the conversation with the assistant", () => {
         {
           snapshot: generationSnapshot({
             messages: [request, storedFailedTurn],
+            drafts: [generationDraft()],
           }),
         },
       );
       expect(find("generate-failure")).not.toBeNull();
       expect(find("generate-retry")).toBeNull();
       expect(find("generate-failure-dismiss")).not.toBeNull();
+    });
+
+    it("offers Try again when the failed run kept no draft that holds anything", () => {
+      // A batch ended by a failure every item would meet, before any item was
+      // written: its one kept item failed empty, and the rest were removed.
+      conversation(
+        controller({ run: { failure: providerFailure, runId: "run-1" } }),
+        {
+          snapshot: generationSnapshot({
+            messages: [request, storedFailedTurn],
+            drafts: [generationDraft({ status: "failed", project: null })],
+          }),
+        },
+      );
+      expect(find("generate-failure")).not.toBeNull();
+      expect(find("generate-retry")).not.toBeNull();
     });
 
     it("offers Try again for a request that never reached the backend, whatever the run before stored", () => {
@@ -1002,6 +1178,85 @@ describe("the conversation with the assistant", () => {
       // The empty conversation.
       conversation(controller());
       expect(unmarkedText(document.body, data)).toEqual([]);
+    } finally {
+      await leave();
+    }
+  });
+});
+
+describe("prompt starters", () => {
+  const starters = () =>
+    findAll("generate-starter").map((starter) => starter.textContent);
+
+  it("offers six starters on the page while the conversation is empty", () => {
+    conversation(controller(), { references: composerReferences(null) });
+    const list = find("generate-starters")!;
+    expect(list.getAttribute("aria-label")).toBe("Prompt starters");
+    expect(starters()).toEqual([
+      "A shy little wave with a small smile",
+      "Thinking with a hand on the chin, held while the Anima thinks",
+      "A hearty laugh with the whole body",
+      "A proud fist pump",
+      "A Reaction: wide-eyed surprise",
+      "Three greetings: a wave, a bow and a salute",
+    ]);
+    // The invitation stays above them.
+    expect(document.body.textContent).toContain("Describe a Gesture");
+  });
+
+  it("fills the request field with a chosen starter and focuses it, sending nothing", async () => {
+    const control = controller();
+    const onChange = vi.fn();
+    conversation(control, {
+      references: composerReferences(null),
+      newDraftKind: { value: "gesture", onChange },
+    });
+    const field = find("generate-request") as HTMLTextAreaElement;
+    expect(document.activeElement).not.toBe(field);
+
+    await click(findAll("generate-starter")[4]);
+    expect(field.value).toBe("A Reaction: wide-eyed surprise");
+    expect(document.activeElement).toBe(field);
+    expect(control.send).not.toHaveBeenCalled();
+    // A starter leaves the Gesture or Reaction choice as it was.
+    expect(onChange).not.toHaveBeenCalled();
+    expect(find("generate-draft-kind")!.dataset.kind).toBe("gesture");
+
+    // The text is the person's to edit, and another starter replaces it.
+    type("A Reaction: wide-eyed surprise, then a laugh");
+    await click(findAll("generate-starter")[0]);
+    expect(field.value).toBe("A shy little wave with a small smile");
+    expect(control.send).not.toHaveBeenCalled();
+  });
+
+  it("shows no starters in a creator's panel", () => {
+    conversation(controller(), {
+      composerNote: <p>Changes the open item.</p>,
+    });
+    expect(document.body.textContent).toContain("Describe a Gesture");
+    expect(find("generate-starters")).toBeNull();
+    expect(starters()).toEqual([]);
+  });
+
+  it("shows no starters once the conversation has a turn, or while a run works", () => {
+    conversation(controller(), {
+      references: composerReferences(null),
+      snapshot: generationSnapshot({ messages: [generationMessage()] }),
+    });
+    expect(find("generate-starters")).toBeNull();
+
+    // The first request is in flight: its turn is not stored yet.
+    conversation(controller({ run: { running: true } }), {
+      references: composerReferences(null),
+    });
+    expect(find("generate-starters")).toBeNull();
+  });
+
+  it("words the starters from the catalog", async () => {
+    conversation(controller(), { references: composerReferences(null) });
+    const leave = await enterPseudoLocale();
+    try {
+      expect(unmarkedText(find("generate-starters")!)).toEqual([]);
     } finally {
       await leave();
     }

@@ -43,6 +43,7 @@ interface ImportMetaEnv {
   readonly VITE_DISABLE_WEBUI_TELEMETRY?: string;
   readonly VITE_DISABLE_WEBUI_TRACES?: string;
   readonly VITE_ENABLE_DEBUG_PANEL?: string;
+  readonly VITE_ENABLE_GENERATE_VIDEO_REFERENCES?: string;
   readonly VITE_ENABLE_LOCAL_MODELS?: string;
   readonly VITE_ENABLE_DEEPSEEK_HUGGINGFACE?: string;
 }

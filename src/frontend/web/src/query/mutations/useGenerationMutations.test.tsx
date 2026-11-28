@@ -116,6 +116,36 @@ describe("assistant conversations", () => {
     expect(list()).toEqual([other]);
   });
 
+  it("reads the person's files again after a discard, which may have deleted images", async () => {
+    // The discard deletes the reference images only that conversation used.
+    const files = [...queryKeys.userFiles.all("session"), "list"];
+    queryClient.setQueryData(files, [{ file_id: "file-1" }]);
+    queryClient.setQueryData(SNAPSHOT, generationSnapshot());
+    server.answer = jsonResponse(null, 204);
+
+    await act(() => mounted.result().remove.mutateAsync("conversation-1"));
+
+    expect(queryClient.getQueryState(files)?.isInvalidated).toBe(true);
+  });
+
+  it("leaves the cached files alone when the discard was refused", async () => {
+    const files = [...queryKeys.userFiles.all("session"), "list"];
+    queryClient.setQueryData(files, [{ file_id: "file-1" }]);
+    server.answer = jsonResponse(
+      { detail: { code: "generation_run_in_progress" } },
+      409,
+    );
+
+    await act(() =>
+      mounted
+        .result()
+        .remove.mutateAsync("conversation-1")
+        .catch(() => undefined),
+    );
+
+    expect(queryClient.getQueryState(files)?.isInvalidated).toBe(false);
+  });
+
   it("keeps a conversation the server refuses to delete, with the refusal's code", async () => {
     queryClient.setQueryData(SNAPSHOT, generationSnapshot());
     server.answer = jsonResponse(

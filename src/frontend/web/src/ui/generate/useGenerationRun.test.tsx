@@ -22,6 +22,7 @@ import {
   settle,
   type MountedHook,
 } from "./testing/generationHarness";
+import type { GenerationRunReferences } from "./references/generationReferences";
 import {
   GENERATION_REQUEST_FAILED,
   GENERATION_STREAM_INTERRUPTED,
@@ -121,6 +122,17 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+const REFERENCES: GenerationRunReferences = {
+  startingPoint: { itemId: "wave", name: "Wave Hello" },
+  examples: [
+    { itemId: "bow", name: "Deep Bow" },
+    { itemId: "nod", name: "Nod" },
+  ],
+  images: [],
+};
+/** `REFERENCES` as the run route takes them. */
+const REFERENCES_BODY = { starting_point: "wave", examples: ["bow", "nod"] };
+
 describe("generationRunBody", () => {
   const request = { message: "a shy wave", draftId: null, answers: null };
 
@@ -212,6 +224,31 @@ describe("generationRunBody", () => {
         document: null,
       }),
     ).not.toHaveProperty("document");
+  });
+
+  it("names the references a request carries, and sends none without any", () => {
+    expect(
+      generationRunBody({
+        request: { ...request, references: REFERENCES },
+        modelProviderId: "model-1",
+      }),
+    ).toEqual({
+      message: "a shy wave",
+      model_provider_id: "model-1",
+      intent: "gesture",
+      references: REFERENCES_BODY,
+    });
+    for (const references of [
+      null,
+      undefined,
+      { startingPoint: null, examples: [], images: [] },
+    ])
+      expect(
+        generationRunBody({
+          request: { ...request, references },
+          modelProviderId: "model-1",
+        }),
+      ).not.toHaveProperty("references");
   });
 
   it("drops names that may not reach a model and sends no empty family", () => {
@@ -754,6 +791,119 @@ describe("useGenerationRun", () => {
     act(() => void result().send("another wave"));
     await settle();
     expect(server.runs[3]).not.toHaveProperty("reasoning_effort");
+  });
+
+  it("sends a request's references again with its retry and with an answer", async () => {
+    const { result } = await mount();
+    act(
+      () => void result().send("a shy little wave", { references: REFERENCES }),
+    );
+    await settle();
+    // The turn shows what it carries while the run works.
+    expect(result().run.pendingTurn?.references).toEqual(REFERENCES);
+    await emit(
+      sseFrame("run.started", { run_id: "run-1" }),
+      sseFrame("run.failed", {
+        code: "openai_rate_limit",
+        category: "rate_limited",
+        details: {},
+      }),
+      sseFrame("run.completed", { usage: { requests: 1 } }),
+    );
+
+    act(() => void result().retry());
+    await settle();
+    await emit(
+      sseFrame("run.started", { run_id: "run-2" }),
+      sseFrame("questions", {
+        questions: [{ question: "Which hand?", options: ["Right", "Left"] }],
+      }),
+      sseFrame("run.completed", { usage: { requests: 1 } }),
+    );
+
+    act(
+      () => void result().answer([{ question: "Which hand?", answer: "Left" }]),
+    );
+    await settle();
+    expect(server.runs.map((run) => run.references)).toEqual([
+      REFERENCES_BODY,
+      REFERENCES_BODY,
+      REFERENCES_BODY,
+    ]);
+    expect(server.runs[2]).toMatchObject({
+      message: "a shy little wave",
+      answers: { answers: [{ question: "Which hand?", answer: "Left" }] },
+    });
+    await emit(sseFrame("run.completed", { usage: { requests: 1 } }));
+
+    // The next request carries only what it is given.
+    act(() => void result().send("another wave"));
+    await settle();
+    expect(server.runs[3]).not.toHaveProperty("references");
+  });
+
+  it("answers questions asked in this session as the kind the request asked for", async () => {
+    const { result } = await mount();
+    act(() => void result().send("wide-eyed surprise", { intent: "reaction" }));
+    await settle();
+    await emit(
+      sseFrame("run.started", { run_id: "run-1" }),
+      sseFrame("questions", {
+        questions: [{ question: "How strong?", options: ["Mild", "Strong"] }],
+      }),
+      sseFrame("run.completed", { usage: { requests: 1 } }),
+    );
+
+    act(
+      () =>
+        void result().answer([{ question: "How strong?", answer: "Strong" }]),
+    );
+    await settle();
+
+    // Without a reload in between, the answer still writes a Reaction.
+    expect(server.runs.map((run) => run.intent)).toEqual([
+      "reaction",
+      "reaction",
+    ]);
+  });
+
+  it("answers stored questions with the references their request carried", async () => {
+    const asked = [{ question: "How big?", options: ["Small", "Large"] }];
+    server.snapshot = generationSnapshot({
+      messages: [
+        generationMessage({
+          text: "a wave",
+          data: {
+            references: {
+              starting_point: { item_id: "wave", name: "Wave Hello" },
+              examples: [
+                { item_id: "bow", name: "Deep Bow" },
+                { item_id: "nod", name: "Nod" },
+              ],
+            },
+          },
+        }),
+        generationMessage({
+          id: "message-2",
+          role: "assistant",
+          data: { outcome: "questions", questions: asked },
+        }),
+      ],
+    });
+    const { result } = await mount();
+    expect(result().questions?.request).toEqual({
+      message: "a wave",
+      draftId: null,
+      references: REFERENCES,
+    });
+
+    act(() => void result().answer(null));
+    await settle();
+    expect(server.runs[0]).toMatchObject({
+      message: "a wave",
+      answers: { skipped: true },
+      references: REFERENCES_BODY,
+    });
   });
 
   it("reports a request the server refuses, with its code and reason", async () => {

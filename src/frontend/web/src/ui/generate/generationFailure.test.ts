@@ -183,6 +183,91 @@ describe("describeGenerationFailure", () => {
     );
   });
 
+  it("says why a reference was refused, for each reason the backend gives", () => {
+    const refused = (reason: string | null) => {
+      const text = describeGenerationFailure(
+        failure({
+          code: "generation_reference_refused",
+          category: "request",
+          reason,
+          status: 422,
+        }),
+      );
+      if (text.source !== "assistant") throw new Error("Expected own wording.");
+      expect(text.detail).toBeNull();
+      return text.message;
+    };
+    expect(refused("not_found")).toBe(
+      "A Gesture you chose as a reference is no longer in your Library. Choose another and send your request again.",
+    );
+    expect(refused("non_portable")).toBe(
+      "A Gesture you chose as a reference is included for use in this app only, so the assistant cannot read it. Choose another and send your request again.",
+    );
+    expect(refused("not_a_clip")).toBe(
+      "A Gesture you chose as a reference is an imported animation, which the assistant cannot read. Choose another and send your request again.",
+    );
+    expect(refused("invalid")).toBe(
+      "The Gesture you chose to start from cannot be used as it stands. Choose another and send your request again.",
+    );
+    expect(refused("too_large")).toBe(
+      "The example Gestures are more than one request can show the assistant. Send your request again with fewer or shorter examples.",
+    );
+    expect(refused("not_allowed")).toBe(
+      "A Gesture to start from can only go with a request for a new Gesture draft. Send your request again without it.",
+    );
+    expect(refused("unavailable")).toBe(
+      "Your Library could not be read, so the assistant could not use your references. Try again.",
+    );
+    // A reason from a newer backend, or none, reads as the general refusal.
+    for (const reason of ["something_new", null])
+      expect(refused(reason)).toBe(
+        "The assistant could not use a reference you chose. Send your request again without it.",
+      );
+    // Another reference would not fare better on another model.
+    expect(
+      generationFailureSuggestsAnotherModel(
+        describeGenerationFailure(
+          failure({
+            code: "generation_reference_refused",
+            category: "request",
+            reason: "not_found",
+            status: 422,
+          }),
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it("words a refused reference image", () => {
+    const refused = (code: string) => {
+      const text = describeGenerationFailure(
+        failure({ code, category: "request", status: 400 }),
+      );
+      if (text.source !== "assistant") throw new Error("Expected own wording.");
+      return text.message;
+    };
+    expect(refused("attached_image_unavailable")).toBe(
+      "An image you attached is no longer available. Attach it again and send your request again.",
+    );
+    expect(refused("too_many_images")).toBe(
+      "This request carries too many images. Send it again with fewer.",
+    );
+  });
+
+  it("words an upload store that cannot be reached as that, not as a lost image", () => {
+    const text = describeGenerationFailure(
+      failure({
+        code: "uploads_unavailable",
+        category: "request",
+        status: 503,
+      }),
+    );
+    if (text.source !== "assistant") throw new Error("Expected own wording.");
+    expect(text.message).toBe(
+      "Your stored files cannot be reached right now, so the assistant could not read your images. Try again in a moment.",
+    );
+  });
+
   it("words a refused reasoning effort", () => {
     const text = describeGenerationFailure(
       failure({

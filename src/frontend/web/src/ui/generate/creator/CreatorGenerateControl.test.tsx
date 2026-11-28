@@ -278,6 +278,10 @@ describe("the creator's Generate control", () => {
       enabled: true,
     });
     expect(document.activeElement).toBe(find("generate-request"));
+    // The panel's composer is the Generate page's without references,
+    // which the page's starters, style and inspirations come with.
+    expect(stage.conversationProps).not.toHaveProperty("references");
+    expect(stage.conversationProps).not.toHaveProperty("style");
 
     act(() => {
       find("generate-request")!.dispatchEvent(

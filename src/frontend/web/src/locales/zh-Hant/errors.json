@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "請選擇可用的 PocketTTS 語音。"
   },
   "generation": {
+    "attached_image_unavailable": "你附加的一張圖片已無法使用。請重新附加，然後再次傳送請求。",
     "generation_batch_time_limit": "這次請求已超出時間限制。已完成的草稿會保留。",
     "generation_document_invalid": "助理無法處理此項目目前的內容。請檢查時間軸是否有問題，然後重試。",
     "generation_document_invalid_details": "此項目的名稱、描述、選擇器 ID 或建議情緒有問題，助理無法處理。請檢查後重試。",
@@ -125,10 +126,20 @@
     "generation_not_found": "此對話或草稿已不存在。",
     "generation_nothing_to_restore": "此草稿沒有可還原的早期版本。",
     "generation_reasoning_effort_unsupported": "所選模型無法以此推理強度執行助理。請選擇其他強度或其他模型。",
+    "generation_reference_refused": "助理無法使用你選擇的一項參考。請移除它，然後再次傳送請求。",
+    "generation_reference_refused_invalid": "你選為起點的動作目前無法使用。請另選一個，然後再次傳送請求。",
+    "generation_reference_refused_non_portable": "你選為參考的一個動作是僅供在本應用程式內使用的內建內容，助理無法讀取。請另選一個，然後再次傳送請求。",
+    "generation_reference_refused_not_a_clip": "你選為參考的一個動作是匯入的動畫，助理無法讀取。請另選一個，然後再次傳送請求。",
+    "generation_reference_refused_not_allowed": "只有寫新動作草稿的請求才能指定起點動作。請移除起點，然後再次傳送請求。",
+    "generation_reference_refused_not_found": "你選為參考的一個動作已不在資源庫中。請另選一個，然後再次傳送請求。",
+    "generation_reference_refused_too_large": "範例動作超出了一次請求可向助理展示的量。請減少範例或改用較短的範例，然後再次傳送請求。",
+    "generation_reference_refused_unavailable": "無法讀取資源庫，因此助理未能使用你的參考。請重試。",
     "generation_request_failed": "請求未能送達助理。請重試。",
     "generation_run_failed": "助理遇到了未預期的問題。請重試。",
     "generation_run_in_progress": "助理仍在處理此對話。請等待完成，或先停止。",
-    "generation_stream_interrupted": "助理完成之前連線已中斷。已儲存的草稿會保留。"
+    "generation_stream_interrupted": "助理完成之前連線已中斷。已儲存的草稿會保留。",
+    "too_many_images": "此請求附帶的圖片過多。請減少圖片後再次傳送。",
+    "uploads_unavailable": "目前無法存取你儲存的檔案，因此助理無法讀取你的圖片。請稍後再試。"
   },
   "generic": {
     "unexpected": "發生問題。請重試。",

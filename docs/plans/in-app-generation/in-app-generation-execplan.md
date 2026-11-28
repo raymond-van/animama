@@ -329,7 +329,10 @@ provider, and, in Phase 8, an outside client and the backend.
 - [x] Phase 6: batches and effects on the timeline (2026-11-27). Reviewed
   at the high-risk tier; Code Review #2 passed after one repair round. The
   live batch check (G1) is not run yet.
-- [ ] Phase 7: references and presets (C3).
+- [x] Phase 7: references and presets (2026-11-27). Reviewed at the
+  high-risk tier; Code Review #2 passed after one repair round. The video
+  trial (C3, G1) and the owner's decision on it (G5) are open, and no
+  curated inspiration is shipped (G7).
 - [ ] Phase 8: the connector (C4).
 - [ ] Phase 9: acceptance and closing records.
 
@@ -2179,8 +2182,179 @@ check.
 
 The second pull request (Phases 4 to 7) follows.
 
-Records: no checks run, commits or reviews yet. Code Review #1 Findings and
-Revisions go here.
+Records. As built:
+
+- **Library Gestures as references (R8.1).** On the Generate page a request
+  may name one Gesture as its starting point and up to three as examples of
+  the feel, chosen with the Library picker. A starting point is for a new
+  Gesture only: its clip, without its effects and sounds, is copied as
+  "<name> 2" with a fresh Selector ID, the assistant revises the copy, and
+  the copy and the revision are stored together as two versions, so Restore
+  returns to the Gesture as it was. A run that fails or asks questions
+  stores nothing. Examples go to the model as data on write, revise and
+  batch-item passes, at most 32 KiB each and 64 KiB together, and never
+  become the draft. A non-portable item is absent from the pickers and
+  refused by the service before any of its bytes are opened
+  (`422 generation_reference_refused`, with a reason).
+- **Reference images (R8.2).** Up to four images per request, uploaded and
+  stored as chat images are, with chat's limits. Table
+  `generation_reference_images` (revision `reference_images_20261127`, file
+  `0005_generation_reference_images.py`) links a conversation to its images.
+  Discarding a conversation deletes the images no other conversation and no
+  chat message uses, and the confirmation says so; deleting a chat or an
+  Anima spares an image a conversation still uses. Images reach a model
+  only when it accepts images, as image parts on write, revise and
+  batch-item passes, without file names or ids. On a text-only model
+  nothing is read or sent and the page says the images were not used. A
+  turn records whether a request carried its images. When the upload store
+  cannot be reached, a run with images is refused with
+  `503 uploads_unavailable` and a discard keeps the images in the Library.
+- **Video frames (R8.3, C3), behind a switch.** The page samples up to
+  eight frames from a local video of at most 20 seconds and uploads them as
+  one image strip, marked as frames so the instructions can say what it is.
+  The video never leaves the page. The control shows only in a development
+  build with `VITE_ENABLE_GENERATE_VIDEO_REFERENCES=true`; a built app never
+  offers it. The owner keeps or defers the feature after the trial (G5).
+- **Starters and style presets (R8.4, R8.5).** Six prompt starters fill the
+  request field. Five named style presets are stored on the conversation by
+  id (`PUT /v1/generation/conversations/{id}/style-preset`) and each adds
+  one fixed sentence from the backend's list to every pass's instructions.
+  The page never sends a preset's text.
+- **Inspirations (R8.6).** A dialog with the starters, eight Included
+  Gestures drawn on the Included Avatars at run time (choosing one adds it
+  as an example) and the person's own images. No image or loop is shipped.
+  Curated outside items, when the owner approves any (G7), go in
+  `ui/generate/inspirations/curated/` with entries in
+  `curatedInspirations.ts` and the licence record; a test fails on a file
+  without an entry that permits redistribution.
+- **Carried from Phase 6.** A rate limit fails one batch item, not the
+  batch. Try again is offered after a failed batch that kept no draft.
+- **Also fixed.** A Reaction request that was asked questions is now
+  answered as a Reaction without a reload (the fault predates this phase).
+- **Scope choices.** References, style, starters and inspirations are on
+  the Generate page only. Images ride on the request they were attached to
+  and are not resent by later requests.
+- **Contract.** No version change: `local-http` 28.0.0 and
+  `runtime-contracts` 0.28.0 are this pull request's own, not yet on `main`.
+
+Threat model changes. T3: a caller now also supplies ids of Library
+Gestures, ids of its own uploaded images with a kind label, and a style
+preset id; the backend reads each itself and the preset sentence is its
+own. T4: a non-portable item is refused before any byte is opened and a
+non-clip is refused; reference images are the stored copies without
+metadata, sent only to the chosen model's provider and only to a model that
+accepts images; the video file and the Inspirations stills never leave the
+page. T7: three examples (32 KiB each, 64 KiB together); four images on up
+to eleven authoring passes of a batch; a starting point writes one draft
+and no batch, its clip under the 2 MiB clip cap as a creator's document is
+(P7-R1-F10); a preset sentence of at most 240 characters. T10 now covers
+Library Gesture names, descriptions and clip labels, which reach a model
+only as tagged, escaped data, and words inside a reference image, which
+cannot be escaped and are only declared not to be instructions. T1: a
+starting clip passes the model-clip validation; an example is never loaded
+or saved.
+
+For later phases and the owner:
+
+- **Outside this repository.** The shared chat and Anima delete query now
+  reads `generation_reference_images`. The hosted composition is unaffected
+  today because it replaces user-file processing; a composition that runs
+  this query needs revision `reference_images_20261127` applied
+  (P7-R1-F9). No Cloud change is made here.
+- The video trial needs the variable in the Vite service's environment
+  (`src/frontend/web/.env.development.local`, ignored); the development
+  Compose file does not pass it through. The real video decode
+  (`videoFrameSource.ts`) has no test (P7-R1-F12).
+- A name the Library would not save (seven Included Gesture names) keeps
+  only its plain characters in a starting point's copy.
+- An image picked from the person's own files and used by nothing else is
+  deleted with the conversation, as chat does.
+
+Check record, on working tree `074a497b10d7b8477c46975a6411f8c7cae2c871`,
+each rerun by the checks reviewer with the same result:
+
+| Check | Result |
+| --- | --- |
+| `uv run --no-sync pytest -q -p no:cacheprovider tests/test_generation_*.py` with the guidance, packaging, boundary, inventory, OpenAPI export, fresh-install, chat delete, chat image, user-file and clip files | 1,481 passed |
+| The references and batch test files five times in a row, and once with two workers | 113 passed each time |
+| `ruff check`; `ruff format --check src/backend/animama tests scripts`; `mypy src/backend/animama tests`; the import boundary; the CI policy tests; `check_source.py` | Clean; 983 files; no forbidden edge; 143 OK; every file covered (the format check by the coordinator only) |
+| From `src/frontend`: `pnpm openapi-ts:check`; `pnpm packages:build`; `pnpm web:test` through the heavy slot; `pnpm check`; `pnpm web:lint`; `pnpm prettier:check`; `pnpm e2e:check:source` | Current; exit 0; 756 files and 7,431 tests passed; clean (the Prettier check by the coordinator only) |
+| `pnpm e2e:test:fast` on a disposable built stack | 47 of 47 on the tree before the repair (`8c1040e6…`), with the two new journeys (a Library Gesture as the starting point, a reference image). 46 of 47 on the repaired tree `728b03f2…`: every Generate journey passed, and "Library keeps Included files between visits" failed, the flake that also fails on `main`. Not rerun after the one-sentence wording change that followed. |
+
+The checks reviewer also confirmed by mutation, on an export of the tree,
+that each of these fails a test: reading a non-portable reference; a chat
+delete that ignores a conversation's link; a discard that ignores another
+conversation's link or a chat message's attachment; sending an image to a
+model that takes none; counting images as sent under the deterministic
+author; storing a starting point's two versions in two commits; accepting a
+preset id off the list or a caller's sentence; a rate limit ending a whole
+batch; and a changed column or cascade in the new revision. One mutation
+survived: loosening the request schema's pattern for a preset id changes
+no result, because the service's list refuses the id either way.
+
+Not run: the full pre-push suite, the `@complete-anima` journeys, a browser
+look at the new interface, a live model with references or a video strip
+(G1, C3), and the package-set `compare`.
+
+#### Code Review #1 Findings
+
+Independent review at the high-risk tier of working tree
+`8c1040e6e0cc5ca6b7d84cfcd4771206ac3a6e14` against `948640c0c`. Result:
+blocked by F1. No authorization, ownership, migration or prompt-injection
+defect was found.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P7-R1-F1 | Required | Discarding a conversation deletes its reference images, including one the person kept in the Library, and the confirmation did not say so. |
+| P7-R1-F2 | Optional | A starting point's copy and its revision were two commits, so a Stop between them kept an unrevised copy. |
+| P7-R1-F3 | Optional | The cached list of the person's files was not refreshed after a discard that deleted images. |
+| P7-R1-F4 | Optional | Putting an unsent request back uploaded each image again and left the first upload in the Library. |
+| P7-R1-F5 | Optional | The tests for an absent upload store used a state the app never produces; the real refusal was undocumented and the discard's log line claimed a removal that had not happened. |
+| P7-R1-F6 | Optional | A port method and a constant that only tests used. |
+| P7-R1-F7 | Optional | A turn recorded its images as sent before any request, and under the deterministic author. |
+| P7-R1-F8 | Optional | Questions answered without a reload lost the request's kind, so a Reaction was written as a Gesture (predates this phase). |
+| P7-R1-F9 | Optional | The shared chat-delete query now needs the new table wherever it runs. |
+| P7-R1-F10 | Optional | A starting point's clip is bounded only by the clip cap. |
+| P7-R1-F11 | Optional | The style select was disabled while saving and could lose keyboard focus. |
+| P7-R1-F12 | Optional | The real video decode has no test. |
+| P7-R1-F13 | Optional | ADR 0041's list of what the page sends was out of date. |
+
+#### Code Review #1 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P7-R1-F1 | Fixed: the confirmation in five locales names the images, as chat's does. |
+| P7-R1-F2 | Fixed: one service call stores both versions in one transaction. |
+| P7-R1-F3 | Fixed. |
+| P7-R1-F4 | Fixed: an image is put back by the id it already has. |
+| P7-R1-F5 | Fixed: a run answers `503 uploads_unavailable` as the store does, documented and worded on the page; the discard logs what became of its images; both real paths are tested. |
+| P7-R1-F6 | Fixed: the method is removed and the sentence bound is enforced where the presets are defined. |
+| P7-R1-F7 | Fixed: a turn's images count as sent from the first request that carries them. |
+| P7-R1-F8 | Fixed. |
+| P7-R1-F9 | Recorded above for the owner; no change in this repository's scope. |
+| P7-R1-F10 | Not acted on: the bound is the one a creator's document has; stated under T7 above. |
+| P7-R1-F11 | Fixed: the select stays enabled and ignores a second choice while saving. |
+| P7-R1-F12 | Not acted on: the control exists only for the trial. |
+| P7-R1-F13 | Fixed. |
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `728b03f2b857a340e7bf5594a2a87d7936a3adc8`.
+Result: pass. One repair round of the two allowed was used.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P7-R2-F1 | Optional | The note on a turn whose images were not sent said the model could not look at them, which is not the reason for a run that failed before its first request. |
+| P7-R2-F2 | Optional | A discard reads its orphaned files a second time only to log a count. |
+
+#### Code Review #2 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P7-R2-F1 | Fixed by the coordinator: the note reads "These images were not sent to the model." in five locales. The checks reviewer confirmed on tree `074a497b…` that this is the only change after the recheck, that it is true in every case the note shows, and that the translations agree. |
+| P7-R2-F2 | Not acted on. |
+
+Phase commit: this commit (`feat(generate)[p7]`).
 
 ### Phase 8: The connector
 

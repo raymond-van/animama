@@ -9,6 +9,11 @@ import {
 } from "@/lib/avatar/reactionPools";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { isRecord } from "@/lib/records";
+import {
+  hasGenerationReferences,
+  storedGenerationReferences,
+  type GenerationRunReferences,
+} from "./references/generationReferences";
 
 /**
  * Readers of the content assistant's stored resources. Drafts, messages and
@@ -29,6 +34,8 @@ export type PendingGenerationQuestions = {
     draftId: string | null;
     /** The kind the request asked for, where the turn recorded one. */
     intent?: "gesture" | "reaction";
+    /** The references the request carried, which the answering run names again. */
+    references?: GenerationRunReferences;
   };
 };
 
@@ -152,6 +159,7 @@ export function pendingGenerationQuestions(
   if (!asked) return null;
   const data = isRecord(asked.data) ? asked.data : {};
   const draftId = data.draft_id;
+  const references = storedGenerationReferences(data);
   return {
     questions,
     request: {
@@ -161,6 +169,7 @@ export function pendingGenerationQuestions(
       ...(data.intent === "reaction" || data.intent === "gesture"
         ? { intent: data.intent }
         : {}),
+      ...(hasGenerationReferences(references) ? { references } : {}),
     },
   };
 }
@@ -215,6 +224,20 @@ export function draftCanBeRevised(
   draft: Pick<PyGenerationDraft, "project">,
 ): boolean {
   return draft.project !== null;
+}
+
+/**
+ * The kind of draft the next message writes: the kind chosen for a new
+ * draft, or `null` when the message revises the selected draft (which keeps
+ * its own kind) or the composer offers no choice of kind.
+ */
+export function generationRequestWrites(
+  selectedDraft: Pick<PyGenerationDraft, "project"> | null,
+  newDraftKind: "gesture" | "reaction" | undefined,
+): "gesture" | "reaction" | null {
+  return selectedDraft && draftCanBeRevised(selectedDraft)
+    ? null
+    : (newDraftKind ?? null);
 }
 
 /** A draft project's clip as stored: unvalidated, or `null` without a project. */

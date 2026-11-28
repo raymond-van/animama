@@ -24,7 +24,7 @@ import {
 import { selectAnnieFromSidebar } from "../helpers/preview-surfaces";
 
 /**
- * The Generate page from a request to the Library, in three journeys:
+ * The Generate page from a request to the Library, in five journeys:
  *
  * - `generate-gesture-conversation`: ask the content assistant for a Gesture,
  *   watch the draft settle and play on the chosen Avatar and on each Included
@@ -35,18 +35,29 @@ import { selectAnnieFromSidebar } from "../helpers/preview-surfaces";
  *   fails, and save the others with Save all.
  * - `generate-gesture-effect-save`: ask for a Gesture that plays an existing
  *   Avatar Effect, and save it with its dependency.
+ * - `generate-gesture-from-library`: start a request from an Included Gesture,
+ *   and find a draft that is a revised copy of it, with its earlier version
+ *   to restore.
+ * - `generate-gesture-reference-image`: attach an image to a request, and find
+ *   it shown with the turn, stored with the conversation, and deleted with it.
  *
  * Needs a stack started with `ANIMAMA_LLM_SKIP`: the backend's deterministic
  * author stands in for the model. It names a draft after its request, writes
  * the packaged example Gesture, lengthens the ending on a revision and accepts
  * on review. A request that says `batch of N` is planned as N items, `item K
  * fails` makes item K fail, and `with an effect` places the first Avatar
- * Effect the Library lists. The page's validation, motion checks and review
- * sheets are real.
+ * Effect the Library lists. A request that starts from a Library Gesture
+ * gets that Gesture's copy with one fixed change, named after the Gesture
+ * with ` 2`, and a request with reference images gets the example Gesture as
+ * usual. The page's validation, motion checks and review sheets are real.
  */
 const JOURNEY_KEY = "generate-gesture-conversation";
 const BATCH_JOURNEY_KEY = "generate-batch-partial-save";
 const EFFECT_JOURNEY_KEY = "generate-gesture-effect-save";
+const STARTING_POINT_JOURNEY_KEY = "generate-gesture-from-library";
+const REFERENCE_IMAGE_JOURNEY_KEY = "generate-gesture-reference-image";
+/** The Included Gesture the starting-point journey starts from. */
+const STARTING_POINT_LOGICAL_KEY = "builtin:gesture:wave-hello";
 
 const RUN_PATH = /^\/v1\/generation\/conversations\/([^/]+)\/runs:sse$/;
 const CHECK_REPORT_ROUTE = "**/v1/generation/drafts/*/check-report";
@@ -1529,5 +1540,367 @@ test(`${EFFECT_JOURNEY_KEY} @generate @surface-generate @channel-gesture @writes
     page,
   });
   failure ??= cleanupFailure;
+  if (failure) throw failure;
+});
+
+/** A Gesture of the Library by its logical key: its id and its name. */
+async function libraryGesture(
+  page: Page,
+  logicalKey: string,
+): Promise<{ itemId: string; name: string }> {
+  const response = await page.request.get("/v1/gestures");
+  if (!response.ok())
+    throw new Error(`The Gesture list failed with HTTP ${response.status()}.`);
+  const body = (await response.json()) as {
+    items?: Array<{ item_id?: string; logical_key?: string; name?: string }>;
+  };
+  const gesture = (body.items ?? []).find(
+    (item) => item.logical_key === logicalKey,
+  );
+  if (!gesture?.item_id || !gesture.name)
+    throw new Error(`The Library lists no Gesture ${logicalKey}.`);
+  return { itemId: gesture.item_id, name: gesture.name };
+}
+
+/** The ids of the owner's stored files. */
+async function storedFileIds(page: Page): Promise<string[]> {
+  const response = await page.request.get("/v1/files");
+  if (!response.ok())
+    throw new Error(`The file list failed with HTTP ${response.status()}.`);
+  const body = (await response.json()) as {
+    files?: Array<{ file_id?: string }>;
+  };
+  return (body.files ?? []).flatMap((file) => file.file_id ?? []);
+}
+
+/**
+ * A small PNG drawn in the page, so the journey attaches an image of its own
+ * and the repository holds none.
+ */
+async function drawnPng(page: Page): Promise<Buffer> {
+  const encoded = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 48;
+    canvas.height = 32;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = "#13579b";
+    context.fillRect(0, 0, 48, 32);
+    context.fillStyle = "#f4c95d";
+    context.fillRect(8, 8, 16, 16);
+    return canvas.toDataURL("image/png").split(",")[1]!;
+  });
+  return Buffer.from(encoded, "base64");
+}
+
+test(`${STARTING_POINT_JOURNEY_KEY} @generate @surface-generate @channel-gesture`, async ({
+  animamaEvidence,
+  creatorContent,
+  page,
+}) => {
+  // One run with the page's checks and review sheets; nothing is saved.
+  test.setTimeout(300_000);
+  const digits = runDigits(requiredEnvironment("ANIMAMA_E2E_RUN_ID"));
+  const message = `Shier-${digits}`;
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const animaId = await selectAnnieFromSidebar(page);
+  const loadoutBefore = await creatorContent.snapshotAnimaLoadout(animaId);
+  let conversationId: string | null = null;
+  let failure: unknown = null;
+
+  const cards = page.getByTestId("generate-draft-card");
+  const references = page.getByTestId("generate-references");
+
+  try {
+    const modelId =
+      await test.step("Open Generate on an empty conversation", () =>
+        openEmptyConversation(
+          page,
+          animamaEvidence,
+          STARTING_POINT_JOURNEY_KEY,
+        ));
+    const source = await libraryGesture(page, STARTING_POINT_LOGICAL_KEY);
+    const copyName = `${source.name} 2`;
+
+    await test.step("Choose an Included Gesture in Start from a Gesture", async () => {
+      await references
+        .getByRole("button", {
+          name: "Start from a Gesture in your Library",
+          exact: true,
+        })
+        .click();
+      await page
+        .getByPlaceholder("Search Gestures…", { exact: true })
+        .fill(source.name);
+      // By the name it shows: an Included choice also carries a badge.
+      const option = page.getByRole("option").filter({
+        has: page.getByText(source.name, { exact: true }),
+      });
+      await expect(
+        option,
+        `the picker offers the Included Gesture ${source.name}`,
+      ).toHaveCount(1);
+      await option.click();
+      // The chosen Gesture is a chip that can be removed again.
+      const chosen = page.getByTestId("generate-reference-start-list");
+      await expect(chosen).toContainText(source.name);
+      await expect(
+        chosen.getByRole("button", {
+          name: `Remove ${source.name} as the starting point`,
+          exact: true,
+        }),
+      ).toBeVisible();
+    });
+
+    await test.step("Send, and find a revised copy with its earlier version to restore", async () => {
+      const run = await sendRequest(page, message);
+      conversationId = run.conversationId;
+      expect(run.body).toMatchObject({
+        message,
+        model_provider_id: modelId,
+        intent: "gesture",
+        // The Gesture is named by its id and nothing else.
+        references: { starting_point: source.itemId },
+      });
+      expect(run.body).not.toHaveProperty("draft_id");
+      // The message took its starting point with it.
+      await expect(
+        page.getByTestId("generate-reference-start-list"),
+      ).toHaveCount(0);
+      // The turn says what it started from.
+      await expect(page.getByTestId("generate-turn-references")).toContainText(
+        `Starts from ${source.name}`,
+      );
+
+      await expect(cards).toHaveCount(1, { timeout: 30_000 });
+      const draftId = await cards.getAttribute("data-draft-id");
+      if (!draftId) throw new Error("The draft card names no draft.");
+      const card = draftCard(page, draftId);
+      await expect(
+        card.getByRole("button", {
+          name: `Select draft ${copyName}`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(draftStatus(card)).toHaveAttribute("data-status", SETTLED, {
+        timeout: SETTLE_TIMEOUT_MS,
+      });
+      await expectRunEnded(page);
+      // The copy as it was before the assistant's change can be put back.
+      const restore = card.getByTestId("generate-draft-restore");
+      await expect(restore).toBeVisible();
+      await expect(restore).toHaveText("Restore previous version");
+      await expect(restore).toBeEnabled();
+
+      const snapshot = await readConversation(page, run.conversationId);
+      const draft = snapshot.drafts.find((entry) => entry.id === draftId);
+      expect(draft).toMatchObject({
+        intent: "gesture",
+        has_previous_version: true,
+        checked_version: draft?.version,
+        check_report: { loadable: true },
+        saved_item_id: null,
+      });
+      expect(draftProjectName(draft)).toBe(copyName);
+      await animamaEvidence.attachJson(`${STARTING_POINT_JOURNEY_KEY}-draft`, {
+        conversationId: run.conversationId,
+        draftId,
+        startingPoint: source,
+        name: draftProjectName(draft),
+        version: draft?.version,
+        status: draft?.status,
+        hasPreviousVersion: draft?.has_previous_version,
+      });
+    });
+  } catch (error) {
+    // Report the journey's own failure ahead of any cleanup failure.
+    failure = error;
+  }
+  // Nothing was saved: the Library is as it was, and the conversation goes.
+  const cleanupFailure = await cleanUpJourney({
+    animamaEvidence,
+    catalogBefore,
+    conversationId,
+    creatorContent,
+    journeyKey: STARTING_POINT_JOURNEY_KEY,
+    loadoutBefore,
+    owned: [],
+    page,
+  });
+  failure ??= cleanupFailure;
+  if (failure) throw failure;
+});
+
+test(`${REFERENCE_IMAGE_JOURNEY_KEY} @generate @surface-generate @channel-gesture`, async ({
+  animamaEvidence,
+  creatorContent,
+  page,
+}) => {
+  // One upload and one run with the page's checks and review sheets.
+  test.setTimeout(300_000);
+  const digits = runDigits(requiredEnvironment("ANIMAMA_E2E_RUN_ID"));
+  const name = `Pose-${digits}`;
+  const imageName = `reference-${digits}.png`;
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const animaId = await selectAnnieFromSidebar(page);
+  const loadoutBefore = await creatorContent.snapshotAnimaLoadout(animaId);
+  let conversationId: string | null = null;
+  let imageFileId: string | null = null;
+  let failure: unknown = null;
+
+  const cards = page.getByTestId("generate-draft-card");
+
+  try {
+    const modelId =
+      await test.step("Open Generate on an empty conversation", () =>
+        openEmptyConversation(
+          page,
+          animamaEvidence,
+          REFERENCE_IMAGE_JOURNEY_KEY,
+        ));
+
+    await test.step("Attach an image drawn for this run", async () => {
+      await expect(
+        page.getByTestId("generate-reference-attach"),
+        "the local runtime offers uploads",
+      ).toBeVisible();
+      const uploaded = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          /^\/v1\/files\/[^/]+:finalize$/.test(
+            new URL(response.url()).pathname,
+          ),
+        { timeout: 30_000 },
+      );
+      await page.getByTestId("generate-reference-images-input").setInputFiles({
+        name: imageName,
+        mimeType: "image/png",
+        buffer: await drawnPng(page),
+      });
+      const response = await uploaded;
+      expect(
+        response.ok(),
+        `the upload answered HTTP ${response.status()}`,
+      ).toBe(true);
+      imageFileId = String(
+        ((await response.json()) as { file_id?: unknown }).file_id ?? "",
+      );
+      expect(imageFileId).toBeTruthy();
+      // The tray shows it once its stored row says it is ready.
+      await expect(
+        page
+          .getByTestId("generate-references")
+          .getByLabel(`${imageName} Ready`, { exact: true }),
+      ).toBeVisible({ timeout: 30_000 });
+    });
+
+    await test.step("Send, and find the image with its turn and a draft written", async () => {
+      const run = await sendRequest(page, name);
+      conversationId = run.conversationId;
+      expect(run.body).toMatchObject({
+        message: name,
+        model_provider_id: modelId,
+        intent: "gesture",
+        // The image is named by its file id and nothing else.
+        references: { images: [{ file_id: imageFileId, kind: "image" }] },
+      });
+      // The image went with its message: the tray is empty again.
+      await expect(
+        page
+          .getByTestId("generate-references")
+          .getByLabel(`${imageName} Ready`, { exact: true }),
+      ).toHaveCount(0);
+      // The turn shows it, as a chat message shows its images.
+      const carried = page.getByTestId("generate-turn-references");
+      await expect(
+        carried.getByRole("button", { name: `Open ${imageName}`, exact: true }),
+      ).toBeVisible({ timeout: 30_000 });
+
+      await expect(cards).toHaveCount(1, { timeout: 30_000 });
+      const draftId = await cards.getAttribute("data-draft-id");
+      if (!draftId) throw new Error("The draft card names no draft.");
+      const card = draftCard(page, draftId);
+      await expect(
+        card.getByRole("button", { name: `Select draft ${name}`, exact: true }),
+      ).toBeVisible();
+      await expect(draftStatus(card)).toHaveAttribute("data-status", SETTLED, {
+        timeout: SETTLE_TIMEOUT_MS,
+      });
+      await expectRunEnded(page);
+
+      // The stored turn carries the image, so a reload shows it again.
+      const snapshot = await readConversation(page, run.conversationId);
+      const turn = snapshot.messages.find(
+        (entry) => entry.role === "user" && entry.text === name,
+      );
+      const images = (turn?.data as { images?: unknown } | undefined)?.images;
+      expect(images).toMatchObject([{ file_id: imageFileId, kind: "image" }]);
+      const draft = snapshot.drafts.find((entry) => entry.id === draftId);
+      expect(draft).toMatchObject({
+        checked_version: draft?.version,
+        check_report: { loadable: true },
+        saved_item_id: null,
+      });
+      expect(await storedFileIds(page)).toContain(imageFileId);
+      await page.reload();
+      await expect(
+        page
+          .getByTestId("generate-turn-references")
+          .getByRole("button", { name: `Open ${imageName}`, exact: true }),
+      ).toBeVisible({ timeout: 30_000 });
+      await animamaEvidence.attachJson(`${REFERENCE_IMAGE_JOURNEY_KEY}-turn`, {
+        conversationId: run.conversationId,
+        draftId,
+        imageFileId,
+        images,
+        status: draft?.status,
+      });
+    });
+  } catch (error) {
+    // Report the journey's own failure ahead of any cleanup failure.
+    failure = error;
+  }
+  // Nothing was saved to the Library; discarding the conversation deletes
+  // the image only it used.
+  const cleanupFailure = await cleanUpJourney({
+    animamaEvidence,
+    catalogBefore,
+    conversationId,
+    creatorContent,
+    journeyKey: REFERENCE_IMAGE_JOURNEY_KEY,
+    loadoutBefore,
+    owned: [],
+    page,
+  });
+  failure ??= cleanupFailure;
+  try {
+    if (imageFileId) {
+      // An upload whose message was never sent belongs to no conversation,
+      // so it is removed here; a 404 says the conversation took it along.
+      const removed = conversationId
+        ? null
+        : await page.request.delete(
+            `/v1/files/${encodeURIComponent(imageFileId)}`,
+            {
+              headers: {
+                Origin: new URL(page.url()).origin,
+                "Sec-Fetch-Site": "same-origin",
+                "X-Animama-CSRF": "1",
+              },
+            },
+          );
+      await expect
+        .poll(async () => (await storedFileIds(page)).includes(imageFileId!), {
+          message: "the reference image is deleted with its conversation",
+          timeout: 30_000,
+        })
+        .toBe(false);
+      await animamaEvidence.attachJson(
+        `${REFERENCE_IMAGE_JOURNEY_KEY}-image-removed`,
+        { imageFileId, deletedDirectly: removed?.status() ?? null },
+      );
+    }
+  } catch (error) {
+    failure ??= error;
+  }
   if (failure) throw failure;
 });

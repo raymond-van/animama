@@ -187,7 +187,8 @@ bytes no longer match its record is sent as its placeholder; a read failure is
 logged by file ID, never with bytes. The adapters write the bytes in their
 provider's format ([model clients](model-client-providers.md#images)).
 
-Deleting a chat deletes the images only that chat's messages reference
+Deleting a chat deletes the images only that chat's messages reference; an
+image a content assistant conversation keeps as a reference stays
 ([deletion](../features/user-files.md#deletion-and-recovery)).
 
 ## Step-By-Step Flow

@@ -35,6 +35,10 @@ import {
   GenerationRunHttpError,
   streamGenerationRun,
 } from "./generationStream";
+import {
+  generationReferencesBody,
+  type GenerationRunReferences,
+} from "./references/generationReferences";
 
 const logger = createLogger("GenerationRun");
 
@@ -59,7 +63,8 @@ const SETTLE_REFRESH_DELAYS_MS = [1_500, 6_000];
 /**
  * The body of a run request. Of the chosen preview Avatar only its expression
  * names are sent, grouped by family and bounded as
- * `groupExpressionNames` does; families without a name are left out.
+ * `groupExpressionNames` does; families without a name are left out. The
+ * request's references are named by id, and left out when it carries none.
  */
 export function generationRunBody(input: {
   request: GenerationRunRequest;
@@ -86,6 +91,7 @@ export function generationRunBody(input: {
         ).filter(([, names]) => names.length > 0),
       )
     : null;
+  const references = generationReferencesBody(request.references);
   return {
     message: request.message,
     model_provider_id: input.modelProviderId,
@@ -101,6 +107,7 @@ export function generationRunBody(input: {
       ? { avatar_expressions: families }
       : {}),
     ...(input.document ? { document: input.document } : {}),
+    ...(references ? { references } : {}),
   };
 }
 
@@ -159,6 +166,8 @@ export type GenerationRunController = {
       draftId?: string | null;
       /** The kind of a new draft; a Gesture when left out. */
       intent?: "gesture" | "reaction";
+      /** The Library Gestures and images given with the request. */
+      references?: GenerationRunReferences | null;
     },
   ) => Promise<boolean>;
   /** Answer the pending questions, or skip them with `null`. */
@@ -184,6 +193,8 @@ export type GenerationRunController = {
  * `modelProviderId`, `reasoningEffort` and `avatarExpressionNames` are read
  * when a run starts, so they may change between runs: a retry and an answer
  * to the assistant's questions go out with the model and level chosen then.
+ * A request's references belong to the request: its retry and the answer to
+ * its questions name them again.
  */
 export function useGenerationRun(input: {
   conversationId: string | null;
@@ -389,6 +400,7 @@ export function useGenerationRun(input: {
         message: message.trim(),
         draftId: options?.draftId ?? null,
         ...(options?.intent ? { intent: options.intent } : {}),
+        ...(options?.references ? { references: options.references } : {}),
         answers: null,
       }),
     [start],

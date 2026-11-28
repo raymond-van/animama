@@ -71,6 +71,7 @@
     "voice_preset_unavailable"
   ],
   "generation": [
+    "attached_image_unavailable",
     "generation_batch_time_limit",
     "generation_document_invalid",
     "generation_document_invalid_details",
@@ -92,10 +93,20 @@
     "generation_not_found",
     "generation_nothing_to_restore",
     "generation_reasoning_effort_unsupported",
+    "generation_reference_refused",
+    "generation_reference_refused_invalid",
+    "generation_reference_refused_non_portable",
+    "generation_reference_refused_not_a_clip",
+    "generation_reference_refused_not_allowed",
+    "generation_reference_refused_not_found",
+    "generation_reference_refused_too_large",
+    "generation_reference_refused_unavailable",
     "generation_request_failed",
     "generation_run_failed",
     "generation_run_in_progress",
-    "generation_stream_interrupted"
+    "generation_stream_interrupted",
+    "too_many_images",
+    "uploads_unavailable"
   ],
   "loadout": [
     "anima_definition_already_initialized",

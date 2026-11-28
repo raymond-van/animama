@@ -1,5 +1,6 @@
 import type {
   PyGenerationConversationSnapshot,
+  PyGenerationDraft,
   PyGenerationMessage,
 } from "@animama/runtime-contracts/api-types";
 
@@ -9,6 +10,11 @@ import {
   parseGenerationQuestions,
   type GenerationQuestion,
 } from "./generationDrafts";
+import {
+  storedGenerationReferences,
+  storedImagesSent,
+  type GenerationRunReferences,
+} from "./references/generationReferences";
 
 /**
  * A conversation as the page shows it: its stored turns, then the turn of
@@ -57,12 +63,22 @@ export type GenerationTranscriptEntry = {
   errorCode: string | null;
   /** An assistant turn: the run that stored it; `null` when it does not say. */
   runId: string | null;
+  /** An assistant turn of a batch: the drafts its plan made, kept or not. */
+  batchDraftIds: string[];
+  /**
+   * A person's turn: the Library Gestures and images it carried, for display;
+   * `null` when it carried none.
+   */
+  references: GenerationRunReferences | null;
+  /** `false` when the run's model took none of the turn's images. */
+  imagesSent: boolean;
 };
 
 function storedEntry(message: PyGenerationMessage): GenerationTranscriptEntry {
   const data = isRecord(message.data) ? message.data : {};
   const answers = isRecord(data.answers) ? data.answers : null;
   const error = isRecord(data.error) ? data.error : null;
+  const person = message.role !== "assistant";
   return {
     id: message.id,
     role: message.role === "assistant" ? "assistant" : "user",
@@ -94,14 +110,30 @@ function storedEntry(message: PyGenerationMessage): GenerationTranscriptEntry {
       data.run_id
         ? data.run_id
         : null,
+    batchDraftIds: Array.isArray(data.batch)
+      ? data.batch.flatMap((item) =>
+          isRecord(item) && typeof item.draft_id === "string"
+            ? [item.draft_id]
+            : [],
+        )
+      : [],
+    references: person ? storedGenerationReferences(data) : null,
+    imagesSent: !person || storedImagesSent(data),
   };
 }
 
 /**
- * Whether the failed run had already stored its draft: one arrived on its
- * stream, or the turn that run stored names a draft, which the backend does
- * only for a draft the run left changed. Such a failure is not offered
+ * Whether the failed run kept a draft: one that holds a project arrived on
+ * its stream, or the turn that run stored names a draft, which the backend
+ * does only for a draft the run left changed. Such a failure is not offered
  * again, since the draft is there, checked or awaiting its check.
+ *
+ * A draft with nothing written is not one the run kept. A batch that a
+ * failure ended before any item was written leaves only such drafts (or
+ * none), and its request can be sent again. `drafts` are the conversation's
+ * drafts as last read: given them, the turn counts only when a draft it
+ * names, or one of its batch, holds a project. Without them the turn's word
+ * is taken.
  *
  * The conversation's last turn counts only when it is this run's own
  * (`run_id`). A request that never reached the backend stored no turn, so
@@ -111,17 +143,23 @@ function storedEntry(message: PyGenerationMessage): GenerationTranscriptEntry {
 export function failedRunStoredDraft(
   run: Pick<GenerationRunState, "draftStored" | "runId">,
   entries: readonly GenerationTranscriptEntry[],
+  drafts?: readonly Pick<PyGenerationDraft, "id" | "project">[],
 ): boolean {
   if (run.draftStored) return true;
   const last = entries.at(-1);
-  return (
-    run.runId !== null &&
-    last?.role === "assistant" &&
-    !last.pending &&
-    last.runId === run.runId &&
-    last.outcome === "failed" &&
-    last.draftId !== null
-  );
+  if (
+    run.runId === null ||
+    last?.role !== "assistant" ||
+    last.pending ||
+    last.runId !== run.runId ||
+    last.outcome !== "failed" ||
+    last.draftId === null
+  ) {
+    return false;
+  }
+  if (drafts === undefined) return true;
+  const named = new Set([last.draftId, ...last.batchDraftIds]);
+  return drafts.some((draft) => named.has(draft.id) && draft.project !== null);
 }
 
 /**
@@ -156,6 +194,7 @@ export function generationTranscript(
     role: GenerationTranscriptEntry["role"],
     text: string,
     draftId: string | null,
+    references: GenerationRunReferences | null = null,
   ): GenerationTranscriptEntry => ({
     id: `pending:${role}`,
     role,
@@ -167,12 +206,22 @@ export function generationTranscript(
     answers: null,
     errorCode: null,
     runId: null,
+    batchDraftIds: [],
+    references,
+    imagesSent: true,
   });
   return [
     ...entries,
     ...(requestStored
       ? []
-      : [pendingEntry("user", pending.message, pending.draftId)]),
+      : [
+          pendingEntry(
+            "user",
+            pending.message,
+            pending.draftId,
+            pending.references ?? null,
+          ),
+        ]),
     pendingEntry("assistant", pending.text, null),
   ];
 }

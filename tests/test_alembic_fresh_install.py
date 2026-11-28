@@ -575,3 +575,78 @@ def test_previous_head_gains_the_content_assistant_tables(db_url: str, monkeypat
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT version_num FROM alembic_version")) == previous_head
             assert connection.scalar(text("SELECT display_name FROM anima")) == "Annie"
+
+
+def test_previous_head_gains_the_reference_image_table(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A profile at the previous head keeps its conversations; a link goes with its conversation or its file."""
+
+    previous_head = "content_generation_20261126"
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        with engine.connect() as connection:
+            schema = connection.scalar(text("SELECT current_schema()"))
+
+        def migrated_tables() -> set[str]:
+            return set(inspect(engine).get_table_names(schema=schema))
+
+        command.upgrade(config, previous_head)
+        assert "generation_reference_images" not in migrated_tables()
+        with engine.begin() as connection:
+            for conversation in ("kept", "discarded"):
+                connection.execute(
+                    text(
+                        "INSERT INTO generation_conversations (id, owner_user_id, scope) "
+                        "VALUES (:id, 'owner', '{\"kind\": \"page\"}')"
+                    ),
+                    {"id": conversation},
+                )
+            for file_id in ("picture", "other"):
+                connection.execute(
+                    text(
+                        "INSERT INTO user_file (id, user_id, storage_locator, original_filename, "
+                        "normalized_extension, declared_size_bytes, status, upload_expires_at, metadata) "
+                        "VALUES (:id, 'owner', :locator, 'a.png', '.png', 3, 'ready', CURRENT_TIMESTAMP, '{}')"
+                    ),
+                    {"id": file_id, "locator": f"user-files/owner/{file_id}/original"},
+                )
+
+        command.upgrade(config, "head")
+
+        assert "generation_reference_images" in migrated_tables()
+        link = text(
+            "INSERT INTO generation_reference_images (conversation_id, file_id, owner_user_id) VALUES (:c, :f, 'owner')"
+        )
+        with engine.begin() as connection:
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
+            # The conversations from before the upgrade are still there, and now take links.
+            assert connection.scalar(text("SELECT count(*) FROM generation_conversations")) == 2
+            for conversation, file_id in (("kept", "picture"), ("discarded", "picture"), ("discarded", "other")):
+                connection.execute(link, {"c": conversation, "f": file_id})
+        referred = {
+            key["referred_table"]: key["options"].get("ondelete")
+            for key in inspect(engine).get_foreign_keys("generation_reference_images", schema=schema)
+        }
+        assert referred == {"generation_conversations": "CASCADE", "user_file": "CASCADE"}
+        with engine.begin() as connection:
+            # One image is linked to a conversation once, and only to a conversation and a file that exist.
+            for values in (
+                {"c": "kept", "f": "picture"},
+                {"c": "nobody", "f": "picture"},
+                {"c": "kept", "f": "nothing"},
+            ):
+                with pytest.raises(IntegrityError), connection.begin_nested():
+                    connection.execute(link, values)
+            # A link goes with its conversation, and with its file's row; neither takes the other with it.
+            connection.execute(text("DELETE FROM generation_conversations WHERE id = 'discarded'"))
+            assert connection.scalar(text("SELECT count(*) FROM generation_reference_images")) == 1
+            assert connection.scalar(text("SELECT count(*) FROM user_file")) == 2
+            connection.execute(text("DELETE FROM user_file WHERE id = 'picture'"))
+            assert connection.scalar(text("SELECT count(*) FROM generation_reference_images")) == 0
+            assert connection.scalar(text("SELECT count(*) FROM generation_conversations")) == 1
+
+        command.downgrade(config, previous_head)
+        assert "generation_reference_images" not in migrated_tables()
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == previous_head
+            # The conversations and the image files outlive the links.
+            assert connection.scalar(text("SELECT count(*) FROM generation_conversations")) == 1
+            assert connection.scalar(text("SELECT count(*) FROM user_file")) == 1

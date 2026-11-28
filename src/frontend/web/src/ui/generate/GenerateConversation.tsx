@@ -1,4 +1,11 @@
-import { useId, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@animama/product-ui/chat";
@@ -10,6 +17,7 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 
 import { errorWording } from "@/lib/errors/apiError";
+import { pastedImageFiles } from "@/lib/user-files/chat-images";
 import { cn } from "@/lib/utils";
 import type {
   GenerationRunFailure,
@@ -31,9 +39,11 @@ import { Input } from "@/ui/components/input";
 import MessageLoaderV2 from "@/ui/components/message-loader-v2";
 import { PromptSuggestion } from "@/ui/main/chat/PromptSuggestion";
 import { generationBatchProgress } from "./generationBatch";
+import { GenerateStarters } from "./inspirations/GenerateStarters";
 import {
   draftCanBeRevised,
   draftName,
+  generationRequestWrites,
   type PendingGenerationQuestions,
 } from "./generationDrafts";
 import {
@@ -45,6 +55,10 @@ import {
   generationTranscript,
   type GenerationTranscriptEntry,
 } from "./generationTranscript";
+import { GenerateReferencesRow } from "./references/GenerateReferencesRow";
+import { GenerateTurnReferences } from "./references/GenerateTurnReferences";
+import type { GenerateReferencesController } from "./references/useGenerateReferences";
+import type { GenerationStyleChoice } from "./references/useGenerationStyle";
 import type { DraftFramesStatus } from "./useDraftWorker";
 import {
   MAX_GENERATION_ANSWER_LENGTH,
@@ -500,6 +514,8 @@ export function GenerateConversation({
   autoFocus = false,
   newDraftKind,
   composerNote,
+  references,
+  style,
 }: {
   snapshot: PyGenerationConversationSnapshot | undefined;
   /** The conversation is being read for the first time. */
@@ -534,6 +550,18 @@ export function GenerateConversation({
    * work on.
    */
   composerNote?: ReactNode;
+  /**
+   * The references the next message carries (R8), with their row above the
+   * request field. Only the Generate page passes them, and with them it
+   * offers prompt starters (while the conversation is empty) and
+   * Inspirations: a creator's panel shows none of these.
+   */
+  references?: GenerateReferencesController;
+  /**
+   * The conversation's style (R8.5), chosen in the references row; shown
+   * only with `references`.
+   */
+  style?: GenerationStyleChoice;
 }) {
   const { t } = useTranslation("generate");
   const { run, questions } = controller;
@@ -563,20 +591,67 @@ export function GenerateConversation({
   const hasDrafts = (snapshot?.drafts.length ?? 0) > 0;
   const ready = Boolean(snapshot) && !loadFailed;
   // A new draft is the kind chosen; a revision keeps its draft's own.
-  const writesKind = revisedDraft ? null : (newDraftKind?.value ?? null);
+  const writesKind = generationRequestWrites(
+    selectedDraft,
+    newDraftKind?.value,
+  );
+  // What each of the person's turns carried besides its words, by turn.
+  const carried = useMemo(
+    () =>
+      new Map(
+        entries.flatMap((entry) =>
+          entry.references ? [[entry.id, entry] as const] : [],
+        ),
+      ),
+    [entries],
+  );
+  const renderTurnReferences = useCallback(
+    (message: ChatMessage) => {
+      const entry = carried.get(message.id);
+      return entry?.references ? (
+        <GenerateTurnReferences
+          references={entry.references}
+          imagesSent={entry.imagesSent}
+        />
+      ) : null;
+    },
+    [carried],
+  );
+
+  // A starter's text goes into the request field for editing, with the
+  // cursor: nothing is sent, and whatever the field held is replaced.
+  const composer = useRef<HTMLDivElement>(null);
+  const fillRequest = useCallback((text: string) => {
+    setInput(text);
+    composer.current
+      ?.querySelector<HTMLElement>('[data-testid="generate-request"]')
+      ?.focus();
+  }, []);
+
+  const hold = references?.hold ?? "none";
+  // A typed message its images hold: Send says why instead of sending.
+  const held = hold !== "none" && input.trim().length > 0;
 
   const submit = () => {
     const message = input.trim();
     if (!message || overLimit || run.running || !ready) return;
+    // Held as chat holds a message: an image still uploads, or one failed.
+    if (references && references.getHold() !== "none") return;
+    // The message takes the composer's references with it.
+    const taken = references?.take() ?? null;
     setInput("");
     void controller
       .send(message, {
         draftId: revisedDraft?.id ?? null,
         ...(writesKind ? { intent: writesKind } : {}),
+        ...(taken?.references ? { references: taken.references } : {}),
       })
       .then((started) => {
-        // A request that was not taken goes back into the field.
-        if (!started) setInput((current) => current || message);
+        // A request that was not taken goes back into the field, with
+        // what it carried.
+        if (started) return;
+        setInput((current) => current || message);
+        taken?.restore();
       });
   };
 
@@ -609,17 +684,33 @@ export function GenerateConversation({
               {t("transcript.loading")}
             </p>
           ) : messages.length === 0 && !run.running ? (
-            <ChatTranscriptEmptyState
-              className="px-2 py-8"
-              title={t("transcript.emptyTitle")}
-              description={t("transcript.emptyDescription")}
-            />
+            references ? (
+              // The Generate page's empty conversation offers starters.
+              <div className="flex min-h-full flex-col justify-center gap-3 px-2 py-6">
+                <ChatTranscriptEmptyState
+                  className="h-auto p-0"
+                  title={t("transcript.emptyTitle")}
+                  description={t("transcript.emptyDescription")}
+                />
+                <GenerateStarters
+                  className="justify-center"
+                  onChoose={fillRequest}
+                />
+              </div>
+            ) : (
+              <ChatTranscriptEmptyState
+                className="px-2 py-8"
+                title={t("transcript.emptyTitle")}
+                description={t("transcript.emptyDescription")}
+              />
+            )
           ) : (
             <ChatConversation
               messages={messages}
               isStreaming={run.running}
               markdownEnabled
               layout="chat-only"
+              renderUserAttachments={renderTurnReferences}
             />
           )}
           {run.running ? (
@@ -661,9 +752,9 @@ export function GenerateConversation({
             <GenerateFailure
               failure={run.failure}
               noticeShown={failureShown}
-              // A run that stored its draft is not run a second time.
+              // A run that kept a draft is not run a second time.
               onRetry={
-                failedRunStoredDraft(run, entries)
+                failedRunStoredDraft(run, entries, snapshot?.drafts)
                   ? undefined
                   : () => void controller.retry()
               }
@@ -686,7 +777,7 @@ export function GenerateConversation({
         />
       </ChatTranscript>
 
-      <div className="shrink-0 space-y-1.5 p-3 pt-2">
+      <div ref={composer} className="shrink-0 space-y-1.5 p-3 pt-2">
         {composerNote !== undefined ? (
           composerNote
         ) : (
@@ -698,6 +789,15 @@ export function GenerateConversation({
             disabled={run.running}
           />
         )}
+        {references ? (
+          <GenerateReferencesRow
+            references={references}
+            disabled={run.running || !ready}
+            ready={ready}
+            style={style}
+            onFillRequest={fillRequest}
+          />
+        ) : null}
         <ChatInput
           variant="default"
           value={input}
@@ -712,9 +812,17 @@ export function GenerateConversation({
           className="border-border/70"
           actions={
             <ChatInputSubmit
-              aria-label={run.running ? t("composer.stop") : t("composer.send")}
+              aria-label={
+                run.running
+                  ? t("composer.stop")
+                  : held
+                    ? // The control says what the message waits for.
+                      undefined
+                    : t("composer.send")
+              }
               data-testid={run.running ? "generate-stop" : "generate-send"}
               disabled={run.running ? false : !ready || overLimit}
+              attachmentHold={hold}
             />
           }
         >
@@ -722,6 +830,15 @@ export function GenerateConversation({
             autoFocus={autoFocus}
             className="bg-transparent"
             aria-label={t("composer.label")}
+            onPaste={(event) => {
+              const images = references?.images;
+              if (!images || run.running || !ready) return;
+              // Images on the clipboard attach; text pastes as usual.
+              const pasted = pastedImageFiles(event.clipboardData);
+              if (pasted.length === 0) return;
+              event.preventDefault();
+              images.add(pasted);
+            }}
             placeholder={
               revisedDraft || composerNote !== undefined
                 ? t("composer.revisePlaceholder")

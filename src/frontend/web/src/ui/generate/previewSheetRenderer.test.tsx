@@ -180,6 +180,96 @@ describe("registerPreviewSheetRenderer", () => {
     expect(sheets.drawn).toEqual([]);
   });
 
+  it("draws one request at a time, in the order asked", async () => {
+    const { renderer } = fakeRenderer();
+    unregister = registerPreviewSheetRenderer(renderer);
+    const render = registered()!;
+    /** What each request did, in order. */
+    const log: string[] = [];
+    let releaseFirst!: () => void;
+    const first = render({
+      ...REQUEST,
+      avatarFile: (avatar) => {
+        log.push(`first reads ${avatar}`);
+        // The first request waits on its first Avatar's file.
+        return avatar === "Andrew"
+          ? new Promise<ArrayBuffer>((resolve) => {
+              releaseFirst = () => resolve(new ArrayBuffer(4));
+            })
+          : new ArrayBuffer(4);
+      },
+    });
+    const second = render({
+      ...REQUEST,
+      avatarFile: (avatar) => {
+        log.push(`second reads ${avatar}`);
+        return new ArrayBuffer(4);
+      },
+    });
+    await vi.waitFor(() => expect(log).toEqual(["first reads Andrew"]));
+    // Another caller's request draws nothing while the first is at work.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(log).toEqual(["first reads Andrew"]);
+    expect(sheets.requests).toHaveLength(1);
+
+    releaseFirst();
+    await first;
+    await second;
+    expect(log).toEqual([
+      "first reads Andrew",
+      "first reads Annie",
+      "second reads Andrew",
+      "second reads Annie",
+    ]);
+    expect(sheets.drawn.map(({ avatar }) => avatar)).toEqual([
+      "Andrew",
+      "Annie",
+      "Andrew",
+      "Annie",
+    ]);
+  });
+
+  it("draws the next request after one that failed", async () => {
+    const { renderer } = fakeRenderer();
+    unregister = registerPreviewSheetRenderer(renderer);
+    const render = registered()!;
+    const failed = render({
+      ...REQUEST,
+      avatarFile: async () => {
+        throw new Error("The Avatar could not be read.");
+      },
+    });
+    const next = render(REQUEST);
+    await expect(failed).rejects.toThrow("The Avatar could not be read.");
+    expect((await next).map(({ avatar }) => avatar)).toEqual([
+      "Andrew",
+      "Annie",
+    ]);
+  });
+
+  it("refuses a waiting request once the canvas has left", async () => {
+    const { renderer } = fakeRenderer();
+    const withdraw = registerPreviewSheetRenderer(renderer);
+    const render = registered()!;
+    let release!: () => void;
+    const first = render({
+      ...REQUEST,
+      avatarFile: () =>
+        new Promise<ArrayBuffer>((resolve) => {
+          release = () => resolve(new ArrayBuffer(4));
+        }),
+    });
+    const waiting = render(REQUEST);
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    withdraw();
+    release();
+    await expect(first).rejects.toBeInstanceOf(PreviewRendererUnavailableError);
+    await expect(waiting).rejects.toBeInstanceOf(
+      PreviewRendererUnavailableError,
+    );
+    expect(sheets.drawn).toEqual([]);
+  });
+
   it("keeps a newer canvas's renderer when an older one unregisters late", () => {
     const older = registerPreviewSheetRenderer(fakeRenderer().renderer);
     unregister = registerPreviewSheetRenderer(fakeRenderer().renderer);

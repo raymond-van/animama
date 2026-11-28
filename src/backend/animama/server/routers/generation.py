@@ -29,6 +29,7 @@ from animama.server.generation import (
     RUN_IN_PROGRESS,
     RunHold,
     accept_review_frames,
+    discard_conversation,
     generation_refusal,
     generation_runtime,
     generation_service,
@@ -50,6 +51,7 @@ from animama.server.schemas.generation import (
     PyGenerationMarkSaved,
     PyGenerationMessage,
     PyGenerationRunRequest,
+    PyGenerationStylePreset,
 )
 
 router = APIRouter(tags=["generation"])
@@ -137,12 +139,34 @@ async def get_generation_conversation(
 async def delete_generation_conversation(
     conversation_id: str, request: Request, principal: Owner, session: Session
 ) -> Response:
-    """Delete a conversation with its messages and drafts. Refused while a run works on it: stop the run first."""
+    """Delete a conversation with its messages and drafts. Refused while a run works on it: stop the run first.
+
+    Its reference images that nothing else uses are deleted with it: an
+    image another conversation keeps, or a chat message attaches, stays.
+    """
 
     _require_no_run(request, principal.id, conversation_id)
     with _refusals():
-        await generation_service(request.app, session).delete_conversation(principal.id, conversation_id)
+        await discard_conversation(request.app, session, principal, conversation_id)
     return Response(status_code=204)
+
+
+@router.put("/v1/generation/conversations/{conversation_id}/style-preset", response_model=PyGenerationConversation)
+async def set_generation_style_preset(
+    conversation_id: str, body: PyGenerationStylePreset, request: Request, principal: Owner, session: Session
+) -> PyGenerationConversation:
+    """Choose the conversation's style preset by id, or clear it with ``null``.
+
+    The preset adds one fixed sentence of the backend's to the instructions
+    of every run planned after this. An id that is not one of the backend's
+    presets is refused with 422 ``generation_style_preset_unknown``.
+    """
+
+    with _refusals():
+        conversation = await generation_service(request.app, session).set_style_preset(
+            principal.id, conversation_id, body.style_preset
+        )
+    return PyGenerationConversation.model_validate(conversation, from_attributes=True)
 
 
 @router.post("/v1/generation/conversations/{conversation_id}/runs:sse")

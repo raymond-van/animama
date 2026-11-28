@@ -48,7 +48,6 @@ from animama.app.model_clients.error_categories import (
     ERROR_MODEL_NOT_FOUND,
     ERROR_NOT_ELIGIBLE,
     ERROR_QUOTA_EXCEEDED,
-    ERROR_RATE_LIMITED,
     ERROR_SIGN_IN_REQUIRED,
     ERROR_USAGE_LIMIT,
     model_error_category,
@@ -93,6 +92,7 @@ from .draft_validation import (
 )
 from .effects import EffectAccess, EffectLibrary
 from .passes import PassCursorLost, PassEnd, PassRound, PassSpec, PassText, PassWriting, run_pass
+from .references import ExampleGesture, GenerationReferenceError, ReferenceImage, RunReferences, starting_project
 from .review_frames import MAX_REVIEW_SHEETS, ReviewFrameStore, ReviewSheet
 from .service import CheckReportSignal, GenerationService
 from .tools import (
@@ -177,14 +177,17 @@ EVERY_ITEM_FAILURES: Final = frozenset(
         ERROR_MODEL_NOT_FOUND,
         ERROR_NOT_ELIGIBLE,
         ERROR_QUOTA_EXCEEDED,
-        ERROR_RATE_LIMITED,
         ERROR_SIGN_IN_REQUIRED,
         ERROR_USAGE_LIMIT,
     }
 )
 """The model clients' error categories that are about the connection or its allowance, not about one request:
 a missing or refused key, a sign-in to renew, a model the provider does not serve, an account that may not use
-it, and a quota, usage or rate limit. The next item of a batch would meet the same failure."""
+it, and a spent quota or usage limit. The next item of a batch would meet the same failure.
+
+A rate limit (``rate_limited``) is not among them. It refuses one request for a moment, and the Anthropic and
+ChatGPT plan routes do not retry it, so ending the batch on it would remove every item not yet written for one
+momentary refusal. It is that item's own failure, and the items after it are still tried."""
 
 ProgressPhase = Literal["thinking", "writing", "checking", "repairing", "reviewing_frames"]
 RunOutcome = Literal["draft", "questions", "reply", "failed", "stopped"]
@@ -323,7 +326,10 @@ class RunInput:
     revision. ``effects`` lets the run's Gesture drafts place existing
     effects: true on the Generate page, false in a creator, whose page keeps
     the open item's events and dependencies off the request and puts them
-    back on the result.
+    back on the result. ``references`` are what the request carries besides
+    its words (``references.py``), already read, bounded and validated; a
+    starting point is only ever a new draft's, on the Generate page, and such
+    a run plans no batch.
     """
 
     owner_user_id: str
@@ -340,6 +346,21 @@ class RunInput:
     document: Mapping[str, Any] | None = None
     can_plan: bool = False
     effects: bool = False
+    references: RunReferences | None = None
+    style_preset: str | None = None
+    """The id of the conversation's style preset when the run was planned; the instructions add its sentence."""
+
+    @property
+    def examples(self) -> tuple[ExampleGesture, ...]:
+        """The Library Gestures given as examples of the feel, which every authoring pass of the run is shown."""
+
+        return self.references.examples if self.references is not None else ()
+
+    @property
+    def reference_images(self) -> tuple[ReferenceImage, ...]:
+        """The person's images that go to the model with every authoring pass; none on a model that takes none."""
+
+        return self.references.sent_images if self.references is not None else ()
 
     @property
     def held_details(self) -> frozenset[str]:
@@ -513,6 +534,7 @@ def plan_run(
     avatar_expressions: Mapping[str, object] | None = None,
     reasoning_effort: str | None = None,
     document: Mapping[str, Any] | None = None,
+    references: RunReferences | None = None,
 ) -> RunInput:
     """Plan a run on the owner's conversation, or refuse it with a ``GenerationError``.
 
@@ -528,7 +550,11 @@ def plan_run(
     assistant's questions are outstanding (no run has used answers to them
     yet, however many failed or were stopped before they stored a draft),
     this run answers them, with ``answers`` or as skipped; answers to
-    questions nobody asked are ignored.
+    questions nobody asked are ignored. ``references`` are what the request
+    carries besides its words, already read and bounded by the caller. A
+    starting point is refused (``GenerationReferenceError``) for a revision
+    and in a creator, where the open item is what the run starts from; a
+    Reaction takes no Gesture as its starting point.
     """
 
     conversation = snapshot.conversation
@@ -552,6 +578,9 @@ def plan_run(
         if not in_creator:
             raise GenerationDocumentInvalidError("document")
         document = creator_document(kind, document)
+    starting = references is not None and references.starting_point is not None
+    if starting and (in_creator or draft is not None or kind != "gesture"):
+        raise GenerationReferenceError("not_allowed")
     effort = accepted_reasoning_effort(model_provider, reasoning_effort)
     turns = tuple({"role": turn.role, "text": turn.text} for turn in snapshot.messages[-prompts.MAX_RECENT_TURNS :])
     return RunInput(
@@ -567,8 +596,11 @@ def plan_run(
         avatar_expressions=avatar_expressions,
         reasoning_effort=effort,
         document=document,
-        can_plan=not in_creator and draft is None,
+        # A starting point is one draft: the Gesture the person chose, revised.
+        can_plan=not in_creator and draft is None and not starting,
         effects=not in_creator,
+        references=references,
+        style_preset=conversation.style_preset,
     )
 
 
@@ -751,6 +783,8 @@ class _Item:
     """The working draft of the item's current or last pass."""
     error: dict[str, str] | None = None
     """Why a batch item failed, as its ``ItemFailed`` said."""
+    start: JsonObject | None = None
+    """The copy of a Library Gesture a new draft starts as (a starting point), stored as its first version."""
 
     @property
     def in_batch(self) -> bool:
@@ -830,6 +864,9 @@ class GenerationRun:
         self._items: list[_Item] = [_Item(intent=plan.intent)]
         self._request_stored = False
         self._reply_stored = False
+        self._request_message_id: str | None = None
+        # True once the person's turn says a model request carried its reference images.
+        self._images_marked = False
 
     def _instructions_for(self, intent: Intent) -> str:
         """The system message of every pass on a draft of ``intent`` in this run."""
@@ -837,7 +874,11 @@ class GenerationRun:
         if intent not in self._instructions:
             plan = self._plan
             self._instructions[intent] = prompts.instructions(
-                intent, plan.ui_locale, plan.avatar_expressions, effects=self._effects_for(intent) is not None
+                intent,
+                plan.ui_locale,
+                plan.avatar_expressions,
+                effects=self._effects_for(intent) is not None,
+                style_preset=plan.style_preset,
             )
         return self._instructions[intent]
 
@@ -961,18 +1002,33 @@ class GenerationRun:
         owner, revised = plan.owner_user_id, plan.draft
         item = self._items[0]
         yield Progress("thinking", revised.id if revised is not None else None)
+        attached = plan.references.images if plan.references is not None else ()
         async with self._storage() as service:
-            await service.add_message(owner, plan.conversation_id, "user", plan.message, self._user_data())
+            request = await service.add_message(owner, plan.conversation_id, "user", plan.message, self._user_data())
+            self._request_message_id = request.id
+            if attached:
+                # The images are the conversation's from here, sent to a model or not: they go when it goes.
+                await service.link_reference_images(owner, plan.conversation_id, [image.file_id for image in attached])
         self._request_stored = True
 
         # A creator's run revises the item as it stands in the creator, hand edits included; any other
-        # revision starts from the draft's stored project.
+        # revision starts from the draft's stored project. A new draft with a starting point starts as a copy
+        # of that Library Gesture, which is stored as the draft's first version once the pass has revised it.
         base = plan.document if plan.document is not None else (revised.project if revised is not None else None)
+        start = plan.references.starting_point if plan.references is not None else None
+        if base is None and start is not None:
+            base = item.start = starting_project(start, self._selector_in_use)
         if base is not None:
             kind: PassKind = "revise"
             working = WorkingDraft.from_project(base, held=plan.held_details, effects=self._effects_for(plan.intent))
             message = prompts.revise_message(
-                plan.message, base, plan.recent_turns, plan.answers, effects=working.effects is not None
+                plan.message,
+                base,
+                plan.recent_turns,
+                plan.answers,
+                effects=working.effects is not None,
+                examples=plan.examples,
+                starting_point=item.start is not None,
             )
         else:
             kind, working = "write", WorkingDraft(intent=plan.intent, effects=self._effects_for(plan.intent))
@@ -983,6 +1039,7 @@ class GenerationRun:
                 plan.intent,
                 can_plan=plan.can_plan,
                 effects=working.effects is not None,
+                examples=plan.examples,
             )
         first = self._pass(
             item,
@@ -1057,7 +1114,13 @@ class GenerationRun:
             else:
                 if item.draft_id is None:
                     item.draft_id = (await service.create_draft(owner, plan.conversation_id, item.intent)).id
-                draft = await service.store_project(owner, item.draft_id, project, "checking")
+                if item.start is not None:
+                    # The Library Gesture the person started from is the draft's first version, and the
+                    # assistant's revision of it the next: a restore returns to the Gesture itself. One
+                    # write holds both, so a run stopped or failing here keeps no unrevised copy.
+                    draft = await service.store_starting_point(owner, item.draft_id, item.start, project)
+                else:
+                    draft = await service.store_project(owner, item.draft_id, project, "checking")
         self._outcome = "draft"
         yield DraftUpdated(draft)
 
@@ -1283,6 +1346,7 @@ class GenerationRun:
             plan.answers,
             item.intent,
             effects=working.effects is not None,
+            examples=plan.examples,
         )
         writing = self._pass(item, "write", working, message, draft_id=item.draft_id, can_ask=False)
         async with aclosing(writing) as events:
@@ -1414,7 +1478,10 @@ class GenerationRun:
                 effects=working.effects is not None,
                 selector_in_use=selector_in_use,
                 example_reader=self._example_reader,
+                reference_images=plan.reference_images if authoring else (),
             )
+            if spec.reference_images:
+                await self._images_leave()
             announced = False
             async with aclosing(run_pass(cast(ModelClient, self._client), spec, working)) as items:
                 async for part in items:
@@ -1458,6 +1525,21 @@ class GenerationRun:
                 note = f"{name.strip()}: {note}"
             yield MessageDelta(self._reply.add(note), item.draft_id if item.in_batch else None)
             self._reply.end_piece()
+
+    async def _images_leave(self) -> None:
+        """Record, before the run's first model request that holds them, that the turn's images were sent.
+
+        Written before the request, not after its answer: the bytes are on
+        the request whatever the provider then says, and a run killed while
+        it waits has still sent them. Once a run; two items of a batch that
+        start together write it once.
+        """
+
+        if self._images_marked or self._request_message_id is None:
+            return
+        self._images_marked = True
+        async with self._storage() as service:
+            await service.mark_images_sent(self._plan.owner_user_id, self._request_message_id)
 
     def _author_calls(
         self, item: _Item, kind: PassKind, working: WorkingDraft, *, can_plan: bool
@@ -1546,6 +1628,14 @@ class GenerationRun:
             data["draft_id"] = plan.draft.id
         if plan.answers is not None:
             data["answers"] = dict(plan.answers)
+        references = plan.references.stored() if plan.references is not None else {}
+        if references:
+            data["references"] = references
+        if plan.references is not None and plan.references.images:
+            # In the shape a chat message records its images, for the page to show. ``images_sent`` starts
+            # false and becomes true only when a model request of the run carries them (``_images_leave``).
+            data["images"] = plan.references.stored_images()
+            data["images_sent"] = False
         return data
 
     async def _settle_item(self, item: _Item) -> GenerationDraft | None:

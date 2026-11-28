@@ -24,6 +24,11 @@ initialization succeeds.
   `data.images` and, before history confirms the turn, from the composer
   (`describeAttachedImages`). Each opens larger in a dialog; a deleted image
   leaves a placeholder.
+- Generate page: the content assistant's
+  [reference images](content-generation.md#references-and-style) are
+  uploaded with the same hook and limits, never processed, and listed in the
+  Library with the other uploads. A conversation keeps the images sent in
+  it, and discarding it deletes the ones nothing else uses.
 
 The chat composer offers the attach button, drop overlay and upload tray, and
 the Library its Chat Uploads section, only when the admitted runtime

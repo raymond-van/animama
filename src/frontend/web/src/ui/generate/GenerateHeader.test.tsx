@@ -120,8 +120,10 @@ describe("the conversation menu", () => {
     await click(find("generate-conversation-discard"));
     const dialog = find("generate-conversation-discard-dialog")!;
     expect(dialog.textContent).toContain("Discard this conversation?");
+    // The discard also deletes the reference images nothing else uses, and
+    // the confirmation says so.
     expect(dialog.textContent).toContain(
-      "Its messages and unsaved drafts are removed. Items you saved stay in your Library.",
+      "Its messages and unsaved drafts are removed, along with any images only this conversation uses. Items you saved stay in your Library.",
     );
     expect(selected.discard).not.toHaveBeenCalled();
 

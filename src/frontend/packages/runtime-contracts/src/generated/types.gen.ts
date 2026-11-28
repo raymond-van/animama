@@ -5868,6 +5868,53 @@ export type PyGenerationPageScope = {
 };
 
 /**
+ * PyGenerationReferenceImage
+ *
+ * One of the person's own images given with a request, by the id its upload got (``/v1/files``).
+ *
+ * ``kind`` says what the image is: a picture, or ``video_frames`` for one
+ * strip of frames the page sampled from a short local video, in time order
+ * from left to right. The video itself is never uploaded.
+ */
+export type PyGenerationReferenceImage = {
+    /**
+     * File Id
+     */
+    file_id: string;
+    /**
+     * Kind
+     */
+    kind?: 'image' | 'video_frames';
+};
+
+/**
+ * PyGenerationReferences
+ *
+ * What a request carries besides its words. Every part is the person's own content, named by id.
+ *
+ * ``starting_point`` is a Gesture in the caller's Library whose clip the
+ * new draft starts as; only a request for a new Gesture on the Generate
+ * page takes one. ``examples`` are Library Gestures shown to the model as
+ * examples of the feel. ``images`` are the caller's own uploaded images.
+ * The backend reads each itself and refuses what may not be read: no clip,
+ * text or image bytes are taken from this body.
+ */
+export type PyGenerationReferences = {
+    /**
+     * Examples
+     */
+    examples?: Array<string>;
+    /**
+     * Images
+     */
+    images?: Array<PyGenerationReferenceImage>;
+    /**
+     * Starting Point
+     */
+    starting_point?: string | null;
+};
+
+/**
  * PyGenerationRunRequest
  *
  * One request to the assistant.
@@ -5884,7 +5931,8 @@ export type PyGenerationPageScope = {
  * names of the chosen preview Avatar's expressions: names only, which reach
  * the model as data. ``reasoning_effort`` is one of the model row's listed
  * levels, applied to every model request of the run; without it the model's
- * default applies.
+ * default applies. ``references`` name the Library Gestures and the
+ * person's own images given with the request.
  */
 export type PyGenerationRunRequest = {
     answers?: PyGenerationAnswers | null;
@@ -5920,6 +5968,7 @@ export type PyGenerationRunRequest = {
      * Reasoning Effort
      */
     reasoning_effort?: string | null;
+    references?: PyGenerationReferences | null;
     /**
      * Ui Locale
      */
@@ -5965,6 +6014,21 @@ export type PyGenerationRunUsage = {
      * Run Id
      */
     run_id: string | null;
+};
+
+/**
+ * PyGenerationStylePreset
+ *
+ * The style preset chosen for a conversation: one of the backend's preset ids, or ``null`` for none.
+ *
+ * Only the id is taken. The sentence a preset adds to the assistant's
+ * instructions is the backend's own.
+ */
+export type PyGenerationStylePreset = {
+    /**
+     * Style Preset
+     */
+    style_preset: string | null;
 };
 
 /**
@@ -14353,6 +14417,36 @@ export type RunGenerationSseV1GenerationConversationsConversationIdRunsSsePostRe
      */
     200: unknown;
 };
+
+export type SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutData = {
+    body: PyGenerationStylePreset;
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/v1/generation/conversations/{conversation_id}/style-preset';
+};
+
+export type SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutError = SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutErrors[keyof SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutErrors];
+
+export type SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyGenerationConversation;
+};
+
+export type SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutResponse = SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutResponses[keyof SetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutResponses];
 
 export type DeleteGenerationDraftV1GenerationDraftsDraftIdDeleteData = {
     body?: never;

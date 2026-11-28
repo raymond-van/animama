@@ -182,6 +182,9 @@ async function fetch(request: Request): Promise<Response> {
       pathname.endsWith(`/conversations/${snapshot.conversation.id}`)
     )
       return jsonResponse(snapshot);
+  // The Library Gestures the composer's reference pickers offer.
+  if (request.method === "GET" && pathname === "/v1/gestures")
+    return jsonResponse({ items: [] });
   const effects = await server.effects.handle(request);
   if (effects) return effects;
   throw new Error(`Unexpected request: ${request.method} ${pathname}`);
@@ -273,6 +276,23 @@ describe("the Generate page's workspace", () => {
       conversationId: "conversation-1",
       avatarExpressionNames: PREVIEW_EXPRESSIONS.names,
     });
+  });
+
+  it("offers references in its composer: a starting point only for a new Gesture draft", async () => {
+    await open();
+    const startButton = () =>
+      find("generate-reference-start")?.querySelector("button") ?? null;
+    // The latest draft is selected, so the next message revises it.
+    expect(find("generate-references")).not.toBeNull();
+    expect(find("generate-reference-examples")).not.toBeNull();
+    expect(startButton()).toBeNull();
+
+    await click(find("generate-new-draft"));
+    expect(startButton()!.getAttribute("aria-label")).toBe(
+      "Start from a Gesture in your Library",
+    );
+    await click(find("generate-kind-reaction"));
+    expect(startButton()).toBeNull();
   });
 
   it("revises the selected draft, with the model and the Avatar's expression names", async () => {

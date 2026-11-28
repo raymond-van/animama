@@ -22,6 +22,7 @@ from animama.app.generation.check_report import (
     FindingSeverity,
 )
 from animama.app.generation.draft_validation import is_storable_text
+from animama.app.generation.references import MAX_EXAMPLE_GESTURES, MAX_REFERENCE_IMAGES, ImageKind
 from animama.app.generation.tools import MAX_QUESTION_LENGTH, MAX_QUESTIONS
 from animama.app.generation.usage import ConversationUsage, CostEstimate, RunUsage, StoredRunUsage
 from animama.domain.generation import (
@@ -96,6 +97,16 @@ class PyGenerationConversationCreate(_Request):
     """Where the new conversation is started."""
 
     scope: PyGenerationScope
+
+
+class PyGenerationStylePreset(_Request):
+    """The style preset chosen for a conversation: one of the backend's preset ids, or ``null`` for none.
+
+    Only the id is taken. The sentence a preset adds to the assistant's
+    instructions is the backend's own.
+    """
+
+    style_preset: Annotated[str, StringConstraints(min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")] | None
 
 
 class PyGenerationConversation(BaseModel):
@@ -279,6 +290,34 @@ class PyGenerationAnswers(_Request):
     answers: list[PyGenerationAnswer] = Field(default_factory=list, max_length=MAX_QUESTIONS)
 
 
+class PyGenerationReferenceImage(_Request):
+    """One of the person's own images given with a request, by the id its upload got (``/v1/files``).
+
+    ``kind`` says what the image is: a picture, or ``video_frames`` for one
+    strip of frames the page sampled from a short local video, in time order
+    from left to right. The video itself is never uploaded.
+    """
+
+    file_id: _Id
+    kind: ImageKind = "image"
+
+
+class PyGenerationReferences(_Request):
+    """What a request carries besides its words. Every part is the person's own content, named by id.
+
+    ``starting_point`` is a Gesture in the caller's Library whose clip the
+    new draft starts as; only a request for a new Gesture on the Generate
+    page takes one. ``examples`` are Library Gestures shown to the model as
+    examples of the feel. ``images`` are the caller's own uploaded images.
+    The backend reads each itself and refuses what may not be read: no clip,
+    text or image bytes are taken from this body.
+    """
+
+    starting_point: _Id | None = None
+    examples: list[_Id] = Field(default_factory=list, max_length=MAX_EXAMPLE_GESTURES)
+    images: list[PyGenerationReferenceImage] = Field(default_factory=list, max_length=MAX_REFERENCE_IMAGES)
+
+
 class PyGenerationRunRequest(_Request):
     """One request to the assistant.
 
@@ -294,7 +333,8 @@ class PyGenerationRunRequest(_Request):
     names of the chosen preview Avatar's expressions: names only, which reach
     the model as data. ``reasoning_effort`` is one of the model row's listed
     levels, applied to every model request of the run; without it the model's
-    default applies.
+    default applies. ``references`` name the Library Gestures and the
+    person's own images given with the request.
     """
 
     message: Annotated[
@@ -316,6 +356,7 @@ class PyGenerationRunRequest(_Request):
         Annotated[str, StringConstraints(min_length=1, max_length=MAX_REASONING_EFFORT_LENGTH), _Storable] | None
     ) = None
     document: dict[str, Any] | None = None
+    references: PyGenerationReferences | None = None
 
 
 # --- What the page reports ------------------------------------------------------------
@@ -413,8 +454,11 @@ __all__ = [
     "PyGenerationMarkSaved",
     "PyGenerationMessage",
     "PyGenerationPageScope",
+    "PyGenerationReferenceImage",
+    "PyGenerationReferences",
     "PyGenerationRunRequest",
     "PyGenerationRunUsage",
     "PyGenerationScope",
+    "PyGenerationStylePreset",
     "PyGenerationTokenUse",
 ]

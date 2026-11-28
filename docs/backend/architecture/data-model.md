@@ -59,8 +59,9 @@ The SQL creates the tables, constraints, indexes, runtime-worker heartbeats and
 content mutation receipts directly, without importing live ORM metadata. Later
 schema changes are revisions on top of it: `reasoning_effort_20261112` adds
 `anima_chat_profiles.reasoning_effort`, `sidebar_pins_20261126` adds
-`chats.pinned_at` and `anima.pinned_at`, and `content_generation_20261126` adds
-the [content assistant's](#content-assistant) three tables.
+`chats.pinned_at` and `anima.pinned_at`, `content_generation_20261126` adds
+the [content assistant's](#content-assistant) conversations, messages and
+drafts, and `reference_images_20261127` adds its reference image links.
 Database bootstrap (desktop startup, or `./reset.sh` for a Compose stack) runs
 `alembic upgrade head`, bringing an existing database forward. The baseline SQL
 and merged revisions are never edited
@@ -791,13 +792,13 @@ rows by default and exposes them only with `include_internal=true`.
 
 ### Content Assistant
 
-The content assistant's conversations are not Chats. They live in three tables
+The content assistant's conversations are not Chats. They live in tables
 of their own, with no Anima and no row in `chats` or `chat_messages`, so chat
 lists, chat search, memory, episode notes and Reflection never read them
 ([HTTP API](http-api.md#content-assistant)). `GenerationService`
 (`app/generation/service.py`) owns every rule below and filters every read
-and write by the owner. Deleting a conversation deletes its messages and
-drafts.
+and write by the owner. Deleting a conversation deletes its messages, its
+drafts and its reference image links, and the image files nothing else uses.
 
 `generation_conversations`:
 
@@ -807,7 +808,7 @@ drafts.
 | `owner_user_id` | The owner; indexed |
 | `title` | The person's first message on one line, cut to 80 characters; empty until they send one |
 | `scope` | JSONB: `{"kind": "page"}`, or `{"kind": "creator", "intent", "catalog_item_id"}` for a conversation started in a creator |
-| `style_preset` | Nullable text, unused so far |
+| `style_preset` | Nullable text: the id of the conversation's style preset, one of the five in `app/generation/style_presets.py`. An id that is not on that list adds nothing to a run |
 | `created_at`, `updated_at` | `updated_at` moves with each message, which orders the conversation list |
 
 `generation_messages`:
@@ -818,7 +819,7 @@ drafts.
 | `conversation_id` | Foreign key, cascading delete; indexed |
 | `role` | `user` or `assistant` (CHECK) |
 | `text` | The turn's text; empty for a turn that only asked questions |
-| `data` | JSONB. The person's turn: `draft_id`, `answers`. The assistant's turn: `run_id`, `outcome` (`draft`, `questions`, `reply`, `failed` or `stopped`), `usage`, `model`, and where they apply `cost`, `draft_id`, `questions`, `error`, and for a batch `batch`: every planned item as `{draft_id, intent, brief, error?}` in plan order, with `draft_id` naming the first item whose draft was kept |
+| `data` | JSONB. The person's turn: `intent`, `draft_id`, `answers`, and what it carried besides words: `references` (`starting_point` and `examples`, each `{item_id, name}`), `images` (`{file_id, name, width, height, kind}`) and `images_sent` (true once a model request of the run carried the images). The assistant's turn: `run_id`, `outcome` (`draft`, `questions`, `reply`, `failed` or `stopped`), `usage`, `model`, and where they apply `cost`, `draft_id`, `questions`, `error`, and for a batch `batch`: every planned item as `{draft_id, intent, brief, error?}` in plan order, with `draft_id` naming the first item whose draft was kept |
 | `created_at` | Wall-clock time of the insert; messages read back in `created_at`, `id` order |
 
 `generation_drafts`:
@@ -840,6 +841,24 @@ drafts.
 | `failure_reason` | A code, kept only while the status it came with stands |
 | `saved_item_id` | The Library item the person saved the draft as |
 | `created_at`, `updated_at` | |
+
+`generation_reference_images` links a conversation to the image files it
+uses as references. The image itself is a `user_file` row with
+`metadata.kind` `image`, stored as a chat image is
+([user files](../features/user-files.md#chat-images)).
+
+| Column | Notes |
+| --- | --- |
+| `conversation_id` | Foreign key, cascading delete; primary key with `file_id` |
+| `file_id` | Foreign key to `user_file`, cascading delete; indexed |
+| `owner_user_id` | The owner, which the chat-side deletion rule reads |
+| `created_at` | |
+
+A run links the images its request names when it stores the person's turn,
+and only the owner's own image files are linked. Discarding the conversation
+deletes the images only it uses, and deleting a chat or an Anima spares an
+image a row here still names
+([deletion](../features/user-files.md#deletion-and-recovery)).
 
 An assistant turn's `usage` is `{input_tokens, cached_input_tokens,
 output_tokens, reasoning_tokens, requests}`, added up over the run's model

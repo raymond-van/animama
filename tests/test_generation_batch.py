@@ -406,7 +406,9 @@ async def test_an_item_keeps_every_bound_of_a_single_run(studio: _Studio) -> Non
 
 
 async def test_an_item_that_fails_does_not_stop_the_others(studio: _Studio) -> None:  # noqa: F811
-    refused = ModelClientError("rate limited", code="openai_rate_limited", raw_metadata={"status_code": 429})
+    # A rate limit is a momentary refusal of one request (the Anthropic and ChatGPT plan routes do not retry
+    # it), so it is the item's own failure: the items after it are still written.
+    refused = ModelClientError("rate limited", code="openai_rate_limit", raw_metadata={"status_code": 429})
     model = _BatchModel(_plan("a wave", "a bow", "a nod"), {1: [_item(1)], 2: [refused], 3: [_item(3)]})
 
     events = await _batch(studio, model)
@@ -414,10 +416,10 @@ async def test_an_item_that_fails_does_not_stop_the_others(studio: _Studio) -> N
     by_number = _drafts_by_number(events)
     stored = await _stored(studio)
     (failed,) = _of(events, pipeline.ItemFailed)
-    assert (failed.draft_id, failed.code) == (by_number[2], "openai_rate_limited")
-    assert failed.category and isinstance(failed.details, dict)
+    assert (failed.draft_id, failed.code, failed.category) == (by_number[2], "openai_rate_limit", "rate_limited")
+    assert isinstance(failed.details, dict)
     assert [stored[by_number[number]].status for number in (1, 2, 3)] == ["ready", "failed", "ready"]
-    assert stored[by_number[2]].failure_reason == "openai_rate_limited" and stored[by_number[2]].project is None
+    assert stored[by_number[2]].failure_reason == "openai_rate_limit" and stored[by_number[2]].project is None
     # The page is told the item's draft failed, after the failure itself.
     told = [event for event in events if isinstance(event, pipeline.DraftUpdated) and event.draft.id == by_number[2]]
     assert told[-1].draft.status == "failed" and events.index(failed) < events.index(told[-1])
@@ -427,7 +429,7 @@ async def test_an_item_that_fails_does_not_stop_the_others(studio: _Studio) -> N
     assert assistant.data["outcome"] == "draft" and "error" not in assistant.data
     assert [entry.get("error") for entry in assistant.data["batch"]] == [
         None,
-        {"code": "openai_rate_limited", "category": failed.category},
+        {"code": "openai_rate_limit", "category": "rate_limited"},
         None,
     ]
 
@@ -757,11 +759,12 @@ async def test_a_failure_every_item_would_meet_ends_the_batch_as_a_failed_run(st
         ("missing_api_key", True),
         ("openai_authentication_error", True),
         ("openai_not_found", True),
-        ("openai_rate_limit", True),
         ("openai_quota_exceeded", True),
         ("chatgpt_plan_usage_limit", True),
         ("chatgpt_plan_not_eligible", True),
         ("chatgpt_plan_sign_in_required", True),
+        ("openai_rate_limit", False),
+        ("anthropic_rate_limit", False),
         ("openai_server_error", False),
         ("openai_timeout", False),
         ("openai_bad_request", False),

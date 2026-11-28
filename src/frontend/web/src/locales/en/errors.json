@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "Choose an available PocketTTS voice."
   },
   "generation": {
+    "attached_image_unavailable": "An image you attached is no longer available. Attach it again and send your request again.",
     "generation_batch_time_limit": "The assistant ran out of time for this request. Drafts finished so far are kept.",
     "generation_document_invalid": "The assistant cannot work on this item as it stands. Check the timeline for problems, then try again.",
     "generation_document_invalid_details": "The assistant cannot work on this item because of its name, description, Selector ID or suggested emotion. Check them, then try again.",
@@ -125,10 +126,20 @@
     "generation_not_found": "This conversation or draft no longer exists.",
     "generation_nothing_to_restore": "This draft has no earlier version to restore.",
     "generation_reasoning_effort_unsupported": "The chosen model cannot run the assistant at this reasoning effort. Choose another level or another model.",
+    "generation_reference_refused": "The assistant could not use a reference you chose. Send your request again without it.",
+    "generation_reference_refused_invalid": "The Gesture you chose to start from cannot be used as it stands. Choose another and send your request again.",
+    "generation_reference_refused_non_portable": "A Gesture you chose as a reference is included for use in this app only, so the assistant cannot read it. Choose another and send your request again.",
+    "generation_reference_refused_not_a_clip": "A Gesture you chose as a reference is an imported animation, which the assistant cannot read. Choose another and send your request again.",
+    "generation_reference_refused_not_allowed": "A Gesture to start from can only go with a request for a new Gesture draft. Send your request again without it.",
+    "generation_reference_refused_not_found": "A Gesture you chose as a reference is no longer in your Library. Choose another and send your request again.",
+    "generation_reference_refused_too_large": "The example Gestures are more than one request can show the assistant. Send your request again with fewer or shorter examples.",
+    "generation_reference_refused_unavailable": "Your Library could not be read, so the assistant could not use your references. Try again.",
     "generation_request_failed": "The request did not reach the assistant. Try again.",
     "generation_run_failed": "The assistant ran into an unexpected problem. Try again.",
     "generation_run_in_progress": "The assistant is still working on this conversation. Wait for it to finish or stop it first.",
-    "generation_stream_interrupted": "The connection was lost before the assistant finished. Drafts it had stored are kept."
+    "generation_stream_interrupted": "The connection was lost before the assistant finished. Drafts it had stored are kept.",
+    "too_many_images": "This request carries too many images. Send it again with fewer.",
+    "uploads_unavailable": "Your stored files cannot be reached right now, so the assistant could not read your images. Try again in a moment."
   },
   "generic": {
     "unexpected": "Something went wrong. Try again.",

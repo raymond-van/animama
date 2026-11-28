@@ -1,4 +1,4 @@
-"""The content assistant's tables: conversations, their messages and their drafts (spec #942)."""
+"""The content assistant's tables: conversations, their messages, drafts and reference images (spec #942)."""
 
 from __future__ import annotations
 
@@ -116,4 +116,41 @@ class ORMGenerationDraft(SqlalchemyBase):
     )
 
 
-__all__ = ["ORMGenerationConversation", "ORMGenerationDraft", "ORMGenerationMessage"]
+class ORMGenerationReferenceImage(SqlalchemyBase):
+    """One image file a conversation uses as a reference (spec R8.2).
+
+    The image itself is a user file, stored as a chat image is. This row is
+    what makes it the conversation's: discarding the conversation removes
+    the row, and deletes the image when nothing else uses it; deleting a
+    chat spares an image a row here still names.
+    """
+
+    __tablename__ = "generation_reference_images"
+
+    conversation_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey(
+            "generation_conversations.id",
+            ondelete="CASCADE",
+            name="fk_generation_reference_images_conversation_id",
+        ),
+        primary_key=True,
+    )
+    file_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("user_file.id", ondelete="CASCADE", name="fk_generation_reference_images_file_id"),
+        primary_key=True,
+        index=True,
+    )
+    owner_user_id: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=sa_text("CURRENT_TIMESTAMP")
+    )
+
+
+__all__ = [
+    "ORMGenerationConversation",
+    "ORMGenerationDraft",
+    "ORMGenerationMessage",
+    "ORMGenerationReferenceImage",
+]

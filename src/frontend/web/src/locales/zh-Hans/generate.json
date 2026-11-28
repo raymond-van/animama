@@ -114,13 +114,35 @@
     "discard": {
       "cancel": "取消",
       "confirm": "丢弃对话",
-      "description": "将删除其中的消息和未保存的草稿。你已保存的项目仍保留在资源库中。此操作无法撤销。",
+      "description": "将删除其中的消息和未保存的草稿，以及只有此对话使用的图片。你已保存的项目仍保留在资源库中。此操作无法撤销。",
       "title": "要丢弃此对话吗？"
     },
     "discardConversation": "丢弃此对话…",
     "newConversation": "新对话",
     "untitled": "新对话",
     "waitForRun": "助手完成后可用。"
+  },
+  "inspirations": {
+    "description": "为下一次请求准备的点子。在你发送之前，这里的内容都不会发送出去。",
+    "images": {
+      "attached": "已附上",
+      "empty": "你还没有图片。添加到请求或聊天中的图片会显示在这里。",
+      "failed": "无法加载你的图片。",
+      "hint": "选择一张图片，将其作为参考附上。再次选择即可取消。",
+      "loading": "正在加载你的图片…",
+      "title": "你的图片"
+    },
+    "included": {
+      "added": "已将 {{name}} 添加为感觉示例。",
+      "hint": "选择一个动作，将其添加为感觉示例。",
+      "none": "资源库中没有这些动作。",
+      "title": "来自 Animama 的内置内容"
+    },
+    "open": "灵感",
+    "starters": {
+      "hint": "选择一个即可填入请求框，然后随意修改。"
+    },
+    "title": "灵感"
   },
   "model": {
     "chooseFailed": "无法保存模型选择。",
@@ -184,6 +206,46 @@
     "submit": "发送回答",
     "title": "助手有几个问题"
   },
+  "references": {
+    "examples": {
+      "add": "感觉示例",
+      "choose": "从资源库添加感觉示例",
+      "full": "一次请求最多可带 {{max}} 个示例。请先移除一个再添加。",
+      "label": "示例",
+      "listLabel": "感觉示例",
+      "remove": "从示例中移除 {{name}}"
+    },
+    "images": {
+      "add": "添加图片",
+      "unused": "此模型无法查看图片。图片会保留在此对话中，但助手不会使用它们。"
+    },
+    "label": "下一条消息的参考",
+    "missing": "已不在资源库中",
+    "picker": {
+      "chosen": "已选择",
+      "included": "内置",
+      "loading": "正在加载动作…",
+      "local": "本地",
+      "noResults": "未找到动作。",
+      "retry": "重试",
+      "search": "搜索动作…",
+      "unavailable": "无法加载动作。"
+    },
+    "startingPoint": {
+      "add": "从一个动作开始",
+      "choose": "从资源库中的一个动作开始",
+      "label": "起点",
+      "listLabel": "起点动作",
+      "remove": "移除起点 {{name}}"
+    },
+    "unnamed": "未命名动作",
+    "video": {
+      "add": "添加视频",
+      "rejected": "未添加视频",
+      "tooLong": "超过 {{seconds}} 秒的视频不能用作参考。请裁短后重试。",
+      "unreadable": "无法读取此视频。请尝试其他文件或格式。"
+    }
+  },
   "setup": {
     "claudeNote": "Claude 的 API 密钥也可以使用。请在“应用设置 → 模型”的模型连接中添加它，或添加其他能够调用工具的模型。",
     "description": "助手根据文字请求编写动作，然后进行检查和修复。它需要一个能够调用工具的模型。",
@@ -196,6 +258,33 @@
     "otherTitle": "其他模型",
     "title": "设置生成"
   },
+  "starters": {
+    "items": {
+      "fistPump": "自豪地握拳庆祝",
+      "heartyLaugh": "全身都在动的开怀大笑",
+      "shyWave": "带着浅浅的微笑，害羞地轻轻挥手",
+      "surpriseReaction": "反应：睁大眼睛的惊讶",
+      "thinkingHold": "手托下巴思考，在 Anima 思考期间一直保持",
+      "threeGreetings": "三种问候：挥手、鞠躬和敬礼"
+    },
+    "label": "试试这些请求"
+  },
+  "style": {
+    "failure": {
+      "notSaved": "无法保存风格，因此保持原样。",
+      "retry": "请重试。",
+      "unknown": "此风格在这里不可用。请选择其他风格。"
+    },
+    "label": "风格",
+    "none": "无",
+    "presets": {
+      "animeExpressive": "动画般的夸张表现",
+      "coolComposed": "冷静沉着",
+      "cutePlayful": "可爱俏皮",
+      "dramaticTheatrical": "戏剧化、舞台感",
+      "softNatural": "柔和自然"
+    }
+  },
   "transcript": {
     "answer": "{{question}} — {{answer}}",
     "emptyDescription": "说说虚拟形象该做什么，例如“害羞地轻轻挥手”。助手会写出草稿、进行检查，并在预览中播放。",
@@ -203,6 +292,12 @@
     "failed": "助手未能完成此请求。",
     "loadFailed": "无法加载此对话。",
     "loading": "正在加载对话…",
+    "references": {
+      "examples": "感觉示例：{{names, list}}",
+      "imagesUnused": "这些图片未发送给模型。",
+      "label": "随此消息发送的参考",
+      "startingPoint": "起点：{{name}}"
+    },
     "scrollToLatest": "滚动到最新消息",
     "skippedQuestions": "已跳过这些问题。",
     "stopped": "已停止。已完成的草稿会保留。"

@@ -123,6 +123,35 @@ describe("pendingGenerationQuestions", () => {
     });
   });
 
+  it("keeps the references the asking request carried", () => {
+    expect(
+      pendingGenerationQuestions(
+        generationSnapshot({
+          messages: [
+            generationMessage({
+              text: "a wave like this",
+              data: {
+                references: {
+                  examples: [{ item_id: "bow", name: "Deep Bow" }],
+                },
+                images: [{ file_id: "file-1", name: "pose.png" }],
+              },
+            }),
+            question,
+          ],
+        }),
+      )?.request,
+    ).toEqual({
+      message: "a wave like this",
+      draftId: null,
+      references: {
+        startingPoint: null,
+        examples: [{ itemId: "bow", name: "Deep Bow" }],
+        images: [{ fileId: "file-1", name: "pose.png", kind: "image" }],
+      },
+    });
+  });
+
   const request = generationMessage({
     text: "make it shy",
     data: { draft_id: "draft-1" },

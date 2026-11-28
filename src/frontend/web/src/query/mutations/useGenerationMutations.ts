@@ -8,6 +8,7 @@ import {
   deleteGenerationDraftV1GenerationDraftsDraftIdDelete,
   markGenerationDraftSavedV1GenerationDraftsDraftIdMarkSavedPost,
   restoreGenerationDraftV1GenerationDraftsDraftIdRestorePost,
+  setGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPut,
 } from "@animama/runtime-contracts/sdk";
 import type {
   PyGenerationConversation,
@@ -99,6 +100,57 @@ export function useDeleteGenerationConversation() {
         (list) => list?.filter(({ id }) => id !== conversationId),
       );
       forgetGenerationRun(conversationId);
+      // The discard deletes the reference images only this conversation
+      // used, as a chat delete does its own: the person's files are read
+      // again wherever they are shown.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.userFiles.all(ownerKey),
+      });
+    },
+  });
+}
+
+/**
+ * Store a conversation's style preset by id, or clear it with `null` (R8.5).
+ * Only the id is sent: the sentence a model reads is the backend's own. The
+ * server refuses an id it does not list (`generation_style_preset_unknown`).
+ * The answer is the conversation, which replaces the cached one in its
+ * snapshot and in the list, so the choice survives the next read of either.
+ */
+export function useSetGenerationStylePreset() {
+  const apiClient = useProductApiClient();
+  const queryClient = useQueryClient();
+  const ownerKey = useRuntimeCacheKey() ?? "__anon__";
+  return useMutation<
+    PyGenerationConversation,
+    unknown,
+    { conversationId: string; stylePreset: string | null }
+  >({
+    mutationFn: async ({ conversationId, stylePreset }) => {
+      const { data } =
+        await setGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPut(
+          {
+            client: apiClient,
+            path: { conversation_id: conversationId },
+            body: { style_preset: stylePreset },
+            responseValidator: undefined,
+            throwOnError: true,
+          },
+        );
+      return data;
+    },
+    onSuccess: (conversation) => {
+      queryClient.setQueryData<PyGenerationConversationSnapshot>(
+        queryKeys.generation.conversation(ownerKey, conversation.id),
+        (snapshot) => snapshot && { ...snapshot, conversation },
+      );
+      queryClient.setQueryData<PyGenerationConversation[]>(
+        queryKeys.generation.conversations(ownerKey),
+        (list) =>
+          list?.map((listed) =>
+            listed.id === conversation.id ? conversation : listed,
+          ),
+      );
     },
   });
 }

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Collection, Mapping
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Collection, Mapping, Sequence
 from contextlib import asynccontextmanager, suppress
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -28,11 +28,24 @@ from starlette.types import Receive, Scope, Send
 from animama.adapters.model_clients import MockModelClient
 from animama.adapters.repositories.sqlalchemy.generation_repo import SQLAlchemyGenerationRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.chat.attached_images import ATTACHED_IMAGE_UNAVAILABLE, AttachedImageError, validate_attached_images
 from animama.app.generation.check_report import MAX_REPORT_BYTES, final_status
 from animama.app.generation.deterministic_author import DeterministicAuthor
 from animama.app.generation.draft_validation import MAX_CLIP_BYTES, Intent
 from animama.app.generation.effects import EffectKind, EffectLibrary, EffectSource
+from animama.app.generation.references import (
+    ExampleGesture,
+    GenerationReferenceError,
+    GestureSource,
+    ReferenceImage,
+    RunReferences,
+    StartingPoint,
+    bounded_examples,
+    example_gesture,
+    starting_point as starting_point_of,
+)
 from animama.app.generation.review_frames import (
     MAX_REVIEW_SHEET_BYTES,
     MAX_REVIEW_SHEETS,
@@ -63,9 +76,10 @@ from animama.app.generation.run import (
 from animama.app.generation.service import CheckReportSignal, GenerationService, is_unsettled
 from animama.app.generation.tools import example_names
 from animama.app.model_clients import ModelClient
+from animama.app.ports.private_file_storage import PrivateFileStorage
 from animama.app.services.content_portability import is_non_portable
 from animama.domain import ModelProvider
-from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource
+from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentNotFoundError, ContentSource
 from animama.domain.content_documents import GestureDocumentV1
 from animama.domain.generation import (
     GENERATION_SCOPE_CREATOR,
@@ -76,12 +90,20 @@ from animama.domain.generation import (
     GenerationNotFoundError,
 )
 from animama.domain.request_principal import RequestPrincipal
+from animama.domain.user_file import STATUS_DELETED
 from animama.logging import failure_site, get_logger
+from animama.product_http.chat.session_services import read_stored_image
 from animama.product_http.chat.sse_events import format_sse
 from animama.product_http.ports import ProductContent
+from animama.product_http.routes._deletion import delete_chat_images
 from animama.server.deps import get_async_session_factory
 from animama.server.model_clients import get_model_client_registry
-from animama.server.schemas.generation import PyGenerationCheckReport, PyGenerationDraft, PyGenerationRunRequest
+from animama.server.schemas.generation import (
+    PyGenerationCheckReport,
+    PyGenerationDraft,
+    PyGenerationReferenceImage,
+    PyGenerationRunRequest,
+)
 
 _log = get_logger("server.generation")
 
@@ -100,6 +122,8 @@ _STATUS_BY_CODE: Final[Mapping[str, int]] = {
     "generation_draft_empty": 409,
     "generation_document_invalid": 422,
     "generation_reasoning_effort_unsupported": 422,
+    "generation_reference_refused": 422,
+    "generation_style_preset_unknown": 422,
     "generation_frame_not_an_image": 422,
     "generation_frame_too_large": 413,
 }
@@ -255,6 +279,83 @@ async def read_conversation(
     return await service.get_conversation(owner_user_id, conversation_id)
 
 
+# --- Discarding a conversation, with the images only it uses (R8.2) ---------------------------
+
+
+UPLOADS_UNAVAILABLE: Final = "uploads_unavailable"
+"""The upload store cannot be reached: the code the local ports answer with while its root is missing."""
+
+
+def _private_files(app: FastAPI, principal: RequestPrincipal) -> PrivateFileStorage:
+    """The owner's private file store, or 503 ``uploads_unavailable`` while it cannot be reached.
+
+    The local composition's ports answer that themselves when the upload
+    root is missing or unmounted; an app without product ports answers the
+    same.
+    """
+
+    ports = getattr(app.state, "product_ports", None)
+    if ports is None:
+        raise refusal(UPLOADS_UNAVAILABLE, 503)
+    return cast(PrivateFileStorage, ports.uploads(principal).private_files)
+
+
+async def discard_conversation(
+    app: FastAPI, session: AsyncSession, principal: RequestPrincipal, conversation_id: str
+) -> None:
+    """Delete a conversation with its messages and drafts, and the reference images nothing else uses.
+
+    The conversation and its links go first, in one transaction. Its images
+    that no other conversation links and no chat message attaches are then
+    deleted as a deleted chat's own images are: bytes, then the file's row,
+    one image at a time, so a failure part way leaves the rest in the
+    Library where the person can delete them. While the upload store cannot
+    be reached (its root is missing, so the ports answer 503) the images are
+    all left there, and the conversation is still gone. The log says which
+    happened, in counts. Raises ``GenerationNotFoundError`` for a
+    conversation that is missing or another owner's.
+    """
+
+    orphaned = await generation_service(app, session).delete_conversation(principal.id, conversation_id)
+    if not orphaned:
+        return
+    try:
+        _private_files(app, principal)
+    except HTTPException as error:
+        detail = error.detail
+        _log.warning(
+            "Generation reference images kept: uploads cannot be reached",
+            conversation_id=conversation_id,
+            image_count=len(orphaned),
+            code=detail.get("code") if isinstance(detail, dict) else None,
+        )
+        return
+    repositories = SQLAlchemyProductRepositories(session)
+    await delete_chat_images(app.state.product_ports, principal, repositories, orphaned)
+    removed = 0
+    try:
+        for file_id in orphaned:
+            row = await repositories.user_file_processing.get_user_file(
+                user_id=principal.id, file_id=file_id, include_deleted=True
+            )
+            removed += row is not None and row.status == STATUS_DELETED
+    except Exception as error:
+        # The cleanup's own failure is already logged; what it reached is then not known here.
+        _log.warning(
+            "Generation reference images could not be counted after a discard",
+            conversation_id=conversation_id,
+            exc_type=type(error).__name__,
+            site=failure_site(error),
+        )
+        return
+    _log.info(
+        "Generation reference images of a discarded conversation handled",
+        conversation_id=conversation_id,
+        image_count=len(orphaned),
+        removed_count=removed,
+    )
+
+
 # --- Conversations that outlived what they belong to ------------------------------------------
 
 UNSAVED_CONVERSATION_DAYS: Final = 7
@@ -298,7 +399,8 @@ async def list_owner_conversations(
 
     A creator's conversation belongs to the item open in that creator, and
     nothing lists it for the person once the item is gone, so it is removed
-    here, with its messages and drafts, when the conversations are listed:
+    here, with its messages, its drafts and the reference images only it
+    uses (``discard_conversation``), when the conversations are listed:
 
     - one about a saved item, when the owner's Library no longer holds a
       Gesture or Reaction (by the conversation's kind) with that id. The
@@ -346,7 +448,7 @@ async def list_owner_conversations(
         if runs.any_running(owner):
             break
         try:
-            await service.delete_conversation(owner, conversation.id)
+            await discard_conversation(app, session, principal, conversation.id)
         except GenerationNotFoundError:
             pass
         removed.add(conversation.id)
@@ -519,6 +621,181 @@ async def _authoring_library(
         return without
 
 
+# --- The Library Gestures a request names (R8.1) ---------------------------------------------
+
+
+async def _gesture_source(content: ProductContent, owner_user_id: str, item_id: str) -> GestureSource:
+    """One Library Gesture a request names, read for a model; ``GenerationReferenceError`` when it may not be.
+
+    The item must be a usable Gesture in the owner's Library, Included or
+    their own. A non-portable one is refused before any byte of it is opened
+    (threat T4), whatever the caller sent: the picker leaves such items out,
+    and this is the rule itself. A Gesture that is not an
+    ``animaPoseClip/2.0`` clip (an imported motion file) has nothing a model
+    can read.
+    """
+
+    try:
+        item = await content.typed.get(user_id=owner_user_id, kind=ContentKind.GESTURE, item_id=item_id)
+    except ContentNotFoundError as error:
+        raise GenerationReferenceError("not_found") from error
+    if is_non_portable(item.item):
+        raise GenerationReferenceError("non_portable")
+    document = item.document
+    if not isinstance(document, GestureDocumentV1) or document.implementation.kind != "anima_clip":
+        raise GenerationReferenceError("not_a_clip")
+    try:
+        clip = await _example_clip(content, item.item, owner_user_id)
+    except ContentNotFoundError as error:
+        raise GenerationReferenceError("not_found") from error
+    except ValueError as error:
+        # Bytes that are not JSON.
+        raise GenerationReferenceError("not_a_clip") from error
+    if clip is None:
+        raise GenerationReferenceError("not_a_clip")
+    return GestureSource(
+        item_id=item.item.id,
+        name=document.name,
+        description=document.description or "",
+        selector_id=document.semantic_key,
+        clip=clip,
+    )
+
+
+async def read_gesture_references(
+    content: ProductContent, owner_user_id: str, *, starting_point: str | None, examples: Sequence[str]
+) -> tuple[StartingPoint | None, tuple[ExampleGesture, ...]]:
+    """The Library Gestures one request names: its starting point, and its examples of the feel.
+
+    Each is read once through the catalog's own verified read
+    (``_gesture_source``), then bounded: a starting point's clip is validated
+    as any input a pass starts from, and the examples are bounded in size
+    one by one and together. Any that cannot be used refuses the request
+    (``GenerationReferenceError``), so the person is never answered about a
+    reference the model did not get. An example named twice is read once.
+    """
+
+    start = starting_point_of(await _gesture_source(content, owner_user_id, starting_point)) if starting_point else None
+    shown = [
+        example_gesture(await _gesture_source(content, owner_user_id, item_id)) for item_id in dict.fromkeys(examples)
+    ]
+    return start, bounded_examples(shown)
+
+
+def _image_refusal() -> HTTPException:
+    """The answer to a reference image that cannot be sent, with the code chat gives its own."""
+
+    return refusal(ATTACHED_IMAGE_UNAVAILABLE, 400)
+
+
+async def read_reference_images(
+    app: FastAPI,
+    session: AsyncSession,
+    principal: RequestPrincipal,
+    named: Sequence[PyGenerationReferenceImage],
+    *,
+    accepts_images: bool,
+) -> tuple[ReferenceImage, ...]:
+    """The person's own images a request names, with the stored copies' bytes for a model that takes images.
+
+    Each id must name a ready image file of the caller, by the rule a chat
+    turn's attached images follow (``validate_attached_images``); any that
+    does not refuses the request with chat's own code, so the person is never
+    answered about an image the model did not get. For a model that takes
+    images the canonical stored copy is read and checked against its record
+    as a chat image is (``read_stored_image``); an image that cannot be read
+    refuses the request too. While the upload store itself cannot be reached
+    the answer is its own, 503 ``uploads_unavailable``: the image is not at
+    fault, and the same request may work later. For a model that takes no
+    images nothing is read, so no store is asked for: the images are kept
+    with the conversation and sent nowhere.
+    """
+
+    kinds = {image.file_id: image.kind for image in named}
+    if not kinds:
+        return ()
+    files = SQLAlchemyProductRepositories(session).user_file_processing
+    try:
+        attached = await validate_attached_images(
+            user_file_processing=files, user_id=principal.id, file_ids=list(kinds)
+        )
+    except AttachedImageError as error:
+        raise refusal(error.code, 400) from error
+    if attached.other_file_ids:
+        # An id that names no image of this owner: another owner's file reads the same as a missing one.
+        raise _image_refusal()
+    contents: dict[str, tuple[str, bytes]] = {}
+    if accepts_images:
+        storage = _private_files(app, principal)
+        for image in attached.images:
+            row = await files.get_user_file(user_id=principal.id, file_id=image.file_id)
+            try:
+                stored = await asyncio.to_thread(read_stored_image, storage, row) if row is not None else None
+            except Exception as error:
+                _log.warning(
+                    "Generation reference image could not be read",
+                    file_id=image.file_id,
+                    exc_type=type(error).__name__,
+                    site=failure_site(error),
+                )
+                stored = None
+            if stored is None:
+                raise _image_refusal()
+            contents[image.file_id] = (stored.media_type, stored.content)
+    return tuple(
+        ReferenceImage(
+            file_id=image.file_id,
+            name=image.name,
+            width=image.width,
+            height=image.height,
+            kind=kinds[image.file_id],
+            media_type=contents[image.file_id][0] if image.file_id in contents else "",
+            content=contents[image.file_id][1] if image.file_id in contents else None,
+        )
+        for image in attached.images
+    )
+
+
+async def _run_references(
+    app: FastAPI,
+    session: AsyncSession,
+    principal: RequestPrincipal,
+    body: PyGenerationRunRequest,
+    *,
+    accepts_images: bool,
+) -> RunReferences | None:
+    """Read what a request names besides its words, or refuse the request; ``None`` when it names nothing.
+
+    Unlike the Library a run's tools may ask of (``_authoring_library``), a
+    reference is something the person chose for this request: when it cannot
+    be read, the request is refused with the reason, not run without it.
+    """
+
+    named = body.references
+    if named is None or not (named.starting_point or named.examples or named.images):
+        return None
+    start: StartingPoint | None = None
+    examples: tuple[ExampleGesture, ...] = ()
+    if named.starting_point or named.examples:
+        ports = getattr(app.state, "product_ports", None)
+        if ports is None:
+            raise GenerationReferenceError("unavailable")
+        try:
+            async with ports.content(session, principal) as content:
+                start, examples = await read_gesture_references(
+                    content, principal.id, starting_point=named.starting_point, examples=named.examples
+                )
+        except GenerationReferenceError:
+            raise
+        except Exception as error:
+            _log.warning(
+                "Generation references could not be read", exc_type=type(error).__name__, site=failure_site(error)
+            )
+            raise GenerationReferenceError("unavailable") from error
+    images = await read_reference_images(app, session, principal, named.images, accepts_images=accepts_images)
+    return RunReferences(starting_point=start, examples=examples, images=images)
+
+
 # --- Starting a run -------------------------------------------------------------------------
 
 
@@ -594,6 +871,7 @@ async def start_generation_run(
         reason = model_unusable_reason(model_provider)
         if model_provider is None or reason is not None:
             raise refusal(MODEL_UNUSABLE, 422, reason=reason or "not_found")
+        references = await _run_references(app, session, principal, body, accepts_images=model_provider.accepts_images)
         plan = plan_run(
             snapshot,
             message=body.message,
@@ -605,6 +883,7 @@ async def start_generation_run(
             avatar_expressions=body.avatar_expressions,
             reasoning_effort=body.reasoning_effort,
             document=body.document,
+            references=references,
         )
         client, author = _author_or_client(app, model_provider)
         # The item whose own Selector ID is no clash: the one the draft was saved as, or the one a creator
@@ -640,6 +919,10 @@ async def start_generation_run(
         effect_count=len(library.effects) if library.effects is not None else None,
         expression_family_count=len(body.avatar_expressions or {}),
         with_document=plan.document is not None,
+        with_starting_point=references is not None and references.starting_point is not None,
+        reference_gesture_count=len(plan.examples),
+        reference_image_count=len(references.images) if references is not None else 0,
+        reference_images_sent=len(plan.reference_images),
     )
     return GenerationRunResponse(run_frames(run), release=release)
 
@@ -942,6 +1225,7 @@ __all__ = [
     "GenerationRuntime",
     "RunHold",
     "accept_review_frames",
+    "discard_conversation",
     "draft_resource",
     "event_frame",
     "generation_refusal",
@@ -952,6 +1236,8 @@ __all__ = [
     "read_authoring_library",
     "read_conversation",
     "read_effect_library",
+    "read_gesture_references",
+    "read_reference_images",
     "record_check_report",
     "refusal",
     "run_frames",

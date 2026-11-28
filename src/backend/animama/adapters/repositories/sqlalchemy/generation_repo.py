@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-from sqlalchemy import case, delete, func, select, update
+from sqlalchemy import case, cast, delete, func, select, text, update
+from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.mappers.generation_map import (
@@ -15,7 +16,14 @@ from animama.adapters.mappers.generation_map import (
 )
 from animama.app.ports.generation_port import GenerationCheckState, GenerationRepository
 from animama.domain.generation import GenerationConversation, GenerationDraft, GenerationMessage
-from animama.orm.generation import ORMGenerationConversation, ORMGenerationDraft, ORMGenerationMessage
+from animama.domain.user_file import STATUS_DELETED
+from animama.orm.generation import (
+    ORMGenerationConversation,
+    ORMGenerationDraft,
+    ORMGenerationMessage,
+    ORMGenerationReferenceImage,
+)
+from animama.orm.user_file import ORMUserFile
 
 
 class SQLAlchemyGenerationRepository(GenerationRepository):
@@ -78,7 +86,7 @@ class SQLAlchemyGenerationRepository(GenerationRepository):
         return generation_conversation_orm_to_domain(orm) if orm is not None else None
 
     async def delete_conversation(self, *, owner_user_id: str, conversation_id: str) -> bool:
-        # The foreign keys remove the conversation's messages and drafts.
+        # The foreign keys remove the conversation's messages, drafts and image links.
         deleted = await self._s.execute(
             delete(ORMGenerationConversation)
             .where(
@@ -88,6 +96,86 @@ class SQLAlchemyGenerationRepository(GenerationRepository):
             .returning(ORMGenerationConversation.id)
         )
         return deleted.scalar_one_or_none() is not None
+
+    async def set_style_preset(
+        self, *, owner_user_id: str, conversation_id: str, style_preset: str | None
+    ) -> GenerationConversation | None:
+        await self._s.execute(
+            update(ORMGenerationConversation)
+            .where(
+                ORMGenerationConversation.id == conversation_id,
+                ORMGenerationConversation.owner_user_id == owner_user_id,
+            )
+            # Named so the column's own ``onupdate`` does not move the conversation up the list.
+            .values(style_preset=style_preset, updated_at=ORMGenerationConversation.updated_at)
+            .execution_options(synchronize_session=False)
+        )
+        return await self.get_conversation(owner_user_id=owner_user_id, conversation_id=conversation_id)
+
+    async def link_reference_images(self, *, owner_user_id: str, conversation_id: str, file_ids: Sequence[str]) -> bool:
+        conversation = await self._conversation(owner_user_id=owner_user_id, conversation_id=conversation_id)
+        if conversation is None:
+            return False
+        named = list(dict.fromkeys(file_ids))
+        if not named:
+            return True
+        # Only the owner's own image files, whatever ids the caller names. ``metadata`` is a JSON column.
+        images = (
+            select(ORMUserFile.id)
+            .where(
+                ORMUserFile.id.in_(named),
+                ORMUserFile.user_id == owner_user_id,
+                ORMUserFile.status != STATUS_DELETED,
+                ORMUserFile.metadata_["kind"].as_string() == "image",
+            )
+            .order_by(ORMUserFile.id)
+        )
+        owned = list((await self._s.execute(images)).scalars())
+        if owned:
+            await self._s.execute(
+                insert(ORMGenerationReferenceImage)
+                .values(
+                    [
+                        {"conversation_id": conversation.id, "file_id": file_id, "owner_user_id": owner_user_id}
+                        for file_id in owned
+                    ]
+                )
+                .on_conflict_do_nothing(index_elements=["conversation_id", "file_id"])
+            )
+        return True
+
+    async def image_file_ids_only_in_conversation(self, *, owner_user_id: str, conversation_id: str) -> list[str]:
+        # The mirror of the chat rule (``image_file_ids_only_in_chat`` in the user file repository): saved
+        # user messages list their images in message_data.images. Other uses are searched only for this
+        # conversation's image ids.
+        result = await self._s.execute(
+            text(
+                """
+                SELECT reference.file_id AS file_id
+                FROM generation_reference_images AS reference
+                JOIN generation_conversations AS conversation ON conversation.id = reference.conversation_id
+                WHERE reference.conversation_id = :conversation_id
+                  AND conversation.owner_user_id = :owner_user_id
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM generation_reference_images AS other
+                      WHERE other.file_id = reference.file_id
+                        AND other.conversation_id <> :conversation_id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM chat_messages AS message
+                      JOIN chats AS chat ON chat.id = message.chat_id
+                      WHERE message.role = 'user'
+                        AND chat.user_id = :owner_user_id
+                        AND message.message_data -> 'images'
+                            @> jsonb_build_array(jsonb_build_object('file_id', reference.file_id))
+                  )
+                """
+            ),
+            {"conversation_id": conversation_id, "owner_user_id": owner_user_id},
+        )
+        return sorted(str(row.file_id) for row in result)
 
     async def add_message(
         self,
@@ -126,6 +214,22 @@ class SQLAlchemyGenerationRepository(GenerationRepository):
         await self._s.flush()
         await self._s.refresh(orm)
         return generation_message_orm_to_domain(orm)
+
+    async def mark_images_sent(self, *, owner_user_id: str, message_id: str) -> bool:
+        owned = select(ORMGenerationConversation.id).where(ORMGenerationConversation.owner_user_id == owner_user_id)
+        marked = await self._s.execute(
+            update(ORMGenerationMessage)
+            .where(
+                ORMGenerationMessage.id == message_id,
+                ORMGenerationMessage.role == "user",
+                ORMGenerationMessage.conversation_id.in_(owned),
+            )
+            # One key of the turn's data; everything else it carried stays.
+            .values(data=ORMGenerationMessage.data.concat(cast({"images_sent": True}, JSONB)))
+            .returning(ORMGenerationMessage.id)
+            .execution_options(synchronize_session=False)
+        )
+        return marked.scalar_one_or_none() is not None
 
     async def list_messages(self, *, owner_user_id: str, conversation_id: str) -> list[GenerationMessage]:
         statement = (

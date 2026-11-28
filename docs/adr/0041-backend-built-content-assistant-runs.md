@@ -45,10 +45,14 @@ Where each part of that loop can run is fixed by what the app already has:
 1. **The backend owns the conversation, the instructions and the tools; the
    page runs the checks and draws the frames** (D1). The page sends the
    person's message, the chosen model, the selected draft, the UI Locale and
-   the names of the chosen Avatar's expressions. No route takes instructions,
-   a tool list or model output from its caller. The page validates each draft
-   version, runs the motion checks on the two Included Avatars and sends a
-   bounded report, and draws review frames when a run asks for them.
+   the names of the chosen Avatar's expressions; in a creator, the item open
+   there as a document, which the backend validates as it does a model's
+   clip; and the ids of the person's own Library Gestures, image files and
+   style preset, each of which the backend reads itself. No route takes
+   instructions, a tool list or model output from its caller. The page
+   validates each draft version, runs the motion checks on the two Included
+   Avatars and sends a bounded report, and draws review frames when a run
+   asks for them.
 2. **A run is a few bounded passes, each a fresh request built from stored
    state** (D2): one write or revise pass, at most three repair passes and
    one frame review for a draft version, each pass at most eight model

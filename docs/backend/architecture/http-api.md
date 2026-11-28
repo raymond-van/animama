@@ -1278,8 +1278,9 @@ authors Gesture drafts in a conversation that is not a Chat: it has its own
 [tables](data-model.md#content-assistant), no Anima, and nothing that chat
 lists, chat search, memory or Reflection reads. The backend builds every model
 request from its own instructions and tools. A caller sends the person's
-message, the chosen model, and what the page measured; request bodies with any
-other field fail validation (`422`). Every route serves only the caller's
+message, the chosen model, what the page measured, and the ids of the
+person's own Library Gestures, images and style preset; request bodies with
+any other field fail validation (`422`). Every route serves only the caller's
 conversations and drafts, and another owner's id answers like a missing one
 (`404 generation_not_found`). The page's side, and what reaches a model
 provider, are in
@@ -1307,7 +1308,8 @@ reasons for the split are in
 - `GET /v1/generation/conversations/{conversation_id}`: `{conversation,
   messages, drafts, usage}`. A message is `{id, role, text, data,
   created_at}`; `data` holds what the turn carried besides text (`intent`,
-  `draft_id` and `answers` on the person's turn; `run_id`, `outcome`, `usage`, `model`,
+  `draft_id`, `answers`, `references`, `images` and `images_sent` on the
+  person's turn; `run_id`, `outcome`, `usage`, `model`,
   and where they apply `cost`, `draft_id`, `questions`, `error` and `batch`
   on the assistant's). A draft is described under [Drafts](#drafts) and `usage`
   under [Token use and cost](#token-use-and-cost). With no run in flight, a
@@ -1318,7 +1320,13 @@ reasons for the split are in
   whose report arrived after it was left, while another run held the
   conversation.
 - `DELETE /v1/generation/conversations/{conversation_id}` (`204`): delete the
-  conversation with its messages and drafts.
+  conversation with its messages and drafts, and the
+  [reference images](#references-and-style-presets) nothing else uses.
+- `PUT /v1/generation/conversations/{conversation_id}/style-preset`:
+  `{style_preset}` stores one of the backend's
+  [style presets](#references-and-style-presets) by id, or `null` for none.
+  Returns the conversation; `422 generation_style_preset_unknown` for an id
+  that is not on the list.
 - `POST /v1/generation/conversations/{conversation_id}/runs:sse`: one
   [run](#runs).
 - `PUT /v1/generation/drafts/{draft_id}/check-report`: the page's
@@ -1361,8 +1369,9 @@ the status.
 ### Runs
 
 The run body is `{message, model_provider_id, draft_id?, intent?, ui_locale?,
-answers?, avatar_expressions?, reasoning_effort?, document?}`. `message` is 1
-to 4,000 characters. With
+answers?, avatar_expressions?, reasoning_effort?, document?, references?}`.
+`message` is 1 to 4,000 characters. `references` are described under
+[References and style presets](#references-and-style-presets). With
 `draft_id` the run revises that draft, keeping its kind; without it, it writes
 a new draft of `intent` (`gesture`, the default, or `reaction`). A Reaction's
 clip may hold no field that moves the body, and its details are `emotion` (a
@@ -1425,10 +1434,11 @@ planning pass and every item's passes.
   a single run shows, with its sign-in or usage action. Those are the model
   clients' error categories about the connection or its allowance
   (`EVERY_ITEM_FAILURES`): `credential_missing`, `credential_rejected`,
-  `sign_in_required`, `not_eligible`, `model_not_found`, `quota_exceeded`,
-  `usage_limit` and `rate_limited`. No further item starts, drafts already
-  written are kept and settled, and planned items never written are
-  removed.
+  `sign_in_required`, `not_eligible`, `model_not_found`, `quota_exceeded`
+  and `usage_limit`. No further item starts, drafts already written are kept
+  and settled, and planned items never written are removed. A rate limit
+  (`rate_limited`) is not one of them: it refuses one request for a moment
+  and some routes do not retry it, so it fails only its own item.
 - Discarding an item's draft during the run ends that item only. The draft
   is looked for before an item's first model request and after each model
   response of its passes, so a discarded item is asked nothing more.
@@ -1446,6 +1456,82 @@ does, with `run.failed` code `generation_batch_time_limit`. A route that
 lost its stored responses costs at most two refused requests, one for each
 item in flight that found out, and a failure every item would meet costs at
 most two requests for the same reason.
+
+#### References and style presets
+
+`references` is `{starting_point?, examples?, images?}`. Each part names the
+caller's own content by id. The backend reads it itself, so no clip, text or
+image bytes come from the request body.
+
+- `starting_point` is the item id of a Gesture in the caller's Library. Only
+  a request for a new Gesture on a `page` conversation takes one; with
+  `draft_id`, for a Reaction, or in a creator it is refused (`not_allowed`).
+  The clip keeps only the fields the 2.0 format defines, loses its `events`,
+  `playback` and `role`, and passes the validation a model's clip passes. The
+  new draft starts as a copy of it with details of its own: the Gesture's
+  name with ` 2` (its plain characters when the Library would not save the
+  name) and a Selector ID no other Gesture uses (`wave_hello_2`). The run
+  makes a revise pass on that copy and plans no batch. When the pass leaves a
+  valid draft, the copy is stored as the draft's first version and the
+  assistant's revision as the next, in one transaction, so a restore returns
+  to the Gesture itself and a run stopped at that point keeps neither. When
+  the pass leaves none, or it asks questions, no draft is stored.
+- `examples` are at most three Library Gestures, shown to the model in the
+  write, revise and batch-item messages as examples of the feel: each one's
+  name, description and clip (without `events`, `playback` and `role`) as one
+  JSON line in a tagged data block. A clip may be at most 32 KiB as compact
+  JSON and the three together at most 64 KiB (`too_large`).
+- `images` are at most four `{file_id, kind?}` entries naming the caller's
+  ready image files, as a chat turn's attached images are named
+  ([Chat images](../features/user-files.md#chat-images)). `kind` is `image`
+  or `video_frames`: one strip of frames the page sampled from a short local
+  video, in time order from left to right. On a model that accepts images
+  the canonical stored copies ride on the write or revise pass, and on each
+  batch item's write pass, as image parts of the user message with their
+  bytes on the request, under ids and names the backend makes
+  (`reference-image-1`); the person's file names and file ids are not sent.
+  The message says how many images there are, that they are data, and which
+  is a strip of frames. On a model that takes no images nothing is read or
+  sent. Either way the images are linked to the conversation
+  (`generation_reference_images`) and the person's turn records them in
+  `data.images`. `data.images_sent` starts false and is set true just before
+  the run's first model request that carries them, so it stays false on a
+  model that takes no images, under the deterministic author, and for a run
+  that failed before it asked a model anything.
+
+A reference that cannot be used refuses the run before anything is stored or
+any model is asked:
+
+- `422 generation_reference_refused` with `reason`: `not_found` (no usable
+  Gesture of the caller has that id), `non_portable`, `not_a_clip` (an
+  imported motion file), `invalid` (the starting clip fails validation),
+  `too_large`, `not_allowed`, or `unavailable` (the Library cannot be read).
+  A non-portable Gesture is refused before any of its bytes is opened,
+  whatever the caller sends.
+- `400 attached_image_unavailable` for an image id that names no ready image
+  of the caller, or whose stored copy cannot be read or no longer matches its
+  record; `422` for more than four.
+- `503 uploads_unavailable` when the model accepts images and the upload
+  store itself cannot be reached (its root is missing or unmounted), the
+  answer the file routes give then. The image is not at fault, so the code
+  is not `attached_image_unavailable`. A model that takes no images reads
+  none, and its run needs no store.
+
+Discarding a conversation deletes the reference images only it uses: an
+image another conversation links, or a message of one of the caller's chats
+attaches, stays. The images are read before the delete and removed after it
+commits, each deleted and committed on its own as a deleted chat's images
+are. While the upload store cannot be reached, the conversation is still
+deleted and its images stay in the Library, where the person can delete
+them. Removing a creator's conversation that outlived its item follows the
+same rule.
+
+A conversation's style preset is one of five ids (`anime_expressive`,
+`soft_natural`, `cute_playful`, `cool_composed`, `dramatic_theatrical`). A
+run reads the id when it is planned and adds that preset's one sentence,
+written in `app/generation/style_presets.py`, to the instructions of every
+pass, before the reply-language rule. An id that is not on the list adds
+nothing. Choosing a preset does not move the conversation in the list.
 
 #### Effects on the timeline
 
@@ -1874,7 +1960,8 @@ its pin time. Chat responses carry nullable `pinned_at`. Deleting a chat or its
 Anima deletes the pin with it.
 
 `DELETE /v1/chats/{chat_id}` deletes the chat's messages, its pending episode
-items and the chat images only it uses; processed episodes and the memory
+items and the chat images only it uses (an image a content assistant
+conversation keeps as a reference stays); processed episodes and the memory
 written from them stay (see [Memory](../features/memory.md#episodic-memory-capture)).
 If a reply is streaming in the chat, the delete first stops it as a client
 disconnect would (a reply save that has begun finishes) and waits for it. A

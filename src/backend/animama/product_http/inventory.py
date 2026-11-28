@@ -403,6 +403,13 @@ ROUTES: tuple[RouteSpec, ...] = (
     ),
     _excluded(
         "content_generation",
+        "PUT",
+        "/v1/generation/conversations/{conversation_id}/style-preset",
+        "set_generation_style_preset",
+        "write",
+    ),
+    _excluded(
+        "content_generation",
         "POST",
         "/v1/generation/conversations/{conversation_id}/runs:sse",
         "run_generation_sse",

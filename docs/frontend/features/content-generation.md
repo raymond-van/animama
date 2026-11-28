@@ -14,7 +14,10 @@ which the hosted composition never reports. The reasons for the design are in
 [ADR 0041](../../adr/0041-backend-built-content-assistant-runs.md).
 
 Code: `web/src/ui/generate/` (the page, a run's stream and the page's draft
-checks; `creator/` holds the creators' control), hooks in `web/src/query/hooks/useGeneration.ts`, mutations in
+checks; `creator/` holds the creators' control, `references/` the
+composer's [references and style](#references-and-style) and `inspirations/`
+the starters and the Inspirations dialog), hooks in
+`web/src/query/hooks/useGeneration.ts`, mutations in
 `web/src/query/mutations/useGenerationMutations.ts` and the state of a run in
 flight in `web/src/stores/generation-store.ts`. Validation, the motion checks
 and the review sheets are the authoring code in
@@ -160,6 +163,74 @@ English it switches only when the request itself is written in another
 language. The page also sends the names of the expressions of the Avatar
 chosen in the preview, so the face can key shapes that Avatar has.
 
+## References and style
+
+On the Generate page a row above the request field holds what the next
+message carries besides its words. A creator's panel has no such row. A
+message takes its references with it, so the next one starts without any;
+a retry, and the answer to the assistant's questions, send the same
+references again. Each turn shows what it carried.
+
+- **Start from a Gesture.** While the next message writes a new Gesture
+  draft, the person may choose one Gesture from the Library. The draft then
+  starts as a copy of it, named after it with ` 2`, and the assistant changes
+  the copy into what the message asks for. The copy is kept as the draft's
+  earlier version, so **Restore previous version** returns to the Gesture
+  itself. Its effects and sounds are not copied; the assistant may place
+  effects again. Such a request writes one draft, never a batch.
+- **Examples of the feel.** Up to three Library Gestures the assistant reads
+  for their timing, energy and style, for a new draft, a revision or every
+  item of a batch. They never become the draft.
+- **Which Gestures.** Both pickers list ready Gestures that are clips, Local
+  and Included. A [non-portable](library.md) Gesture is absent, and so is an
+  imported animation. The backend refuses a non-portable Gesture whatever it
+  is sent.
+- **Images.** **Add images** attaches up to four of the person's own images,
+  uploaded and stored exactly as a
+  [chat image](user-file-uploads.md) is, with the same formats, size limit
+  and refusals; an image can also be pasted into the request field. Send
+  waits while one uploads. On a model that cannot look at images the row
+  says so: the images are kept with the conversation and sent to no model.
+  The control needs the runtime's file uploads.
+- **Style.** One of five named styles (expressive anime, soft and natural,
+  cute and playful, cool and composed, dramatic and theatrical), or none. It
+  is stored on the conversation, stays selected for every later request and
+  can be changed during a run, which keeps the style it started with. The
+  page sends only the style's id; the sentence the assistant reads is the
+  backend's.
+- **Prompt starters.** An empty conversation offers six example requests.
+  Choosing one puts its text in the request field for editing and sends
+  nothing.
+- **Inspirations.** A dialog with the starters, eight of Animama's Included
+  Gestures and the person's own stored images. An Included Gesture's card
+  shows it on an Included Avatar, drawn in the page when the dialog opens,
+  and steps through the clip's beat poses on hover or keyboard focus (not
+  under reduced motion). Choosing a card adds that Gesture as an example of
+  the feel; choosing an image attaches it by its file id, with no new
+  upload. Stills are drawn on the preview's own renderer, one at a time and
+  never while the assistant works, are kept in memory for the session, and
+  are neither uploaded nor sent. A card whose still cannot be drawn shows
+  its name only.
+
+Animama ships no curated outside images. The place for them is
+`ui/generate/inspirations/curatedInspirations.ts`, with files in a `curated`
+folder beside it: an entry is added only after the owner approves that
+image, and `curatedInspirations.test.ts` fails unless every file there has
+one entry whose licence record is complete, permits redistribution and names
+the owner's approval. Each file also needs its entry in the repository's
+licence record.
+
+**A short video as a reference is built but switched off**, until the owner
+decides whether models read motion well enough from frames (spec R8.3). With
+`VITE_ENABLE_GENERATE_VIDEO_REFERENCES=true` in a development build
+(`GENERATE_VIDEO_REFERENCES_ENABLED` in
+`ui/generate/references/videoReferences.ts`), **Add video** takes one local
+video of at most 20 seconds. The page decodes it locally, samples up to eight
+frames evenly spaced in time and draws them left to right into one JPEG
+strip of at most 2,000 pixels on its long edge. Only that strip is uploaded,
+as a reference image marked as video frames; the video file never leaves the
+machine. A built app never offers the control.
+
 ## Drafts
 
 A request made with no draft selected writes one new draft, or
@@ -230,10 +301,11 @@ creator's run never plans a batch: it works on the item open there.
   failure reads as the title of chat's notice, and never as a code. An item
   that fails after it had a version that loads keeps that version, and its
   card adds that the assistant could not finish it. A failure every item
-  would meet (an expired sign-in, a missing or refused key, a usage, quota
-  or rate limit, a model the provider does not serve) ends the whole run
+  would meet (an expired sign-in, a missing or refused key, a spent usage
+  limit or quota, a model the provider does not serve) ends the whole run
   instead, with the notice a single run shows; drafts already written are
-  kept and items not written yet are removed.
+  kept and items not written yet are removed. A rate limit is a momentary
+  refusal of one request, so it fails only the item that met it.
 - **Checks and review sheets.** Two items can wait for the page at once. The
   page checks them one after another and draws their review sheets one after
   another, since the preview canvas draws one thing at a time. Each report
@@ -498,6 +570,9 @@ draw them, for example with no preview canvas showing.
   | `generation_draft_unloadable` | The page could not load the draft's current version, so the draft is `failed`. |
   | `generation_model_unusable` | The chosen model cannot run, with a reason such as `tools_unsupported`, `context_too_small` or `connection_inactive`. |
   | `generation_reasoning_effort_unsupported` | The chosen model cannot run a pass at the chosen reasoning effort. |
+  | `generation_reference_refused` | A Library Gesture named as a reference cannot be used, with a reason: it is gone, non-portable, an imported animation, not valid as a starting point, too large as an example, not allowed with this request, or the Library could not be read. |
+  | `attached_image_unavailable`, `too_many_images` | A reference image is no longer available, or the request carries more than four. |
+  | `uploads_unavailable` | The person's stored files cannot be reached now, so the images could not be read for a model that accepts images. The same request may work later. |
   | `generation_run_in_progress` | The conversation already has a run in flight. |
   | `generation_batch_time_limit` | The items of a batch took longer than the batch may. The run ends as a stopped run does. |
   | `generation_stream_interrupted`, `generation_request_failed` | The connection was lost during a run, or the request never reached the backend. Drafts already stored are kept. |
@@ -509,7 +584,18 @@ Requests go only to the provider of the chosen model. A run sends:
 
 - the assistant's fixed instructions and Animama's authoring guidance;
 - the person's message, their answers, and up to 20 earlier text turns of the
-  same conversation;
+  same conversation (text only: an earlier turn's references are not sent
+  again);
+- the one sentence of the conversation's style preset, when it has one;
+- the Library Gesture the request starts from, as the draft, and its
+  examples of the feel: each example's name, description and clip, without
+  its effects and sounds, as tagged data. A non-portable Gesture is never
+  read;
+- the reference images attached to the request, when the chosen model
+  accepts images: the stored copies, which carry no metadata, without their
+  file names. They are the person's own uploads and go only to the chosen
+  model's provider, with the write or revise request and each batch item's
+  write request. A model that accepts no images is sent none;
 - the draft being revised or repaired, with the page's check findings as
   text; in a creator, the open item's timeline and details instead of a
   stored draft, without its effects and sounds. A draft always reaches the
@@ -529,17 +615,20 @@ Requests go only to the provider of the chosen model. A run sends:
 
 A run does not send the person's own Avatar: not its file, its textures or
 any picture of it. Checks and review frames use the Included Avatars alone,
-and only the names above are read from the chosen Avatar. It also sends no
-Chat, memory, profile or other Library content, and never a non-portable
-item.
+and only the names above are read from the chosen Avatar. A reference image
+is whatever the person chose to upload; the app never renders one. It also
+sends no Chat, memory, profile or Library content beyond what is listed
+above, and never a non-portable item. The stills of the Inspirations dialog
+stay in the page.
 
 What the provider keeps depends on the connection:
 
 - **ChatGPT plan.** Every request is sent with `store: false`, so OpenAI
   does not store it as a response.
 - **OpenAI API key, Responses models.** Requests are stored by OpenAI as
-  responses, review sheets included, as the requests of an ordinary (not
-  incognito) chat are, unless the organisation has turned storage off. Later
+  responses, review sheets and reference images included, as the requests of
+  an ordinary (not incognito) chat are, unless the organisation has turned
+  storage off. Later
   tool rounds of a pass continue from the stored response where there is one.
 - **Anthropic and Chat Completions models.** Animama sets no storage option,
   and the provider's own retention rules apply.
@@ -550,7 +639,18 @@ Conversations, their text turns, and each draft with its project, the one
 version kept for restoring and its check report are stored in the
 installation's database
 ([data model](../../backend/architecture/data-model.md#content-assistant)).
-Discarding a draft or a conversation deletes its rows. Review frames are
+Discarding a draft or a conversation deletes its rows. A reference image is
+stored as a chat image is, as one of the person's files, and is linked to
+the conversation it was sent in; the Library lists it with the other
+uploads. Discarding the conversation deletes the images only it uses: one
+that another conversation also uses, or that a chat message attaches, stays,
+and deleting a chat spares an image a conversation still uses. An image
+picked from the person's stored images is treated the same way, so one that
+nothing else uses goes with the conversation, and the discard's confirmation
+says that such images are deleted. While the stored files cannot be reached,
+a discard still removes the conversation and leaves its images in the
+Library. A turn also records the names
+and ids of the Gestures and images it carried. Review frames are
 never stored: the backend holds them in memory for one review. The token use
 a run reported is stored with the assistant's turn, with the model it ran on,
 its reasoning effort and, where the model had a price, the estimated cost.

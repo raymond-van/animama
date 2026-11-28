@@ -62,13 +62,15 @@ const MODEL_DEPENDENT_CODES = new Set([
 ]);
 
 /**
- * Refusals that say why in a `reason`: a model that cannot be used, and a
- * creator's document that cannot be worked on (its details, or its timeline).
- * The reason is worded before the general code.
+ * Refusals that say why in a `reason`: a model that cannot be used, a
+ * creator's document that cannot be worked on (its details, or its timeline),
+ * and a reference that cannot be read or may not go with the request. The
+ * reason is worded before the general code.
  */
 const REASONED_CODES: ReadonlySet<string> = new Set([
   "generation_model_unusable",
   "generation_document_invalid",
+  "generation_reference_refused",
 ]);
 
 /**

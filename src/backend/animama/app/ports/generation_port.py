@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -40,7 +40,34 @@ class GenerationRepository(Protocol):
     async def get_conversation(self, *, owner_user_id: str, conversation_id: str) -> GenerationConversation | None: ...
 
     async def delete_conversation(self, *, owner_user_id: str, conversation_id: str) -> bool:
-        """Delete a conversation with its messages and drafts; ``False`` when there was none."""
+        """Delete a conversation with its messages, drafts and image links; ``False`` when there was none."""
+        ...
+
+    async def set_style_preset(
+        self, *, owner_user_id: str, conversation_id: str, style_preset: str | None
+    ) -> GenerationConversation | None:
+        """Store the conversation's style preset id, or clear it; ``None`` without the conversation.
+
+        Choosing a style is not writing to the conversation: ``updated_at``
+        stays as it was.
+        """
+        ...
+
+    async def link_reference_images(self, *, owner_user_id: str, conversation_id: str, file_ids: Sequence[str]) -> bool:
+        """Make the owner's image files the conversation's reference images; ``False`` without the conversation.
+
+        Only an id that names an image file of this owner that is not deleted
+        is linked. An image already linked stays linked once.
+        """
+        ...
+
+    async def image_file_ids_only_in_conversation(self, *, owner_user_id: str, conversation_id: str) -> list[str]:
+        """Return the conversation's reference images that nothing else uses, sorted.
+
+        An image is used elsewhere when another conversation links it, or a
+        message of one of the owner's chats attaches it. Read this before
+        deleting the conversation: its links go with it.
+        """
         ...
 
     async def add_message(
@@ -60,6 +87,14 @@ class GenerationRepository(Protocol):
         times, so reading them back keeps the order they were added in. A
         non-empty ``title`` names the conversation in the same transaction
         when it has no title yet, and is ignored once it has one.
+        """
+        ...
+
+    async def mark_images_sent(self, *, owner_user_id: str, message_id: str) -> bool:
+        """Record on the person's turn that a model request carried its images; ``False`` without the message.
+
+        Sets ``data.images_sent`` to true and leaves the rest of the turn as
+        it is.
         """
         ...
 

@@ -535,6 +535,16 @@ them too. The images are read before the chat or Anima is deleted and removed
 after that delete commits, each deleted and committed on its own, like a file
 the person removed.
 
+A content assistant conversation keeps its reference images through rows of
+`generation_reference_images`
+([data model](../architecture/data-model.md#content-assistant)). Both rules
+count them: deleting a chat or an Anima spares an image such a conversation
+still links, and discarding a conversation deletes the images it links
+unless another conversation links them or a chat message references them.
+Both are repository queries (`image_file_ids_only_in_chat`,
+`image_file_ids_only_in_anima_chats` and
+`image_file_ids_only_in_conversation`).
+
 Pending uploads can be aborted with `DELETE /v1/files/uploads/{file_id}`. If the
 browser PUT fails, the pending row remains until abort or expiry cleanup is
 added later.

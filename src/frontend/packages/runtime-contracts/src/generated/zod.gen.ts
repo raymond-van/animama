@@ -3410,6 +3410,41 @@ export const zPyGenerationConversationList = z.object({
 });
 
 /**
+ * PyGenerationReferenceImage
+ *
+ * One of the person's own images given with a request, by the id its upload got (``/v1/files``).
+ *
+ * ``kind`` says what the image is: a picture, or ``video_frames`` for one
+ * strip of frames the page sampled from a short local video, in time order
+ * from left to right. The video itself is never uploaded.
+ */
+export const zPyGenerationReferenceImage = z.object({
+    file_id: z.string().min(1).max(255),
+    kind: z.optional(z.enum(['image', 'video_frames']))
+});
+
+/**
+ * PyGenerationReferences
+ *
+ * What a request carries besides its words. Every part is the person's own content, named by id.
+ *
+ * ``starting_point`` is a Gesture in the caller's Library whose clip the
+ * new draft starts as; only a request for a new Gesture on the Generate
+ * page takes one. ``examples`` are Library Gestures shown to the model as
+ * examples of the feel. ``images`` are the caller's own uploaded images.
+ * The backend reads each itself and refuses what may not be read: no clip,
+ * text or image bytes are taken from this body.
+ */
+export const zPyGenerationReferences = z.object({
+    examples: z.optional(z.array(z.string().min(1).max(255)).max(3)),
+    images: z.optional(z.array(zPyGenerationReferenceImage).max(4)),
+    starting_point: z.optional(z.union([
+        z.string().min(1).max(255),
+        z.null()
+    ]))
+});
+
+/**
  * PyGenerationRunRequest
  *
  * One request to the assistant.
@@ -3426,7 +3461,8 @@ export const zPyGenerationConversationList = z.object({
  * names of the chosen preview Avatar's expressions: names only, which reach
  * the model as data. ``reasoning_effort`` is one of the model row's listed
  * levels, applied to every model request of the run; without it the model's
- * default applies.
+ * default applies. ``references`` name the Library Gestures and the
+ * person's own images given with the request.
  */
 export const zPyGenerationRunRequest = z.object({
     answers: z.optional(z.union([
@@ -3450,6 +3486,10 @@ export const zPyGenerationRunRequest = z.object({
     model_provider_id: z.string().min(1).max(255),
     reasoning_effort: z.optional(z.union([
         z.string().min(1).max(32),
+        z.null()
+    ])),
+    references: z.optional(z.union([
+        zPyGenerationReferences,
         z.null()
     ])),
     ui_locale: z.optional(z.union([
@@ -3522,6 +3562,21 @@ export const zPyGenerationConversationSnapshot = z.object({
     drafts: z.array(zPyGenerationDraft),
     messages: z.array(zPyGenerationMessage),
     usage: zPyGenerationConversationUsage
+});
+
+/**
+ * PyGenerationStylePreset
+ *
+ * The style preset chosen for a conversation: one of the backend's preset ids, or ``null`` for none.
+ *
+ * Only the id is taken. The sentence a preset adds to the assistant's
+ * instructions is the backend's own.
+ */
+export const zPyGenerationStylePreset = z.object({
+    style_preset: z.union([
+        z.string().min(1).max(64).regex(/^[a-z0-9_]+$/),
+        z.null()
+    ])
 });
 
 /**
@@ -9025,6 +9080,19 @@ export const zRunGenerationSseV1GenerationConversationsConversationIdRunsSsePost
     }),
     query: z.optional(z.never())
 });
+
+export const zSetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutData = z.object({
+    body: zPyGenerationStylePreset,
+    path: z.object({
+        conversation_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSetGenerationStylePresetV1GenerationConversationsConversationIdStylePresetPutResponse = zPyGenerationConversation;
 
 export const zDeleteGenerationDraftV1GenerationDraftsDraftIdDeleteData = z.object({
     body: z.optional(z.never()),

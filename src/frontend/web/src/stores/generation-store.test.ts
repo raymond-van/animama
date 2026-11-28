@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { privateStateResets } from "@/app/runtime/private-module-state";
 import { generationDraft } from "@/ui/generate/testing/generationFixtures";
+import type { GenerationRunReferences } from "@/ui/generate/references/generationReferences";
 import {
   IDLE_GENERATION_RUN,
   applyGenerationRunEvent,
@@ -26,6 +27,11 @@ const REQUEST: GenerationRunRequest = {
   message: "a shy wave",
   draftId: null,
   answers: null,
+};
+const REFERENCES: GenerationRunReferences = {
+  startingPoint: { itemId: "wave", name: "Wave Hello" },
+  examples: [{ itemId: "bow", name: "Deep Bow" }],
+  images: [{ fileId: "file-1", name: "pose.png", kind: "image" }],
 };
 const FAILURE: GenerationRunFailure = {
   code: "generation_request_failed",
@@ -59,6 +65,26 @@ describe("a conversation's run state", () => {
     );
     // Another conversation runs independently.
     expect(beginGenerationRun("conversation-2", REQUEST)).toBe(true);
+  });
+
+  it("shows the person's turn with the references it carried", () => {
+    beginGenerationRun("conversation-1", {
+      ...REQUEST,
+      references: REFERENCES,
+    });
+    expect(generationRunState("conversation-1").pendingTurn).toEqual({
+      message: "a shy wave",
+      draftId: null,
+      text: "",
+      references: REFERENCES,
+    });
+    // A request without any shows none.
+    beginGenerationRun("conversation-2", REQUEST);
+    expect(generationRunState("conversation-2").pendingTurn).toEqual({
+      message: "a shy wave",
+      draftId: null,
+      text: "",
+    });
   });
 
   it("clears what the last run left when the next one starts", () => {
@@ -269,6 +295,41 @@ describe("reduceGenerationRunEvent", () => {
     expect(text.pendingTurn?.text).toBe("A shy wave.");
   });
 
+  it("keeps the references of the request its questions are about", () => {
+    const asked = [{ question: "Which hand?", options: ["Right", "Left"] }];
+    expect(
+      reduceGenerationRunEvent(
+        running,
+        { type: "questions", questions: asked },
+        { ...REQUEST, references: REFERENCES },
+      ).questions,
+    ).toEqual({
+      questions: asked,
+      request: { message: "a shy wave", draftId: null, references: REFERENCES },
+    });
+    // A request without references is sent again without any.
+    expect(
+      reduceGenerationRunEvent(
+        running,
+        { type: "questions", questions: asked },
+        REQUEST,
+      ).questions?.request,
+    ).toEqual({ message: "a shy wave", draftId: null });
+  });
+
+  it("keeps the kind of the request its questions are about", () => {
+    // Answered in the same session, the request goes out again as it was
+    // asked: a Reaction stays a Reaction.
+    const asked = [{ question: "How strong?", options: ["Mild", "Strong"] }];
+    expect(
+      reduceGenerationRunEvent(
+        running,
+        { type: "questions", questions: asked },
+        { ...REQUEST, intent: "reaction" },
+      ).questions?.request,
+    ).toEqual({ message: "a shy wave", draftId: null, intent: "reaction" });
+  });
+
   it("ignores an empty set of questions", () => {
     expect(
       reduceGenerationRunEvent(
@@ -332,6 +393,41 @@ describe("reduceGenerationRunEvent", () => {
     expect(generationRunState("conversation-1").draftStored).toBe(true);
     beginGenerationRun("conversation-1", REQUEST);
     expect(generationRunState("conversation-1").draftStored).toBe(false);
+  });
+
+  it("does not take a planned item, which has nothing written yet, for a stored draft", () => {
+    // A batch's plan arrives as one empty draft an item; none of them is a draft to keep.
+    const planned = reduceGenerationRunEvent(
+      running,
+      {
+        type: "draft.updated",
+        draft: generationDraft({ status: "writing", project: null }),
+      },
+      REQUEST,
+    );
+    expect(planned.draftStored).toBe(false);
+    // The first item written is one.
+    const written = reduceGenerationRunEvent(
+      planned,
+      { type: "draft.updated", draft: generationDraft({ id: "draft-2" }) },
+      REQUEST,
+    );
+    expect(written.draftStored).toBe(true);
+    // And it stays one when a later item fails with nothing written.
+    expect(
+      reduceGenerationRunEvent(
+        written,
+        {
+          type: "draft.updated",
+          draft: generationDraft({
+            id: "draft-3",
+            status: "failed",
+            project: null,
+          }),
+        },
+        REQUEST,
+      ).draftStored,
+    ).toBe(true);
   });
 
   it("records the run's token use, or none when the final frame names none", () => {

@@ -104,6 +104,7 @@
     "voice_preset_unavailable": "利用可能な PocketTTS の音声を選んでください。"
   },
   "generation": {
+    "attached_image_unavailable": "添付した画像は利用できなくなりました。もう一度添付して、リクエストを送り直してください。",
     "generation_batch_time_limit": "このリクエストの制限時間を超えました。完了した下書きは保持されます。",
     "generation_document_invalid": "このアイテムは現在の状態ではアシスタントで扱えません。タイムラインに問題がないか確認して、もう一度お試しください。",
     "generation_document_invalid_details": "名前、説明、セレクター ID、または推奨の感情に問題があるため、アシスタントはこのアイテムを扱えません。確認してからもう一度お試しください。",
@@ -125,10 +126,20 @@
     "generation_not_found": "この会話または下書きはもう存在しません。",
     "generation_nothing_to_restore": "この下書きには復元できる以前のバージョンがありません。",
     "generation_reasoning_effort_unsupported": "選択したモデルは、この推論の強さではアシスタントを実行できません。別の強さか、別のモデルを選んでください。",
+    "generation_reference_refused": "アシスタントは、選択した参照を使用できませんでした。その参照を外して、リクエストを送り直してください。",
+    "generation_reference_refused_invalid": "開始元として選択したジェスチャーは、現在の状態では使用できません。別のジェスチャーを選んで、リクエストを送り直してください。",
+    "generation_reference_refused_non_portable": "参照として選択したジェスチャーは、このアプリ内でのみ使用できる同梱コンテンツのため、アシスタントは読み取れません。別のジェスチャーを選んで、リクエストを送り直してください。",
+    "generation_reference_refused_not_a_clip": "参照として選択したジェスチャーはインポートされたアニメーションのため、アシスタントは読み取れません。別のジェスチャーを選んで、リクエストを送り直してください。",
+    "generation_reference_refused_not_allowed": "開始元のジェスチャーを指定できるのは、新しいジェスチャーの下書きを作成するリクエストだけです。開始元を外して、リクエストを送り直してください。",
+    "generation_reference_refused_not_found": "参照として選択したジェスチャーは、ライブラリにもうありません。別のジェスチャーを選んで、リクエストを送り直してください。",
+    "generation_reference_refused_too_large": "例のジェスチャーが、1 回のリクエストでアシスタントに見せられる量を超えています。例を減らすか短いものにして、リクエストを送り直してください。",
+    "generation_reference_refused_unavailable": "ライブラリを読み込めなかったため、アシスタントは参照を使用できませんでした。もう一度お試しください。",
     "generation_request_failed": "リクエストがアシスタントに届きませんでした。もう一度お試しください。",
     "generation_run_failed": "アシスタントで予期しない問題が発生しました。もう一度お試しください。",
     "generation_run_in_progress": "アシスタントはこの会話でまだ作業中です。完了を待つか、先に停止してください。",
-    "generation_stream_interrupted": "アシスタントが完了する前に接続が切れました。保存済みの下書きは保持されています。"
+    "generation_stream_interrupted": "アシスタントが完了する前に接続が切れました。保存済みの下書きは保持されています。",
+    "too_many_images": "このリクエストには画像が多すぎます。画像を減らして送り直してください。",
+    "uploads_unavailable": "保存したファイルに今アクセスできないため、アシスタントは画像を読み取れませんでした。少し待ってからもう一度お試しください。"
   },
   "generic": {
     "unexpected": "問題が発生しました。もう一度お試しください。",

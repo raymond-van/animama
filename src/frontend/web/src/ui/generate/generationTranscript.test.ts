@@ -5,6 +5,7 @@ import {
   generationTranscript,
 } from "./generationTranscript";
 import {
+  generationDraft,
   generationMessage,
   generationSnapshot,
 } from "./testing/generationFixtures";
@@ -152,6 +153,9 @@ describe("generationTranscript", () => {
         answers: null,
         errorCode: null,
         runId: null,
+        batchDraftIds: [],
+        references: null,
+        imagesSent: true,
       },
       {
         id: "pending:assistant",
@@ -164,8 +168,76 @@ describe("generationTranscript", () => {
         answers: null,
         errorCode: null,
         runId: null,
+        batchDraftIds: [],
+        references: null,
+        imagesSent: true,
       },
     ]);
+  });
+
+  it("shows the references a turn carried, stored or still in flight", () => {
+    const references = {
+      startingPoint: { itemId: "wave", name: "Wave Hello" },
+      examples: [{ itemId: "bow", name: "Deep Bow" }],
+      images: [
+        {
+          fileId: "file-1",
+          name: "pose.png",
+          kind: "image" as const,
+          width: 640,
+          height: 480,
+        },
+      ],
+    };
+    const transcript = generationTranscript(
+      generationSnapshot({
+        messages: [
+          generationMessage({
+            id: "m1",
+            text: "a wave like this",
+            data: {
+              references: {
+                starting_point: { item_id: "wave", name: "Wave Hello" },
+                examples: [{ item_id: "bow", name: "Deep Bow" }],
+              },
+              images: [
+                {
+                  file_id: "file-1",
+                  name: "pose.png",
+                  width: 640,
+                  height: 480,
+                  kind: "image",
+                },
+              ],
+              images_sent: false,
+            },
+          }),
+          generationMessage({ id: "m2", role: "assistant", text: "A wave." }),
+        ],
+      }),
+      {
+        running: true,
+        pendingTurn: {
+          message: "and a bow",
+          draftId: null,
+          text: "",
+          references: { ...references, startingPoint: null, images: [] },
+        },
+      },
+    );
+    expect(transcript[0]).toMatchObject({ references, imagesSent: false });
+    // An assistant's turn carries none.
+    expect(transcript[1]).toMatchObject({ references: null, imagesSent: true });
+    expect(transcript[2]).toMatchObject({
+      id: "pending:user",
+      references: {
+        startingPoint: null,
+        examples: [{ itemId: "bow", name: "Deep Bow" }],
+        images: [],
+      },
+      imagesSent: true,
+    });
+    expect(transcript[3]!.references).toBeNull();
   });
 
   it("does not show the request twice when a read during the run already holds it", () => {
@@ -288,6 +360,43 @@ describe("failedRunStoredDraft", () => {
         run(false),
         failedTurn({ run_id: undefined, draft_id: "draft-1" }),
       ),
+    ).toBe(false);
+  });
+
+  it("is false when the drafts the failed run's turn names hold nothing", () => {
+    // A batch ended by a failure every item would meet: the one item it kept failed with nothing written.
+    const turn = failedTurn({
+      draft_id: "draft-1",
+      batch: [
+        { draft_id: "draft-1", intent: "gesture", brief: "a wave" },
+        { draft_id: "draft-2", intent: "gesture", brief: "a bow" },
+      ],
+    });
+    const empty = generationDraft({ status: "failed", project: null });
+    expect(failedRunStoredDraft(run(false), turn, [empty])).toBe(false);
+    // The named draft is gone altogether.
+    expect(failedRunStoredDraft(run(false), turn, [])).toBe(false);
+  });
+
+  it("is true when any draft of the failed run's batch holds a project", () => {
+    const turn = failedTurn({
+      draft_id: "draft-1",
+      batch: [
+        { draft_id: "draft-1", intent: "gesture", brief: "a wave" },
+        { draft_id: "draft-2", intent: "gesture", brief: "a bow" },
+      ],
+    });
+    expect(
+      failedRunStoredDraft(run(false), turn, [
+        generationDraft({ status: "failed", project: null }),
+        generationDraft({ id: "draft-2" }),
+      ]),
+    ).toBe(true);
+    // Another run's draft does not count.
+    expect(
+      failedRunStoredDraft(run(false), turn, [
+        generationDraft({ id: "draft-9" }),
+      ]),
     ).toBe(false);
   });
 });

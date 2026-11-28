@@ -3559,6 +3559,7 @@ export default interface Resources {
       "voice_preset_unavailable": "Choose an available PocketTTS voice."
     },
     "generation": {
+      "attached_image_unavailable": "An image you attached is no longer available. Attach it again and send your request again.",
       "generation_batch_time_limit": "The assistant ran out of time for this request. Drafts finished so far are kept.",
       "generation_document_invalid": "The assistant cannot work on this item as it stands. Check the timeline for problems, then try again.",
       "generation_document_invalid_details": "The assistant cannot work on this item because of its name, description, Selector ID or suggested emotion. Check them, then try again.",
@@ -3580,10 +3581,20 @@ export default interface Resources {
       "generation_not_found": "This conversation or draft no longer exists.",
       "generation_nothing_to_restore": "This draft has no earlier version to restore.",
       "generation_reasoning_effort_unsupported": "The chosen model cannot run the assistant at this reasoning effort. Choose another level or another model.",
+      "generation_reference_refused": "The assistant could not use a reference you chose. Send your request again without it.",
+      "generation_reference_refused_invalid": "The Gesture you chose to start from cannot be used as it stands. Choose another and send your request again.",
+      "generation_reference_refused_non_portable": "A Gesture you chose as a reference is included for use in this app only, so the assistant cannot read it. Choose another and send your request again.",
+      "generation_reference_refused_not_a_clip": "A Gesture you chose as a reference is an imported animation, which the assistant cannot read. Choose another and send your request again.",
+      "generation_reference_refused_not_allowed": "A Gesture to start from can only go with a request for a new Gesture draft. Send your request again without it.",
+      "generation_reference_refused_not_found": "A Gesture you chose as a reference is no longer in your Library. Choose another and send your request again.",
+      "generation_reference_refused_too_large": "The example Gestures are more than one request can show the assistant. Send your request again with fewer or shorter examples.",
+      "generation_reference_refused_unavailable": "Your Library could not be read, so the assistant could not use your references. Try again.",
       "generation_request_failed": "The request did not reach the assistant. Try again.",
       "generation_run_failed": "The assistant ran into an unexpected problem. Try again.",
       "generation_run_in_progress": "The assistant is still working on this conversation. Wait for it to finish or stop it first.",
-      "generation_stream_interrupted": "The connection was lost before the assistant finished. Drafts it had stored are kept."
+      "generation_stream_interrupted": "The connection was lost before the assistant finished. Drafts it had stored are kept.",
+      "too_many_images": "This request carries too many images. Send it again with fewer.",
+      "uploads_unavailable": "Your stored files cannot be reached right now, so the assistant could not read your images. Try again in a moment."
     },
     "generic": {
       "unexpected": "Something went wrong. Try again.",
@@ -3879,13 +3890,35 @@ export default interface Resources {
       "discard": {
         "cancel": "Cancel",
         "confirm": "Discard conversation",
-        "description": "Its messages and unsaved drafts are removed. Items you saved stay in your Library. This cannot be undone.",
+        "description": "Its messages and unsaved drafts are removed, along with any images only this conversation uses. Items you saved stay in your Library. This cannot be undone.",
         "title": "Discard this conversation?"
       },
       "discardConversation": "Discard this conversation…",
       "newConversation": "New conversation",
       "untitled": "New conversation",
       "waitForRun": "Available when the assistant has finished."
+    },
+    "inspirations": {
+      "description": "Ideas for your next request. Nothing here is sent until you send it.",
+      "images": {
+        "attached": "Attached",
+        "empty": "You have no images yet. Images you add to a request or a chat appear here.",
+        "failed": "Your images could not be loaded.",
+        "hint": "Choose an image to attach it as a reference. Choose it again to take it off.",
+        "loading": "Loading your images…",
+        "title": "Your images"
+      },
+      "included": {
+        "added": "Added {{name}} as an example of the feel.",
+        "hint": "Choose a Gesture to add it as an example of the feel.",
+        "none": "None of these Gestures are in your Library.",
+        "title": "From Animama's Included content"
+      },
+      "open": "Inspirations",
+      "starters": {
+        "hint": "Choose one to put it in the request field, then edit it as you like."
+      },
+      "title": "Inspirations"
     },
     "model": {
       "chooseFailed": "The model choice could not be saved.",
@@ -3949,6 +3982,46 @@ export default interface Resources {
       "submit": "Send answers",
       "title": "The assistant has a few questions"
     },
+    "references": {
+      "examples": {
+        "add": "Example of the feel",
+        "choose": "Add an example of the feel from your Library",
+        "full": "A request takes up to {{max}} examples. Remove one to add another.",
+        "label": "Examples",
+        "listLabel": "Examples of the feel",
+        "remove": "Remove {{name}} from the examples"
+      },
+      "images": {
+        "add": "Add images",
+        "unused": "This model cannot look at images. They are kept with this conversation, but the assistant does not use them."
+      },
+      "label": "References for your next message",
+      "missing": "No longer in your Library",
+      "picker": {
+        "chosen": "Already chosen",
+        "included": "Included",
+        "loading": "Loading Gestures…",
+        "local": "Local",
+        "noResults": "No Gestures found.",
+        "retry": "Try again",
+        "search": "Search Gestures…",
+        "unavailable": "Gestures could not be loaded."
+      },
+      "startingPoint": {
+        "add": "Start from a Gesture",
+        "choose": "Start from a Gesture in your Library",
+        "label": "Starts from",
+        "listLabel": "Starting point",
+        "remove": "Remove {{name}} as the starting point"
+      },
+      "unnamed": "Unnamed Gesture",
+      "video": {
+        "add": "Add video",
+        "rejected": "Video not added",
+        "tooLong": "A video longer than {{seconds}} seconds cannot be used as a reference. Trim it and try again.",
+        "unreadable": "This video could not be read. Try another file or format."
+      }
+    },
     "setup": {
       "claudeNote": "A Claude API key works too. Add it, or any other model that can call tools, under model connections in App Settings → Models.",
       "description": "The assistant writes Gestures from a request in words, then checks and repairs them. It needs a model that can call tools.",
@@ -3961,6 +4034,33 @@ export default interface Resources {
       "otherTitle": "Other models",
       "title": "Set up Generate"
     },
+    "starters": {
+      "items": {
+        "fistPump": "A proud fist pump",
+        "heartyLaugh": "A hearty laugh with the whole body",
+        "shyWave": "A shy little wave with a small smile",
+        "surpriseReaction": "A Reaction: wide-eyed surprise",
+        "thinkingHold": "Thinking with a hand on the chin, held while the Anima thinks",
+        "threeGreetings": "Three greetings: a wave, a bow and a salute"
+      },
+      "label": "Prompt starters"
+    },
+    "style": {
+      "failure": {
+        "notSaved": "The style could not be saved, so it is as it was.",
+        "retry": "Try again.",
+        "unknown": "This style is not available here. Choose another."
+      },
+      "label": "Style",
+      "none": "None",
+      "presets": {
+        "animeExpressive": "Expressive anime",
+        "coolComposed": "Cool and composed",
+        "cutePlayful": "Cute and playful",
+        "dramaticTheatrical": "Dramatic and theatrical",
+        "softNatural": "Soft and natural"
+      }
+    },
     "transcript": {
       "answer": "{{question}} — {{answer}}",
       "emptyDescription": "Say what the Avatar should do, such as “a shy little wave”. The assistant writes a draft, checks it and plays it in the preview.",
@@ -3968,6 +4068,12 @@ export default interface Resources {
       "failed": "The assistant could not finish this request.",
       "loadFailed": "This conversation could not be loaded.",
       "loading": "Loading the conversation…",
+      "references": {
+        "examples": "Examples of the feel: {{names, list}}",
+        "imagesUnused": "These images were not sent to the model.",
+        "label": "References sent with this message",
+        "startingPoint": "Starts from {{name}}"
+      },
       "scrollToLatest": "Scroll to the latest message",
       "skippedQuestions": "Skipped the questions.",
       "stopped": "Stopped. Drafts finished so far are kept."

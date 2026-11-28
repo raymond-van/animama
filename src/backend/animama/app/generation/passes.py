@@ -45,7 +45,9 @@ from animama.domain import ModelProvider
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
+from . import prompts
 from .draft_validation import Intent, SelectorInUse
+from .references import MAX_REFERENCE_IMAGES, ReferenceImage
 from .review_frames import ReviewSheet
 from .tools import (
     MAX_TOOL_ROUNDS,
@@ -80,7 +82,9 @@ class PassSpec:
     resolve a stored response: no round of this pass then names one, and
     each carries the whole exchange.
     ``selector_in_use`` and ``example_reader`` are what the tools may ask of
-    the owner's Library (see ``tools.run_tool``).
+    the owner's Library (see ``tools.run_tool``). ``reference_images`` are
+    the person's own images for the request, which only a write or revise
+    pass carries; one without bytes (the model takes no images) is not sent.
     """
 
     kind: PassKind
@@ -96,6 +100,7 @@ class PassSpec:
     effects: bool = False
     selector_in_use: SelectorInUse | None = None
     example_reader: ExampleReader | None = None
+    reference_images: tuple[ReferenceImage, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -150,19 +155,36 @@ def pass_request(spec: PassSpec, intent: Intent, held: frozenset[str] = frozense
     image parts of the user message, the only place model adapters read
     images, with their bytes on the request itself; they never get an id
     outside it.
+
+    A write or revise pass's reference images ride the same way (spec R8.2):
+    the stored copies' bytes on the request, under ids and names made here,
+    so neither the person's file names nor their file ids reach a provider.
+    The message then says what the images are (``prompts.reference_images_text``).
     """
 
     if spec.sheets and spec.kind != "review":
         raise ValueError("Only a review pass carries contact sheets")
+    if spec.reference_images and spec.kind not in ("write", "revise"):
+        raise ValueError("Only a write or revise pass carries reference images")
     content: str | list[dict[str, Any]] = spec.message
     images: dict[str, ModelClientImage] = {}
+    parts: list[dict[str, Any]] = []
     if spec.sheets:
-        parts: list[dict[str, Any]] = []
         for number, sheet in enumerate(spec.sheets, start=1):
             file_id = f"review-sheet-{number}"
             parts.append(image_part(file_id=file_id, name=f"sheet-{number}", width=sheet.width, height=sheet.height))
             images[file_id] = ModelClientImage(media_type=sheet.media_type, content=sheet.content)
         content = [*parts, {"type": "text", "text": spec.message}]
+    sent = [image for image in spec.reference_images if image.content is not None][:MAX_REFERENCE_IMAGES]
+    if sent:
+        for number, image in enumerate(sent, start=1):
+            file_id = f"reference-image-{number}"
+            parts.append(
+                image_part(file_id=file_id, name=f"reference-{number}", width=image.width, height=image.height)
+            )
+            images[file_id] = ModelClientImage(media_type=image.media_type, content=cast(bytes, image.content))
+        about = prompts.reference_images_text([image.kind for image in sent])
+        content = [*parts, {"type": "text", "text": f"{spec.message}\n\n{about}"}]
     return ModelClientRequest(
         model_provider=spec.model_provider,
         prompt=DirectChatPrompt(

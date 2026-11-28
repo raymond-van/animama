@@ -394,6 +394,12 @@ GENERATION_ROUTES = [
     # Reading may settle a draft a run abandoned, so this one commits.
     ("GET", "/v1/generation/conversations/{conversation_id}", "get_generation_conversation", "write"),
     ("DELETE", "/v1/generation/conversations/{conversation_id}", "delete_generation_conversation", "write"),
+    (
+        "PUT",
+        "/v1/generation/conversations/{conversation_id}/style-preset",
+        "set_generation_style_preset",
+        "write",
+    ),
     ("POST", "/v1/generation/conversations/{conversation_id}/runs:sse", "run_generation_sse", "stream"),
     ("PUT", "/v1/generation/drafts/{draft_id}/check-report", "record_generation_check_report", "write"),
     ("PUT", "/v1/generation/drafts/{draft_id}/review-frames", "upload_generation_review_frames", "write"),
@@ -472,6 +478,8 @@ def test_no_generation_route_takes_instructions_tools_or_model_output(studio: _S
     # Everything a caller can send, by route. A new field must be added here on purpose.
     assert {key: fields for key, fields in bodies.items() if fields} == {
         ("POST", "/v1/generation/conversations"): {"scope", "kind", "intent", "catalog_item_id"},
+        # The id of one of the backend's own presets: the sentence it adds is not the caller's.
+        ("PUT", "/v1/generation/conversations/{conversation_id}/style-preset"): {"style_preset"},
         ("POST", "/v1/generation/conversations/{conversation_id}/runs:sse"): {
             "message",
             "model_provider_id",
@@ -487,6 +495,14 @@ def test_no_generation_route_takes_instructions_tools_or_model_output(studio: _S
             # The item open in a creator, which the run revises. It is the person's content, validated as a
             # model's clip is; the instructions and the tools stay the backend's own.
             "document",
+            # What the request carries besides its words: ids of the person's own Library Gestures and
+            # uploaded images. The backend reads each itself; no clip, text or image bytes come from here.
+            "references",
+            "starting_point",
+            "examples",
+            "images",
+            "file_id",
+            "kind",
         },
         ("PUT", "/v1/generation/drafts/{draft_id}/check-report"): {
             "version",

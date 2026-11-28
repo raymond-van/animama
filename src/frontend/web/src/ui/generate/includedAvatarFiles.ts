@@ -39,12 +39,32 @@ export function isIncludedAvatarId(value: unknown): value is IncludedAvatarId {
 }
 
 /**
+ * The verified-byte descriptor of one file of an Included catalog item, or
+ * `null` when its digest is not one. The URL is built here rather than taken
+ * from the listing: it names the file's digest, and the backend serves that
+ * path only for an Included file with exactly those bytes. The caller checks
+ * that the item is Included.
+ */
+export function includedContentFile(
+  file: Pick<
+    NonNullable<PyAvatarContent["files"]>[number],
+    "file_ref" | "media_type" | "size_bytes" | "sha256"
+  >,
+): VerifiedByteMember | null {
+  if (!/^[0-9a-f]{64}$/.test(file.sha256)) return null;
+  return {
+    file_ref: file.file_ref,
+    url: `/v1/content/files/${encodeURIComponent(file.file_ref)}/sha256/${file.sha256}`,
+    media_type: file.media_type,
+    size_bytes: file.size_bytes,
+    sha256: file.sha256,
+  };
+}
+
+/**
  * The verified-byte descriptor of an Included Avatar's VRM file, or `null`
  * when `id` is not one of the two or the catalog lists no Included item with
- * that file. A Local item is never chosen, whatever its file is called. The
- * URL is built here rather than taken from the listing: it names the file's
- * digest, and the backend serves that path only for an Included file with
- * exactly those bytes.
+ * that file. A Local item is never chosen, whatever its file is called.
  */
 export function includedAvatarFile(
   id: string,
@@ -55,14 +75,8 @@ export function includedAvatarFile(
   for (const item of items) {
     if (item.source !== "included") continue;
     const file = item.files?.find((entry) => entry.filename === filename);
-    if (!file || !/^[0-9a-f]{64}$/.test(file.sha256)) continue;
-    return {
-      file_ref: file.file_ref,
-      url: `/v1/content/files/${encodeURIComponent(file.file_ref)}/sha256/${file.sha256}`,
-      media_type: file.media_type,
-      size_bytes: file.size_bytes,
-      sha256: file.sha256,
-    };
+    const member = file ? includedContentFile(file) : null;
+    if (member) return member;
   }
   return null;
 }

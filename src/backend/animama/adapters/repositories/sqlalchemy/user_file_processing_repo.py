@@ -729,7 +729,11 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
     async def _image_file_ids_only_in(
         self, *, inside: str, other_outside: str, user_id: str, scope_id: str
     ) -> list[str]:
-        """The image ids user messages inside a scope attach and no user message outside it does.
+        """The image ids user messages inside a scope attach and nothing outside it uses.
+
+        Outside the scope an image is used by a user message that attaches it, or by a
+        content assistant conversation that keeps it as a reference image
+        (``generation_reference_images``): such an image outlives the chat.
 
         ``inside`` and ``other_outside`` are fixed SQL predicates over ``message``/``chat``
         and ``other``/``other_chat``; only the bound ``scope_id`` comes from the caller.
@@ -763,6 +767,12 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                         AND other_chat.user_id = :user_id
                         AND other.message_data -> 'images'
                             @> jsonb_build_array(jsonb_build_object('file_id', image ->> 'file_id'))
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM generation_reference_images AS reference
+                      WHERE reference.file_id = image ->> 'file_id'
+                        AND reference.owner_user_id = :user_id
                   )
                 """
             ),

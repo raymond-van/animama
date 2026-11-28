@@ -9,7 +9,7 @@ Nothing here writes a Chat, a chat message, memory or an episode.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Collection, Iterator, Mapping
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import replace
 from typing import Any, Final, cast
@@ -34,6 +34,7 @@ from animama.domain.generation import (
 )
 
 from .check_report import final_status
+from .style_presets import GenerationStylePresetUnknownError, style_sentence
 
 MAX_TITLE_LENGTH = 80
 """The longest title a conversation is given from the person's first message."""
@@ -174,10 +175,69 @@ class GenerationService:
         drafts = await self._repository.list_drafts(owner_user_id=owner_user_id, conversation_id=conversation_id)
         return GenerationConversationSnapshot(conversation=conversation, messages=tuple(messages), drafts=tuple(drafts))
 
-    async def delete_conversation(self, owner_user_id: str, conversation_id: str) -> None:
-        """Delete a conversation with its messages and drafts."""
+    async def delete_conversation(self, owner_user_id: str, conversation_id: str) -> list[str]:
+        """Delete a conversation with its messages, drafts and image links.
 
+        Returns the ids of the reference images only this conversation used
+        (``image_file_ids_only_in_conversation``): no other conversation
+        links them and no chat message attaches them. They are read before
+        the delete, in its transaction, and are the caller's to delete as a
+        chat's own images are; the files themselves are not touched here.
+        """
+
+        orphaned = await self._repository.image_file_ids_only_in_conversation(
+            owner_user_id=owner_user_id, conversation_id=conversation_id
+        )
         if not await self._repository.delete_conversation(owner_user_id=owner_user_id, conversation_id=conversation_id):
+            raise GenerationNotFoundError
+        await self._uow.commit()
+        return orphaned
+
+    async def set_style_preset(
+        self, owner_user_id: str, conversation_id: str, style_preset: str | None
+    ) -> GenerationConversation:
+        """Choose the conversation's style preset by id, or clear it with ``None`` (spec R8.5).
+
+        Raises ``GenerationStylePresetUnknownError`` for an id that is not on
+        the backend's list: a preset is one of its fixed sentences, never
+        text of the caller's. The preset applies to the runs planned after
+        this, and stays until it is changed or cleared.
+        """
+
+        if style_preset is not None and style_sentence(style_preset) is None:
+            raise GenerationStylePresetUnknownError
+        conversation = await self._repository.set_style_preset(
+            owner_user_id=owner_user_id, conversation_id=conversation_id, style_preset=style_preset
+        )
+        if conversation is None:
+            raise GenerationNotFoundError
+        await self._uow.commit()
+        return conversation
+
+    async def link_reference_images(self, owner_user_id: str, conversation_id: str, file_ids: Sequence[str]) -> None:
+        """Keep the owner's image files with a conversation as its reference images (spec R8.2).
+
+        Only the owner's own image files are linked, whatever ids are named;
+        an image already linked stays linked once.
+        """
+
+        if not await self._repository.link_reference_images(
+            owner_user_id=owner_user_id, conversation_id=conversation_id, file_ids=file_ids
+        ):
+            raise GenerationNotFoundError
+        await self._uow.commit()
+
+    async def mark_images_sent(self, owner_user_id: str, message_id: str) -> None:
+        """Record on the person's turn that a model request carried its reference images.
+
+        A turn that attached images is stored with ``images_sent`` false. A
+        run calls this just before its first model request that holds them,
+        so the turn says they were sent only when a request carried them: not
+        under the deterministic author, not on a model that takes no images,
+        and not for a run that failed before it asked a model anything.
+        """
+
+        if not await self._repository.mark_images_sent(owner_user_id=owner_user_id, message_id=message_id):
             raise GenerationNotFoundError
         await self._uow.commit()
 
@@ -255,6 +315,34 @@ class GenerationService:
                 previous_project=draft.project,
                 project=dict(project),
                 version=draft.version + 1,
+                status="checking",
+                repair_count=0,
+                failure_reason=None,
+            )
+        )
+
+    async def store_starting_point(
+        self, owner_user_id: str, draft_id: str, start: Mapping[str, Any], project: Mapping[str, Any]
+    ) -> GenerationDraft:
+        """Store a new draft's starting point and the assistant's revision of it, as one change (spec R8.1).
+
+        ``start`` is the copy of the Library Gesture the person chose to
+        start from and ``project`` what a pass made of it. The copy is the
+        draft's first version and the revision its next: both are written in
+        one transaction, so a run that stops or fails here leaves a draft
+        that holds neither, never an unrevised copy that the run did not
+        report. ``restore_previous`` then returns to the Gesture itself. The
+        draft is left waiting for its checks.
+        """
+
+        draft = await self._locked_draft(owner_user_id, draft_id)
+        return await self._save(
+            replace(
+                draft,
+                previous_project=dict(start),
+                project=dict(project),
+                # Two versions at once: the copy's, which nobody was shown, and the revision's.
+                version=draft.version + 2,
                 status="checking",
                 repair_count=0,
                 failure_reason=None,

@@ -18,7 +18,6 @@ import {
   CreatorWorkspaceShell,
 } from "@/ui/content-creator";
 import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
-import { GenerateConversation } from "./GenerateConversation";
 import { GenerateDraftList } from "./GenerateDraftList";
 import { GenerateConversationMenu, GenerateHeader } from "./GenerateHeader";
 import { GenerateModelControl } from "./GenerateModelControl";
@@ -31,6 +30,7 @@ import {
 } from "./GeneratePreview";
 import { GenerateSetup } from "./GenerateSetup";
 import { draftBatchInfo } from "./generationBatch";
+import { GenerateConversationWithReferences } from "./references/GenerateConversationWithReferences";
 import { useDraftEffects, type DraftEffectsView } from "./useDraftEffects";
 import { useDraftWorker } from "./useDraftWorker";
 import {
@@ -201,9 +201,12 @@ function GenerateWorkspace({
           summary={title || t("header.untitled")}
           bodyClassName="flex flex-col overflow-hidden p-0"
         >
-          <GenerateConversation
-            // Another conversation starts with an empty request field.
+          <GenerateConversationWithReferences
+            // Another conversation starts with an empty request field and
+            // no references.
             key={conversationId ?? "none"}
+            conversationId={conversationId}
+            model={modelChoice.model}
             snapshot={snapshot}
             isLoading={opening}
             loadFailed={conversation.isError && !snapshot}

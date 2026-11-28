@@ -248,6 +248,20 @@ class SessionBackedChatImageLoader:
         return loaded
 
 
+def read_stored_image(storage: PrivateFileStorage, row: UserFile) -> ModelClientImage | None:
+    """One stored image as a model request carries it; ``None`` for a row that is not a ready image (blocking).
+
+    The rules a chat turn's images follow, for another caller that sends the
+    owner's images to a model: a ready image of a type model providers take,
+    whose stored bytes still match their record. Raises as the storage does
+    when the bytes cannot be read or no longer match.
+    """
+
+    if not _servable_image(row):
+        return None
+    return ModelClientImage(media_type=row.detected_content_type or "", content=_read_image(storage, row))
+
+
 def _servable_image(row: UserFile) -> bool:
     return (
         is_image_user_file(row)
@@ -274,4 +288,5 @@ __all__ = [
     "SessionBackedChatTurnRecorder",
     "SessionBackedMemoryEpisodeRecorder",
     "SessionBackedMemoryToolService",
+    "read_stored_image",
 ]

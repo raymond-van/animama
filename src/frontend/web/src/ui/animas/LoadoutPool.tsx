@@ -69,7 +69,9 @@ export type LoadoutPoolChoiceStatus = {
 /**
  * Searchable Add picker with Local and Included groups and a Preview per
  * choice. `onSelect` resolves whether the picker closes, so a section can
- * keep it open after a failed check.
+ * keep it open after a failed check. A page that cannot preview (one that
+ * holds the app's preview canvas itself) leaves `onPreview` out, and the
+ * choices show no Preview.
  */
 export function LoadoutPoolPicker<Item extends LoadoutPoolChoice>({
   addLabel,
@@ -106,7 +108,8 @@ export function LoadoutPoolPicker<Item extends LoadoutPoolChoice>({
   /** A secondary line, such as a Reaction's suggested cell. */
   detail?: (item: Item) => string | null;
   onSelect: (item: Item) => boolean | Promise<boolean>;
-  onPreview: (item: Item) => void;
+  /** Absent where the page cannot preview a choice. */
+  onPreview?: (item: Item) => void;
   onRetry: () => void;
 }) {
   const { t } = useTranslation("animas");
@@ -149,19 +152,21 @@ export function LoadoutPoolPicker<Item extends LoadoutPoolChoice>({
           ) : null}
         </span>
         {item.origin === "builtin" ? <StarterBadge /> : null}
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={t("actions.previewNamed", { name: item.name })}
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onPreview(item);
-          }}
-        >
-          <Play />
-        </Button>
+        {onPreview ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t("actions.previewNamed", { name: item.name })}
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onPreview(item);
+            }}
+          >
+            <Play />
+          </Button>
+        ) : null}
       </CommandItem>
     );
   };
@@ -231,8 +236,9 @@ export function LoadoutPoolPicker<Item extends LoadoutPoolChoice>({
 }
 
 /**
- * One member of a cell: its name, an optional badge, Preview, and Remove when
- * the cell owns it. An unavailable member stays visible so it can be removed.
+ * One member of a cell: its name, an optional badge, Preview (where the page
+ * can preview), and Remove when the cell owns it. An unavailable member stays
+ * visible so it can be removed.
  */
 export function LoadoutPoolMemberChip({
   member,
@@ -251,7 +257,8 @@ export function LoadoutPoolMemberChip({
   /** Where an inherited member comes from; it shows dashed, without Remove. */
   inheritedFrom?: string;
   disabled?: boolean;
-  onPreview: () => void;
+  /** Absent where the page cannot preview a member. */
+  onPreview?: () => void;
   /** Absent for a member the cell does not own. */
   onRemove?: () => void;
 }) {
@@ -276,17 +283,19 @@ export function LoadoutPoolMemberChip({
       {inheritedFrom ? (
         <span className="text-2xs shrink-0">{inheritedFrom}</span>
       ) : null}
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className="size-6"
-        disabled={!member.available}
-        aria-label={t("actions.previewNamed", { name: member.name })}
-        onClick={onPreview}
-      >
-        <Play />
-      </Button>
+      {onPreview ? (
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="size-6"
+          disabled={!member.available}
+          aria-label={t("actions.previewNamed", { name: member.name })}
+          onClick={onPreview}
+        >
+          <Play />
+        </Button>
+      ) : null}
       {onRemove ? (
         <Button
           type="button"
