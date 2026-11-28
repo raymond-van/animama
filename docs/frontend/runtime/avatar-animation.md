@@ -911,12 +911,16 @@ content assistant's conversation about the open item in a panel that floats
 over the other panels and takes no part in their sizing; Escape closes it and
 returns focus to the control. A request revises the document as it stands,
 and the result comes back through the workspace's `applyAssistantResult`
-(`ui/action-editor/assistantDocument.ts`): it replaces the timeline, keeps
-the item's events, playback lifetime, dependencies and details, and is
-committed to the creator's history inside one group for the whole run, so a
-single Undo returns to the document from before the request. A result is
-refused when the timeline changed while the assistant worked. Nothing is
-saved until the creator's own Save
+(`ui/action-editor/assistantDocument.ts`): it replaces the timeline and
+keeps the item's events, playback lifetime, dependencies and details. A
+run's first result is committed to the creator's history as one entry
+(`commit`), and a later version of the same run, a repair or a review's
+edit, takes that entry's place (`replacePresent` in
+`ui/action-editor/assistantRun.ts`); no history group is held open, so a
+hand edit made meanwhile is an entry of its own. A single Undo therefore
+returns to the document from before the request. A result is refused when
+the timeline changed while the assistant worked, and when the item's kept
+events no longer fit it. Nothing is saved until the creator's own Save
 ([Content generation](../features/content-generation.md#in-a-creator)).
 
 For an Action implemented by an Anima Pose Clip, the Action display name is

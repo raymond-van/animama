@@ -66,7 +66,7 @@ default, and no run falls back to another model.
   | --- | --- |
   | Cannot call tools | does not support tool calling, which every pass uses. |
   | Cannot stream replies | does not stream. |
-  | Needs a context window of at least 64,000 tokens | records a smaller one. A pass sends 16,000 to 24,000 tokens and its tool rounds send the clip again. |
+  | Needs a context window of at least 64,000 tokens | records a smaller one. A pass sends 16,000 to 24,000 tokens of its own (the guidance, the clip and its findings) and its tool rounds send the clip again. References come on top: examples of the feel of up to 64 KiB (about 18,000 tokens), the effect listings a model asks for, and up to four images. |
   | Set its context window in App Settings → Models | is one of the owner's own models with no context window recorded yet, which chat needs too. |
   | Not available for direct chat yet | has no API the app can talk to, as in the chat's model picker. |
 
@@ -116,7 +116,10 @@ take function tools at no reasoning only.
 ### Token use and cost
 
 Once a run has made a model request, the model control shows the last run's
-input and output tokens and the open conversation's totals.
+input and output tokens and the open conversation's totals. Token counts
+cover the responses that completed: a request that was stopped, ran out of
+time or failed before its final response reported none, so its tokens are
+not in them.
 
 - **Key-based model with a listed price.** Each line ends with an estimated
   cost. The backend works it out from the prices the model had when the run
@@ -131,6 +134,11 @@ input and output tokens and the open conversation's totals.
   one. Token use still shows.
 - **Server that reports no token use.** The tokens shown for such a response
   are Animama's own rough count, and the run has no estimate.
+- **A request that never finished.** A run that was stopped, a batch ended
+  by its time limit, and a run in which a request failed have no estimate:
+  what the unfinished request used is not known, and an amount without it
+  would be an understated one. The tokens of the completed responses still
+  show.
 - **ChatGPT plan model.** Tokens only, with the plan notice in place of a
   cost. A plan run never gets an estimate, and no amount is shown at all
   while a plan model is chosen.
@@ -189,9 +197,16 @@ references again. Each turn shows what it carried.
   uploaded and stored exactly as a
   [chat image](user-file-uploads.md) is, with the same formats, size limit
   and refusals; an image can also be pasted into the request field. Send
-  waits while one uploads. On a model that cannot look at images the row
-  says so: the images are kept with the conversation and sent to no model.
-  The control needs the runtime's file uploads.
+  waits while one uploads. The control needs the runtime's file uploads.
+- **A model that cannot look at images takes none**, as in chat. While such
+  a model is chosen, **Add images** and **Add video** are disabled, the row
+  says why in chat's words, a pasted image is refused with chat's notice,
+  the Inspirations dialog offers none of the person's images, and nothing is
+  uploaded. Images attached before that model was chosen stay in the tray,
+  and the row says they are kept with the conversation and not used: the
+  request still names them, the backend links them and sends them to no
+  model, and the turn says so. Library Gestures are references on any
+  model.
 - **Style.** One of five named styles (expressive anime, soft and natural,
   cute and playful, cool and composed, dramatic and theatrical), or none. It
   is stored on the conversation, stays selected for every later request and
@@ -466,6 +481,11 @@ closed. The narrow layout and VRMA items have no control.
   returns to the document from before the request and Redo to the result.
   The result plays in the creator's own preview, and the review sheets are
   drawn on its canvas.
+- **A result the item's own events no longer fit is refused.** The item's
+  effects and sounds are put back on the result at the times they had. When
+  the result leaves no room for one (it ends before an effect starts, for
+  example), nothing is applied and the panel says so; the document stays as
+  it was.
 - **Edits made during a run.** A hand edit is an entry of its own, and a
   result is never put over a timeline that changed while the assistant
   worked. If the timeline is not what the run started from, or what its last
@@ -594,8 +614,14 @@ Requests go only to the provider of the chosen model. A run sends:
 - the reference images attached to the request, when the chosen model
   accepts images: the stored copies, which carry no metadata, without their
   file names. They are the person's own uploads and go only to the chosen
-  model's provider, with the write or revise request and each batch item's
-  write request. A model that accepts no images is sent none;
+  model's provider. A model that accepts no images is sent none;
+- the examples and the images ride on every authoring pass of the run: its
+  write or revise pass, and the write pass of each item of a batch, so a
+  batch of ten sends them eleven times. Within a pass, a route that keeps no
+  stored response to continue from (every route but an OpenAI API key's
+  Responses models, and those too once the provider no longer has the
+  response) carries them again on each tool round, up to eight a pass.
+  Repair and review passes carry neither;
 - the draft being revised or repaired, with the page's check findings as
   text; in a creator, the open item's timeline and details instead of a
   stored draft, without its effects and sounds. A draft always reaches the

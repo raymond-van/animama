@@ -1763,6 +1763,12 @@ test(`${REFERENCE_IMAGE_JOURNEY_KEY} @generate @surface-generate @channel-gestur
         page.getByTestId("generate-reference-attach"),
         "the local runtime offers uploads",
       ).toBeVisible();
+      // A model that cannot look at images takes none, so the control is
+      // then disabled and this journey has nothing to attach.
+      await expect(
+        page.getByTestId("generate-reference-attach"),
+        "the assistant's model accepts images",
+      ).toBeEnabled();
       const uploaded = page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&

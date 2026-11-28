@@ -20,7 +20,7 @@ clients raise it.
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from typing import Any, Final, Literal, cast
 
@@ -204,7 +204,13 @@ def pass_request(spec: PassSpec, intent: Intent, held: frozenset[str] = frozense
     )
 
 
-async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> AsyncGenerator[PassItem, None]:
+async def run_pass(
+    client: ModelClient,
+    spec: PassSpec,
+    draft: WorkingDraft,
+    *,
+    on_request: Callable[[], None] | None = None,
+) -> AsyncGenerator[PassItem, None]:
     """Run one pass on ``draft`` and yield what happens; the last item is its ``PassEnded``.
 
     Each round sends the request, forwards the response's text as it streams
@@ -221,6 +227,10 @@ async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> 
     names one. That refused request is not a response, so it is neither a
     round nor counted in the usage. With ``spec.stored_responses`` false the
     pass names no stored response from its start.
+
+    ``on_request`` is called just before each request leaves, the replay of
+    a refused round included, so the caller knows of a request that was
+    started whether or not a ``PassRound`` ever answers it.
     """
 
     offered = offered_tools(spec.kind, can_ask=spec.can_ask, can_plan=spec.can_plan, effects=spec.effects)
@@ -231,6 +241,8 @@ async def run_pass(client: ModelClient, spec: PassSpec, draft: WorkingDraft) -> 
         final: ModelClientFinal | None = None
         streamed, writing = False, False
         while True:
+            if on_request is not None:
+                on_request()
             stream = client.stream(request)
             try:
                 async for delta in stream:

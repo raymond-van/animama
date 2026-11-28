@@ -1,3 +1,4 @@
+import { useUppyState } from "@uppy/react";
 import { Film, ImagePlus } from "lucide-react";
 import { useId, useRef } from "react";
 import type { TFunction } from "i18next";
@@ -86,6 +87,7 @@ export function GenerateReferencesRow({
 }) {
   const { t } = useTranslation("generate");
   const limitId = useId();
+  const imagesNoteId = useId();
   const styleFailureId = useId();
   const styleFailed = style !== undefined && style.failure !== undefined;
   const imageInput = useRef<HTMLInputElement>(null);
@@ -192,7 +194,10 @@ export function GenerateReferencesRow({
               type="button"
               size="sm"
               variant="outline"
-              disabled={disabled}
+              // A model that cannot look at images takes none (R2.3); the
+              // note below says why.
+              disabled={disabled || images.unavailable !== null}
+              aria-describedby={images.unavailable ? imagesNoteId : undefined}
               data-testid="generate-reference-attach"
               className="shrink-0"
               onClick={() => imageInput.current?.click()}
@@ -220,7 +225,10 @@ export function GenerateReferencesRow({
               type="button"
               size="sm"
               variant="outline"
-              disabled={disabled || video.sampling}
+              disabled={
+                disabled || video.sampling || images?.unavailable != null
+              }
+              aria-describedby={images?.unavailable ? imagesNoteId : undefined}
               aria-busy={video.sampling}
               data-testid="generate-reference-video"
               className="shrink-0"
@@ -301,11 +309,47 @@ export function GenerateReferencesRow({
           uppy={images.uppy}
           existingFiles={images.existing}
           onRemoveExistingFile={images.removeExisting}
-          imageNote={
-            images.modelSeesImages ? null : t("references.images.unused")
-          }
+        />
+      ) : null}
+      {images && images.unavailable !== null ? (
+        <ReferenceImagesNote
+          id={imagesNoteId}
+          images={images}
+          unavailable={images.unavailable}
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * What the row says while the assistant's model cannot look at images: why
+ * none can be attached, in chat's words; or, while images attached before
+ * that model was chosen are still in the tray, that they are kept and not
+ * used. The attach controls are described by it.
+ */
+function ReferenceImagesNote({
+  id,
+  images,
+  unavailable,
+}: {
+  id: string;
+  images: NonNullable<GenerateReferencesController["images"]>;
+  unavailable: string;
+}) {
+  const { t } = useTranslation("generate");
+  const uploads = useUppyState(
+    images.uppy,
+    (state) => Object.keys(state.files).length,
+  );
+  const attached = uploads + images.existing.length > 0;
+  return (
+    <p
+      id={id}
+      data-testid="generate-reference-images-note"
+      className="text-muted-foreground text-xs"
+    >
+      {attached ? t("references.images.unused") : unavailable}
+    </p>
   );
 }

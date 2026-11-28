@@ -1274,7 +1274,7 @@ example `chatgpt_plan_not_signed_in` from a model refresh while signed out.
 ## Content Assistant
 
 Local composition only (`content_generation` capability). The assistant
-authors Gesture drafts in a conversation that is not a Chat: it has its own
+authors Gesture and Reaction drafts in a conversation that is not a Chat: it has its own
 [tables](data-model.md#content-assistant), no Anima, and nothing that chat
 lists, chat search, memory or Reflection reads. The backend builds every model
 request from its own instructions and tools. A caller sends the person's
@@ -1309,8 +1309,8 @@ reasons for the split are in
   messages, drafts, usage}`. A message is `{id, role, text, data,
   created_at}`; `data` holds what the turn carried besides text (`intent`,
   `draft_id`, `answers`, `references`, `images` and `images_sent` on the
-  person's turn; `run_id`, `outcome`, `usage`, `model`,
-  and where they apply `cost`, `draft_id`, `questions`, `error` and `batch`
+  person's turn; `run_id`, `outcome`, `usage`, `model`, and where they apply
+  `unfinished_requests`, `cost`, `draft_id`, `questions`, `error` and `batch`
   on the assistant's). A draft is described under [Drafts](#drafts) and `usage`
   under [Token use and cost](#token-use-and-cost). With no run in flight, a
   draft whose status does not describe it is settled before it is returned:
@@ -1406,6 +1406,111 @@ does not know:
 Otherwise the answer is `422 generation_document_invalid` with `reason`:
 `timeline`, `details`, or `document` for a wrong project schema or kind and
 for a document on a conversation that is not a creator's.
+
+Every pass that works on a draft (revise, repair, review) gives the model the
+draft's details and clip inside one tagged data block with `<` escaped, which
+the instructions define as data and never as instructions.
+
+`answers` is `{skipped}` or `{answers: [{question, answer}]}` for the questions
+the assistant last asked, with the request they were about sent again as
+`message`; questions are asked once for a request, a request that follows them
+counts as skipped when it carries no answers, and answers to questions nobody
+asked are ignored. A run that failed or was stopped before it stored a draft
+or a revision leaves the questions outstanding, so a retry sends the same
+`answers` again; one that stored its draft first has used them, and its turn
+names the draft (`draft_id`). Questions whose stream closed as they arrived
+are stored with the stopped run's turn and are answered the same way.
+`avatar_expressions` maps a family to the chosen preview Avatar's expression
+names. Only names are sent; at most 400 of at most 64 characters reach the
+model, as data. `reasoning_effort` is applied to every model request of the
+run, in the request option chat uses; without it the model's default applies.
+
+#### The model
+
+The model row must exist and be an active chat model that calls tools and
+streams, on an active connection, with room for a pass: a recorded context
+window of at least 64,000 tokens (`MIN_CONTEXT_WINDOW_TOKENS`), or none
+recorded where chat accepts that. Otherwise the answer is
+`422 generation_model_unusable` with `reason`:
+
+| `reason` | The model row |
+| --- | --- |
+| `not_found`, `inactive`, `connection_inactive` | is missing, turned off, or on a connection that is turned off. |
+| `not_chat_model` | is not a chat model. |
+| `tools_unsupported`, `streaming_unsupported` | cannot call tools, or cannot stream. |
+| `context_window_missing` | is the owner's own model with no context window recorded. |
+| `context_too_small` | records a context window under 64,000 tokens. |
+| `unsupported` | is one chat's own validator refuses on its connection. |
+| `no_model_client` | has no model client in this server. |
+
+No other model is used instead. `reasoning_effort` must be a level the model
+can run a pass at: one its row lists, and one its route takes with function
+tools (OpenAI's Chat Completions takes them on GPT-5.4 and later at `none`
+only). Otherwise the answer is `422 generation_reasoning_effort_unsupported`.
+A draft to revise must belong to the conversation (`404`) and, without a
+`document`, hold a project (`409 generation_draft_empty`).
+
+#### Passes and limits
+
+A run makes at most five model passes for a draft: one write or revise pass,
+three repair passes and one frame review, each at most eight model responses.
+It waits up to 120 seconds for a version's check report (then leaves the
+draft `warnings` with the report `{unchecked: true}`) and up to 60 seconds for
+review frames (then skips the review). Reports and review frames are keyed by
+draft and version, so two items of a batch that wait at once never take each
+other's. Closing the stream stops the run: its model requests are cancelled,
+a draft keeps its last stored project, and the conversation is free for the
+next run. Nothing restarts a stopped run.
+
+On an OpenAI API key's Responses models, a pass's later tool rounds name the
+response the provider stored (`previous_response_id`). When the provider
+cannot resolve it (`openai_previous_response_unresolvable`: the organisation
+stores no responses, or the response expired), the round is sent once more
+without the cursor, carrying the whole exchange, and no later round of the
+run names one, in that pass or the passes after it. A run for one draft
+therefore spends at most one refused request, and a batch at most two.
+Chat's own stale-cursor check decides
+(`should_retry_without_previous_response_id` in
+`app/model_clients/tool_rounds.py`). The refused request is no response: it
+is neither one of the pass's eight nor counted in `usage`, and it does not
+count as an unfinished request.
+
+#### The event stream
+
+The response is `text/event-stream`. Each frame has an `event` name and JSON
+`data`; a comment line (`: heartbeat`) follows every 15 seconds of silence.
+
+| Event | Data |
+| --- | --- |
+| `run.started` | `{run_id}` |
+| `progress` | `{phase, draft_id?}`; `phase` is `thinking`, `writing`, `checking`, `repairing` or `reviewing_frames` |
+| `message.delta` | `{text, draft_id?}`: more of the assistant's text; the pieces in order are the stored message. `draft_id` names the item when the text is one batch item's note, which begins with the draft's name |
+| `questions` | `{questions: [{question, options}]}`; the run ends here |
+| `batch.planned` | `{items: [{draft_id, intent, brief}]}`: the planned items in order, once their drafts exist; one `draft.updated` for each follows |
+| `draft.updated` | `{draft}`: the whole draft after a new version or status |
+| `frames.requested` | `{draft_id, version}`: upload the review frames of this version |
+| `item.failed` | `{draft_id, code, category, details}`: one item of a batch failed, as `run.failed` describes a run's failure; the run goes on |
+| `run.failed` | `{code, category, details}` |
+| `run.completed` | `{usage: {input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, requests}}` |
+
+Every event about a draft names it, so the page can follow the items of a
+batch: `progress`, `draft.updated` and `frames.requested` always did, and a
+planned item that has had no `progress` yet waits its turn. A run for one
+draft sends the frames it always sent. A page that does not know
+`batch.planned`, `item.failed` or the `draft_id` of a `message.delta` still
+sees every draft through `draft.updated`.
+
+`run.completed` is the last frame of every run the server ends, after
+`run.failed` when the run failed. When the stream itself fails (an event that
+cannot be sent, or a failure the run did not report), the run is stopped
+first and `run.completed` counts no tokens; the run's own count is in its
+stored message. A model failure carries the model client's own `code` and the
+`category` and connection `details` chat's error frame carries, so a usage
+limit, a missing key or an expired sign-in reads as it does in chat. The
+assistant's own failures have category `generation`
+(`generation_no_valid_draft`, `generation_not_found`,
+`generation_batch_time_limit`) or `internal`
+(`generation_run_failed`). The conversation and its drafts stay.
 
 #### Batches
 
@@ -1586,98 +1691,24 @@ offered and any event is refused. The creator's page keeps the open item's
 own events and dependencies off the request and puts them back on the
 result.
 
-Every pass that works on a draft (revise, repair, review) gives the model the
-draft's details and clip inside one tagged data block with `<` escaped, which
-the instructions define as data and never as instructions.
-`answers` is `{skipped}` or `{answers: [{question, answer}]}` for the questions
-the assistant last asked, with the request they were about sent again as
-`message`; questions are asked once for a request, a request that follows them
-counts as skipped when it carries no answers, and answers to questions nobody
-asked are ignored. A run that failed or was stopped before it stored a draft
-or a revision leaves the questions outstanding, so a retry sends the same
-`answers` again; one that stored its draft first has used them, and its turn
-names the draft (`draft_id`). Questions whose stream closed as they arrived
-are stored with the stopped run's turn and are answered the same way.
-`avatar_expressions` maps a family to the chosen preview Avatar's expression
-names. Only names are sent; at most 400 of at most 64 characters reach the
-model, as data. `reasoning_effort` is applied to every model request of the
-run, in the request option chat uses; without it the model's default applies.
+#### Without a model
 
-The model row must exist and be an active chat model that calls tools and
-streams, on an active connection, with room for a pass: a recorded context
-window of at least 64,000 tokens (`MIN_CONTEXT_WINDOW_TOKENS`), or none
-recorded where chat accepts that. Otherwise the answer is
-`422 generation_model_unusable` with `reason`:
-
-| `reason` | The model row |
-| --- | --- |
-| `not_found`, `inactive`, `connection_inactive` | is missing, turned off, or on a connection that is turned off. |
-| `not_chat_model` | is not a chat model. |
-| `tools_unsupported`, `streaming_unsupported` | cannot call tools, or cannot stream. |
-| `context_window_missing` | is the owner's own model with no context window recorded. |
-| `context_too_small` | records a context window under 64,000 tokens. |
-| `unsupported` | is one chat's own validator refuses on its connection. |
-| `no_model_client` | has no model client in this server. |
-
-No other model is used instead. `reasoning_effort` must be a level the model
-can run a pass at: one its row lists, and one its route takes with function
-tools (OpenAI's Chat Completions takes them on GPT-5.4 and later at `none`
-only). Otherwise the answer is `422 generation_reasoning_effort_unsupported`.
-A draft to revise must belong to the conversation (`404`) and, without a
-`document`, hold a project (`409 generation_draft_empty`).
-
-The response is `text/event-stream`. Each frame has an `event` name and JSON
-`data`; a comment line (`: heartbeat`) follows every 15 seconds of silence.
-
-| Event | Data |
-| --- | --- |
-| `run.started` | `{run_id}` |
-| `progress` | `{phase, draft_id?}`; `phase` is `thinking`, `writing`, `checking`, `repairing` or `reviewing_frames` |
-| `message.delta` | `{text, draft_id?}`: more of the assistant's text; the pieces in order are the stored message. `draft_id` names the item when the text is one batch item's note, which begins with the draft's name |
-| `questions` | `{questions: [{question, options}]}`; the run ends here |
-| `batch.planned` | `{items: [{draft_id, intent, brief}]}`: the planned items in order, once their drafts exist; one `draft.updated` for each follows |
-| `draft.updated` | `{draft}`: the whole draft after a new version or status |
-| `frames.requested` | `{draft_id, version}`: upload the review frames of this version |
-| `item.failed` | `{draft_id, code, category, details}`: one item of a batch failed, as `run.failed` describes a run's failure; the run goes on |
-| `run.failed` | `{code, category, details}` |
-| `run.completed` | `{usage: {input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, requests}}` |
-
-Every event about a draft names it, so the page can follow the items of a
-batch: `progress`, `draft.updated` and `frames.requested` always did, and a
-planned item that has had no `progress` yet waits its turn. A run for one
-draft sends the frames it always sent. A page that does not know
-`batch.planned`, `item.failed` or the `draft_id` of a `message.delta` still
-sees every draft through `draft.updated`.
-
-`run.completed` is the last frame of every run the server ends, after
-`run.failed` when the run failed. When the stream itself fails (an event that
-cannot be sent, or a failure the run did not report), the run is stopped
-first and `run.completed` counts no tokens; the run's own count is in its
-stored message. A model failure carries the model client's own `code` and the
-`category` and connection `details` chat's error frame carries, so a usage
-limit, a missing key or an expired sign-in reads as it does in chat. The
-assistant's own failures have category `generation`
-(`generation_no_valid_draft`, `generation_not_found`,
-`generation_batch_time_limit`) or `internal`
-(`generation_run_failed`). The conversation and its drafts stay.
-
-On an OpenAI API key's Responses models, a pass's later tool rounds name the
-response the provider stored (`previous_response_id`). When the provider
-cannot resolve it (`openai_previous_response_unresolvable`: the organisation
-stores no responses, or the response expired), the round is sent once more
-without the cursor, carrying the whole exchange, and no later round of the
-run names one, in that pass or the passes after it. A run for one draft
-therefore spends at most one refused request, and a batch at most two. Chat's own stale-cursor check decides
-(`should_retry_without_previous_response_id` in
-`app/model_clients/tool_rounds.py`). The refused request is no response: it
-is neither one of the pass's eight nor counted in `usage`.
+With `ANIMAMA_LLM_SKIP` set, a deterministic author stands in for every model
+pass: it submits a packaged example Gesture, or for a Reaction the packaged
+example Reaction, named after the request (without the punctuation a saved
+name cannot hold), lengthens the clip on a revision or repair, and accepts a
+review. A request with a starting point gets that Gesture's copy with the
+same fixed change, and reference images are sent to no model. Words in the
+request choose what journeys need: `batch of N` plans N items, `item K
+fails` makes item K of that plan fail to validate, and `with an effect`
+makes a Gesture list the Library's Avatar Effects and play the first.
 
 ### Token use and cost
 
 The conversation's `usage` is `{input_tokens, cached_input_tokens,
 output_tokens, reasoning_tokens, requests, runs, cost, cost_complete,
 last_run}`, added up from what its stored assistant turns recorded. `runs`
-counts those turns, and `requests` the model responses.
+counts those turns, and `requests` the model responses that completed.
 
 - `cost` is `{currency, amount}` or `null`. `amount` is a decimal string. A
   run's cost is estimated one response at a time, with
@@ -1688,33 +1719,22 @@ counts those turns, and `requests` the model responses.
   response, when no response arrived, and always on the ChatGPT plan. An
   Anthropic run's first response writes the prompt cache, so such a run
   usually has none.
-- The token counts add every response's figures. For a response whose
+- A run also gets no estimate when a request it started never returned a
+  final response: the run was stopped or a batch ran out of time while the
+  request was open, or the request failed. What that request used is not
+  known, so an amount without it would be understated. The run's turn then
+  records `unfinished_requests`, the number of such requests.
+- The token counts add every completed response's figures; an unfinished
+  request reported none. For a response whose
   provider reported no usage those are its adapter's: a rough count on a
   Chat Completions server that streams no usage, and nothing otherwise.
 - The conversation's `cost` adds the runs that have an estimate, and is
   `null` when none has or when they are in more than one currency.
-  `cost_complete` is false when a run that made a model request has none.
+  `cost_complete` is false when a run that made a model request, answered
+  or not, has none.
 - `last_run` is the last stored run: the token counts above with `run_id`,
   `model_provider_id`, `plan` (it ran on the ChatGPT plan) and its own
   `cost`.
-
-A run makes at most five model passes for a draft: one write or revise pass,
-three repair passes and one frame review, each at most eight model responses.
-It waits up to 120 seconds for a version's check report (then leaves the
-draft `warnings` with the report `{unchecked: true}`) and up to 60 seconds for
-review frames (then skips the review). Reports and review frames are keyed by
-draft and version, so two items of a batch that wait at once never take each
-other's. Closing the stream stops the run: its model requests are cancelled,
-a draft keeps its last stored project, and the conversation is free for the
-next run. Nothing restarts a stopped run.
-
-With `ANIMAMA_LLM_SKIP` set, a deterministic author stands in for every model
-pass: it submits a packaged example Gesture named after the request (without
-the punctuation a saved name cannot hold), lengthens
-the clip on a revision or repair, and accepts a review. Words in the request
-choose what journeys need: `batch of N` plans N items, `item K fails` makes
-item K of that plan fail to validate, and `with an effect` makes a Gesture
-list the Library's Avatar Effects and play the first.
 
 ### Check reports and review frames
 

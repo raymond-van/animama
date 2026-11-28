@@ -42,6 +42,7 @@ from tests.test_generation_run import (
     _messages,
     _of,
     _plan_row,
+    _priced,
     _report,
     _Studio,
     _tool_names,
@@ -792,6 +793,40 @@ async def test_a_batch_that_outlasts_its_time_ends_as_a_stopped_run_with_a_failu
     assistant = (await studio.snapshot()).messages[-1]
     assert assistant.data["outcome"] == "failed" and assistant.data["draft_id"] == by_number[1]
     assert assistant.data["error"] == {"code": pipeline.BATCH_TIME_LIMIT, "category": "generation"}
+
+
+async def test_a_batch_with_an_item_whose_request_never_answered_stores_no_estimate(studio: _Studio) -> None:  # noqa: F811
+    broke = ModelClientError("the stream broke", code="openai_server_error")
+    model = _BatchModel(_plan("a wave", "a bow"), {1: [_item(1)], 2: [broke]})
+
+    await _batch(studio, model, row=_priced(_key_row(images=False)))
+
+    data = (await studio.snapshot()).messages[-1].data
+    # The planning pass and the first item answered: their tokens are kept. The second item's request did
+    # not, so the batch has no estimate that would leave it out.
+    assert (data["outcome"], data["usage"]["requests"], data["unfinished_requests"]) == ("draft", 2, 1)
+    assert "cost" not in data
+
+
+async def test_a_batch_ended_by_its_time_limit_stores_no_estimate(studio: _Studio) -> None:  # noqa: F811
+    model = _BatchModel(_plan("a wave", "a bow"), {1: [_item(1)], 2: []})
+    # The second item never gets its answer.
+    model.gate, model.held = asyncio.Event(), {2}
+    plan = await studio.plan(BATCH_REQUEST, row=_priced(_key_row(images=False)))
+    await studio.drive(studio.run(plan, cast(Any, model), batch_seconds=1.5))
+
+    data = (await studio.snapshot()).messages[-1].data
+    assert data["error"]["code"] == pipeline.BATCH_TIME_LIMIT and data["usage"]["requests"] == 2
+    assert "cost" not in data and data["unfinished_requests"] == 1
+
+
+async def test_a_batch_whose_requests_all_answered_stores_its_estimate(studio: _Studio) -> None:  # noqa: F811
+    model = _BatchModel(_plan("a wave", "a bow"), {1: [_item(1)], 2: [_item(2)]})
+
+    await _batch(studio, model, row=_priced(_key_row(images=False)))
+
+    data = (await studio.snapshot()).messages[-1].data
+    assert data["usage"]["requests"] == 3 and "cost" in data and "unfinished_requests" not in data
 
 
 async def test_a_batch_is_one_run_on_its_conversation(studio: _Studio) -> None:  # noqa: F811

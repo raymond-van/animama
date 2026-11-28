@@ -15,10 +15,11 @@
 
 ## Context
 
-In local compositions a person asks a content assistant for a Gesture in
-words. The assistant has no persona. It writes the Gesture as an
-`animaPoseClip/2.0` clip, the app validates, checks and repairs it, and the
-person previews, revises and saves it
+In local compositions a person asks a content assistant for a Gesture or a
+Reaction in words. The assistant has no persona. It writes each as an
+`animaPoseClip/2.0` clip (a Reaction's holds a face and no body motion), the
+app validates, checks and repairs it, and the person previews, revises and
+saves it
 ([Content generation](../frontend/features/content-generation.md)).
 
 Where each part of that loop can run is fixed by what the app already has:
@@ -57,7 +58,10 @@ Where each part of that loop can run is fixed by what the app already has:
    state** (D2): one write or revise pass, at most three repair passes and
    one frame review for a draft version, each pass at most eight model
    responses. A run waits at most 120 seconds for the page's report and 60
-   seconds for its frames.
+   seconds for its frames. On the Generate page a write pass may instead
+   plan a batch of up to ten drafts; each then gets those passes of its own,
+   two drafts at a time, so one run holds at most two provider streams open,
+   and the batch is still one run on its conversation.
 3. **One tool loop on the model-client contract serves every provider** (D3).
    A pass offers a small fixed set of authoring tools with typed arguments,
    and what a call leaves is validated on the server before it is stored.

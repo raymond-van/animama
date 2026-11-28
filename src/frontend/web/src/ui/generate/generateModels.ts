@@ -20,8 +20,10 @@ import {
 
 /**
  * The smallest recorded context window the assistant's model may have, in
- * tokens. A pass sends 16,000 to 24,000 tokens and its tool rounds send the
- * clip again. The backend refuses a smaller one by the same figure (its
+ * tokens. A pass sends 16,000 to 24,000 tokens of its own and its tool
+ * rounds send the clip again; a request's references come on top (examples
+ * of the feel of up to 64 KiB, about 18,000 tokens, effect listings, and up
+ * to four images). The backend refuses a smaller one by the same figure (its
  * `MIN_CONTEXT_WINDOW_TOKENS`). `fixtures/model-requirements.json` records
  * the value for the parity tests that keep this constant and the backend's
  * equal: change all three together.

@@ -9,13 +9,14 @@ owner added R3.7 the same day.
 Authorized scope: Phases 0 to 7. The owner approved this plan on 2026-11-26
 (G0), including D1 to D17, and authorized Phases 0 to 3 the same day and
 Phases 4 to 7 on 2026-11-27, with the merge of the first pull request. D18 to
-D20 were added after G0 to meet R3.7. Gates G1 to G8 still apply where the
+D20 were added after G0 to meet R3.7. Gates G1 to G9 still apply where the
 phases name them.
 Planning baseline: `origin/main` at `4ba6db1c5`, which the line numbers below
 refer to. Implementation base: `origin/main` at `be048d5b3`, merged as
 `c2f9fa3b5`; the two commits between them change only lifecycle and licensing
 documents.
-Workspace: worktree `in-app-generation`, branch `feat/in-app-generation`; the
+Workspace: worktree `in-app-generation`, branch `feat/in-app-generation` for
+the first pull request and `feat/in-app-generation-phases-4-7` for the second; the
 spec snapshot was first committed as `4e53de1aa` and refreshed in `8d8cfde6d`. Task stack `animama-generate` at
 `http://animama-generate.localhost:9300` (development mode), started with
 `./reset.sh --name generate --base-port 9300` when a phase needs it and
@@ -249,15 +250,15 @@ provider, and, in Phase 8, an outside client and the backend.
 | # | Threat | Mitigation | Tests |
 | --- | --- | --- | --- |
 | T1 | Model output makes the app load or save something harmful. | A clip is parsed as JSON, capped at 2 MiB and validated on the server at every write, and validated again by the page before it reaches the player. Save goes through the typed save path with its own checks. Text renders under the existing Markdown policy. | An unloadable output reaches neither the preview nor Save; oversized and malformed tool arguments are refused; raw HTML and outside images in assistant text do not render. |
-| T2 | The assistant becomes a way to run commands or read files. | Tools are a fixed authoring set with typed arguments: no shell, path, URL or command. A name the model invents is refused. | The tool list is pinned; an unknown tool and a path-like argument are refused. |
-| T3 | The feature becomes a relay that spends the plan for other tools. | The backend builds every request from fixed instructions and tools; a caller supplies only the person's message and the page's reports. No route takes instructions, a tool list or model output from its caller. The connector never starts a model request. | No generation route accepts instructions or tools; a connector call makes no model request. |
-| T4 | Content leaves the machine that should not: non-portable content, or the person's own Avatar. | Reference and example lookups refuse non-portable items in the service, not only in the picker. Review frames are rendered only on the Included Avatars, by a renderer that takes no other Avatar. Of the person's own Avatar, only the names of its expressions and blendshapes are sent (R3.7). Requests go only to the provider of the chosen model. | A non-portable item cannot be read by a tool or chosen as a reference; the frame renderer accepts only Included Avatar ids; a run request carries names and no other Avatar data. |
+| T2 | The assistant becomes a way to run commands or read files. | Tools are a fixed authoring set with typed arguments: no shell, path, URL or command. A name the model invents is refused. Since Phase 6 the set also plans a batch and lists and reads portable Library effects. | The tool list is pinned; an unknown tool and a path-like argument are refused. |
+| T3 | The feature becomes a relay that spends the plan for other tools. | The backend builds every request from fixed instructions and tools; a caller supplies only the person's message, the page's reports, a creator's open document (validated and bounded as model output is) and ids: Library Gestures, its own uploaded images with a kind label, and a style preset. The backend reads each id itself and owns the preset's sentence. No route takes instructions, a tool list or model output from its caller. The connector never starts a model request. | No generation route accepts instructions or tools; a connector call makes no model request. |
+| T4 | Content leaves the machine that should not: non-portable content, or the person's own Avatar. | Reference, example and effect lookups refuse non-portable items in the service before any byte is opened, not only in the picker. Reference images are the person's own stored copies without metadata, sent without file names and only to a model that accepts images. Review frames are rendered only on the Included Avatars, by a renderer that takes no other Avatar. Of the person's own Avatar, only the names of its expressions and blendshapes are sent (R3.7). Requests go only to the provider of the chosen model. | A non-portable item cannot be read by a tool or chosen as a reference; the frame renderer accepts only Included Avatar ids; a run request carries names and no other Avatar data. |
 | T5 | Assistant conversations leak into chat features. | Conversations and drafts have their own tables, with no Anima and no row in `chats` or `chat_messages`. | After a run, the chat list, chat search, Reflection input and memory files do not contain it. |
 | T6 | The page's check report or frames are forged or oversized. | The report is schema-checked and bounded. Frames are decoded by the bounded image opener chat images use, capped in count and size, and kept only for the request. A report changes only the warnings a draft shows; loading and Save never depend on it. | Oversized reports and frames are refused; a frame is in no table or file after the run. |
-| T7 | A run spends without limit. | Passes per draft version, tool rounds per pass, drafts per request and frames per review are fixed limits in the service. One run at a time per conversation. | Each limit ends the run with the draft kept; a second run on a conversation is refused. |
+| T7 | A run spends without limit. | Passes per draft version, tool rounds per pass, drafts per request (ten), concurrent streams of a batch (two), a batch's model responses (408) and time (60 minutes), examples (three, 64 KiB together), images per request (four) and frames per review are fixed limits in the service. One run at a time per conversation. On a route without a stored-response cursor, examples and images are sent again on each tool round of an authoring pass: at worst 88 requests of a batch carry them. | Each limit ends the run with the draft kept; a second run on a conversation is refused. |
 | T8 | The hosted composition exposes the feature. | A `content_generation` capability is false in the hosted contract, the routes are withheld by it, and the hosted page refuses a runtime that reports it. | Inventory, capability and hosted-composition tests. |
 | T9 | An outside process drives the assistant's tools without the person's consent (Phase 8). | A connector is admitted only with a token created by pairing from the Generate page, on its own path, with the authoring tools only. Revoking removes it. The rule gets its own review at G6. | Unpaired and revoked clients are refused; the connector reaches no other route. |
-| T10 | Blendshape names from an Avatar file steer the model. A file from elsewhere can name a morph target anything. | Names are capped in number and length, lose control characters and reach the model as a list of data. The tools can only author a draft, so the worst result is a poor draft. | An over-long name and one with control characters are dropped; the cap holds; a name worded as an instruction changes no tool behavior. |
+| T10 | Text the person did not write steers the model: blendshape names from an Avatar file, names, descriptions and labels of Library effects and Gestures, and words inside a reference image. | Names are capped in number and length, lose control characters and reach the model as a list of data. Library text reaches the model only as tagged, escaped data. Words inside an image cannot be escaped and are declared not to be instructions. The tools can only author a draft, so the worst result is a poor draft. | An over-long name and one with control characters are dropped; the cap holds; a name worded as an instruction changes no tool behavior. |
 
 ## Progress
 
@@ -333,6 +334,11 @@ provider, and, in Phase 8, an outside client and the backend.
   high-risk tier; Code Review #2 passed after one repair round. The video
   trial (C3, G1) and the owner's decision on it (G5) are open, and no
   curated inspiration is shipped (G7).
+- [x] `origin/main` (`85c9b7838`, README and desktop release files only)
+  merged on 2026-11-27 as `9b4c89c83`.
+- [x] Integration review of Phases 4 to 7 (2026-11-27): no code defect
+  across the phases; passed at round 2 after one repair round. Four scope
+  limits wait for the owner (G9).
 - [ ] Phase 8: the connector (C4).
 - [ ] Phase 9: acceptance and closing records.
 
@@ -684,6 +690,14 @@ What it shows:
   0 to 3 are the first (#956); Phases 4 to 7 are one pull request; Phases 8
   and 9 are the last, which closes #942. The connector's spike and re-plan
   (G6) then hold up nothing else.
+- 2026-11-27, agent: **scope limits of Phases 5 to 7 are the agent's
+  choices, not the owner's decisions**, and wait for him at G9. Effects are
+  placed on Gesture drafts on the Generate page only: not on Reaction
+  drafts (their guidance has no rules for effects) and not from a creator's
+  panel (which keeps the item's own events off the request). References,
+  style presets, starters and inspirations are on the Generate page only.
+  The Generate control is absent from the narrow layout and from VRMA
+  items. A starting point is for a new Gesture only.
 
 ## Phased implementation
 
@@ -1890,7 +1904,8 @@ For later phases and the owner:
 - The panel has no place in the narrow layout yet.
 - An unsaved item's conversation lasts while its creator stays mounted.
 - A result that ends before one of the item's effects starts cannot be
-  applied, and the panel says so; Phase 6 lets the assistant place effects.
+  applied, and the panel says so. Phase 6 placed effects on Generate-page
+  Gesture drafts only, so this limit stands (G9).
 
 Check record, on working tree `d32d374781f52bbcc08f5b1c112f7c80fe6b844a`
 (the checks reviewer reran every suite on the tree before the last repair,
@@ -2458,6 +2473,67 @@ same hour, so it is the existing timing flake under load, not a regression.
 
 Not run: the `@complete-anima` journeys.
 
+### Phases 4 to 7 (second pull request)
+
+Final integration review of `9b4c89c83` (the branch with `origin/main`
+`85c9b7838` merged; main brought only README and desktop release files) by
+an independent reviewer, reusing the phases' evidence. It followed the
+seams between the phases: the reasoning effort and token use across creator
+runs, batches and runs with references; the replay without a stored
+response with images and examples on the request; references, the request's
+kind and `images_sent` across questions, retry, reload and Stop; the one-run
+claim on every new route; settling of batch drafts and a starting point's
+two versions; pruning with the image deletion rule; contract versions, the
+two revisions and the hosted exclusion of all eleven routes. It found no
+code defect across the phases. Result: blocked by F1 and F2, then passed at
+round 2 after one repair round.
+
+| ID | Kind | Finding | Disposition |
+| --- | --- | --- | --- |
+| INT2-F1 | Required | R7.3 is delivered for Gesture drafts on the Generate page only, and R8's references, style and starters are on the Generate page only. These were the agent's scope choices, recorded nowhere as decisions and carried by no later phase, so the last pull request would have closed #942 with them unmet. | Recorded, **waits for the owner** (G9): the Decision Log lists each limit as the agent's choice, and the pull request lists them. |
+| INT2-F2 | Required | On a model without image input the composer still took, uploaded and linked images and only noted afterwards that they were not sent. R2.3 says image references are unavailable there and the app says why. | Fixed: the attach controls, paste and the person's own images in Inspirations are unavailable with chat's sentence, and nothing is uploaded. Images attached before a change of model stay, marked as not used. |
+| INT2-F3 | Optional | A stopped run, a batch out of time or a request that failed kept a cost estimate that left out the request that never answered. | Fixed: such a run stores its completed responses' tokens and no estimate. A refused replay without a stored response does not count. |
+| INT2-F4 | Optional | The 64,000-token floor was described by Phase 4's figure, though examples, effect listings and images now add to a pass. | Fixed in words; the floor is unchanged and was not measured live. |
+| INT2-F5 | Optional | Passages of the API page had ended up under the wrong headings after four phases, and five statements in the docs and ADR 0041 were stale. | Fixed; the API page was reordered without loss of content. |
+| INT2-F6 | Optional | The plan disagreed with itself: the threat table, the branch name, the recovery notes, the outcomes and a carried note of Phase 5. | Fixed. |
+| INT2-F7 | Optional | Images and examples were bounded by passes in the records, but a route without a stored-response cursor resends them on each tool round. | Fixed in the feature page and T7: at worst 88 requests of a batch carry them. |
+| INT2-R2-F1 | Required | No journey had run on the repaired page. | Resolved by evidence (below). |
+| INT2-R2-F3 | Optional | A request a provider refuses outright also counts as unanswered, so a batch that survives one rate-limited item shows no estimate. | Not acted on: the estimate errs toward absent, never low. |
+| INT2-R2-F4 | Optional | The API page listed `unfinished_requests` among a turn's fields that are always present. | Fixed. |
+
+Scope limits that wait for the owner at G9:
+
+- Effects are placed on Gesture drafts on the Generate page: not on Reaction
+  drafts and not from a creator's panel. From a creator, a result that ends
+  before one of the item's own effects starts is refused.
+- Library Gestures and images as references, style presets, starters and
+  inspirations are on the Generate page, not in a creator's panel.
+- The Generate control is absent from the narrow layout and from VRMA items.
+- A starting point is for a new Gesture, not a Reaction.
+
+What this pull request delivers of the spec: R2.1 to R2.5 and R6.3 (Phase
+4); R1.2, R5.2, R7.1 and R7.2 (Phase 5); R5.3, R7.3 within the limit above
+and R7.4 (Phase 6); R8.1, R8.2, R8.4 and R8.5 on the Generate page, R8.3
+built but off in every built app until the owner decides (G5), and R8.6
+without curated outside items (G7) (Phase 7). Remaining: the connector
+(Phase 8), and acceptance and closing records (Phase 9).
+
+Evidence on the candidate:
+
+| Check | Result |
+| --- | --- |
+| After the merge of main, on `9b4c89c83`: `check_source.py`; the CI policy tests; `tests/test_desktop_runtime_packaging.py` | Every file covered; 143 OK; 20 passed |
+| `pnpm e2e:test:fast` on a disposable built stack at `9b4c89c83` | 46 of 47. "Library keeps Included files between visits" failed, the flake that also fails on `main` |
+| The implementer's checks on the repaired tree `a84d857f…`: the Phase 7 backend list; `ruff check`; `ruff format --check`; `mypy`; the CI policy tests; `pnpm web:test`; `pnpm check`; `pnpm web:lint`; `pnpm prettier:check`; `pnpm e2e:check:source` | 1,488 passed; clean; 983 files; 143 OK; 7,434 passed and 2 skipped; clean |
+| The coordinator on that tree: `check_source.py`; `pnpm openapi-ts:check` | Every file covered; current |
+| The reviewer's own rerun on that tree: the run, batch and API test files; the two touched page test files | 387 passed; 55 passed |
+| `pnpm e2e:test:fast` on a disposable built stack of that tree, while the reviewer's reruns were using the machine | 45 of 47. All ten Generate journeys passed, the reference-image journey with its new expectation among them. The Library flake failed again, and "selection, Stop and subsequent persisted reply" timed out reloading the page; that journey passed alone on a fresh stack of the same tree in 3.3 seconds |
+
+Not run by this review: the full pre-push suite and the package-set
+`compare` (they follow on the candidate, with the owner's agreement, G3),
+the `@complete-anima` journeys, any browser look at the interface of Phases
+4 to 7, and any live model on what these phases add (G1, G2).
+
 ### Gates
 
 - **G0.** Owner review of this plan, including D1 to D17. Passed on
@@ -2479,9 +2555,14 @@ Not run: the `@complete-anima` journeys.
 - **G8.** A packaged desktop build with a fresh profile: the Generate page
   opens, a run completes and a draft saves. The agent drives the app only
   after the owner's go-ahead.
+- **G9.** The owner's decision, before #942 closes, on each scope limit the
+  Phases 4 to 7 integration review lists (INT2-F1): accepted as delivered,
+  or assigned to a phase.
 
 Outside this repository: at its next repin, Animama Cloud admits each new
-`local-http` major and keeps `content_generation` false. No Cloud work is
+`local-http` major and keeps `content_generation` false; a composition that
+runs the shared chat and Anima delete query needs revision
+`reference_images_20261127`. No Cloud work is
 part of this plan.
 
 ## Validation and acceptance
@@ -2507,8 +2588,9 @@ Each spec acceptance criterion and the evidence planned for it:
 
 ## Idempotence and recovery
 
-- The schema change adds three tables in one revision. An existing profile
-  upgrades in place, and nothing reads the tables but this feature.
+- The schema change adds four tables in two revisions. An existing profile
+  upgrades in place. Only this feature reads the first three; the shared
+  chat and Anima delete query also reads `generation_reference_images`.
 - Conversations and drafts are the person's working data. Discarding one
   removes its rows; saved Local items do not depend on them.
 - A run can be stopped or lost at any point. Stored drafts are whole
@@ -2521,4 +2603,6 @@ Each spec acceptance criterion and the evidence planned for it:
 
 ## Outcomes & Retrospective
 
-Nothing delivered yet.
+Phases 0 to 3 were delivered by #956, merged on 2026-11-27 as `12e333c4a`:
+the Generate page for Gestures. Phases 4 to 7 are the second pull request.
+The retrospective is written in Phase 9.

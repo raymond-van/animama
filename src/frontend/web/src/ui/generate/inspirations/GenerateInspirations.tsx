@@ -295,7 +295,11 @@ function OwnImageInspirations({
           {t("inspirations.images.hint")}
         </p>
       </div>
-      {files.isPending ? (
+      {images.unavailable !== null ? (
+        // The assistant's model cannot look at images, so none is offered
+        // (R2.3); said in the words chat uses.
+        <p className="text-muted-foreground text-xs">{images.unavailable}</p>
+      ) : files.isPending ? (
         <p className="text-muted-foreground text-xs" role="status">
           {t("inspirations.images.loading")}
         </p>

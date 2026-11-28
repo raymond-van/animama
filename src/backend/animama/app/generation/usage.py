@@ -90,6 +90,14 @@ class RunCostMeter:
     reports prompt-cache writes (which the catalog has no rate for), or the
     provider reported no usage for it, so its figures are the adapter's own
     rough count or nothing. A ChatGPT plan row is never priced.
+
+    The same holds for a request that was started and never returned a final
+    response (``unfinished``): the run was stopped or ran out of time while
+    it was open, or it failed. What such a request used is not known, and
+    the provider may bill it, so the run has no estimate. A request the
+    provider refused outright before producing anything
+    (``request_refused``: a stored response it no longer has) used nothing
+    and is not counted.
     """
 
     def __init__(self, model_provider: ModelProvider) -> None:
@@ -98,6 +106,23 @@ class RunCostMeter:
         self._currency: str | None = None
         self._priced = not runs_on_plan(model_provider)
         self._responses = 0
+        self._started = 0
+
+    def request_started(self) -> None:
+        """Count one model request as it leaves; ``add`` counts its final response when one arrives."""
+
+        self._started += 1
+
+    def request_refused(self) -> None:
+        """Take back a started request the provider refused before producing anything: it used no tokens."""
+
+        self._started = max(0, self._started - 1)
+
+    @property
+    def unfinished(self) -> int:
+        """Requests that were started and returned no final response."""
+
+        return max(0, self._started - self._responses)
 
     def add(self, usage: Usage, *, reported: bool) -> None:
         """Count one response; ``reported`` is whether the provider itself reported ``usage``."""
@@ -116,9 +141,10 @@ class RunCostMeter:
         self._amount += cost.total_cost
 
     def estimate(self) -> CostEstimate | None:
-        """The run's estimate so far; ``None`` when a response could not be priced or none arrived."""
+        """The run's estimate; ``None`` when a response could not be priced, none arrived, or a request the
+        run started never returned one (the sum would then be an understated cost)."""
 
-        if not self._priced or self._responses == 0 or self._currency is None:
+        if not self._priced or self._responses == 0 or self._currency is None or self.unfinished:
             return None
         return CostEstimate(currency=self._currency, amount=self._amount)
 
@@ -148,6 +174,14 @@ class StoredRunUsage:
     plan: bool
     usage: RunUsage
     cost: CostEstimate | None
+    unfinished_requests: int = 0
+    """Model requests of the run that returned no final response; ``usage`` counts completed responses only."""
+
+    @property
+    def asked_a_model(self) -> bool:
+        """Whether the run made any model request, answered or not."""
+
+        return self.usage.requests > 0 or self.unfinished_requests > 0
 
 
 @dataclass(frozen=True)
@@ -156,9 +190,10 @@ class ConversationUsage:
 
     ``cost`` adds the runs that have an estimate, when they share one
     currency. ``cost_complete`` is false when a run that made a model request
-    has none (a ChatGPT plan run, a model without a listed price, or a run
-    from before estimates were stored), so the page can say the figure covers
-    only part of the conversation.
+    has none (a ChatGPT plan run, a model without a listed price, a run with
+    a request that never returned a final response, or a run from before
+    estimates were stored), so the page can say the figure covers only part
+    of the conversation. ``usage`` adds up completed responses only.
     """
 
     usage: RunUsage
@@ -216,6 +251,7 @@ def _stored_run(message: GenerationMessage) -> StoredRunUsage | None:
         usage=usage,
         # A stored amount is never shown for a plan run, whatever the turn holds.
         cost=None if plan else _stored_cost(message.data.get("cost")),
+        unfinished_requests=_count(message.data.get("unfinished_requests")),
     )
 
 
@@ -237,7 +273,7 @@ def conversation_usage(messages: Sequence[GenerationMessage]) -> ConversationUsa
         usage=total,
         runs=len(runs),
         cost=cost,
-        cost_complete=cost is not None and all(run.cost is not None for run in runs if run.usage.requests > 0),
+        cost_complete=cost is not None and all(run.cost is not None for run in runs if run.asked_a_model),
         last_run=runs[-1] if runs else None,
     )
 

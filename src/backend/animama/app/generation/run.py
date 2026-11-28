@@ -121,9 +121,15 @@ MAX_REPLY_LENGTH: Final = 8000
 MIN_CONTEXT_WINDOW_TOKENS: Final = 64_000
 """The smallest recorded context window a run's model may have.
 
-A pass sends 16,000 to 24,000 tokens (the guidance, the clip and its
-findings), and its tool rounds send the clip again with each result, so a
-smaller window fails part-way through a draft. The page lists a model below
+A pass sends 16,000 to 24,000 tokens of its own (the guidance, the clip and
+its findings), and its tool rounds send the clip again with each result, so a
+smaller window fails part-way through a draft. A request's references come
+on top of that: examples of the feel of up to 64 KiB together (about 18,000
+tokens, ``references.MAX_EXAMPLES_BYTES``), the effect listings a model asks
+for (up to 100 effects a call) and up to four reference images. A model at
+this floor can therefore run out of room on a request that carries many of
+them; the provider then refuses the request, and the run fails with its
+context error. The page lists a model below
 this figure as one that cannot be chosen, by the same number: the shared
 fixture ``ui/generate/fixtures/model-requirements.json`` under the web
 sources is the parity record that this constant and the page's are each
@@ -1483,7 +1489,8 @@ class GenerationRun:
             if spec.reference_images:
                 await self._images_leave()
             announced = False
-            async with aclosing(run_pass(cast(ModelClient, self._client), spec, working)) as items:
+            requests = run_pass(cast(ModelClient, self._client), spec, working, on_request=self._cost.request_started)
+            async with aclosing(requests) as items:
                 async for part in items:
                     if isinstance(part, PassText):
                         if not item.in_batch:
@@ -1504,6 +1511,9 @@ class GenerationRun:
                             self._reply.end_piece()
                     elif isinstance(part, PassCursorLost):
                         self._stored_responses = False
+                        # The provider refused that request before producing anything: it is no response,
+                        # and no request left unanswered either.
+                        self._cost.request_refused()
                     else:
                         item.pass_end, item.pass_text, rounds = part.end, part.text, part.rounds
         _log.info(
@@ -1679,10 +1689,12 @@ class GenerationRun:
         """Leave every draft and the conversation as the run ended; returns the drafts the page has not seen so.
 
         Each item's draft is settled (``_settle_item``). The assistant's
-        message is stored once, with the outcome, the token use, the model
-        the run named and, where that model has a price, the estimate of
-        what the run cost (``usage.py``); a batch's use and cost are those
-        of its planning pass and every item's passes together. A
+        message is stored once, with the outcome, the token use of the
+        responses that completed, the model the run named and, where that
+        model has a price and every request the run started was answered,
+        the estimate of what the run cost (``usage.py``); a batch's use and
+        cost are those of its planning pass and every item's passes
+        together. A
         conversation that is gone is left alone.
 
         The message names a draft only when the run left one changed, the
@@ -1710,6 +1722,10 @@ class GenerationRun:
             estimate = self._cost.estimate()
             if estimate is not None:
                 data["cost"] = estimate.stored()
+            if self._cost.unfinished:
+                # Requests that never returned a final response: stopped, out of time, or failed. ``usage``
+                # holds the completed responses only, and no estimate is stored that would leave these out.
+                data["unfinished_requests"] = self._cost.unfinished
             named = next((item.draft_id for item in self._items if item.draft_id is not None), None)
             if named is not None:
                 data["draft_id"] = named

@@ -722,31 +722,92 @@ describe("reference images in the Generate page's composer", () => {
     expect(server.uploads).toEqual(["pose.png"]);
   });
 
-  it("says a model without image input keeps the images unused, and still sends them", async () => {
+  const NO_IMAGES =
+    "This model can't see images. Choose a model that accepts images to attach them.";
+  const UNUSED =
+    "This model cannot look at images. They are kept with this conversation, but the assistant does not use them.";
+  /** Draw the page again, as it does when the person chooses another model. */
+  async function redraw() {
+    await click(find("generate-kind-reaction"));
+    await click(find("generate-kind-gesture"));
+  }
+  const paste = (files: File[], text = "") => {
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { files, getData: () => text },
+    });
+    act(() => {
+      find("generate-request")!.dispatchEvent(event);
+    });
+    return event;
+  };
+
+  it("takes no image on a model without image input, and says why", async () => {
     model = { accepts: ["text"] };
     await open(null, UPLOADS);
-    const note =
-      "This model cannot look at images. They are kept with this conversation, but the assistant does not use them.";
-    // Said only while an image is attached.
-    expect(document.body.textContent).not.toContain(note);
+    // Unavailable, with the reason in chat's own words beside it.
+    const add = find("generate-reference-attach") as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    const note = find("generate-reference-images-note")!;
+    expect(note.textContent).toBe(NO_IMAGES);
+    expect(add.getAttribute("aria-describedby")).toBe(note.id);
+
+    // Neither the file input nor the clipboard gets an image past that.
+    await attach(image("pose.png"));
+    await settle();
+    expect(paste([image("pasted.png")]).defaultPrevented).toBe(true);
+    await settle();
+    expect(server.uploads).toEqual([]);
+    expect(cards()).toEqual([]);
+    expect(toastError).toHaveBeenCalledTimes(2);
+    expect(toastError).toHaveBeenLastCalledWith("Image not added", {
+      description: NO_IMAGES,
+    });
+
+    // Library Gestures are references on any model.
+    await choose(EXAMPLE, "Nod");
+    expect(chips("generate-reference-examples-list")).toEqual(["Nod"]);
+    type("a nod like this");
+    await click(send());
+    await settle();
+    expect(server.runs[0]!.references).toEqual({ examples: ["nod"] });
+  });
+
+  it("keeps images attached before the model changed, saying they will not be sent", async () => {
+    await open(null, UPLOADS);
+    expect(find("generate-reference-images-note")).toBeNull();
     await attach(image("pose.png"));
     await until(ready(1));
-    expect(toastError).not.toHaveBeenCalled();
-    expect(find("generate-references")!.textContent).toContain(note);
 
+    // The person chooses a model that cannot look at images.
+    model = { accepts: ["text"] };
+    await redraw();
+    expect(cards()).toHaveLength(1);
+    expect(find("generate-reference-images-note")!.textContent).toBe(UNUSED);
+    expect(
+      (find("generate-reference-attach") as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(toastError).not.toHaveBeenCalled();
+
+    // The request still names them; the backend keeps them and sends none.
     type("a pose like this");
     await click(send());
     await settle();
     expect(server.runs[0]!.references).toEqual({
       images: [{ file_id: "file-1", kind: "image" }],
     });
-    expect(find("generate-references")!.textContent).not.toContain(note);
+    // With the tray empty again, the note says why none can be added.
+    expect(find("generate-reference-images-note")!.textContent).toBe(NO_IMAGES);
   });
 
   it("says nothing of the kind on a model that takes images", async () => {
     await open(null, UPLOADS);
+    expect(
+      (find("generate-reference-attach") as HTMLButtonElement).disabled,
+    ).toBe(false);
     await attach(image("pose.png"));
     await until(ready(1));
+    expect(find("generate-reference-images-note")).toBeNull();
     expect(find("generate-references")!.textContent).not.toContain(
       "cannot look at images",
     );
@@ -754,16 +815,6 @@ describe("reference images in the Generate page's composer", () => {
 
   it("attaches an image pasted into the request field, and pastes text as text", async () => {
     await open(null, UPLOADS);
-    const paste = (files: File[], text = "") => {
-      const event = new Event("paste", { bubbles: true, cancelable: true });
-      Object.defineProperty(event, "clipboardData", {
-        value: { files, getData: () => text },
-      });
-      act(() => {
-        find("generate-request")!.dispatchEvent(event);
-      });
-      return event;
-    };
     expect(paste([image("pasted.png")]).defaultPrevented).toBe(true);
     await until(ready(1));
     expect(server.uploads).toEqual(["pasted.png"]);
@@ -905,6 +956,22 @@ describe("a video as a reference, behind its switch", () => {
     });
     expect(server.uploads).toEqual(["shy wave-frames.jpg", "pose.png"]);
     expect(cards()).toHaveLength(0);
+  });
+
+  it("offers no video on a model without image input", async () => {
+    video.enabled = true;
+    model = { accepts: ["text"] };
+    await open(null, UPLOADS);
+    const add = find("generate-reference-video") as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    expect(add.getAttribute("aria-describedby")).toBe(
+      find("generate-reference-images-note")!.id,
+    );
+    // A file that reaches the input anyway is neither read nor uploaded.
+    await attachVideo(clip());
+    await settle();
+    expect(video.opened).toEqual([]);
+    expect(server.uploads).toEqual([]);
   });
 
   it("refuses a video longer than twenty seconds, and uploads nothing", async () => {

@@ -114,10 +114,16 @@ export type GenerateReferencesController = {
     toggleExisting: (file: PyUserFileResponse) => void;
     removeExisting: (fileId: string) => void;
     /**
-     * `false` when the assistant's model cannot look at images: they are
+     * `false` when the assistant's model cannot look at images. No image
+     * can then be attached; ones attached before the model was chosen stay,
      * kept with the conversation and sent to no model.
      */
     modelSeesImages: boolean;
+    /**
+     * Why no image can be attached now, in chat's own words: the model
+     * cannot look at images. `null` while images can be attached.
+     */
+    unavailable: string | null;
   } | null;
   /**
    * A short video as a reference, behind its switch
@@ -161,16 +167,18 @@ function trayFileKind(file: TrayFile): GenerationReferenceImage["kind"] {
 
 /**
  * Why the composer refuses a file before uploading it: chat's rules for an
- * image (format, size, four to a message), and anything that is no image.
- * A model without image input refuses nothing here: its images are kept.
+ * image (a model that takes none, format, size, four to a message), and
+ * anything that is no image.
  */
 function referenceImageRefusal(file: {
   name: string | null | undefined;
   size: number | null | undefined;
   imagesAttached: number;
+  /** False when the assistant's model is known not to take image input. */
+  imagesAccepted: boolean;
 }): ChatImageRefusal | null {
   return (
-    chatImageRefusal({ ...file, imagesAccepted: true }) ??
+    chatImageRefusal(file) ??
     (isUserImageFileName(file.name) ? null : "unsupported_format")
   );
 }
@@ -285,6 +293,11 @@ export function useGenerateReferences(input: {
   // Read by Uppy's onBeforeFileAdded, which outlives each render.
   const existingRef = useRef(existing);
   existingRef.current = existing;
+  // With a model that cannot look at images none is attached, as in chat
+  // (spec R2.3). Read where an image is added, which outlives each render.
+  const imagesAccepted = modelAcceptsImages(input.model);
+  const imagesAcceptedRef = useRef(imagesAccepted);
+  imagesAcceptedRef.current = imagesAccepted;
   // What a stored image attached by id is, where it is not a plain image: a
   // strip of video frames put back after a request that was not sent.
   const [existingKinds, setExistingKinds] = useState<
@@ -315,6 +328,7 @@ export function useGenerateReferences(input: {
             Object.values(files),
             existingRef.current,
           ),
+          imagesAccepted: imagesAcceptedRef.current,
         });
         if (refusal === null) return true;
         refuseImage(refusal, file.name ?? "");
@@ -338,6 +352,10 @@ export function useGenerateReferences(input: {
         uploads.some(({ meta }) => meta.file_id === file.file_id)
       )
         return;
+      if (!imagesAcceptedRef.current) {
+        refuseImage("model_unsupported", file.original_filename);
+        return;
+      }
       // A stored image passed chat's format and size rules when it was
       // uploaded; only the number a request carries is left to check.
       if (
@@ -412,14 +430,18 @@ export function useGenerateReferences(input: {
             existing,
             toggleExisting,
             removeExisting,
-            modelSeesImages: modelAcceptsImages(input.model),
+            modelSeesImages: imagesAccepted,
+            unavailable: imagesAccepted
+              ? null
+              : t("composer.images.modelUnsupported"),
           }
         : null,
     [
       addImages,
       existing,
-      input.model,
+      imagesAccepted,
       removeExisting,
+      t,
       toggleExisting,
       uploadsOffered,
       uppy,
@@ -430,6 +452,12 @@ export function useGenerateReferences(input: {
   const wordVideoRefusal = generate.t;
   const addVideo = useCallback(
     async (file: File) => {
+      // Its strip would be an image the model cannot look at: the video is
+      // not read at all.
+      if (!imagesAcceptedRef.current) {
+        refuseImage("model_unsupported", file.name);
+        return;
+      }
       setSampling(true);
       try {
         addImages([await videoReferenceStrip(file)], "video_frames");
@@ -444,7 +472,7 @@ export function useGenerateReferences(input: {
         setSampling(false);
       }
     },
-    [addImages, wordVideoRefusal],
+    [addImages, refuseImage, wordVideoRefusal],
   );
   const video = useMemo(
     () =>

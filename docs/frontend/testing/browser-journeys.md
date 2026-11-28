@@ -101,7 +101,12 @@ Gestures and Reactions saved as 2.0), the Generate page (a request, a
 revision, Save, the saved Gesture in the creator, Stop, a reload and
 discarding; a batch of three in which one item fails and Save all saves the
 other two; a Gesture that plays an existing Avatar Effect, saved with its
-dependency), and the creators' Generate control (a Local Gesture and a Local
+dependency; `generate-gesture-from-library`, a request that starts from an
+Included Gesture and leaves a revised copy with its earlier version to
+restore; and `generate-gesture-reference-image`, a request with an image
+drawn for the run, which needs an assistant model that accepts images and
+checks that the image is shown with its turn and deleted with the
+conversation), and the creators' Generate control (a Local Gesture and a Local
 Reaction written on Generate, revised through the panel in their creators,
 saved with their identity, and the item's conversation found after a reload).
 The separate `pseudo` project runs only through

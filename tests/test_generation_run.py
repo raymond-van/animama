@@ -2731,6 +2731,8 @@ async def test_a_run_spends_at_most_one_refused_request_on_a_provider_that_store
     assert len(_messages(repair_again)) == len(_messages(repair)) + 2
     # The refused request is no response: four answered, four counted.
     assert _of(events, pipeline.RunCompleted)[0].usage.requests == 4
+    # Nor is it an unfinished one: the provider refused it before producing anything.
+    assert "unfinished_requests" not in (await studio.snapshot()).messages[-1].data
 
 
 async def test_a_run_whose_provider_keeps_its_responses_goes_on_continuing_from_them(studio: _Studio) -> None:
@@ -2829,15 +2831,56 @@ async def test_a_run_on_a_priced_model_stores_its_estimate_with_its_turn(studio:
     assert data["model"]["model_provider_id"] == row.id
 
 
-async def test_a_failed_run_still_stores_what_its_responses_cost(studio: _Studio) -> None:
+async def test_a_run_whose_request_never_answered_stores_its_tokens_and_no_estimate(studio: _Studio) -> None:
     studio.reports = [FAILING]
 
     await studio.go(
-        [_submit(), ModelClientProviderError("No API key", code="missing_api_key")], row=_priced(_key_row(images=False))
+        [_submit(), ModelClientProviderError("the stream broke", code="openai_server_error")],
+        row=_priced(_key_row(images=False)),
     )
 
     data = (await studio.snapshot()).messages[-1].data
-    assert (data["outcome"], data["usage"]["requests"], data["cost"]["amount"]) == ("failed", 1, RESPONSE_COST)
+    # What the completed response used is kept. The second request ended without a final response, so what
+    # it cost is not known, and an estimate without it would be an understated one: none is stored.
+    assert (data["outcome"], data["usage"]["requests"], data["usage"]["input_tokens"]) == ("failed", 1, 900)
+    assert "cost" not in data and data["unfinished_requests"] == 1
+    summary = usage.conversation_usage((await studio.snapshot()).messages)
+    assert (summary.cost, summary.cost_complete) == (None, False)
+
+
+async def test_a_stopped_run_stores_no_estimate_that_leaves_out_the_request_it_stopped(studio: _Studio) -> None:
+    studio.reports = [FAILING]
+    client = _ScriptedModelClient([_submit(), _edit(_longer(4.5))])
+    run = studio.run(await studio.plan(row=_priced(_key_row(images=False))), client)
+    task = asyncio.ensure_future(studio.drive(run))
+    await asyncio.wait_for(studio.seen_checking.wait(), 5)
+    # The repair's request is open when the person stops the run.
+    client.hold = asyncio.Event()
+    await asyncio.wait_for(client.holding.wait(), 5)
+
+    await _stop(task)
+
+    data = (await studio.snapshot()).messages[-1].data
+    assert (data["outcome"], data["usage"]["requests"]) == ("stopped", 1)
+    assert "cost" not in data and data["unfinished_requests"] == 1
+    # A run stopped during its only request counted no response, and still made a request nobody priced.
+    again = _ScriptedModelClient([_edit(_longer(5.0))])
+    again.hold = asyncio.Event()
+    draft = await studio.draft()
+    run = studio.run(await studio.plan("slower", row=_priced(_key_row(images=False)), draft_id=draft.id), again)
+    task = asyncio.ensure_future(studio.drive(run))
+    await asyncio.wait_for(again.holding.wait(), 5)
+    await _stop(task)
+    data = (await studio.snapshot()).messages[-1].data
+    assert (data["usage"]["requests"], data["unfinished_requests"]) == (0, 1) and "cost" not in data
+    assert usage.conversation_usage((await studio.snapshot()).messages).cost_complete is False
+
+
+async def test_a_run_that_finished_every_request_records_none_unfinished(studio: _Studio) -> None:
+    await studio.go([_submit()], row=_priced(_key_row(images=False)))
+
+    data = (await studio.snapshot()).messages[-1].data
+    assert data["cost"]["amount"] == RESPONSE_COST and "unfinished_requests" not in data
 
 
 async def test_a_run_gets_no_estimate_without_a_price_or_on_the_plan_or_before_any_response(studio: _Studio) -> None:
@@ -2894,6 +2937,46 @@ def test_a_run_is_priced_only_when_every_response_reported_its_usage() -> None:
     for mixed in ((False,), (False, True), (True, False), (True, False, True)):
         assert estimate(*mixed) is None, mixed
     assert estimate() is None
+
+
+def test_a_run_is_priced_only_when_every_request_it_started_was_answered() -> None:
+    row = _priced(_key_row())
+
+    def meter(started: int, answered: int, refused: int = 0) -> usage.RunCostMeter:
+        counted = usage.RunCostMeter(row)
+        for _ in range(started):
+            counted.request_started()
+        for _ in range(refused):
+            counted.request_refused()
+        for _ in range(answered):
+            counted.add(_usage(), reported=True)
+        return counted
+
+    assert meter(2, 2).estimate() == usage.CostEstimate("USD", 2 * Decimal(RESPONSE_COST))
+    assert (meter(2, 2).unfinished, meter(3, 2).unfinished, meter(1, 0).unfinished) == (0, 1, 1)
+    # One request that never returned a final response leaves the run without an estimate.
+    assert meter(3, 2).estimate() is None and meter(1, 0).estimate() is None
+    # A request the provider refused outright (a stored response it no longer has) produced and cost nothing.
+    assert meter(3, 2, refused=1).estimate() == usage.CostEstimate("USD", 2 * Decimal(RESPONSE_COST))
+    assert meter(3, 2, refused=1).unfinished == 0
+
+
+async def test_a_pass_says_when_each_of_its_requests_starts() -> None:
+    started: list[int] = []
+    client = _ScriptedModelClient([_submit(_without_schema()), _submit(call_id="call_2")])
+
+    items = [
+        item
+        async for item in passes.run_pass(
+            cast(ModelClient, client),
+            _spec(),
+            tools.WorkingDraft(intent="gesture"),
+            on_request=lambda: started.append(len(client.seen)),
+        )
+    ]
+
+    # Before each request leaves, once a request: two rounds, two requests.
+    assert started == [0, 1] and isinstance(items[-1], passes.PassEnded)
 
 
 def _turn(role: str = "assistant", **data: Any) -> GenerationMessage:

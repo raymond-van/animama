@@ -278,6 +278,8 @@ const UPLOADS: RuntimeCapabilities = {
 
 /** The model a run names; without one no run starts. */
 let modelProviderId: string | null = "model-1";
+/** The assistant's chosen model row, as far as references read it. */
+let model: { accepts: string[] } = { accepts: ["text", "image"] };
 
 function Page() {
   const controller = useGenerationRun({
@@ -288,7 +290,7 @@ function Page() {
   return (
     <GenerateConversationWithReferences
       conversationId={CONVERSATION}
-      model={{ accepts: ["text", "image"] }}
+      model={model}
       snapshot={snapshot}
       controller={controller}
       selectedDraft={null}
@@ -424,6 +426,7 @@ beforeEach(() => {
   server.filesFail = false;
   server.clipReads = [];
   modelProviderId = "model-1";
+  model = { accepts: ["text", "image"] };
   sheets.requests = [];
   sheets.hold = null;
   sheets.failing = new Set();
@@ -907,6 +910,25 @@ describe("the person's own images as inspirations", () => {
         "Your images could not be loaded.",
       ),
     );
+  });
+
+  it("offers none of the person's images on a model without image input, and says why", async () => {
+    model = { accepts: ["text"] };
+    await open(UPLOADS);
+    await openDialog();
+    const section = find("generate-inspirations-images")!;
+    expect(section.textContent).toContain(
+      "This model can't see images. Choose a model that accepts images to attach them.",
+    );
+    expect(
+      section.querySelectorAll('[data-testid="generate-inspiration-image"]'),
+    ).toHaveLength(0);
+    // The Included Gestures are still offered.
+    expect(
+      find("generate-inspirations-included")!.querySelectorAll(
+        '[data-testid="generate-inspiration-gesture"]',
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("attaches a chosen image by its file id, without an upload", async () => {
